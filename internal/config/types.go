@@ -69,6 +69,8 @@ func (e *ConfigError) Error() string {
 		message = "invalid value for " + e.Key
 		if e.Err != nil {
 			message += ": " + e.Err.Error()
+		} else {
+			message += ": " + e.Key
 		}
 	default:
 		message = "invalid configuration"

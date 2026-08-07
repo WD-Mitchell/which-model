@@ -143,11 +143,19 @@ func setKey(doc map[string]any, dotted string, value any) {
 }
 
 func durationString(value time.Duration) string {
-	text := value.String()
 	if value >= time.Minute && value%time.Minute == 0 {
-		text = strings.TrimSuffix(text, "0s")
+		hours := value / time.Hour
+		minutes := (value % time.Hour) / time.Minute
+		switch {
+		case hours > 0 && minutes > 0:
+			return fmt.Sprintf("%dh%dm", hours, minutes)
+		case hours > 0:
+			return fmt.Sprintf("%dh", hours)
+		default:
+			return fmt.Sprintf("%dm", minutes)
+		}
 	}
-	return text
+	return value.String()
 }
 
 func renderSection(builder *strings.Builder, name string, section map[string]any) error {

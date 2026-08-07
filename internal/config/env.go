@@ -96,7 +96,6 @@ func ApplyEnv(c *Config, getenv func(string) string, environ []string) error {
 			if providerID == "" {
 				return &ConfigError{Kind: KindInvalidValue, Key: name}
 			}
-			providerKey := "providers." + providerID + "." + suffix
 			provider := c.Providers[providerID]
 			switch suffix {
 			case "enabled":
@@ -131,7 +130,6 @@ func ApplyEnv(c *Config, getenv func(string) string, environ []string) error {
 				return &ConfigError{Kind: KindInvalidValue, Key: name}
 			}
 			c.Providers[providerID] = provider
-			_ = providerKey
 			continue
 		}
 
@@ -141,7 +139,7 @@ func ApplyEnv(c *Config, getenv func(string) string, environ []string) error {
 }
 
 func envSuffix(rest string) (string, bool) {
-	for i := 0; i < len(rest); i++ {
+	for i := range len(rest) {
 		if i != 0 && rest[i-1] != '_' {
 			continue
 		}

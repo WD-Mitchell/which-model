@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -84,7 +85,13 @@ func (c *Config) DecodeFile(path string) error {
 		if c.Providers == nil {
 			c.Providers = make(map[string]ProviderConfig)
 		}
-		for id, providerNode := range providers {
+		ids := make([]string, 0, len(providers))
+		for id := range providers {
+			ids = append(ids, id)
+		}
+		sort.Strings(ids)
+		for _, id := range ids {
+			providerNode := providers[id]
 			providerTable, ok := providerNode.(map[string]any)
 			if !ok {
 				return &ConfigError{Kind: KindInvalidValue, Path: path, Key: "providers." + id, Err: errors.New("not a table")}
@@ -96,7 +103,18 @@ func (c *Config) DecodeFile(path string) error {
 			provider := c.Providers[id]
 			md, err := toml.Decode(string(text), &provider)
 			if err != nil {
-				return &ConfigError{Kind: KindInvalidValue, Path: path, Key: "providers." + id, Err: err}
+				key := "providers." + id
+				switch parseErr := err.(type) {
+				case toml.ParseError:
+					if parseErr.LastKey != "" {
+						key += "." + parseErr.LastKey
+					}
+				case *toml.ParseError:
+					if parseErr != nil && parseErr.LastKey != "" {
+						key += "." + parseErr.LastKey
+					}
+				}
+				return &ConfigError{Kind: KindInvalidValue, Path: path, Key: key, Err: err}
 			}
 			if undecoded := md.Undecoded(); len(undecoded) > 0 {
 				return &ConfigError{Kind: KindInvalidValue, Path: path, Key: "providers." + id + "." + undecoded[0].String()}
@@ -158,7 +176,7 @@ func applyEnvOverlay(env map[string]string, out reflect.Value, prefix string, ma
 		return nil
 	}
 	outType := out.Type()
-	for i := 0; i < outType.NumField(); i++ {
+	for i := range outType.NumField() {
 		fieldType := outType.Field(i)
 		field := out.Field(i)
 		if !field.CanSet() {
