@@ -93,6 +93,7 @@ type Snapshot struct {
     FetchedAt  time.Time `json:"fetched_at"`
     Source     Source    `json:"source"`
     Confidence string    `json:"confidence"` // "live" | "cached" | "estimated"
+    UsageKnown bool      `json:"usage_known"` // at least one window carries a real reading (see DEFERRED D5)
     Stale      bool      `json:"stale,omitempty"`
     Failure    *Failure  `json:"error,omitempty"`
 }

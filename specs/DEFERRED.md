@@ -35,3 +35,11 @@ F15/F16/F17 deliberately bypass `internal/httpkit`: their port keeps core.mjs's 
 **Resolution (applied):** case 5 corrected to `"10"` (the formula in SPEC §4 is authoritative; the table cell was a transcription error). Case 12 is correct as written and expresses the real intent — verified empirically: `decimal.DivisionPrecision = 34` reproduces case 12 exactly AND the F10-T4 golden `655/7 = 93.5714285714285714285714285714285714` (34 digits) that M1's byte-parity milestone depends on. T4 now mandates a package `init` in `internal/decimal/decimal.go` setting `decimal.DivisionPrecision = 34`.
 
 **Remaining action:** none — `internal/decimal` is the repo's only decimal layer (CONTRACTS §8), so the process-global pin lives exactly where it belongs.
+
+## D5 — Canonical Snapshot missing `UsageKnown` — RESOLVED (2026-08-07)
+
+**Conflict:** `specs/global/CONTRACTS.md` §1.5 defined `Snapshot` without a `UsageKnown` field, yet four features require it: F11-T1 test case 6 pins the Snapshot JSON `{"...","confidence":"","usage_known":false}`; F13-T2 case 1 constructs `Snapshot{UsageKnown: true}` (compile-breaker without the field) and case 2 asserts `snapshot.usage_known == true` in the cache file; F13 CONTRACTS §cache-file shows `"usage_known": false` at snapshot level; F15 golden fixtures and F24 T8 case 4 assert snapshot-level `usage_known` round-trip. Only `Window.UsageKnown` (§1.4) existed — insufficient for all four consumers.
+
+**Resolution (applied):** added `UsageKnown bool `json:"usage_known"`` to `Snapshot` after `Confidence` (position chosen so F11-T1 case 6's pinned field order is byte-exact). No `omitempty` — the field always serializes, matching the pinned goldens (`"usage_known": false` present on zero snapshots).
+
+**Remaining action:** none — F11's `types.go` is updated; all four consumers' tasks now match the canonical type.
