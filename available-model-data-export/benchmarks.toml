@@ -1,0 +1,119 @@
+[benchmark_selection]
+groups = [
+  "software_engineering",
+  "reasoning",
+  "knowledge",
+  "research",
+  "instruction_following",
+  "agentic_tools",
+  "evidence_capture",
+  "ui_visual",
+  "security",
+  "data_ml",
+  "finance",
+]
+benchmarks = []
+
+[benchmark_groups.software_engineering]
+benchmarks = [
+  "SWE-Bench Verified",
+  "SWE-Bench Pro",
+  "SWE-Bench Multilingual",
+  "SWE-Bench Multimodal",
+  "DeepSWE",
+  "Terminal-Bench",
+  "Terminal-Bench Hard",
+  "Aider Polyglot",
+  "SciCode",
+  "SWE-Atlas Codebase QnA",
+  "SWE-Atlas Test Writing",
+  "SWE-Atlas Refactoring",
+  "FrontierCode",
+  "FrontierSWE",
+  "NL2Repo",
+  "Program Bench",
+  "SWE Marathon",
+  "LiveCodeBench",
+  "LiveCodeBench Pro",
+  "MCP Atlas",
+  "Artificial Analysis Coding Index",
+  "Artificial Analysis Coding Agent Index",
+  "Toolathlon",
+  "AutomationBench",
+]
+
+[benchmark_groups.finance]
+benchmarks = [
+  "Finance Agent",
+  "FinanceAgent",
+  "τ3 Banking",
+  "GDPval",
+  "GDPval-AA",
+]
+
+[benchmark_groups.reasoning]
+benchmarks = [
+  "GPQA Diamond",
+  "FrontierMath",
+  "ARC-AGI-2",
+  "AIME",
+  "HMMT",
+]
+
+[benchmark_groups.knowledge]
+benchmarks = [
+  "Humanity's Last Exam",
+  "MMLU-Pro",
+  "MMMU Pro",
+]
+
+[benchmark_groups.research]
+benchmarks = [
+  "BrowseComp",
+  "DeepSearchQA",
+  "WideSearch",
+]
+
+[benchmark_groups.instruction_following]
+benchmarks = [
+  "IFBench",
+  "IFEval",
+]
+
+[benchmark_groups.agentic_tools]
+benchmarks = [
+  "Terminal-Bench",
+  "Toolathlon",
+  "MCP Atlas",
+  "OSWorld-Verified",
+]
+
+[benchmark_groups.evidence_capture]
+benchmarks = [
+  "OSWorld-Verified",
+  "Toolathlon",
+  "MCP Atlas",
+  "MMMU Pro",
+]
+
+[benchmark_groups.ui_visual]
+benchmarks = [
+  "MMMU Pro",
+  "BabyVision",
+  "OmniDocBench",
+  "OSWorld-Verified",
+]
+
+[benchmark_groups.security]
+benchmarks = [
+  "CyberGym",
+  "CTI-REALM",
+]
+
+[benchmark_groups.data_ml]
+benchmarks = [
+  "DSBench-FullStack",
+  "DSBench-Hard",
+  "MLE-Bench",
+  "SpreadsheetBench",
+]

@@ -1,0 +1,20 @@
+# macOS
+.DS_Store
+
+# Python bytecode (legacy prototype)
+__pycache__/
+*.pyc
+
+# Editor
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Go (future)
+/which-model
+/wm
+/wmodel
+/whichm
+*.exe

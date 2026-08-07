@@ -1,0 +1,4 @@
+interface:
+  display_name: "Usage allowance checks"
+  short_description: "Safely report Claude, Codex, or Copilot allowance"
+  default_prompt: "Use $usage-allowance-checks to run one explicit, read-only provider usage allowance report without automatic enforcement."

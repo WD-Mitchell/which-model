@@ -1,0 +1,8 @@
+[providers.anthropic]
+excluded_models = []
+
+[providers.openai]
+excluded_models = []
+
+[providers.github-copilot]
+excluded_models = ["grok-4.5"]
