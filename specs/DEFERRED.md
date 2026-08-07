@@ -27,3 +27,11 @@ F15/F16/F17 deliberately bypass `internal/httpkit`: their port keeps core.mjs's 
 **Resolution (applied):** added F01-T10 (`specs/features/F01-config/TASKS.md`) — creates the CI workflow with pinned action SHAs (same pins F30 uses), `go build ./... && go vet ./... && go test ./...`, and a `hashFiles('scripts/audit-nousage.sh') != ''`-guarded step running `bash scripts/audit-nousage.sh`, so the matrix activates automatically when F21-T8 lands. F01 task_count raised 9 → 10.
 
 **Remaining action:** none.
+
+## D4 — F02-T4 test table vs mandated WeightedMean code — RESOLVED (2026-08-07)
+
+**Conflict:** `specs/features/F02-decimal/TASKS.md` T4's test table contradicted its own mandated implementation in two cells: case 5 said `(10)` weights `(2)` → `"5"`, but the mandated formula `Σ(cᵢwᵢ)/Σwᵢ` gives (10·2)/2 = 10; case 12 expects the 34-digit quotient `1.66666666666666666666666666666667` for 5/3, but shopspring/decimal's default `DivisionPrecision` (16) yields `1.6666666666666667`.
+
+**Resolution (applied):** case 5 corrected to `"10"` (the formula in SPEC §4 is authoritative; the table cell was a transcription error). Case 12 is correct as written and expresses the real intent — verified empirically: `decimal.DivisionPrecision = 34` reproduces case 12 exactly AND the F10-T4 golden `655/7 = 93.5714285714285714285714285714285714` (34 digits) that M1's byte-parity milestone depends on. T4 now mandates a package `init` in `internal/decimal/decimal.go` setting `decimal.DivisionPrecision = 34`.
+
+**Remaining action:** none — `internal/decimal` is the repo's only decimal layer (CONTRACTS §8), so the process-global pin lives exactly where it belongs.

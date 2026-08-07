@@ -187,7 +187,16 @@ graph TD
    }
    ```
    This is the full intended implementation: no float64, no error type, no rounding (the caller rounds).
-3. Run `go test ./internal/decimal/...` and confirm all cases pass.
+3. Add to `internal/decimal/decimal.go` exactly (package-global precision pin; resolution recorded in `specs/DEFERRED.md` D4):
+   ```go
+   func init() {
+       // Full-precision division: 34 fractional digits (spec goldens:
+       // F02-T4 case 12 and F10 tier2 quotients, e.g. 655/7). Callers
+       // round via RoundHalfUp; never rely on shopspring's default 16.
+       decimal.DivisionPrecision = 34
+   }
+   ```
+4. Run `go test ./internal/decimal/...` and confirm all cases pass.
 
 **Test cases (write these first):**
 
@@ -197,7 +206,7 @@ graph TD
 | 2 | `(1, 2, 3)` weights `(1, 1, 2)` | `"2.25"` (1+2+6 = 9 / 4), `true` |
 | 3 | `(10, 20)` weights `(0, 1)` | `"20"` (zero weight skipped), `true` |
 | 4 | `(10, 20)` weights `(1, -1)` | `"10"` (negative weight skipped), `true` |
-| 5 | `(10)` weights `(2)` | `"5"`, `true` |
+| 5 | `(10)` weights `(2)` | `"10"`, `true` ((10·2)/2 = 10 — weighted mean is Σ(cᵢwᵢ)/Σwᵢ, not value/weight) |
 | 6 | `(100)` weights `(0)` | `decimal.Zero`, `false` (all weights ≤ 0) |
 | 7 | `(10, 20)` weights `(0, 0)` | `decimal.Zero`, `false` |
 | 8 | `()` weights `()` | `decimal.Zero`, `false` (both empty) |
@@ -209,7 +218,7 @@ graph TD
 **Acceptance criteria:**
 - [ ] `go build ./internal/decimal/...` succeeds
 - [ ] `go test ./internal/decimal/...` passes with the 12 cases above
-- [ ] no float64 anywhere in `internal/decimal`; `WeightedMean` returns full precision (callers round via `RoundHalfUp`)
+- [ ] no float64 anywhere in `internal/decimal`; `WeightedMean` returns full precision (callers round via `RoundHalfUp`); `decimal.DivisionPrecision = 34` set in the package `init` (`specs/DEFERRED.md` D4)
 - [ ] all four exported functions (`Parse`, `RoundHalfUp`, `ScoreString`, `WeightedMean`) are present in `internal/decimal/decimal.go` and nothing else is exported
 
 **Run:** `go test ./internal/decimal/...`
