@@ -77,7 +77,7 @@ graph TD
 - modify `internal/httpkit/client.go`
 - create `internal/httpkit/do_test.go`
 
-**Spec references:** `specs/features/F04-http/CONTRACTS.md §1 (Do, SetAllowList)`, `specs/features/F04-http/SPEC.md §3, §11, D3–D5, D11`
+**Spec references:** `specs/features/F04-http/CONTRACTS.md §1 (Do, SetAllowList)`, `specs/features/F04-http/SPEC.md §3, §8, D3–D5, D10, D11`
 
 **Instructions:**
 1. Write `do_test.go` first. For TLS tests use `httptest.NewTLSServer` and set the client's unexported transport to the test server's client: `c.hc = srv.Client()` (same-package test access; this makes the client trust the test cert). Refusal tests use fake `https://` URLs that must never be contacted.

@@ -174,6 +174,34 @@ def main():
         if ids != expected:
             errors.append(f"{feat}/TASKS.md: task ids not sequential: {ids}")
 
+    # --- SPEC.md §-anchors cited from TASKS.md resolve ---
+    def spec_sections(text):
+        ids = set()
+        for line in text.splitlines():
+            m = re.match(r"^#{2,3} (\d+)(?:\.|\s)", line)
+            if m:
+                ids.add(m.group(1))
+                continue
+            m = re.match(r"^(\d+)\. \*\*", line)
+            if m:
+                ids.add(m.group(1))
+            for d in re.findall(r"^\| (D\d+) \|", line):
+                ids.add(d)
+        return ids
+
+    for feat in features:
+        spath = os.path.join(FEATURES_DIR, feat, "SPEC.md")
+        tpath = os.path.join(FEATURES_DIR, feat, "TASKS.md")
+        if not (os.path.exists(spath) and os.path.exists(tpath)):
+            continue
+        avail = spec_sections(open(spath).read())
+        for m in re.finditer(r"SPEC\.md\s*((?:§[\w.]+(?:,\s*)?)+)", open(tpath).read()):
+            for sec in re.findall(r"§([\w.]+)", m.group(1)):
+                sec = sec.rstrip(".")
+                if sec in avail or sec.split(".")[0] in avail:
+                    continue
+                errors.append(f"{feat}/TASKS.md: SPEC.md §{sec} does not resolve")
+
     # --- report ---
     print(f"features: {len(features)}/30")
     print(f"task sections: {sum(a for _, a in task_counts.values())} across {len(task_counts)} features")
