@@ -6,7 +6,7 @@ This annex specifies the complete command surface of the `which-model` binary: g
 
 ### 1.1 Binary and command tree
 
-Binary name: **`which-model`**. Built with `cobra` (module `github.com/wdmitchell-uk/which-model`, entrypoint `cmd/which-model/main.go`). Three aliases ship alongside it — **`wm`**, **`wmodel`**, **`whichm`** — see §1.1a. Command tree:
+Binary name: **`which-model`**. Built with `cobra` (module `github.com/WD-Mitchell/which-model`, entrypoint `cmd/which-model/main.go`). Three aliases ship alongside it — **`wm`**, **`wmodel`**, **`whichm`** — see §1.1a. Command tree:
 
 ```
 which-model

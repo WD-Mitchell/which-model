@@ -629,7 +629,7 @@ package codex
 import (
 	"time"
 
-	"github.com/wdmitchell-uk/which-model/internal/usage"
+	"github.com/WD-Mitchell/which-model/internal/usage"
 )
 
 func init() {
@@ -657,15 +657,15 @@ func init() {
 
 ```go
 import (
-	_ "github.com/wdmitchell-uk/which-model/internal/usage/provider/antigravity"
-	_ "github.com/wdmitchell-uk/which-model/internal/usage/provider/claude"
-	_ "github.com/wdmitchell-uk/which-model/internal/usage/provider/codex"
-	_ "github.com/wdmitchell-uk/which-model/internal/usage/provider/copilot"
-	_ "github.com/wdmitchell-uk/which-model/internal/usage/provider/gemini"
-	_ "github.com/wdmitchell-uk/which-model/internal/usage/provider/kimi"
-	_ "github.com/wdmitchell-uk/which-model/internal/usage/provider/openai"
-	_ "github.com/wdmitchell-uk/which-model/internal/usage/provider/openrouter"
-	_ "github.com/wdmitchell-uk/which-model/internal/usage/provider/zai"
+	_ "github.com/WD-Mitchell/which-model/internal/usage/provider/antigravity"
+	_ "github.com/WD-Mitchell/which-model/internal/usage/provider/claude"
+	_ "github.com/WD-Mitchell/which-model/internal/usage/provider/codex"
+	_ "github.com/WD-Mitchell/which-model/internal/usage/provider/copilot"
+	_ "github.com/WD-Mitchell/which-model/internal/usage/provider/gemini"
+	_ "github.com/WD-Mitchell/which-model/internal/usage/provider/kimi"
+	_ "github.com/WD-Mitchell/which-model/internal/usage/provider/openai"
+	_ "github.com/WD-Mitchell/which-model/internal/usage/provider/openrouter"
+	_ "github.com/WD-Mitchell/which-model/internal/usage/provider/zai"
 	// ... one line per remaining provider/<id> package, alphabetical, no exceptions
 )
 ```

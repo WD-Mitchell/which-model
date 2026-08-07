@@ -423,7 +423,7 @@ All hooks remain **fail-open** in both variants. Conditional installation reduce
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/wdmitchell-uk/which-model/schema/usage-snapshot.json",
+  "$id": "https://github.com/WD-Mitchell/which-model/schema/usage-snapshot.json",
   "title": "which-model usage --json output",
   "type": "object",
   "required": ["schema_version", "snapshots"],
@@ -494,7 +494,7 @@ All hooks remain **fail-open** in both variants. Conditional installation reduce
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/wdmitchell-uk/which-model/schema/pick-result.json",
+  "$id": "https://github.com/WD-Mitchell/which-model/schema/pick-result.json",
   "title": "which-model pick --json output",
   "type": "object",
   "required": ["schema_version", "profile", "strategy", "candidates", "excluded_candidates"],
@@ -570,7 +570,7 @@ Schema for `Evidence` is defined once here and referenced from §4.2/§5; `which
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/wdmitchell-uk/which-model/schema/explain-result.json",
+  "$id": "https://github.com/WD-Mitchell/which-model/schema/explain-result.json",
   "title": "which-model explain --json output",
   "type": "object",
   "required": ["schema_version", "candidate", "evidence"],
@@ -608,7 +608,7 @@ Schema for `Evidence` is defined once here and referenced from §4.2/§5; `which
         },
         "excluded_candidates": {
           "type": "array",
-          "items": { "$ref": "https://github.com/wdmitchell-uk/which-model/schema/pick-result.json#/$defs/ExcludedCandidate" }
+          "items": { "$ref": "https://github.com/WD-Mitchell/which-model/schema/pick-result.json#/$defs/ExcludedCandidate" }
         },
         "last_verified": {
           "type": "string",
