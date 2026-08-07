@@ -43,3 +43,11 @@ F15/F16/F17 deliberately bypass `internal/httpkit`: their port keeps core.mjs's 
 **Resolution (applied):** added `UsageKnown bool `json:"usage_known"`` to `Snapshot` after `Confidence` (position chosen so F11-T1 case 6's pinned field order is byte-exact). No `omitempty` — the field always serializes, matching the pinned goldens (`"usage_known": false` present on zero snapshots).
 
 **Remaining action:** none — F11's `types.go` is updated; all four consumers' tasks now match the canonical type.
+
+## D6 — F06-T5 MergeRows instructions vs case 5 identity cells — RESOLVED (2026-08-07)
+
+**Conflict:** `specs/features/F06-csvstore/TASKS.md` T5 step 4 said MergeRows skips the `model`/`reasoning` columns when merging a fresh row onto a matching existing row, but its own case 5 expects the merged row's reasoning cell to be `high` (the EXISTING row's value) when fresh said `default` — impossible under "skip identity columns" (fresh would keep `default`).
+
+**Resolution (applied):** the case 5 table is authoritative: a matched row keeps the existing store's canonical identity cells (model and reasoning copied from the collapsed existing row). T5 instruction step 4 now states this rule explicitly. Rationale: the store's spelling is canonical — after `default→high` collapse the stored row is the source of truth for identity, and keeping it makes repeated merges idempotent.
+
+**Remaining action:** none — implementation matches the corrected instruction and all 12 merge test cases pass.

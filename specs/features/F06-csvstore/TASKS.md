@@ -366,7 +366,7 @@ go test ./internal/catalog/csvstore/...
    - `existing, err = CollapseRows(existing)`; `fresh, err = CollapseRows(fresh)`.
    - Index existing: `byID := map[[2]string]Row{}` via `identityOf` (identity is now already collapsed).
    - For each fresh row `f`: `out := Row{Header: f.Header, Values: append([]string(nil), f.Values...), Authoritative: <shallow copy of f.Authoritative>}`. If `cur, ok := byID[idOf(f)]`:
-     - For every column index `i` of `f.Header` with name `n`, skipping `"model"`/`"reasoning"`: if `strings.HasPrefix(n, BenchmarkColumnPrefix)` → if `out.Values[i] == "" && !out.Authoritative[n]` → `out.Values[i] = valuesByName(cur)[n]` (fallback; `""` if absent). Else (core metric column) → if `out.Values[i] == ""` → `out.Values[i] = valuesByName(cur)[n]`.
+     - For every column index `i` of `f.Header` with name `n`: if `n` is `"model"` or `"reasoning"` → `out.Values[i] = valuesByName(cur)[n]` (a matched row keeps the existing store's canonical identity cells — this is why case 5 yields reasoning `high` from the existing row even though fresh said `default`; resolution recorded in `specs/DEFERRED.md` D6). Else if `strings.HasPrefix(n, BenchmarkColumnPrefix)` → if `out.Values[i] == "" && !out.Authoritative[n]` → `out.Values[i] = valuesByName(cur)[n]` (fallback; `""` if absent). Else (core metric column) → if `out.Values[i] == ""` → `out.Values[i] = valuesByName(cur)[n]`.
    - Append `out` to the result (fresh order). Existing-only rows are dropped (SPEC.md §2.6 item 4). Return the result.
 5. Implement `func MergePartialRefresh(existing, fresh []Row, refreshedModels []string, preserveUnselected bool) ([]Row, error)`:
    - If `len(fresh) == 0` → return the result of `MergeRows(existing, fresh)` (which is empty).
