@@ -2,7 +2,7 @@
 kind: feature-tasks
 feature: F01-config
 version: "1.0"
-task_count: 9
+task_count: 10
 project: which-model
 ---
 
@@ -24,6 +24,7 @@ graph TD
   T3 --> T9[T9 resolved rendering]
   T5 --> T9
   T7 --> T8[T8 discovery + merge tests]
+  T1 --> T10[T10 CI workflow]
 ```
 
 ## Task F01-T1: Implement the `[usage] enabled` three-state
@@ -529,3 +530,62 @@ graph TD
 - [ ] no file outside the Files list modified
 
 **Run:** `go test ./internal/config/...`
+
+
+## Task F01-T10: Add the CI workflow (build matrix + self-activating nousage audit)
+
+**Depends on:** F01-T1 (go.mod must exist for `go-version-file`)
+**Files:**
+- create `.github/workflows/ci.yml`
+
+**Spec references:** `specs/global/SPEC.md` §7 (build-matrix CI on every change); `specs/features/F21-usage-toggle/SPEC.md` §5 R5 (CI builds and tests both variants); `specs/features/F21-usage-toggle/TASKS.md` F21-T8 (the audit script this workflow invokes); `specs/features/F30-publishing/SPEC.md` (pinned-SHA-with-comment action convention)
+
+**Instructions:**
+1. Create `.github/workflows/ci.yml` with EXACTLY this content (two pinned action SHAs match F30's pins; the audit step self-activates once F21-T8 commits `scripts/audit-nousage.sh`, so this workflow is green from the moment this task lands):
+   ```yaml
+   name: ci
+   on:
+     push:
+       branches: [main]
+     pull_request:
+   permissions:
+     contents: read
+   jobs:
+     test:
+       runs-on: ubuntu-latest
+       timeout-minutes: 15
+       steps:
+         - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+         - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+           with:
+             go-version-file: go.mod
+             cache: true
+         - run: go build ./...
+         - run: go vet ./...
+         - run: go test ./...
+         - name: nousage audit (build matrix + strings scan)
+           if: hashFiles('scripts/audit-nousage.sh') != ''
+           run: bash scripts/audit-nousage.sh
+   ```
+2. Validate the YAML parses (e.g. `python3 -c "import yaml,sys; yaml.safe_load(open('.github/workflows/ci.yml'))"` if pyyaml is available, otherwise visual check against the block above — the content is verbatim, so a diff against this task's block is the real gate).
+3. Commit the file. Do NOT run the workflow locally; the acceptance below is the content gate.
+
+**Test cases (write these first):**
+
+| # | check | want |
+|---|---|---|
+| 1 | file exists at `.github/workflows/ci.yml` | yes |
+| 2 | `on:` triggers | `push.branches == [main]` and `pull_request` present |
+| 3 | checkout step | pinned `actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd` with `# v6.0.2` comment |
+| 4 | setup-go step | pinned `actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417` with `# v6.3.0` comment, `go-version-file: go.mod`, `cache: true` |
+| 5 | build/vet/test steps | `go build ./...`, `go vet ./...`, `go test ./...` in that order |
+| 6 | audit step | `if: hashFiles('scripts/audit-nousage.sh') != ''` guarding `bash scripts/audit-nousage.sh` |
+| 7 | permissions | `contents: read` only |
+| 8 | no other `secrets.` references | zero |
+
+**Acceptance criteria:**
+- [ ] `.github/workflows/ci.yml` matches the verbatim block above (cases 1–8)
+- [ ] no file outside the Files list modified
+- [ ] workflow references no secret other than the default `GITHUB_TOKEN` (which it does not even name)
+
+**Run:** no Go test for this task; gate = the 8 content checks against the verbatim YAML block above, then `git status` shows only `.github/workflows/ci.yml` added.

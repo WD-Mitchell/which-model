@@ -76,7 +76,7 @@ func SourceFor(cred usage.Credential, kind usage.Kind) usage.Source
 | `usage.Descriptor`, `usage.AuthSource`, `usage.Credential`, `usage.Snapshot`, `usage.Failure`, `usage.FailureError`, `usage.AsFailure`, `usage.Kind`, `usage.Get`, `usage.IDs` | `internal/usage` — `specs/features/F11-usage-types/CONTRACTS.md` | F11-T2/T3/T4/T5 |
 | `credential.ResolveChain`, `credential.Warning`, `credential.ErrNotFound` | `internal/usage/credential` — `specs/features/F12-credentials/CONTRACTS.md §1` | F12-T1/T7 |
 | `cache.New`, `cache.Store{Read,Write,OfflineRead}`, `cache.EffectiveTTL`, `cache.ErrCacheMiss` | `internal/usage/cache` — `specs/features/F13-usage-cache/CONTRACTS.md §1` | F13-T1/T2/T3/T4/T6 |
-| `httpkit.NewClient()`, `httpkit.Do`, `httpkit.GetJSON`, `httpkit.AsError`, `httpkit.Error{Code,StatusCode,Err}` | `internal/httpkit` — `specs/features/F04-http/CONTRACTS.md` (F04 lands in wave W1, before F14's W4; if that file is not yet on disk, follow the pinned surface in `specs/features/F14-usage-fetch/SPEC.md` §12 and in Main's binding message: `NewClient(opts ...Option) *Client`, defaults `DefaultTimeout 10s` / `DefaultMaxResponseBytes 262144` / UA `which-model/dev` / 1 retry × 500ms on 5xx+network, redirect hard-fail `redirect_refused`, typed `Error{Code, StatusCode, Err}` — branch on `Code`/`StatusCode` via `errors.As`, never on message text) |
+| `httpkit.AsError` (defensive only — F14 never constructs an httpkit client; transport is plain `&http.Client{}` per F11 `FetchFunc`, `specs/DEFERRED.md` D1) | `internal/httpkit` — `specs/features/F04-http/CONTRACTS.md` |
 
 ## 3. Ownership summary
 
