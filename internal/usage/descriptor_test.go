@@ -1,3 +1,5 @@
+//go:build !nousage
+
 package usage
 
 import (

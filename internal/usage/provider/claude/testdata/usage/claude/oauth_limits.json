@@ -1,0 +1,1 @@
+{"five_hour": {"utilization": 25}, "limits": [{"kind": "weekly", "group": "sonnet", "percent": 41, "resetsAt": "2026-08-07T18:00:00Z", "scope": {"model": {"id": "claude-sonnet-4-5", "display_name": "Claude Sonnet 4.5"}}, "isActive": true}]}

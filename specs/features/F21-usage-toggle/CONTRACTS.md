@@ -124,6 +124,7 @@ type Options struct {
 	Enabled      map[string]bool
 	Timeout      time.Duration
 	MaxParallel  int
+	CacheDir     string
 }
 
 // FetchAll in the compiled-out build always returns the sentinel error.

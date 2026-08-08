@@ -87,3 +87,21 @@ F15/F16/F17 deliberately bypass `internal/httpkit`: their port keeps core.mjs's 
 **Resolution (applied):** the scores golden is the contract (byte-exact Derive output is the acceptance criterion; TASKS.md sanctions recomputing `raw_sha256`). The two raw cells were corrected so `Derive(raw) == scores_golden.csv` byte-for-byte, and the provenance constant was recomputed to `4469f49a0fe94cc0f778a9a7e30dc8f7f79327ca5501ea3200cbe44e7d5e0cd3` (self-verified in `derive_test.go`). Secondary ports noted by the implementer: singleton-column ranges derive blank scores (Python rejects min==max only for 2+ equal values); mandatory-column "no published values" is unreachable behind the zero-eligible error.
 
 **Remaining action:** none.
+
+## D11 — `routing.Route`/`Provenance` and `pick.Candidate`/`Strategy` unowned — RESOLVED (2026-08-07)
+
+**Conflict:** global CONTRACTS §3.1 (`routing.Route` + `Provenance`) and §4.1/§4.2 (`pick.Candidate` + `Strategy`) had no task creating their Go files. F21-T7 (degraded assembly) needs `pick.Candidate`; F20 consumes `pick.Candidate` + `pick.Strategy`; global §4.1's `Candidate` embeds `routing.Route`, and `internal/routing` did not exist. F10's CONTRACTS lists only ModelScore/ExcludedRow/Result — it does not own Candidate.
+
+**Resolution (applied):** created `internal/routing/types.go` (`package routing`) with `Route` + `Provenance` verbatim from §3.1, and `internal/pick/candidate.go` (`package pick`) with `Candidate` (embedding `routing.Route` per §4.1) + the six `Strategy` constants from §4.2. Neither feature may redefine these.
+
+**Remaining action:** F18-T1 ("Declare the canonical Route and Provenance types") MUST NOT redeclare them in `route.go` — it consumes `internal/routing/types.go` and implements only the ProduceRoutes/persistence layer around it. Candidate field access is `c.Route.Provider` / `c.Route.ModelID` / `c.Route.Reasoning` (nested, never flattened). Related: F21's nousage `fetch.Options` stub carries `CacheDir string` field-for-field with F14's real Options (added to F21 CONTRACTS §4 during W5).
+
+## D12 — F10-T4 warning-string order pins contradict SPEC D2; decimal JSON quoting — RESOLVED (2026-08-07)
+
+**Conflict (warnings):** F10-T4's task text and table pinned missing-category warning orders that contradict the feature's own SPEC D2 / CONTRACTS §3 ("names in CategoryNames order") and were mutually unsatisfiable across rows (e.g. row 1 listed `software_engineering, instruction_following, agentic_tools` while row 5 required `CategoryNames order`). `CategoryNames` (annex-b §5.1) is `reasoning, knowledge, research, planning_capability, instruction_following, software_engineering, ui_visual, agentic_tools, finance, evidence_capture, security, data_ml`.
+
+**Conflict (JSON):** CONTRACTS §2.4 says serialize via `decimal.Decimal.MarshalJSON`; T7 pins unquoted JSON numbers.
+
+**Resolution (applied):** implementation follows SPEC D2 — warnings list missing categories in `CategoryNames` order (`instruction_following, software_engineering, agentic_tools, evidence_capture` for simple_action_execution; `instruction_following, agentic_tools` for the balanced partial row per the Python ground truth). T4's contradictory pins corrected to match. JSON numbers are unquoted via `decimal.MarshalJSONWithoutQuotes = true` set in `internal/pick`'s init (still `decimal.Decimal.MarshalJSON`; precision unchanged; no other package asserts quoted decimal output).
+
+**Remaining action:** none.
