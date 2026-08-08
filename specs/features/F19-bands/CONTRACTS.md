@@ -11,7 +11,7 @@ project: which-model
 
 | File | Contents |
 |---|---|
-| `internal/pick/band/pressure.go` | `Pressure`, `WindowPercent`, `Pressure` constructor |
+| `internal/pick/band/pressure.go` | `Pressure`, `WindowPercent`, `NewPressure` constructor |
 | `internal/pick/band/bands.go` | `Direction`, `BandSpec`, `Config`, `Result`, `TOMLConfig`, `TOMLTier`, `EvaluateBand`, `ValidateBands`, `FromTOML`, `DefaultConfig`, `ReasonCodeBandGated` |
 
 Import boundary (global CONTRACTS §8): `internal/pick/band` MAY import `internal/usage` (types only) and `github.com/shopspring/decimal`; MUST NOT import `internal/config`, `internal/catalog/*`, `internal/routing`, or `cmd/`. All numeric types are `shopspring/decimal.Decimal`; `float64` appears only at the conversion boundary from the canonical `usage.Window` `*float64` fields and the TOML floats.
@@ -46,13 +46,14 @@ type Pressure struct {
 // exact for 25/50/75/100 and the default weights). No rounding here.
 func WindowPercent(w usage.Window) (decimal.Decimal, bool)
 
-// Pressure reduces a usage Snapshot to one scalar for a route (SPEC §2.1):
+// NewPressure reduces a usage Snapshot to one scalar for a route (SPEC §2.1):
 // max over the snapshot windows whose ID is in windowIDs, skipping windows
 // whose WindowPercent is unknown. Windows named in windowIDs but absent from
 // the snapshot contribute nothing. Returns Known == false when the snapshot
 // carries Failure, when windowIDs is empty, or when no gating window yields
-// a computable percent.
-func Pressure(snapshot usage.Snapshot, windowIDs []string) Pressure
+// a computable percent. Named NewPressure because Go cannot shadow the
+// Pressure type with a same-named constructor (DEFERRED D8).
+func NewPressure(snapshot usage.Snapshot, windowIDs []string) Pressure
 ```
 
 ## 3. Exported API — `internal/pick/band/bands.go`

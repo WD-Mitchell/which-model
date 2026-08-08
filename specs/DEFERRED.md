@@ -59,3 +59,13 @@ F15/F16/F17 deliberately bypass `internal/httpkit`: their port keeps core.mjs's 
 **Resolution (applied):** the F01 contract wins — F22's `config path`/`config set` target come from `config.ResolvePaths(runtime.GOOS, home, os.Getenv)`; T8's tests compute the expectation from that same call instead of hard-coding `.config`. No spec text change beyond this note: the table's intent (user config path under a temp HOME) holds on every GOOS via ResolvePaths.
 
 **Remaining action:** none.
+
+## D8 — F19 test tables vs inclusive-bound ladder rule; `Pressure` constructor name collision — RESOLVED (2026-08-07)
+
+**Conflict (tables):** `specs/features/F19-bands/TASKS.md` T6 case 5 expected `p{74.99}` → `standard`, T7 row 1 expected gate-98 `p{97.99}` → `{elevated, 0.60}`, and T7 drain rows 7–9 expected `{low, 0.25}`/`{standard, 0.60}`/`{elevated, 0.85}` for pressures 30/60/90. All contradict the feature's own authoritative rule — SPEC §2.4 ("first tier whose bound is >= pressure; upper bound INCLUSIVE: exactly 25 maps to low, exactly 50 to standard, exactly 75 to elevated") and SPEC §2.5 (drain: tier N takes `weight[len-1-N]`) — which map 74.99 → elevated, 97.99 → critical (bound 100), and 30/60/90 → tiers 1/2/3. The tables applied exclusive-bound (off-by-one) arithmetic; T6 case 1 (`p{25}` → low, "inclusive edge") confirms inclusive intent.
+
+**Conflict (name):** CONTRACTS §2 declared `func Pressure(snapshot usage.Snapshot, windowIDs []string) Pressure` — a Go type/function name collision that cannot compile.
+
+**Resolution (applied):** T6 case 5 corrected to `{elevated, 0.60}`; T7 row 1 corrected to `{critical, 0.25}`; T7 drain rows 7–9 corrected to `{standard, 0.60}`/`{elevated, 0.85}`/`{critical, 1.00}` (row 10 was already correct). The constructor is renamed `NewPressure` (both implementing agents independently converged on it; CONTRACTS §1–§2 and TASKS T3 updated); `internal/pick/band/pressure.go` keeps the verbatim doc comment.
+
+**Remaining action:** none — no other spec cites `band.Pressure(` as a constructor call; F18/F24/F26 construct pressures via `NewPressure` per this note.

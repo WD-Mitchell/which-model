@@ -151,7 +151,7 @@ The priority chain, first matching rule wins:
 
 **Depends on:** F19-T2
 **Files:**
-- extend `internal/pick/band/pressure.go` (add `Pressure`)
+- extend `internal/pick/band/pressure.go` (add `NewPressure`)
 - extend `internal/pick/band/pressure_test.go`
 
 **Spec references:** `specs/features/F19-bands/SPEC.md §2.1, §2.3`, `specs/features/F19-bands/CONTRACTS.md §2`, `specs/global/CONTRACTS.md §1.5` (`usage.Snapshot`, F11), `docs/plan/README.md §5.1` (max, not mean)
@@ -161,7 +161,7 @@ The priority chain, first matching rule wins:
 2. Implement in `internal/pick/band/pressure.go` (signature verbatim from CONTRACTS §2):
 
 ```go
-func Pressure(snapshot usage.Snapshot, windowIDs []string) Pressure
+func NewPressure(snapshot usage.Snapshot, windowIDs []string) Pressure
 ```
 
 Algorithm, exactly:
@@ -336,7 +336,7 @@ Precondition: `cfg` is validated (`ValidateBands` returns nil); `EvaluateBand` m
 | 2 | `p{0, known}` | low (below-first-bound lands in tier 0) |
 | 3 | `p{24.99, known}` | low |
 | 4 | `p{50, known}` | `{standard, 0.85}` |
-| 5 | `p{74.99, known}` | standard |
+| 5 | `p{74.99, known}` | `{elevated, 0.60}` (first bound >= 74.99 is 75; inclusive edges per SPEC §2.4 — DEFERRED D8) |
 | 6 | `p{75, known}` | `{elevated, 0.60}` |
 | 7 | `p{100, known}` | `{critical, 0.25}` |
 | 8 | `p{120, known}` | critical (clamped to last tier) |
@@ -366,15 +366,15 @@ Precondition: `cfg` is validated (`ValidateBands` returns nil); `EvaluateBand` m
 
 | # | input | want |
 |---|---|---|
-| 1 | gate 98, `p{97.99, known}` | not gated; `{elevated, 0.60}` |
+| 1 | gate 98, `p{97.99, known}` | not gated; `{critical, 0.25}` (first bound >= 97.99 is 100 — DEFERRED D8) |
 | 2 | gate 98, `p{98, known}` | GATED (inclusive at-or-above) |
 | 3 | gate 98, `p{99.5, known}` | GATED |
 | 4 | gate 0, `p{0, known}` | GATED (gate itself inclusive) |
 | 5 | gate 100, `p{100, known}` | GATED (critical bound equals gate) |
 | 6 | gate 98, `p{unknown}` | NOT gated; `{unknown, 0.90}` with the exact warning (unknown pressure overrides gating) |
-| 7 | drain, `p{30, known}` | `{Name: "low", Weight: 0.25}` (tier 0 takes the last tier's weight) |
-| 8 | drain, `p{60, known}` | `{standard, 0.60}` |
-| 9 | drain, `p{90, known}` | `{elevated, 0.85}` |
+| 7 | drain, `p{30, known}` | `{Name: "standard", Weight: 0.60}` (tier 1; drain takes `weight[len-1-1] = weight[2]` — DEFERRED D8) |
+| 8 | drain, `p{60, known}` | `{elevated, 0.85}` (tier 2 takes weight[1] — DEFERRED D8) |
+| 9 | drain, `p{90, known}` | `{critical, 1.00}` (tier 3 takes weight[0] — DEFERRED D8) |
 | 10 | drain, `p{100, known}` | `{critical, 1.00}` |
 | 11 | drain, `p{unknown}` | `{unknown, 0.90}` (direction does not change unknown handling) |
 | 12 | drain, gate 98, `p{99, known}` | GATED with `Weight: 0` (drain never applies to a gated candidate) |
