@@ -51,3 +51,11 @@ F15/F16/F17 deliberately bypass `internal/httpkit`: their port keeps core.mjs's 
 **Resolution (applied):** the case 5 table is authoritative: a matched row keeps the existing store's canonical identity cells (model and reasoning copied from the collapsed existing row). T5 instruction step 4 now states this rule explicitly. Rationale: the store's spelling is canonical — after `default→high` collapse the stored row is the source of truth for identity, and keeping it makes repeated merges idempotent.
 
 **Remaining action:** none — implementation matches the corrected instruction and all 12 merge test cases pass.
+
+## D7 — F22-T8 case 1 assumes a non-darwin user config path — RESOLVED (2026-08-07)
+
+**Conflict:** `specs/features/F22-cli-skeleton/TASKS.md` T8 case 1 expects `config path` stdout `<tmp>/.config/which-model/config.toml`, but F01 D4 pins darwin paths unconditionally (`~/Library/Application Support/which-model/config.toml` on darwin; `specs/features/F01-config/CONTRACTS.md` §paths) and the tests run on darwin.
+
+**Resolution (applied):** the F01 contract wins — F22's `config path`/`config set` target come from `config.ResolvePaths(runtime.GOOS, home, os.Getenv)`; T8's tests compute the expectation from that same call instead of hard-coding `.config`. No spec text change beyond this note: the table's intent (user config path under a temp HOME) holds on every GOOS via ResolvePaths.
+
+**Remaining action:** none.

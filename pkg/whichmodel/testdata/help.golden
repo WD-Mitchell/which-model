@@ -1,0 +1,32 @@
+Usage:
+  which-model [command]
+
+Available Commands:
+  schema      print the JSON schema of a command's output
+  serve       serve the usage cache over HTTP (placeholder)
+  config      inspect and update which-model configuration
+  version     print version information
+  help        Help about any command
+
+Flags:
+      --aggregator string    scoring aggregator name (default "weighted-arithmetic-mean")
+      --config string        explicit config file path
+  -h, --help                 help for which-model
+      --json                 emit JSON output
+      --max-age duration     maximum snapshot age before a refresh is forced
+      --no-color             disable colored output
+      --no-usage             disable usage for this run
+      --normalizer string    scoring normalizer name (default "minmax-linear")
+      --offline              never touch the network
+      --quiet                suppress non-essential output
+      --refresh              force every refresh
+      --refresh-benchmarks   force a benchmarks refresh
+      --refresh-scores       force a scores refresh
+      --refresh-usage        force a usage refresh
+      --schema               print the resolved command's JSON schema
+      --show-identity        show identity fields in output
+      --text                 emit text output (inverse of --json)
+      --timeout duration     per-request timeout (default 10s)
+      --verbose count        increase verbosity (repeatable)
+
+Use "which-model [command] --help" for more information about a command.
