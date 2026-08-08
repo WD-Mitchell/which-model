@@ -1,0 +1,1 @@
+ambiguous route for anthropic/claude-opus-4-5-20251101: Claude Opus 5 matches catalog identities [(Claude Opus 5, low), (Claude Opus 5, medium), (Claude Opus 5, high)] that declared effort levels cannot disambiguate; add a manual override in routes.toml

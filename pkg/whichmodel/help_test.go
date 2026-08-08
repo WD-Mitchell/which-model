@@ -9,9 +9,9 @@ import (
 )
 
 func TestHelpGolden(t *testing.T) {
-	want, err := os.ReadFile("testdata/help.golden")
+	want, err := os.ReadFile(helpGoldenPath)
 	if err != nil {
-		t.Fatalf("golden file: %v (regenerate with: go run ./cmd/which-model --help > pkg/whichmodel/testdata/help.golden)", err)
+		t.Fatalf("golden file: %v (regenerate with: go run ./cmd/which-model --help > pkg/whichmodel/%s)", err, helpGoldenPath)
 	}
 	code, out, _ := captureExecute(t, []string{"--help"})
 	if code != 0 {
@@ -20,7 +20,7 @@ func TestHelpGolden(t *testing.T) {
 	if out != string(want) {
 		t.Errorf("help output differs from golden:\n--- got ---\n%s\n--- want ---\n%s", out, want)
 	}
-	for i, name := range []string{"schema", "serve", "config", "version"} {
+	for i, name := range wantTreeOrder {
 		if !strings.Contains(out, name) {
 			t.Errorf("help missing command %q (position %d)", name, i)
 		}

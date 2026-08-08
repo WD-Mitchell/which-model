@@ -8,17 +8,6 @@ import (
 	"time"
 )
 
-// WindowSpec is descriptor-time metadata: which window IDs/labels/units a
-// provider MAY report, and which models each window's quota applies to.
-// It is NOT a runtime reading — that is Window (global CONTRACTS §1.4).
-type WindowSpec struct {
-	ID         string
-	Label      string
-	Unit       Unit
-	Optional   bool     // provider may omit this window depending on plan/quota shape
-	ModelScope []string // model IDs this window's quota applies to (F18 BindWindowIDs, annex-b §7.3)
-}
-
 type KeychainSpec struct {
 	Service string // e.g. "Claude Code-credentials"
 	Account string // "" = match any account for the service

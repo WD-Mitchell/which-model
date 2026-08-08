@@ -14,7 +14,7 @@ func TestTree(t *testing.T) {
 		for _, c := range registeredCommands() {
 			names = append(names, c.Name())
 		}
-		want := []string{"schema", "serve", "config", "version"}
+		want := wantTreeOrder
 		if !reflect.DeepEqual(names, want) {
 			t.Errorf("registeredCommands names = %v, want %v", names, want)
 		}

@@ -105,3 +105,19 @@ F15/F16/F17 deliberately bypass `internal/httpkit`: their port keeps core.mjs's 
 **Resolution (applied):** implementation follows SPEC D2 — warnings list missing categories in `CategoryNames` order (`instruction_following, software_engineering, agentic_tools, evidence_capture` for simple_action_execution; `instruction_following, agentic_tools` for the balanced partial row per the Python ground truth). T4's contradictory pins corrected to match. JSON numbers are unquoted via `decimal.MarshalJSONWithoutQuotes = true` set in `internal/pick`'s init (still `decimal.Decimal.MarshalJSON`; precision unchanged; no other package asserts quoted decimal output).
 
 **Remaining action:** none.
+
+## D13 — `usage.WindowSpec` tagged `!nousage` blocks routing (F18) nousage compile — RESOLVED (2026-08-08)
+
+**Conflict:** `usage.WindowSpec` (descriptor-time window metadata, F11) lived in `internal/usage/descriptor.go` under `//go:build !nousage`. F18's `ProviderInput.Windows []usage.WindowSpec` / `BindWindowIDs` therefore could not compile under `-tags nousage`, but routing is catalog-side and AGENTS.md requires `internal/catalog/**` (and its consumers, e.g. F27 cmd-routes) to build under both tags.
+
+**Resolution (applied):** moved `WindowSpec` verbatim from `descriptor.go` to the tag-free `internal/usage/types.go`. It is pure data (ID/Label/Unit/Optional/ModelScope) with no credential surface, so tag-free placement is safe; no stub duplicate was added to `disabled.go` (single definition, no drift). `go build`/`go build -tags nousage ./...` and `go test ./internal/usage/...` pass.
+
+**Remaining action:** F18 keeps `internal/routing/*.go` tagless (no `!nousage` build tags) and imports `usage.WindowSpec` directly.
+
+## D14 — F22's `TestTree`/`TestHelpGolden` hardcoded a pre-F24/F25 command set — RESOLVED (2026-08-08)
+
+**Conflict:** F22's `pkg/whichmodel/tree_test.go` and `testdata/help.golden` were captured before any command besides `schema/serve/config/version` existed. F24 (`usage`) and F25 (`auth`) register additively per `commandOrder` (already listing `usage`/`auth` first — Main DECISION A), so both fixtures were stale the moment F24/F25 landed. Additionally, `usage_cmd.go`/`auth_cmd.go` are `//go:build !nousage` (F24/F25 SPEC §2 annex-d §4.6 L2 — a nousage binary registers neither command), so the expected command set and help text genuinely differ per build tag, not just per feature-completion snapshot.
+
+**Resolution (applied):** regenerated `testdata/help.golden` (default build) and added `testdata/help_nousage.golden` (`-tags nousage`); added `pkg/whichmodel/testvars_usage_test.go` (`!nousage`) and `testvars_nousage_test.go` (`nousage`) declaring `wantTreeOrder` and `helpGoldenPath` per tag; `tree_test.go`/`help_test.go` (still F22-owned) reference these vars instead of a hardcoded literal. No F22 behavioural code changed — only its test fixtures/support vars, which by nature must be rebuilt as later features register commands.
+
+**Remaining action:** none. Every later command-adding feature (F23, F26, F27) must likewise regenerate `testdata/help.golden` and update `wantTreeOrder`/`tree_test.go`'s expectations; recorded here so the pattern is not rediscovered per wave.

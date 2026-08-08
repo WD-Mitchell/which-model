@@ -93,3 +93,17 @@ type Failure struct {
 	Code    string `json:"code"`
 	Message string `json:"message"` // sanitised; NEVER contains credential material
 }
+
+// WindowSpec is descriptor-time metadata: which window IDs/labels/units a
+// provider MAY report, and which models each window's quota applies to.
+// It is NOT a runtime reading — that is Window (global CONTRACTS §1.4).
+// Tag-free (moved from descriptor.go, DEFERRED D13): pure data, no
+// credential surface, needed by the catalog-side routing join (F18) under
+// -tags nousage.
+type WindowSpec struct {
+	ID         string
+	Label      string
+	Unit       Unit
+	Optional   bool     // provider may omit this window depending on plan/quota shape
+	ModelScope []string // model IDs this window's quota applies to (F18 BindWindowIDs, annex-b §7.3)
+}
