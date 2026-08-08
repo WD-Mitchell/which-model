@@ -69,3 +69,21 @@ F15/F16/F17 deliberately bypass `internal/httpkit`: their port keeps core.mjs's 
 **Resolution (applied):** T6 case 5 corrected to `{elevated, 0.60}`; T7 row 1 corrected to `{critical, 0.25}`; T7 drain rows 7–9 corrected to `{standard, 0.60}`/`{elevated, 0.85}`/`{critical, 1.00}` (row 10 was already correct). The constructor is renamed `NewPressure` (both implementing agents independently converged on it; CONTRACTS §1–§2 and TASKS T3 updated); `internal/pick/band/pressure.go` keeps the verbatim doc comment.
 
 **Remaining action:** none — no other spec cites `band.Pressure(` as a constructor call; F18/F24/F26 construct pressures via `NewPressure` per this note.
+
+## D9 — Canonical catalog types unowned + global §2.2 interface drift — RESOLVED (2026-08-07)
+
+**Conflict (ownership):** `specs/global/CONTRACTS.md` §2.1 (`ScoreRow`, `package catalog`) and §4.3 (`Profile`) had no task creating their Go file — F09's Files lists are score-only and F10-T1 creates only `internal/pick/` files, yet both features consume `catalog.ScoreRow`/`catalog.Profile` (F10 CONTRACTS pins the file as `internal/catalog/types.go`).
+
+**Conflict (signatures):** global §2.2 declared `Normalize(values []decimal.Decimal, higherIsBetter bool) []decimal.Decimal` and `Aggregate(components, weights) decimal.Decimal`, while F09's CONTRACTS/TASKS pin `Normalize(raw, min, max decimal.Decimal) decimal.Decimal` and `Aggregate(values, weights) (decimal.Decimal, bool)`. F09's whole test suite (T1/T2 goldens) and SPEC D1 (blank denominator → false, never zero-imputed) are written against the F09 signatures.
+
+**Resolution (applied):** created `internal/catalog/types.go` (`package catalog`) with `ScoreRow` + `Profile` verbatim from §2.1/§4.3. Rewrote global §2.2 to F09's pinned signatures (direction moves to the derive layer's reflection helper, per F09 CONTRACTS §2.2 commentary). Fixed §4.3 with the `package catalog` declaration and file note.
+
+**Remaining action:** none — F09 imports `catalog.ScoreRow`; F10 imports both types; neither feature redefines them in `internal/catalog/score` or `internal/pick`.
+
+## D10 — F09-T6 raw golden fixture vs scores golden — RESOLVED (2026-08-07)
+
+**Conflict:** the F09-T6 raw fixture cells as printed in TASKS.md do not derive into `testdata/scores_golden.csv` byte-exactly (two benchmark cells for GPT and Kimi rows were misassigned between Toolathlon/Finance Agent/Program Bench/MCP Atlas columns).
+
+**Resolution (applied):** the scores golden is the contract (byte-exact Derive output is the acceptance criterion; TASKS.md sanctions recomputing `raw_sha256`). The two raw cells were corrected so `Derive(raw) == scores_golden.csv` byte-for-byte, and the provenance constant was recomputed to `4469f49a0fe94cc0f778a9a7e30dc8f7f79327ca5501ea3200cbe44e7d5e0cd3` (self-verified in `derive_test.go`). Secondary ports noted by the implementer: singleton-column ranges derive blank scores (Python rejects min==max only for 2+ equal values); mandatory-column "no published values" is unreachable behind the zero-eligible error.
+
+**Remaining action:** none.

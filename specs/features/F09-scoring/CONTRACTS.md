@@ -16,7 +16,7 @@ Package `internal/catalog/score` (directory `internal/catalog/score/`). Imports 
 Global interfaces from `specs/global/CONTRACTS.md §2.2`, used verbatim:
 
 ```go
-package catalog
+package score
 
 type Normalizer interface {
     Normalize(raw decimal.Decimal, min, max decimal.Decimal) decimal.Decimal

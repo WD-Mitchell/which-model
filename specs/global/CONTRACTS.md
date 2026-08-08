@@ -166,17 +166,19 @@ package score
 import "github.com/shopspring/decimal"
 
 type Normalizer interface {
-    Name() string
-    Normalize(values []decimal.Decimal, higherIsBetter bool) []decimal.Decimal
+    Normalize(raw decimal.Decimal, min, max decimal.Decimal) decimal.Decimal
 }
 
 type Aggregator interface {
-    Name() string
-    Aggregate(components []decimal.Decimal, weights []decimal.Decimal) decimal.Decimal
+    Aggregate(values []decimal.Decimal, weights []decimal.Decimal) (decimal.Decimal, bool)
 }
 ```
 
 Default implementations: `MinMaxLinear` and `WeightedArithmeticMean`.
+`Aggregate`'s bool reports an empty denominator (SPEC D1 blank-exclusion:
+never zero-impute); direction is applied by the derive layer BEFORE
+`Normalize` via the reflection v' = min + max − v (F09 CONTRACTS §2.2).
+Signatures pinned by F09 — see DEFERRED D9.
 
 ---
 
@@ -245,8 +247,9 @@ const (
 ### 4.3 Profile
 
 ```go
-import "github.com/shopspring/decimal"
+package catalog // Go file: internal/catalog/types.go (DEFERRED D9)
 
+import "github.com/shopspring/decimal"
 type Profile struct {
     Name         string
     Tier1Share   decimal.Decimal

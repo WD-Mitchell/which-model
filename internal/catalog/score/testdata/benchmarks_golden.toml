@@ -1,0 +1,27 @@
+[benchmark_selection]
+groups = ["software_engineering", "finance"]
+benchmarks = []
+
+[benchmark_groups.software_engineering]
+benchmarks = [
+  "SWE-Bench Verified",
+  "SWE-Bench Pro",
+  "SWE-Bench Multilingual",
+  "SWE-Bench Multimodal",
+  "DeepSWE",
+  "Terminal-Bench",
+  "AutomationBench",
+  "FrontierCode",
+  "Program Bench",
+  "MCP Atlas",
+  "Toolathlon",
+]
+
+[benchmark_groups.finance]
+benchmarks = [
+  "Finance Agent",
+  "FinanceAgent",
+  "τ3 Banking",
+  "GDPval",
+  "GDPval-AA",
+]
