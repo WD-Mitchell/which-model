@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/WD-Mitchell/which-model/schema/routes-list.json",
+  "title": "which-model routes list --json output",
+  "type": "object",
+  "required": ["schema_version", "routes"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "2.0" },
+    "routes": { "type": "array", "items": { "$ref": "#/$defs/Route" } }
+  },
+  "$defs": {
+    "Route": {
+      "type": "object",
+      "required": ["provider", "model_id", "model", "reasoning", "window_ids"],
+      "properties": {
+        "provider": { "type": "string" },
+        "model_id": { "type": "string" },
+        "model": { "type": "string" },
+        "reasoning": {
+          "type": "string",
+          "enum": ["minimal", "low", "medium", "high", "xhigh", "max", "default"]
+        },
+        "window_ids": { "type": "array", "items": { "type": "string" } },
+        "provenance": {
+          "type": "string",
+          "enum": ["provider_live", "models_dev", "user_declared"]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

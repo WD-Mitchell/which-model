@@ -64,9 +64,11 @@ func RouteKeyFromRoute(r routing.Route) string {
 
 // Sentinel errors (specs/features/F20-strategies/CONTRACTS.md §5).
 var (
-	ErrNoCandidates    = errors.New("no candidates to pick from")
-	ErrSeedRequired    = errors.New("weighted-random requires --seed for reproducibility")
-	ErrUnknownStrategy = errors.New("unknown strategy")
+	ErrNoCandidates = errors.New("no candidates to pick from")
+	ErrSeedRequired = errors.New("weighted-random requires --seed for reproducibility")
+	// ErrUnknownStrategy message is fixed by specs/features/F20-strategies/CONTRACTS.md §5;
+	// New/ParseStrategy wrap it: fmt.Errorf("%w: %q", ErrUnknownStrategy, s).
+	ErrUnknownStrategy = errors.New("unknown strategy (valid: score, priority, round-robin, least-used, weighted-random, cost-optimal)")
 )
 
 // ErrLeastUsedRequiresUsage is returned by LeastUsed.Pick when usage is

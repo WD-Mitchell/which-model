@@ -1,0 +1,4 @@
+interface:
+  display_name: "Provider usage"
+  short_description: "Safely report usage allowance for any configured provider"
+  default_prompt: "Use $provider-usage to run one explicit, read-only provider usage allowance report without automatic polling or enforcement."

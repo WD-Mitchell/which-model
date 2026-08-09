@@ -1,0 +1,12 @@
+[catalog.publish]
+enabled = true
+schedule = "0 6 * * *"
+timezone = "Europe/London"
+branches = ["main"]
+mode = "pull-request"
+auto_merge = true
+merge_method = "squash"
+commit_message = "chore(data): refresh available model scores"
+pr_title = "chore(data): refresh available model scores"
+pr_labels = ["data", "automated"]
+run_tests = true

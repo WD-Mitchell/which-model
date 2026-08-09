@@ -3,8 +3,14 @@ Usage:
 
 Available Commands:
   usage       Report provider usage allowances
+  catalog     catalog refresh and views
+  pick        Pick a model for a task profile
+  routes      Manage the provider route table
   auth        Manage provider credentials
-  schema      print the JSON schema of a command's output
+  schema      Print the JSON Schema for a command's --json output
+  skills      Install, remove, or list agent skills
+  hooks       Install, remove, or run agent dispatch hooks
+  explain     Explain a previous pick
   serve       serve the usage cache over HTTP (placeholder)
   config      inspect and update which-model configuration
   version     print version information

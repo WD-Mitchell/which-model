@@ -1,0 +1,4 @@
+interface:
+  display_name: "Model selection"
+  short_description: "Rank models by task profile and filter to live harness availability"
+  default_prompt: "Use $model-selection to choose a deterministic model and reasoning-effort row for this task from a task profile, then confirm it against the target harness's live availability before dispatch."

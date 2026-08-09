@@ -1,0 +1,4 @@
+interface:
+  display_name: "Usage-aware dispatch"
+  short_description: "Pick a provider/model pair with a quota-aware strategy and record dispatch evidence"
+  default_prompt: "Use $usage-aware-dispatch to select a dispatch strategy appropriate to the operational constraint, run which-model pick, and record which-model explain evidence for the chosen candidate before dispatching."

@@ -4,6 +4,7 @@ import (
 	"math/rand/v2"
 
 	"github.com/WD-Mitchell/which-model/internal/pick"
+	"github.com/shopspring/decimal"
 )
 
 // WeightedRandom samples one candidate with probability proportional to
@@ -23,21 +24,21 @@ func (WeightedRandom) Pick(candidates []pick.Candidate, state *State) (pick.Cand
 
 	sorted := sortByRouteKey(candidates)
 	weights := make([]float64, len(sorted))
-	total := 0.0
+	total := decimal.Zero
 	for i, c := range sorted {
 		w := c.BandWeight.Mul(c.ProviderWeight)
 		weights[i] = w.InexactFloat64()
-		total += weights[i]
+		total = total.Add(w)
 	}
-	if total == 0 {
+	if total.IsZero() {
+		total = decimal.NewFromInt(int64(len(sorted)))
 		for i := range weights {
 			weights[i] = 1
-			total += 1
 		}
 	}
 
 	rng := rand.New(rand.NewPCG(uint64(state.Seed), uint64(state.Seed)))
-	draw := rng.Float64() * total
+	draw := rng.Float64() * total.InexactFloat64()
 
 	picked := len(sorted) - 1
 	cumulative := 0.0

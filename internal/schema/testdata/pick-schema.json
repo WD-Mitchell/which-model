@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/WD-Mitchell/which-model/schema/pick-result.json",
+  "title": "which-model pick --json output",
+  "type": "object",
+  "required": ["schema_version", "usage_enabled", "profile", "strategy", "candidates", "excluded_candidates"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "2.0" },
+    "usage_enabled": { "type": "boolean" },
+    "usage_disabled_reason": {
+      "type": "string",
+      "enum": ["flag", "config", "compiled_out", "no_providers_enabled"]
+    },
+    "profile": { "type": "string" },
+    "strategy": {
+      "type": "string",
+      "enum": ["score", "priority", "round-robin", "least-used", "weighted-random", "cost-optimal"]
+    },
+    "seed": { "type": ["integer", "null"] },
+    "candidates": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Candidate" }
+    },
+    "excluded_candidates": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ExcludedCandidate" }
+    }
+  },
+  "if": { "properties": { "usage_enabled": { "const": false } }, "required": ["usage_enabled"] },
+  "then": { "required": ["usage_disabled_reason"] },
+  "$defs": {
+    "Route": {
+      "type": "object",
+      "required": ["provider", "model_id", "model", "reasoning", "window_ids"],
+      "properties": {
+        "provider": { "type": "string" },
+        "model_id": { "type": "string" },
+        "model": { "type": "string" },
+        "reasoning": {
+          "type": "string",
+          "enum": ["minimal", "low", "medium", "high", "xhigh", "max", "default"]
+        },
+        "window_ids": { "type": "array", "items": { "type": "string" } },
+        "provenance": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "Candidate": {
+      "type": "object",
+      "required": ["candidate_id", "route", "model_score", "provider_weight", "final_score"],
+      "properties": {
+        "candidate_id": { "type": "string" },
+        "route": { "$ref": "#/$defs/Route" },
+        "model_score": { "type": "string" },
+        "band": { "type": "string" },
+        "band_weight": { "type": "string" },
+        "provider_weight": { "type": "string" },
+        "final_score": { "type": "string" },
+        "warnings": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "ExcludedCandidate": {
+      "type": "object",
+      "required": ["route", "reason_code", "reason"],
+      "properties": {
+        "route": { "$ref": "#/$defs/Route" },
+        "reason_code": {
+          "type": "string",
+          "enum": ["band_gated", "no_score_row", "auth_required", "provider_error", "not_in_availability_list"]
+        },
+        "reason": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/WD-Mitchell/which-model/schema/usage-snapshot.json",
+  "title": "which-model usage --json output",
+  "type": "object",
+  "required": ["schema_version", "usage_enabled", "snapshots"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "2.0" },
+    "usage_enabled": { "type": "boolean" },
+    "usage_disabled_reason": {
+      "type": "string",
+      "enum": ["flag", "config", "compiled_out", "no_providers_enabled"]
+    },
+    "snapshots": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Snapshot" }
+    }
+  },
+  "if": { "properties": { "usage_enabled": { "const": false } }, "required": ["usage_enabled"] },
+  "then": { "required": ["usage_disabled_reason"] },
+  "$defs": {
+    "Unit": {
+      "type": "string",
+      "enum": ["percent", "tokens", "credits", "usd", "requests", "kwh", "none"]
+    },
+    "Window": {
+      "type": "object",
+      "required": ["id", "label", "unit", "usage_known"],
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "unit": { "$ref": "#/$defs/Unit" },
+        "used_percent": { "type": ["number", "null"] },
+        "used": { "type": ["number", "null"] },
+        "limit": { "type": ["number", "null"] },
+        "remaining": { "type": ["number", "null"] },
+        "unlimited": { "type": "boolean", "default": false },
+        "window_minutes": { "type": ["integer", "null"] },
+        "resets_at": { "type": ["string", "null"], "format": "date-time" },
+        "reset_hint": { "type": "string" },
+        "model_scope": { "type": "array", "items": { "type": "string" } },
+        "synthetic": { "type": "boolean", "default": false },
+        "usage_known": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "Failure": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": { "type": "string" },
+        "message": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "Snapshot": {
+      "type": "object",
+      "required": ["provider", "windows", "fetched_at", "source", "confidence"],
+      "properties": {
+        "provider": { "type": "string" },
+        "account": { "type": "string" },
+        "plan": { "type": "string" },
+        "windows": { "type": "array", "items": { "$ref": "#/$defs/Window" } },
+        "fetched_at": { "type": "string", "format": "date-time" },
+        "source": { "type": "string", "enum": ["oauth", "api", "cli", "web", "local", "cache"] },
+        "confidence": { "type": "string", "enum": ["live", "cached", "estimated"] },
+        "stale": { "type": "boolean", "default": false },
+        "error": { "oneOf": [{ "$ref": "#/$defs/Failure" }, { "type": "null" }] }
+      },
+      "additionalProperties": false
+    }
+  }
+}

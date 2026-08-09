@@ -1,0 +1,245 @@
+package publish
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+// GoldenPC is the exact config the golden file was rendered from.
+func GoldenPC() *PublishConfig {
+	return &PublishConfig{
+		Enabled:       true,
+		Schedule:      "0 6 * * *",
+		Timezone:      "Europe/London",
+		Branches:      []string{"main", "release"},
+		Mode:          "pull-request",
+		AutoMerge:     true,
+		MergeMethod:   "squash",
+		CommitMessage: "chore(data): refresh available model scores",
+		PRTitle:       "chore(data): refresh available model scores",
+		PRLabels:      []string{"data", "automated"},
+		RunTests:      true,
+		RawCSVPath:    "available_model_raw_values.csv",
+		ScoresCSVPath: "available_model_scores.csv",
+	}
+}
+
+func TestRenderGolden(t *testing.T) {
+	got, err := Render(GoldenPC())
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	want, err := os.ReadFile("testdata/refresh-model-data.golden.yml")
+	if err != nil {
+		t.Fatalf("ReadFile(golden) error = %v", err)
+	}
+	if string(got) != string(want) {
+		t.Errorf("Render() != golden file\n--- got ---\n%s\n--- want ---\n%s", got, want)
+	}
+}
+
+func TestRenderDeterministic(t *testing.T) {
+	a, err := Render(GoldenPC())
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	b, err := Render(GoldenPC())
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	if string(a) != string(b) {
+		t.Error("two Render calls differ")
+	}
+}
+
+func TestRenderTrailingBytes(t *testing.T) {
+	out, err := Render(GoldenPC())
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	if len(out) == 0 || out[len(out)-1] != '\n' {
+		t.Errorf("output must end with exactly one \\n")
+	}
+	if strings.HasSuffix(string(out), "\n\n") {
+		t.Error("output ends with two newlines")
+	}
+	if strings.Contains(string(out), "\r") {
+		t.Error("output contains CR bytes")
+	}
+}
+
+func TestRenderSingleBranch(t *testing.T) {
+	pc := GoldenPC()
+	pc.Branches = []string{"main"}
+	out, err := Render(pc)
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	if !strings.Contains(string(out), `branch: ["main"] # from [catalog.publish].branches, listed order`) {
+		t.Errorf("matrix line missing: %s", out)
+	}
+	if !strings.Contains(string(out), "  group: refresh-model-data\n") {
+		t.Error("concurrency group missing")
+	}
+	if !strings.Contains(string(out), "  cancel-in-progress: false\n") {
+		t.Error("cancel-in-progress missing")
+	}
+}
+
+func TestRenderDirectPush(t *testing.T) {
+	pc := GoldenPC()
+	pc.Mode = "direct-push"
+	out, err := Render(pc)
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	if !strings.Contains(string(out), "run: git push origin HEAD:${{ matrix.branch }}") {
+		t.Errorf("push step missing: %s", out)
+	}
+	for _, forbidden := range []string{"gh pr", "pull-requests: write", "GH_TOKEN"} {
+		if strings.Contains(string(out), forbidden) {
+			t.Errorf("direct-push output contains %q", forbidden)
+		}
+	}
+}
+
+func TestRenderRunTestsFalse(t *testing.T) {
+	pc := GoldenPC()
+	pc.RunTests = false
+	out, err := Render(pc)
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	if strings.Contains(string(out), "go test ./internal/catalog") {
+		t.Errorf("test gate present with run_tests=false: %s", out)
+	}
+	if !strings.Contains(string(out), "go build -o which-model ./cmd/which-model") {
+		t.Errorf("build step missing: %s", out)
+	}
+}
+
+func TestRenderAutoMergeFalse(t *testing.T) {
+	pc := GoldenPC()
+	pc.AutoMerge = false
+	out, err := Render(pc)
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	if !strings.Contains(string(out), "gh pr create") {
+		t.Errorf("gh pr create missing: %s", out)
+	}
+	if strings.Contains(string(out), "gh pr merge") {
+		t.Errorf("gh pr merge present with auto_merge=false: %s", out)
+	}
+}
+
+func TestRenderDisabled(t *testing.T) {
+	pc := GoldenPC()
+	pc.Enabled = false
+	out, err := Render(pc)
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	if out != nil {
+		t.Errorf("Render() = %q, want nil for disabled", out)
+	}
+}
+
+func TestRenderNoUsageNoExtraSecrets(t *testing.T) {
+	out, err := Render(GoldenPC())
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	s := string(out)
+	for _, forbidden := range []string{"usage refresh", "--refresh-usage", "usage list"} {
+		if strings.Contains(s, forbidden) {
+			t.Errorf("output contains usage command %q", forbidden)
+		}
+	}
+	if got := strings.Count(s, "secrets.ARTIFICIAL_ANALYSIS_API"); got != 1 {
+		t.Errorf("secrets.ARTIFICIAL_ANALYSIS_API count = %d, want 1", got)
+	}
+	gt := strings.Count(s, "secrets.GITHUB_TOKEN")
+	if gt > 2 {
+		t.Errorf("secrets.GITHUB_TOKEN count = %d, want <= 2", gt)
+	}
+	if total := strings.Count(s, "secrets."); total != 1+gt {
+		t.Errorf("unexpected secrets.* references: total %d, ARTIFICIAL %d, GITHUB %d", total, 1, gt)
+	}
+}
+
+func TestRenderPins(t *testing.T) {
+	out, err := Render(GoldenPC())
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	s := string(out)
+	if !strings.Contains(s, "actions/checkout@"+CheckoutPin+" # v6.0.2") {
+		t.Errorf("checkout pin missing: %s", s)
+	}
+	if !strings.Contains(s, "actions/setup-go@"+SetupGoPin+" # v6.3.0") {
+		t.Errorf("setup-go pin missing: %s", s)
+	}
+}
+
+func TestRenderLabels(t *testing.T) {
+	pc := GoldenPC()
+	pc.PRLabels = []string{"a", "b"}
+	out, err := Render(pc)
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	s := string(out)
+	if strings.Count(s, "--label") != 2 {
+		t.Errorf("--label count = %d, want 2: %s", strings.Count(s, "--label"), s)
+	}
+	ai := strings.Index(s, "--label a")
+	bi := strings.Index(s, "--label b")
+	if ai < 0 || bi < 0 || ai > bi {
+		t.Errorf("label order wrong: %s", s)
+	}
+
+	pc.PRLabels = nil
+	out, err = Render(pc)
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	if strings.Contains(string(out), "--label") {
+		t.Errorf("--label present with empty pr_labels: %s", out)
+	}
+}
+
+func TestRepoRoot(t *testing.T) {
+	t.Run("finds .git ancestor", func(t *testing.T) {
+		dir := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(dir, ".git"), 0o755); err != nil {
+			t.Fatalf("MkdirAll(.git) error = %v", err)
+		}
+		t.Chdir(dir)
+		root, err := RepoRoot()
+		if err != nil {
+			t.Fatalf("RepoRoot() error = %v", err)
+		}
+		if _, err := os.Stat(filepath.Join(root, ".git")); err != nil {
+			t.Errorf("RepoRoot() = %q, no .git inside: %v", root, err)
+		}
+		if filepath.Base(root) != filepath.Base(dir) {
+			t.Errorf("RepoRoot() = %q, want base %q", root, filepath.Base(dir))
+		}
+	})
+	t.Run("no .git ancestor", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+		if _, err := RepoRoot(); err == nil {
+			t.Fatal("RepoRoot() = nil error, want error")
+		}
+	})
+}
+
+func TestWorkflowPath(t *testing.T) {
+	got := WorkflowPath("/repo")
+	if got != filepath.Join("/repo", ".github", "workflows", "refresh-model-data.yml") {
+		t.Errorf("WorkflowPath() = %q", got)
+	}
+}

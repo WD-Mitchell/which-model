@@ -121,3 +121,19 @@ F15/F16/F17 deliberately bypass `internal/httpkit`: their port keeps core.mjs's 
 **Resolution (applied):** regenerated `testdata/help.golden` (default build) and added `testdata/help_nousage.golden` (`-tags nousage`); added `pkg/whichmodel/testvars_usage_test.go` (`!nousage`) and `testvars_nousage_test.go` (`nousage`) declaring `wantTreeOrder` and `helpGoldenPath` per tag; `tree_test.go`/`help_test.go` (still F22-owned) reference these vars instead of a hardcoded literal. No F22 behavioural code changed — only its test fixtures/support vars, which by nature must be rebuilt as later features register commands.
 
 **Remaining action:** none. Every later command-adding feature (F23, F26, F27) must likewise regenerate `testdata/help.golden` and update `wantTreeOrder`/`tree_test.go`'s expectations; recorded here so the pattern is not rediscovered per wave.
+
+## D15 — F06's `WriteAtomic`/`WriteAtomicBytes` require a pre-existing non-empty target — RESOLVED (2026-08-08)
+
+**Conflict:** `csvstore.WriteAtomic`/`WriteAtomicBytes` are CAS-verified replace primitives: they read the target's current bytes as "original" before renaming the temp file over it (`security.ReadBoundedFile` also rejects zero-length files). Neither F23-T4 (Derive) nor F23-T5 (Collect) instructions address the case where the raw/scores CSV does not exist yet — a repo's very first `which-model catalog refresh` — so a literal implementation would fail every first run.
+
+**Resolution (applied):** added `ensureBootstrapFile(path string) error` in `pkg/whichmodel/catalog_collect.go`: when the target does not exist, it writes a minimal non-empty placeholder (`"# bootstrap\n"`) before the normal Backup+WriteAtomic(Bytes) path runs; an existing file is never touched. Called from both `defaultRunner.Collect` (raw CSV) and `defaultRunner.Derive` (scores CSV) in place of the `Backup` call when the target is absent.
+
+**Remaining action:** none.
+
+## D16 — cobra's cached command tree leaks array/scalar flag state across in-process `ExecuteArgs` calls — RESOLVED (2026-08-08)
+
+**Conflict:** F22's `registeredCommands()` (`pkg/whichmodel/registry.go`) caches the built `*cobra.Command` tree for the process lifetime, rebuilding only when a new registrar is added (`len(registrars) != builtCount`). Each subcommand's local `cobra.Command`/`pflag.FlagSet`/bound flag struct (e.g. F23's `catalogFlags`) is therefore constructed exactly ONCE per process. Production is unaffected (one `ExecuteArgs` call per process), but pflag's `StringArrayVar` accumulates across repeated `Set` calls on the same `Value` once `changed` is true (`*p = append(*p, val)`, never reset), and scalar `Var`s simply keep their last-set value when a later invocation omits the flag. Both leak state across the many in-process `ExecuteArgs` calls a `go test` binary makes, causing order-dependent test flakiness for any feature with array-typed local flags (F23's `--provider`/`--add`/`--reasoning`; future F26/F27 subcommands with similar flags will hit the same issue).
+
+**Resolution (applied):** added `resetRegistryBuildCache()` to `pkg/whichmodel/registry.go` — clears the cached `built` slice (not `registrars`) so the next `registeredCommands()` call rebuilds every command fresh (new `*cobra.Command`, new local flag struct, new `pflag.FlagSet`) without registering a spurious command. `pkg/whichmodel/catalog_testutil_test.go` wraps it as `captureExecuteFresh(t, args)`; every F23 test that exercises a catalog subcommand through `ExecuteArgs` uses it instead of raw `captureExecute`.
+
+**Remaining action:** any later feature adding subcommand-local flags to a cached registry command (F26 cmd-pick, F27 cmd-routes) MUST use `captureExecuteFresh` (or the equivalent `resetRegistryBuildCache()` call) in its own tests whenever a test invokes the same subcommand more than once, or a prior test in the same package leaves flags set, within one `go test` binary.

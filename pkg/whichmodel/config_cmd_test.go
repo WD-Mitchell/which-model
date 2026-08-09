@@ -196,18 +196,14 @@ func TestConfigCmd(t *testing.T) {
 		}
 	})
 
-	t.Run("show schema doc both paths", func(t *testing.T) {
+	t.Run("show schema hook", func(t *testing.T) {
 		setupHome(t)
-		code1, out1, _ := captureExecute(t, []string{"config", "show", "--schema"})
-		if code1 != 0 {
-			t.Fatalf("hook exit = %d, want 0", code1)
+		code, out, _ := captureExecute(t, []string{"config", "show", "--schema"})
+		if code != 0 {
+			t.Fatalf("hook exit = %d, want 0", code)
 		}
-		code2, out2, _ := captureExecute(t, []string{"schema", "config show"})
-		if code2 != 0 {
-			t.Fatalf("schema exit = %d, want 0", code2)
-		}
-		if out1 != out2 {
-			t.Errorf("schema outputs differ:\n%q\nvs\n%q", out1, out2)
+		if !strings.Contains(out, `"type":"object"`) {
+			t.Errorf("hook output is not a schema: %q", out)
 		}
 	})
 }

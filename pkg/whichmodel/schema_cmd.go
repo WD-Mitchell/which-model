@@ -1,17 +1,16 @@
 package whichmodel
 
 import (
-	"fmt"
 	"sort"
 	"sync"
 
 	"github.com/spf13/cobra"
 
-	"github.com/WD-Mitchell/which-model/internal/output"
+	"github.com/WD-Mitchell/which-model/internal/schema"
 )
 
 var (
-	schemaMu  sync.RWMutex
+	schemaMu   sync.RWMutex
 	schemaDocs = map[string]map[string]any{}
 )
 
@@ -48,22 +47,26 @@ func SchemaIndex() []string {
 	return keys
 }
 
-// NewSchemaCmd prints schema documents (SPEC §9): no argument → the index;
-// one argument → that command's document; unknown → UsageError (exit 2).
+// NewSchemaCmd prints the JSON Schema documents for command --json outputs
+// (F28 CONTRACTS §4.1): no argument → the index; one command name → that
+// command's document; unknown name → UnknownCommandError (its message is
+// prefixed `unknown command "`, so renderError maps it to exit 2).
 func NewSchemaCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "schema [command]",
-		Short: "print the JSON schema of a command's output",
+		Use:   "schema [command...]",
+		Short: "Print the JSON Schema for a command's --json output",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				return output.PrintSchemaIndex(Stdout, SchemaIndex())
+				cmd.OutOrStdout().Write(schema.Index())
+				return nil
 			}
-			doc, ok := lookupSchema(args[0])
-			if !ok {
-				return &UsageError{Message: fmt.Sprintf("no schema for command %q", args[0])}
+			doc, err := schema.Emit(args[0])
+			if err != nil {
+				return err
 			}
-			return output.PrintSchema(Stdout, doc)
+			cmd.OutOrStdout().Write(doc)
+			return nil
 		},
 	}
 }

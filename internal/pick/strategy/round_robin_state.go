@@ -108,6 +108,12 @@ func saveCursor(dataDir, key string, index int) error {
 // loadCursor/saveCursor alone cannot provide this: a separate unlocked read
 // followed by a locked write leaves a race window between them.
 func nextCursor(dataDir, key string, dryRun bool) (int, error) {
+	if dryRun {
+		// SPEC §2.4 step 10: dry run computes from the current cursor but
+		// never advances it — a plain read, with no file side effects
+		// (loadCursor tolerates an absent or corrupt file).
+		return loadCursor(dataDir, key)
+	}
 	if err := os.MkdirAll(filepath.Join(dataDir, "pick"), 0o700); err != nil {
 		return 0, err
 	}

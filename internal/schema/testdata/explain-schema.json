@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/WD-Mitchell/which-model/schema/explain-result.json",
+  "title": "which-model explain --json output",
+  "type": "object",
+  "required": ["schema_version", "usage_enabled", "candidate", "evidence"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "2.0" },
+    "usage_enabled": { "type": "boolean" },
+    "usage_disabled_reason": {
+      "type": "string",
+      "enum": ["flag", "config", "compiled_out", "no_providers_enabled"]
+    },
+    "candidate": { "type": "string", "description": "candidate_id echoed back" },
+    "evidence": { "$ref": "#/$defs/Evidence" }
+  },
+  "if": { "properties": { "usage_enabled": { "const": false } }, "required": ["usage_enabled"] },
+  "then": { "required": ["usage_disabled_reason"] },
+  "$defs": {
+    "Evidence": {
+      "type": "object",
+      "required": ["profile", "score_inputs", "route_provenance", "excluded_candidates"],
+      "properties": {
+        "profile": { "type": "string" },
+        "score_inputs": {
+          "type": "object",
+          "description": "tier1 + category composite values that produced model_score",
+          "additionalProperties": { "type": "number" }
+        },
+        "band": {
+          "type": "object",
+          "required": ["name", "used_percent", "weight"],
+          "properties": {
+            "name": { "type": "string" },
+            "used_percent": { "type": "number" },
+            "weight": { "type": "number" }
+          },
+          "additionalProperties": false
+        },
+        "snapshot_age_seconds": { "type": "number" },
+        "confidence": { "type": "string", "enum": ["live", "cached", "estimated"] },
+        "route_provenance": {
+          "type": "string",
+          "description": "how the provider<->model route was resolved, e.g. 'static-config' | 'live-availability-probe'"
+        },
+        "excluded_candidates": {
+          "type": "array",
+          "items": { "$ref": "https://github.com/WD-Mitchell/which-model/schema/pick-result.json#/$defs/ExcludedCandidate" }
+        },
+        "last_verified": {
+          "type": "string",
+          "format": "date-time",
+          "description": "when the provider adapter last confirmed this route/model was live-accepted by the target harness"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
