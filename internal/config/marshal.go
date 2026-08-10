@@ -26,6 +26,17 @@ func (c *Config) MarshalTOML() ([]byte, error) {
 	default:
 		return nil, &ConfigError{Kind: KindInvalidValue, Key: "usage.enabled", Err: fmt.Errorf("unknown usage state %q", c.Usage.Enabled)}
 	}
+	switch c.Usage.Backend {
+	case UsageBackendOff, "":
+		usage["backend"] = string(UsageBackendOff)
+	case UsageBackendNative:
+		usage["backend"] = string(UsageBackendNative)
+	case UsageBackendCodexBar:
+		usage["backend"] = string(UsageBackendCodexBar)
+	default:
+		return nil, &ConfigError{Kind: KindInvalidValue, Key: "usage.backend", Err: fmt.Errorf("unknown usage backend %q", c.Usage.Backend)}
+	}
+
 	doc["usage"] = usage
 
 	providers := make(map[string]any)

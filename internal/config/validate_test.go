@@ -16,6 +16,7 @@ func TestValidate(t *testing.T) {
 	}{
 		{name: "default", cfg: Default()},
 		{name: "bad usage", cfg: &Config{Usage: UsageConfig{Enabled: UsageEnabled("banana")}}, want: "usage.enabled"},
+		{name: "bad backend", cfg: &Config{Usage: UsageConfig{Backend: UsageBackend("banana")}}, want: "usage.backend"},
 		{name: "zero weight", cfg: &Config{Providers: map[string]ProviderConfig{"claude": {Weight: decimal.Decimal{}}}}},
 		{name: "negative weight", cfg: &Config{Providers: map[string]ProviderConfig{"claude": {Weight: decimal.NewFromInt(-1)}}}, want: "providers.claude.weight"},
 		{name: "negative ttl", cfg: &Config{Providers: map[string]ProviderConfig{"claude": {CacheTTL: -time.Second}}}, want: "providers.claude.cache_ttl"},

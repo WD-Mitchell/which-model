@@ -10,7 +10,7 @@ import (
 // commandOrder is the fixed display/wiring order (Main DECISION A). Commands
 // absent from the list sort last, then alphabetically by name.
 var commandOrder = []string{
-	"usage", "catalog", "pick", "routes",
+	"usage", "catalog", "pick", "routes", "auth",
 	"schema", "skills", "hooks", "explain", "serve",
 	"config", "version",
 }

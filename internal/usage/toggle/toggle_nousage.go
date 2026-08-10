@@ -10,6 +10,7 @@ import "github.com/WD-Mitchell/which-model/internal/config"
 const (
 	ReasonFlag               = "flag"                 // --no-usage (L0)
 	ReasonConfig             = "config"               // [usage] enabled = false (L1)
+	ReasonBackendOff         = "backend_off"          // [usage] backend = "off"
 	ReasonCompiledOut        = "compiled_out"         // -tags nousage (L2)
 	ReasonNoProvidersEnabled = "no_providers_enabled" // [usage] auto/true with zero enabled providers
 )

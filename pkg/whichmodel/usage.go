@@ -36,6 +36,7 @@ type UsageArgs struct {
 type FetchAllOptions struct {
 	Providers       []string
 	Source          usage.Source
+	Backend         config.UsageBackend
 	ForceRefresh    bool
 	MaxAge          time.Duration
 	Timeout         time.Duration
@@ -57,6 +58,7 @@ func fetchAll(ctx context.Context, opts FetchAllOptions) (*FetchResult, error) {
 		enabled[id] = true
 	}
 	snapshots, _, err := fetch.FetchAll(ctx, opts.Providers, fetch.Options{
+		Backend:      opts.Backend,
 		Refresh:      opts.ForceRefresh,
 		Offline:      opts.Offline || opts.Source == usage.SourceCache,
 		MaxAge:       opts.MaxAge,
@@ -81,21 +83,22 @@ func RunUsage(args UsageArgs, stdout, stderr io.Writer) error {
 	if len(args.Providers) == 0 && !args.All {
 		return &UsageError{Message: "no providers requested; name providers or pass --all"}
 	}
+	cfg, err := config.Load(config.LoadOptions{Path: args.ConfigPath})
+	if err != nil {
+		return &UsageError{Message: err.Error()}
+	}
+	validIDs := validUsageIDsForBackend(cfg.Usage.Backend)
 	for _, id := range args.Providers {
 		found := false
-		for _, valid := range validUsageIDs() {
+		for _, valid := range validIDs {
 			if id == valid {
 				found = true
 				break
 			}
 		}
 		if !found {
-			return &UsageError{Message: fmt.Sprintf("unknown provider %q; valid providers: %s", id, strings.Join(validUsageIDs(), ", "))}
+			return &UsageError{Message: fmt.Sprintf("unknown provider %q; valid providers: %s", id, strings.Join(validIDs, ", "))}
 		}
-	}
-	cfg, err := config.Load(config.LoadOptions{Path: args.ConfigPath})
-	if err != nil {
-		return &UsageError{Message: err.Error()}
 	}
 	if cfg.Usage.Enabled == config.UsageFalse {
 		path := args.ConfigPath
@@ -103,6 +106,9 @@ func RunUsage(args UsageArgs, stdout, stderr io.Writer) error {
 			path = "resolved config"
 		}
 		return &CodedError{Code: "usage_disabled", Message: fmt.Sprintf("usage is disabled by [usage] enabled = false in %s", path)}
+	}
+	if cfg.Usage.Backend == config.UsageBackendOff || cfg.Usage.Backend == "" {
+		return &CodedError{Code: "usage_disabled", Message: "usage is disabled by [usage] backend = off"}
 	}
 	providers, err := resolveProviders(args, cfg)
 	if err != nil {
@@ -119,6 +125,7 @@ func RunUsage(args UsageArgs, stdout, stderr io.Writer) error {
 	res, err := fetchAllFunc(context.Background(), FetchAllOptions{
 		Providers:       providers,
 		Source:          args.Source,
+		Backend:         cfg.Usage.Backend,
 		ForceRefresh:    args.ForceRefresh,
 		MaxAge:          args.MaxAge,
 		Timeout:         args.Timeout,
@@ -201,14 +208,27 @@ type UsageReport struct {
 	LastVerified  map[string]time.Time `json:"last_verified,omitempty"`
 }
 
+var nativeUsageIDs = []string{"claude", "codex", "copilot"}
+
 func validUsageIDs() []string { return codexbar.SupportedProviders() }
+
+func validUsageIDsForBackend(backend config.UsageBackend) []string {
+	if backend == config.UsageBackendCodexBar {
+		return validUsageIDs()
+	}
+	return append([]string(nil), nativeUsageIDs...)
+}
 
 func resolveProviders(args UsageArgs, cfg *config.Config) ([]string, error) {
 	if !args.All {
 		return append([]string(nil), args.Providers...), nil
 	}
+	backend := config.UsageBackendNative
+	if cfg != nil {
+		backend = cfg.Usage.Backend
+	}
 	providers := make([]string, 0)
-	for _, id := range codexbar.SupportedProviders() {
+	for _, id := range validUsageIDsForBackend(backend) {
 		if cfg != nil && cfg.Providers[id].Enabled {
 			providers = append(providers, id)
 		}

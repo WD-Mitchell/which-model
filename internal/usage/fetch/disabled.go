@@ -1,7 +1,7 @@
 //go:build nousage
 
 // Package fetch under -tags nousage has no fetch fan-out: FetchAll always
-// returns the compiled-out sentinel.
+// returns the sentinel (specs/features/F21-usage-toggle/SPEC.md §2.2 step 9).
 package fetch
 
 import (
@@ -9,10 +9,11 @@ import (
 	"time"
 
 	"github.com/WD-Mitchell/which-model/internal/usage"
+	"github.com/WD-Mitchell/which-model/internal/usage/credential"
 )
 
-// Options mirrors the real fetch surface so common callers compile under both
-// build variants.
+// Options configures one FetchAll call. Signature-identical to F14's real
+// struct (CONTRACTS §4 — field set pinned; do not rename fields).
 type Options struct {
 	Refresh      bool
 	Offline      bool
@@ -22,10 +23,9 @@ type Options struct {
 	Timeout      time.Duration
 	MaxParallel  int
 	CacheDir     string
-	Source       usage.Source
 }
 
 // FetchAll in the compiled-out build always returns the sentinel error.
-func FetchAll(ctx context.Context, providers []string, opts Options) ([]usage.Snapshot, []usage.Warning, error) {
+func FetchAll(ctx context.Context, providers []string, opts Options) ([]usage.Snapshot, []credential.Warning, error) {
 	return nil, nil, usage.ErrUsageCompiledOut
 }

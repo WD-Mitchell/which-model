@@ -46,7 +46,7 @@ func TestRunUsageFetchAllJSONGolden(t *testing.T) {
 		return &FetchResult{Snapshots: []usage.Snapshot{claudeGoldenSnapshot()}}, nil
 	}
 	cfg := filepath.Join(t.TempDir(), "config.toml")
-	if err := os.WriteFile(cfg, []byte("[providers.claude]\nenabled = true\n[providers.codex]\nenabled = true\n"), 0o600); err != nil {
+	if err := os.WriteFile(cfg, []byte("[usage]\nbackend = \"native\"\n[providers.claude]\nenabled = true\n[providers.codex]\nenabled = true\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	var out, errOut strings.Builder
@@ -83,7 +83,7 @@ func TestRunUsageFetchOptionsPassthrough(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(got.Providers, []string{"claude"}) || !got.ForceRefresh || got.MaxAge != 90*time.Minute || got.Timeout != 7*time.Second {
+	if got.Backend != "native" || !reflect.DeepEqual(got.Providers, []string{"claude"}) || !got.ForceRefresh || got.MaxAge != 90*time.Minute || got.Timeout != 7*time.Second {
 		t.Fatalf("options = %#v", got)
 	}
 }

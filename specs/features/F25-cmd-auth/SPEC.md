@@ -37,7 +37,7 @@ project: which-model
 
 12. **Exit codes.** `auth status`: 0 when every queried provider is `ok`; 5 when at least one queried provider is `missing` or `expired` (no usable credential); 2 for argument errors (unknown provider, bad flags) and usage-disabled refusal. `auth login`: 0 on successful device-flow completion (or prompt handed off); 2 for unattended refusal, unsupported provider, unknown provider, invalid flags. `auth logout`: 0 on success/abort/nothing-to-remove; 2 for unknown provider, missing required args, unattended refusal without `--yes`; 1 on runtime failure (e.g. F12 removal error). (Source: annex-d §2.2; Decisions D-9.)
 
-13. **Usage-disabled behaviour.** Under L0 (`--no-usage`) or L1 (`[usage] enabled = false`), every `auth` subcommand exits 2 with `which-model auth <sub>: [usage_disabled] usage is disabled by <source>`. F25 resolves this inline via F01 (`UnmarshalKey("usage.enabled")` + the global flag), same decision as F24 D-5. Under L2 the command is not registered (behaviour 2). (Source: annex-d §4.6.)
+13. **Usage backend behaviour.** Under L0 (`--no-usage`), L1 (`[usage] enabled = false`), or `[usage] backend = "off"`, every `auth` subcommand exits 2 with a `usage_disabled` message naming the disabling source. The command manages only the native credential store: when `[usage] backend = "codexbar"`, every subcommand exits 2 with `unsupported` and directs the user to CodexBar, without invoking any native credential resolver, login flow, or removal path. Under L2 the command is not registered (behaviour 2).
 
 14. **stdout/stderr discipline.** stdout carries only the status report / login prompt / logout confirmation prompt; stderr carries progress, warnings, and the final failure line `which-model auth <sub>: [<code>] <message>` (F22 via F03 `output.WriteFailure`). On any nonzero exit stdout is empty EXCEPT: (a) the login prompt cases (the prompt is primary output even when the flow later fails), and (b) `status` exit 5, where the per-provider report remains the primary deliverable and is kept on stdout via F22's `ReportedError` marker (the `--json` error document is suppressed for it). Exit signalling uses the F22 exit contract (F25 CONTRACTS §8.1). (Source: annex-d §1.3; F22 `ReportedError`; Decisions D-10.)
 
@@ -52,7 +52,8 @@ project: which-model
 | `logout` non-TTY without `--yes` | 2 | `[arguments] refusing unattended logout without --yes` |
 | `logout` prompt declined | 0 | `aborted` |
 | `logout` nothing removable | 0 | `no which-model-managed credential for <provider>; nothing to remove` |
-| Usage disabled (L0/L1) | 2 | `[usage_disabled] usage is disabled by <source>` |
+| Usage disabled (`--no-usage`, `usage.enabled = false`, or `usage.backend = "off"`) | 2 | `[usage_disabled] usage is disabled by <source>` |
+| CodexBar backend selected | 2 | `[unsupported] which-model auth manages native credentials only; CodexBar manages credentials when [usage] backend = "codexbar"` |
 | `logout` removal runtime error | 1 | `[runtime] <message>` |
 | Broad credential permissions (logout) | 0 (warn only) | `Warning: <path> permissions are broader than 0600; review them.` |
 

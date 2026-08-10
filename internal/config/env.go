@@ -10,36 +10,37 @@ import (
 )
 
 var envKeys = map[string]bool{
-	"enabled":                  true,
-	"priority":                 true,
-	"weight":                   true,
-	"cache_ttl":                true,
-	"credential_path":          true,
-	"trusted_fallback_origin":  true,
-	"default":                  true,
-	"default_profile":          true,
-	"tier1_share":              true,
-	"tier2_share":              true,
-	"direction":                true,
-	"gate_above_used_percent":  true,
-	"normalizer":               true,
-	"aggregator":               true,
-	"raw_csv_path":             true,
-	"scores_csv_path":           true,
-	"provider_config_path":      true,
-	"benchmark_config_path":     true,
-	"warn_on_stale_scores":      true,
-	"schedule":                  true,
-	"timezone":                  true,
-	"mode":                      true,
-	"auto_merge":                true,
-	"merge_method":              true,
-	"commit_message":            true,
-	"pr_title":                  true,
-	"run_tests":                 true,
-	"color":                     true,
-	"timestamps":                true,
-	"identity_default":          true,
+	"enabled":                 true,
+	"backend":                 true,
+	"priority":                true,
+	"weight":                  true,
+	"cache_ttl":               true,
+	"credential_path":         true,
+	"trusted_fallback_origin": true,
+	"default":                 true,
+	"default_profile":         true,
+	"tier1_share":             true,
+	"tier2_share":             true,
+	"direction":               true,
+	"gate_above_used_percent": true,
+	"normalizer":              true,
+	"aggregator":              true,
+	"raw_csv_path":            true,
+	"scores_csv_path":         true,
+	"provider_config_path":    true,
+	"benchmark_config_path":   true,
+	"warn_on_stale_scores":    true,
+	"schedule":                true,
+	"timezone":                true,
+	"mode":                    true,
+	"auto_merge":              true,
+	"merge_method":            true,
+	"commit_message":          true,
+	"pr_title":                true,
+	"run_tests":               true,
+	"color":                   true,
+	"timestamps":              true,
+	"identity_default":        true,
 }
 
 var EnvKeys = envKeys
@@ -79,15 +80,24 @@ func ApplyEnv(c *Config, getenv func(string) string, environ []string) error {
 		if sectionPath == "" {
 			return &ConfigError{Kind: KindInvalidValue, Key: name}
 		}
-
 		value := lookup(name)
-		if sectionPath == "usage" && suffix == "enabled" {
-			parsed, err := ParseUsageEnabled(value)
-			if err != nil {
-				return &ConfigError{Kind: KindInvalidValue, Key: name, Err: err}
+		if sectionPath == "usage" {
+			switch suffix {
+			case "enabled":
+				parsed, err := ParseUsageEnabled(value)
+				if err != nil {
+					return &ConfigError{Kind: KindInvalidValue, Key: name, Err: err}
+				}
+				c.Usage.Enabled = parsed
+				continue
+			case "backend":
+				parsed, err := ParseUsageBackend(value)
+				if err != nil {
+					return &ConfigError{Kind: KindInvalidValue, Key: name, Err: err}
+				}
+				c.Usage.Backend = parsed
+				continue
 			}
-			c.Usage.Enabled = parsed
-			continue
 		}
 
 		if strings.HasPrefix(sectionPath, "providers.") {

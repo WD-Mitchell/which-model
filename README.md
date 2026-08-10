@@ -100,21 +100,30 @@ which-model explain --last --json
 
 ## Add live provider allowance
 
-Providers are disabled by default. Opt in only to the providers you want `which-model` to inspect:
+Usage is disabled by default. Select exactly one backend before enabling provider
+allowance collection:
 
 ```bash
+which-model config set usage.backend codexbar  # or native
 which-model config set providers.claude.enabled true
 which-model config set providers.codex.enabled true
 which-model config set providers.copilot.enabled true
 ```
 
-Request a usage report through CodexBar:
+`codexbar` delegates credential discovery, provider APIs, caching, and
+normalisation to the installed CodexBar CLI. `native` uses which-model's
+original Claude, Codex, and Copilot adapters. Set `usage.backend = "off"` to
+disable allowance collection explicitly.
+
+Request a usage report:
 
 ```bash
 which-model usage --all --json
 ```
 
-Once at least one provider is enabled, the default `usage.enabled = "auto"` setting allows `pick` to incorporate live or cached allowance data. Use `--no-usage` at any time to force a score-only run.
+Once a backend and at least one provider are enabled, the default
+`usage.enabled = "auto"` setting allows `pick` to incorporate live or cached
+allowance data. Use `--no-usage` at any time to force a score-only run.
 
 > [!IMPORTANT]
 > Identity output is opt-in, redirects are rejected, responses are bounded, and credential material is never included in normal output or errors. A fresh installation reads no provider credentials until a provider is explicitly enabled.

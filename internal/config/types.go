@@ -15,6 +15,7 @@ type Config struct {
 
 type UsageConfig struct {
 	Enabled UsageEnabled `toml:"enabled"`
+	Backend UsageBackend `toml:"backend"`
 }
 
 type ProviderConfig struct {
@@ -29,7 +30,7 @@ type ProviderConfig struct {
 
 func Default() *Config {
 	return &Config{
-		Usage:     UsageConfig{Enabled: UsageAuto},
+		Usage:     UsageConfig{Enabled: UsageAuto, Backend: UsageBackendOff},
 		Providers: make(map[string]ProviderConfig),
 	}
 }

@@ -13,7 +13,7 @@ func makeCfg(enabled config.UsageEnabled, enabledProviders ...string) *config.Co
 	for _, name := range enabledProviders {
 		providers[name] = config.ProviderConfig{Enabled: true}
 	}
-	return &config.Config{Usage: config.UsageConfig{Enabled: enabled}, Providers: providers}
+	return &config.Config{Usage: config.UsageConfig{Enabled: enabled, Backend: config.UsageBackendNative}, Providers: providers}
 }
 
 func TestReasonConstants(t *testing.T) {
@@ -23,6 +23,7 @@ func TestReasonConstants(t *testing.T) {
 	}{
 		{ReasonFlag, "flag"},
 		{ReasonConfig, "config"},
+		{ReasonBackendOff, "backend_off"},
 		{ReasonCompiledOut, "compiled_out"},
 		{ReasonNoProvidersEnabled, "no_providers_enabled"},
 	}
@@ -128,5 +129,13 @@ func TestResolveUsageEnabled(t *testing.T) {
 				t.Errorf("reason = %q, want %q", reason, tt.wantReason)
 			}
 		})
+	}
+}
+func TestResolveUsageBackendOff(t *testing.T) {
+	cfg := makeCfg(config.UsageAuto, "claude")
+	cfg.Usage.Backend = config.UsageBackendOff
+	enabled, reason := ResolveUsageEnabled(false, cfg)
+	if enabled || reason != ReasonBackendOff {
+		t.Fatalf("ResolveUsageEnabled() = %v, %q; want false, %q", enabled, reason, ReasonBackendOff)
 	}
 }

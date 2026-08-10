@@ -6,9 +6,13 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/WD-Mitchell/which-model/internal/usage"
+	_ "github.com/WD-Mitchell/which-model/internal/usage/provider/claude"
+	_ "github.com/WD-Mitchell/which-model/internal/usage/provider/codex"
+	_ "github.com/WD-Mitchell/which-model/internal/usage/provider/copilot"
 )
 
 func init() { register(NewUsageCmd) }
+
 
 func NewUsageCmd() *cobra.Command {
 	cmd := &cobra.Command{

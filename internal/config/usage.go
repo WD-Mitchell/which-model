@@ -5,10 +5,44 @@ import "fmt"
 type UsageEnabled string
 
 const (
-	UsageAuto  UsageEnabled = "auto"  // enabled iff ≥1 provider enabled
+	UsageAuto  UsageEnabled = "auto" // enabled iff ≥1 provider enabled
 	UsageTrue  UsageEnabled = "true"
 	UsageFalse UsageEnabled = "false"
 )
+
+type UsageBackend string
+
+const (
+	UsageBackendOff      UsageBackend = "off"
+	UsageBackendNative   UsageBackend = "native"
+	UsageBackendCodexBar UsageBackend = "codexbar"
+)
+
+func ParseUsageBackend(s string) (UsageBackend, error) {
+	switch s {
+	case string(UsageBackendOff):
+		return UsageBackendOff, nil
+	case string(UsageBackendNative):
+		return UsageBackendNative, nil
+	case string(UsageBackendCodexBar):
+		return UsageBackendCodexBar, nil
+	default:
+		return "", fmt.Errorf(`config: usage.backend must be one of "off", "native", "codexbar"; got %s`, s)
+	}
+}
+
+func (b *UsageBackend) UnmarshalTOML(v interface{}) error {
+	value, ok := v.(string)
+	if !ok {
+		return fmt.Errorf(`config: usage.backend must be a string: "off", "native", or "codexbar"`)
+	}
+	parsed, err := ParseUsageBackend(value)
+	if err != nil {
+		return err
+	}
+	*b = parsed
+	return nil
+}
 
 func ParseUsageEnabled(s string) (UsageEnabled, error) {
 	switch s {

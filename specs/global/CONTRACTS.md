@@ -285,7 +285,7 @@ Every `--json` output carries:
 type OutputEnvelope struct {
     SchemaVersion        string `json:"schema_version"` // "2.0"
     UsageEnabled         bool   `json:"usage_enabled"`
-    UsageDisabledReason  string `json:"usage_disabled_reason,omitempty"` // flag|config|compiled_out|no_providers_enabled
+    UsageDisabledReason  string `json:"usage_disabled_reason,omitempty"` // flag|config|backend_off|compiled_out|no_providers_enabled
 }
 ```
 
