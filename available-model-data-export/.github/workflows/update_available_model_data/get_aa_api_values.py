@@ -484,10 +484,7 @@ def match_provider_models(
                 indexes = {target_index}
             if indexes:
                 aggregate = aggregates[next(iter(indexes))]
-                existing = aggregate["family"]
-                if family is not None and existing is not None and family != existing:
-                    raise UpdateError(f"provider model {model.model_id!r} maps to conflicting AA families")
-                if existing is None and family is not None:
+                if family is not None:
                     aggregate["family"], aggregate["name"] = family, family.name
                 index = next(iter(indexes))
             else:

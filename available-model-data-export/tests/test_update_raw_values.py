@@ -1107,6 +1107,18 @@ class UpdateAvailableModelRawValuesTests(unittest.TestCase):
             {("Alpha", "low"), ("Alpha", "medium"), ("Alpha", "high")},
         )
 
+    def test_later_display_family_overrides_existing_identifier_family(self) -> None:
+        alpha = updater.ModelFamily("Alpha", "alpha")
+        beta = updater.ModelFamily("Beta", "beta")
+        matched = updater.match_provider_models(
+            [model(alpha), model(beta)],
+            {
+                "first": [updater.ProviderModel("first", "beta", "Beta", ("low",))],
+                "second": [updater.ProviderModel("second", "beta", "Alpha", ("high",))],
+            },
+        )
+        self.assertEqual({family.name for family in matched.families}, {"Alpha"})
+
     def test_unknown_provider_fails_before_network_backup_or_replacement(self) -> None:
         class NeverClient:
             def __init__(self) -> None:
