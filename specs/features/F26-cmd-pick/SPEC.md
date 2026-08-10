@@ -17,7 +17,7 @@ project: which-model
 
 1. `--profile <name>` is REQUIRED unless `--task-category` is given; the value must be one of the eleven annex-c §2.1 profile names (verbatim): `simple_implementation`, `simple_action_execution`, `balanced_implementation`, `complex_implementation`, `ui_ux`, `complex_action_execution`, `financial_work`, `research`, `planning`, `orchestration`, `review`. Unknown name → exit 2 listing valid profiles. (Source: annex-c §2.1; annex-d §2.4; Decision D-1.)
 2. `--task-category <category>` + `--complexity <level>` are an alternative profile selector, mutually exclusive with `--profile`; both must be given together (one without the other → exit 2). Mapping (Decision D-2): `(implementation, simple) → simple_implementation`, `(implementation, medium) → balanced_implementation`, `(implementation, complex) → complex_implementation`, `(action_execution, simple) → simple_action_execution`, `(action_execution, medium) → balanced_implementation`, `(action_execution, complex) → complex_action_execution`, and for `ui_ux`, `financial_work`, `research`, `planning`, `orchestration`, `review` the category maps to the same-named profile and `--complexity` is REJECTED (exit 2). Unknown category/complexity → exit 2. (Source: annex-c §2.1; Decision D-2.)
-3. `--strategy <name>` selects the strategy; default `priority`. Valid names are `priority`, `round-robin`, `least-used`, `most-used`, and `closest-to-reset`; unknown or removed names exit 2.
+3. `--strategy <name>` selects the strategy. When omitted, the default is `closest-to-reset` if usage detection is enabled and `priority` otherwise. Valid names are `priority`, `round-robin`, `least-used`, `most-used`, and `closest-to-reset`; unknown or removed names exit 2.
 4. `--available <path>` is repeatable; each occurrence restricts the candidate set to routes whose `model_id` is in the allowlist. Repeated files are unioned; a missing file exits 2.
 
 ### 2.2 Pipeline
@@ -128,7 +128,7 @@ project: which-model
 |---|---|---|
 | D-1 | `--profile` is required (assignment contract), validated against the exact 11 annex-c §2.1 names | The assignment pins profile as required; the plan's default (`balanced_implementation`) is rejected because an explicit contract beats a default |
 | D-2 | `--task-category`/`--complexity` mapping table (7 rows) with hard rejection of `--complexity` on 1:1 categories | Deterministic, testable mapping; avoids inventing profile semantics |
-| D-3 | Strategy names come from F20; `priority` is the default | One registry owns availability and defaults |
+| D-3 | Strategy names come from F20; omitted strategy resolves to `closest-to-reset` with usage enabled and `priority` otherwise | One registry owns availability; the usage toggle selects a viable default |
 | D-4 | `--seed` is removed with `weighted-random` | No remaining strategy consumes randomness |
 | D-5 | `--available` = union of allowlist files, `not_in_availability_list` exclusion | Matches annex-c §4.2's existing reason_code; file-based so agents can write the list once |
 | D-6 | Unrouted score rows are stderr warnings, never `excluded_candidates` entries | annex-c §4.2 requires `route` on candidates and `additionalProperties:false`; a "route-less" row cannot be represented, and warning beats silent drop |

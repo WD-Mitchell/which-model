@@ -26,7 +26,7 @@ type PickArgs struct {
     Profile      string   // resolved profile id (after --task-category mapping)
     TaskCategory string   // raw --task-category (resolved in T2)
     Complexity   string   // raw --complexity
-    Strategy     string   // "priority" default
+    Strategy     string   // blank -> closest-to-reset when usage enabled, priority otherwise
     Allowlists   []string // --available paths (raw, pre-read)
     NoUsage      bool     // Global.NoUsage
     JSON         bool     // Global.JSON; forced true when stdout is not a TTY
@@ -149,7 +149,7 @@ func FormatPickText(res *PickResult) string
 | `--profile` | string | `""` | Profile id; REQUIRED unless `--task-category` given; validated against the 11 annex-c §2.1 names |
 | `--task-category` | string | `""` | Alternative selector, must pair with `--complexity`; mutually exclusive with `--profile` |
 | `--complexity` | string | `""` | `simple\|medium\|complex`; rejected for 1:1-mapped categories |
-| `--strategy` | string | `"priority"` | F20 registry name |
+| `--strategy` | string | `""` | F20 registry name; blank resolves to `closest-to-reset` with usage enabled, `priority` otherwise |
 | `--available` | stringSlice | `[]` | Repeatable allowlist file path; missing file → exit 2 |
 
 `explain`:

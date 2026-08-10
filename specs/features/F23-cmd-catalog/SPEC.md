@@ -57,8 +57,10 @@ registry; F23's files are all under `pkg/whichmodel/`.
 4. **Collect orchestration** (`pkg/whichmodel/catalog_collect.go`, `defaultRunner.Collect` —
    F23-owned; F08 is the fetch library only, per the F08 author). Local validation completes
    before any network call and before any file mutation (annex-b §9.4 fail-fast ordering):
-   1. Provider set: `loadProviderConfig(co.ProviderConfigPath)` (F23's strict loader,
-      annex-b §6.5); ids = configured set, or the validated `co.Providers` subset.
+   1. Provider set: when `co.ProviderConfigPath` is non-empty,
+      `loadProviderConfig(co.ProviderConfigPath)` (F23's strict loader, annex-b §6.5);
+      otherwise all provider ids discovered in the models.dev catalogue are used. A validated
+      non-empty `co.Providers` restricts either set.
    2. Benchmark selection: `loadBenchmarkConfig(co.BenchmarksPath)` (strict, §6.3/§6.5) →
       expanded benchmark name list (group lists in declared order, then the direct list,
       deduplicated keeping first occurrence — the §6.3 expansion).
@@ -189,6 +191,8 @@ registry; F23's files are all under `pkg/whichmodel/`.
       hard error); unknown keys rejected via `toml.MetaData.Undecoded()`. Returns
       `map[string][]string` (id → excluded models). F23's loader validates `--provider` ids
       against the configured set (unknown id → `UsageError`, exit 2) before any stage runs.
+      Collect does not call the loader when the resolved path is blank; it selects every
+      provider discovered in the models.dev catalogue with no exclusions.
     - `loadBenchmarkConfig(path)`: `[benchmark_selection] groups = [...]` + `benchmarks = [...]`,
       each group name backed by a `[benchmark_groups.<name>]` table with a `benchmarks`
       string-array; blank/duplicate entries within the same list are hard errors (duplicates
@@ -248,7 +252,7 @@ registry; F23's files are all under `pkg/whichmodel/`.
 | Raw CSV missing (derive/list) | 1 | error | `raw CSV not found at <path>; run 'which-model catalog benchmarks' (or '--refresh-benchmarks') to collect it` |
 | Scores CSV missing (list) | 1 | error | `scores CSV not found at <path>; run 'which-model catalog refresh' (or '--refresh-scores') to generate it` |
 | benchmarks.toml missing | 1 | error | `benchmarks config not found at <path>; provide benchmarks.toml or set catalog.benchmark_config_path` |
-| providers.toml missing | 1 | error | `provider config not found at <path>; provide providers.toml at the repo root or set catalog.provider_config_path` |
+| explicitly configured providers.toml missing | 1 | error | `provider config not found at <path>; provide providers.toml at the repo root or set catalog.provider_config_path` |
 | models.dev cache missing (providers) | 1 | error | `provider catalogue not found at <path>; run 'which-model catalog benchmarks' (or '--refresh-benchmarks') to collect it` |
 | Collect runtime failure (network, HTTP, parse) | per code | F08 primitive's error | `*httpkit.Error` codes map via F22's §1.6 table (unauthorized → 5); other codes → 1 |
 | workflow stub | 1 | workflow_unavailable | `catalog workflow generation is provided by feature F30 (publishing)` |
@@ -268,7 +272,7 @@ F06's error, exit 1.
 | D6 | aa_page best-effort | `aa.FetchAAPage(client, slug, false)`; page errors skip only that model's page data | opt-in enrichment must not fail the collect |
 | D7 | merge identity | models.dev catalogue is the identity source; AA slug final segment == catalogue ModelID; unmatched AA dropped, unmatched catalogue blank; benchmark cells: AA map value wins, else models.dev evidence per effort bucket (Effort "" = all levels), scoped to the benchmarks.toml expansion; `MergeRows`/`MergePartialRefresh` (F06) preserve existing values | annex-b §2.2/§2.3/§3 merge semantics; update_raw_values.py merges rather than replaces |
 | D8 | raw CSV provenance | `csvstore.WriteAtomic(path, rows, nil)` — no provenance line in the raw CSV | the raw CSV is the source of truth; scores provenance records its hash |
-| D9 | collect counters | `Providers` = configured ids processed; `Models` = rows written after merge (effort levels included) | deterministic; matches the annex-d §2.4 line format |
+| D9 | collect counters | `Providers` = selected ids processed, or all distinct catalogue provider ids when no provider config exists; `Models` = rows written after merge (effort levels included) | deterministic; matches the annex-d §2.4 line format |
 | D10 | excluded count | `len(excluded_models)` from providers.toml, independent of catalogue membership | matches the legacy providers command semantics |
 | D11 | models.dev client | `httpkit.NewClient(httpkit.WithTimeout(Global.Timeout))` (default 10s); AA client fixed at 20s (`aa.AAV2Client`, F08 pin) | annex-d DefaultTimeoutSec for the general client; AA's slowness pinned by F08 |
 | D12 | Derive write path | F09 bytes → `csvstore.Backup` (if exists) → `csvstore.WriteAtomicBytes` — never re-serialized | F09 author: Derive output is closed-schema, golden-tested; F06 author: backup kept out of WriteAtomicBytes, `DefaultBackupKeep` exported |

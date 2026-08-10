@@ -387,10 +387,6 @@ func TestDefaultRunnerCollect(t *testing.T) {
 		withAASeam(t, aaSrv)
 
 		dir := t.TempDir()
-		providersPath := filepath.Join(dir, "providers.toml")
-		if err := os.WriteFile(providersPath, []byte("[providers.anthropic]\nexcluded_models=[]\n[providers.openai]\nexcluded_models=[]\n"), 0o644); err != nil {
-			t.Fatalf("WriteFile() error = %v", err)
-		}
 		benchPath := filepath.Join(dir, "b.toml")
 		if err := os.WriteFile(benchPath, []byte("[benchmark_selection]\n"), 0o644); err != nil {
 			t.Fatalf("WriteFile() error = %v", err)
@@ -401,7 +397,7 @@ func TestDefaultRunnerCollect(t *testing.T) {
 		}
 
 		res, err := (defaultRunner{}).Collect(context.Background(), CollectOptions{
-			ProviderConfigPath: providersPath,
+			ProviderConfigPath: "",
 			BenchmarksPath:     benchPath,
 			OutPath:            outPath,
 			Timeout:            2 * time.Second,

@@ -35,7 +35,7 @@ graph TD
 **Instructions:**
 1. Write `pick_cmd_test.go` first (package `whichmodel`); must fail to compile until `NewPickCmd` exists.
 2. Test 1: `registeredCommands()` contains `pick`.
-3. Test 2: `NewPickCmd()` flags: `--profile` string `""`, `--task-category` string `""`, `--complexity` string `""`, `--strategy` string `"priority"`, `--available` string slice `[]`; `--seed` is absent; `Use == "pick"`.
+3. Test 2: `NewPickCmd()` flags: `--profile` string `""`, `--task-category` string `""`, `--complexity` string `""`, `--strategy` string `""`, `--available` string slice `[]`; `--seed` is absent; `Use == "pick"`.
 4. Test 3: exit-code registrations — `ExitCodeFor(&CodedError{Code: "no_pick"}) == 3`, `ExitCodeFor(&CodedError{Code: "usage_gated"}) == 4`, `ExitCodeFor(&CodedError{Code: "auth_required"}) == 5`.
 5. Test 4 (RunE → RunPick): `cmd.SetArgs([]string{"--strategy", "priority"})` + `cmd.Execute()` with neither selector → the expected `*UsageError`.
 6. Test 5: both `--profile complex_implementation --task-category implementation` → `*UsageError`, message contains `mutually exclusive`.
@@ -81,9 +81,10 @@ graph TD
 3. Test 2 (category mapping, 7 rows): `(implementation, simple) → simple_implementation`; `(implementation, medium) → balanced_implementation`; `(implementation, complex) → complex_implementation`; `(action_execution, simple) → simple_action_execution`; `(action_execution, medium) → balanced_implementation`; `(action_execution, complex) → complex_action_execution`; `(ui_ux, "") → ui_ux`, `(financial_work, "") → financial_work`, `(research, "") → research`, `(planning, "") → planning`, `(orchestration, "") → orchestration`, `(review, "") → review`.
 4. Test 3 (rejections): `(ui_ux, "simple")` → error `--complexity is not valid for task category "ui_ux"`; `(implementation, "hard")` → error `unknown complexity "hard"`; `(coding, "simple")` → error `unknown task category "coding"`.
 5. Test 4 (strategy validation): canonical F20 names are accepted; removed names and unknown names return the valid five-name list.
-6. Test 5: `priority` is used when the strategy is omitted.
+6. Test 5: an omitted strategy resolves after usage detection: `closest-to-reset` when enabled,
+   `priority` when disabled.
 7. Create `pick.go` (package `whichmodel`, NO build tag):
-   - Move `RunPick` here from `pick_cmd.go`; extend it with selector validation, profile resolution, canonical strategy validation/defaulting, and then the pipeline.
+   - Move `RunPick` here from `pick_cmd.go`; extend it with selector validation, profile resolution, canonical strategy validation/defaulting after usage detection, and then the pipeline.
    - `var validProfiles = []string{...}` — the exact 11 names in annex-c §2.1 order (verbatim).
    - `func resolveProfile(args PickArgs) (string, error)` per the table; category validation against `validCategories = []string{"implementation", "action_execution", "ui_ux", "financial_work", "research", "planning", "orchestration", "review"}`; 1:1 categories reject non-empty complexity.
    - Seam `var strategyNamesFunc = func() []string { return strategy.Names() }` (F20; tests inject).
@@ -98,7 +99,7 @@ graph TD
 | 2 | 7 category-map rows (table-driven) | mapped profile ids |
 | 3 | `(ui_ux, "simple")`, `(implementation, "hard")`, `(coding, "simple")` | the three rejection messages |
 | 4 | `validateStrategy("bogus", [...])` | `unknown strategy "bogus"; valid: <injected names>` |
-| 5 | empty strategy | defaults to `priority` |
+| 5 | empty strategy | defaults to `closest-to-reset` with usage enabled and `priority` otherwise |
 | 6 | removed strategy name | unknown-strategy error listing the five canonical names |
 
 **Acceptance criteria:**
@@ -247,7 +248,7 @@ graph TD
 
 **Instructions:**
 1. Write `pick_strategy_test.go` first. Seam: `strategyApplyFunc`, receiving the canonical strategy name, candidates, and assembled strategy state.
-2. Test 1 (`priority` default): fake Apply receives `priority`, no strategy-specific options, and returns the ranked candidates unchanged.
+2. Test 1 (dynamic default): fake Apply receives `closest-to-reset` when usage is enabled and `priority` when usage is disabled, no strategy-specific options, and returns the ranked candidates unchanged.
 3. Test 2 (usage state): fake Apply receives provider priority, pressure, and reset metadata assembled by F26.
 4. Test 3 (Apply error): fake Apply returns `errors.New("boom")` → `*CodedError{Code: "runtime"}`, message contains `boom`.
 5. Test 4 (Apply empty): fake Apply returns `[]Candidate{}` → exit per T7's classification — for THIS task assert `*CodedError{Code: "no_pick"}`.
@@ -258,7 +259,7 @@ graph TD
 
 | # | input | want |
 |---|---|---|
-| 1 | omitted strategy | `priority` received and ranked order preserved |
+| 1 | omitted strategy | `closest-to-reset` with usage enabled; `priority` with usage disabled |
 | 2 | usage snapshots | pressure and earliest reset maps received by the strategy |
 | 3 | Apply error | exit 1 `runtime`, message `boom` |
 | 4 | Apply returns empty | `CodedError{Code: "no_pick"}` (refined in T7) |

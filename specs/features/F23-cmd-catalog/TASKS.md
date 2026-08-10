@@ -355,7 +355,9 @@ Spec: `specs/features/F23-cmd-catalog/SPEC.md` · Contracts: `specs/features/F23
      ok=false on missing), `writeCache(path, catalogue)` (temp file in same dir + rename,
      `json.Marshal`), `cacheFresh(path, ttl) bool` (`time.Since(mtime) < ttl`).
    - `func (defaultRunner) Collect(ctx, o CollectOptions) (CollectResult, error)`:
-     1. `providers, err := loadProviderConfig(o.ProviderConfigPath)`; missing → its error.
+     1. If `o.ProviderConfigPath` is non-empty, load it with `loadProviderConfig`; otherwise
+        start with an empty provider map and populate it with every distinct provider id after
+        loading the models.dev catalogue.
      2. `names, err := loadBenchmarkConfig(o.BenchmarksPath)`; missing → its error.
      3. catalogue: `cacheFresh(o.CatalogueCachePath, o.CacheTTL)` → `readCache`; else
         `modelsdev.FetchModelsDevProvidersFrom(client, modelsdev.ProvidersURL)` +
@@ -396,9 +398,9 @@ Spec: `specs/features/F23-cmd-catalog/SPEC.md` · Contracts: `specs/features/F23
 | 7 | merge preserves existing | existing row with value, fresh blank cell (non-benchmark) | existing value kept (F06 MergeRows) |
 | 8 | subset preserve | `refreshedModelIDs` non-empty | unselected model rows preserved via MergePartialRefresh |
 | 9 | cache reuse | fresh cache within ttl | no second models.dev providers fetch (httptest request count for api.json == 1 across two collects); cache older than ttl → fetched again |
-| 10 | fail-fast ordering | missing providers.toml | error before any HTTP request (server request count == 0) |
+| 10 | fail-fast ordering | explicitly configured providers.toml is missing | error before any HTTP request (server request count == 0) |
 | 11 | backup + atomic write | existing raw file | `.bak` exists after collect; raw file replaced |
-| 12 | counters | 2 providers, 5 merged rows | `Providers==2, Models==5` |
+| 12 | counters | no provider config, catalogue has 2 providers and 5 merged rows | `Providers==2, Models==5` |
 
 **Acceptance criteria:**
 - [ ] All 12 tests pass; zero network calls and zero file mutation before all local validation passes (annex-b §9.4)

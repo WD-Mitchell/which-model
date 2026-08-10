@@ -94,7 +94,7 @@ Routes connect provider-native model IDs to catalog models and reasoning levels.
 
 ### 3. Pick a model
 
-Start with the default priority strategy in score-only mode; this performs no
+In score-only mode, the default strategy is `priority`; this performs no
 provider credential or usage reads:
 
 ```bash
@@ -126,9 +126,10 @@ which-model config set providers.copilot.enabled true
 ```
 
 `codexbar` delegates credential discovery, provider APIs, caching, and
-normalisation to the installed CodexBar CLI. `native` uses which-model's
-original Claude, Codex, and Copilot adapters. Set `usage.backend = "off"` to
-disable allowance collection explicitly.
+normalisation to the installed CodexBar CLI. Use it for providers other than
+Claude, Codex, and Copilot. The `native` backend supports Claude, Codex, and
+Copilot directly. Set `usage.backend = "off"` to disable allowance collection
+explicitly.
 
 Request a usage report:
 
@@ -138,7 +139,9 @@ which-model usage --all --json
 
 Once a backend and at least one provider are enabled, the default
 `usage.enabled = "auto"` setting allows `pick` to incorporate live or cached
-allowance data. Use `--no-usage` at any time to force a score-only run.
+allowance data. With usage enabled, `pick` defaults to `closest-to-reset`; with
+usage disabled, it defaults to `priority`. Use `--no-usage` at any time to force
+a score-only run.
 
 > [!IMPORTANT]
 > Identity output is opt-in, redirects are rejected, responses are bounded, and credential material is never included in normal output or errors. A fresh installation reads no provider credentials until a provider is explicitly enabled.
@@ -160,11 +163,11 @@ Run `which-model <command> --help` for all options.
 
 ## Selection strategies
 
-- **`priority`** — prefer providers using configured priority; the default.
+- **`priority`** — prefer providers using configured priority; the default when usage detection is disabled.
 - **`round-robin`** — rotate across candidates.
-- **`least-used`** — prefer the provider with the most allowance remaining.
-- **`most-used`** — prefer the provider with the least allowance remaining.
-- **`closest-to-reset`** — prefer the provider whose allowance resets soonest.
+- **`least-used`** — prefer the provider with the most allowance remaining; requires usage detection.
+- **`most-used`** — prefer the provider with the least allowance remaining; requires usage detection.
+- **`closest-to-reset`** — prefer the provider whose allowance resets soonest; requires usage detection and is the default when usage detection is enabled.
 
 Example:
 
