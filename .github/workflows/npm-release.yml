@@ -1,0 +1,107 @@
+name: npm-release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: read
+concurrency:
+  group: npm-release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go build ./...
+      - run: go vet ./...
+      - run: go test ./...
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build release binaries
+        run: bash scripts/build-release.sh "${GITHUB_REF_NAME#v}"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: release-assets
+          path: dist/*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: release-assets
+          path: dist
+      - name: Create release and upload bundles
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* --generate-notes
+          fi
+
+  publish:
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      # OIDC token for npm Trusted Publishing — no long-lived token needed.
+      # Configure the trusted publisher once on npmjs.com for each of the six
+      # packages (@wdm-uk/which-model + the five platform packages):
+      #   Provider: GitHub Actions
+      #   Organization: WD-Mitchell
+      #   Repository: which-model
+      #   Workflow filename: npm-release.yml
+      #   Environment name: (leave empty)
+      id-token: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: release-assets
+          path: dist
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+      - name: Place binaries into platform packages
+        run: |
+          cp dist/which-model-darwin-arm64      npm/which-model-darwin-arm64/which-model
+          cp dist/which-model-darwin-x64        npm/which-model-darwin-x64/which-model
+          cp dist/which-model-linux-arm64       npm/which-model-linux-arm64/which-model
+          cp dist/which-model-linux-x64         npm/which-model-linux-x64/which-model
+          cp dist/which-model-windows-x64.exe   npm/which-model-windows-x64/which-model.exe
+          chmod +x npm/which-model-darwin-arm64/which-model npm/which-model-darwin-x64/which-model npm/which-model-linux-arm64/which-model npm/which-model-linux-x64/which-model
+      - name: Stamp versions
+        run: node npm/scripts/sync-version.js "${GITHUB_REF_NAME#v}"
+      - name: Publish (npm Trusted Publishing)
+        run: |
+          # OIDC-capable npm is required for tokenless publishing.
+          npm install -g npm@latest
+          if [ -n "$NPM_TOKEN" ]; then
+            # Escape hatch for manual re-runs without trusted publishing.
+            echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> "$HOME/.npmrc"
+          fi
+          node npm/scripts/publish.js
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

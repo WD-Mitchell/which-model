@@ -1,0 +1,44 @@
+{
+  "name": "@wdm-uk/which-model",
+  "version": "0.1.1",
+  "description": "Choose the right AI model for the task: ranked, explainable model recommendations with cost, speed, task fit, and provider allowance.",
+  "keywords": [
+    "ai",
+    "llm",
+    "model-selection",
+    "cli",
+    "claude",
+    "codex",
+    "copilot"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WD-Mitchell/which-model.git"
+  },
+  "homepage": "https://github.com/WD-Mitchell/which-model",
+  "bugs": {
+    "url": "https://github.com/WD-Mitchell/which-model/issues"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "which-model": "bin.js"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "optionalDependencies": {
+    "@wdm-uk/which-model-darwin-arm64": "0.1.1",
+    "@wdm-uk/which-model-darwin-x64": "0.1.1",
+    "@wdm-uk/which-model-linux-arm64": "0.1.1",
+    "@wdm-uk/which-model-linux-x64": "0.1.1",
+    "@wdm-uk/which-model-windows-x64": "0.1.1"
+  },
+  "files": [
+    "bin.js",
+    "install.js",
+    "README.md"
+  ]
+}

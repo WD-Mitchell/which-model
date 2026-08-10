@@ -18,3 +18,7 @@ __pycache__/
 /wmodel
 /whichm
 *.exe
+
+# Release artifacts (npm packaging)
+/dist/
+npm/which-model-*/which-model

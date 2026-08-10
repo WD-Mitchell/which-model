@@ -27,6 +27,20 @@ Model choice changes with the job. A fast, inexpensive model may be ideal for a 
 
 ## Install
 
+### With npm, pnpm, or bun
+
+```bash
+npm install -g @wdm-uk/which-model
+# or: pnpm add -g @wdm-uk/which-model
+# or: bun add -g @wdm-uk/which-model
+
+which-model version
+```
+
+The npm package ships your platform's compiled binary via an optional
+dependency (macOS arm64/x64, Linux arm64/x64, Windows x64); only the matching
+binary is downloaded.
+
 ### With Go
 
 Requires Go 1.25 or later:

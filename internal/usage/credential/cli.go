@@ -50,6 +50,9 @@ func (r *CLIResolver) Resolve(ctx context.Context) (usage.Credential, error) {
 
 	cmd := exec.CommandContext(runCtx, r.Command, r.Args...)
 	out := &maxBufferWriter{max: cap}
+	// A shell may leave descendants holding stdout open after CommandContext
+	// kills it; bound pipe draining so the resolver still honors its deadline.
+	cmd.WaitDelay = 100 * time.Millisecond
 	cmd.Stdout = out
 
 	err := cmd.Run()

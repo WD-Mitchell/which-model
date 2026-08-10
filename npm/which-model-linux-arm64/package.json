@@ -1,0 +1,20 @@
+{
+  "name": "@wdm-uk/which-model-linux-arm64",
+  "version": "0.1.1",
+  "description": "linux/arm64 binary for @wdm-uk/which-model",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WD-Mitchell/which-model.git"
+  },
+  "license": "MIT",
+  "preferUnplugged": true,
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "which-model"
+  ]
+}
