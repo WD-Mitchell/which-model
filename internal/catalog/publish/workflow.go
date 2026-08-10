@@ -90,7 +90,7 @@ func Render(pc *PublishConfig) ([]byte, error) {
 			labels += " --label " + l
 		}
 		fmt.Fprintf(&b, "        run: >-\n")
-		fmt.Fprintf(&b, "          gh pr create --base \"${{ matrix.branch }}\" --title %q%s\n", pc.PRTitle, labels)
+		fmt.Fprintf(&b, "          gh pr create --base \"${{ matrix.branch }}\" --title %q --body %q%s\n", pc.PRTitle, "Automated catalog refresh.", labels)
 		fmt.Fprintf(&b, "        env:\n")
 		fmt.Fprintf(&b, "          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n")
 		if pc.AutoMerge {

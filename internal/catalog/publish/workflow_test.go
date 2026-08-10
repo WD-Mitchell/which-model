@@ -143,6 +143,9 @@ func TestRenderPRTitleWithColonIsValidYAMLScalar(t *testing.T) {
 	if !strings.Contains(string(out), want) {
 		t.Errorf("PR create command must use a block scalar: %s", out)
 	}
+	if !strings.Contains(string(out), `--body "Automated catalog refresh."`) {
+		t.Errorf("PR create command must provide a non-interactive body: %s", out)
+	}
 }
 
 func TestRenderDisabled(t *testing.T) {

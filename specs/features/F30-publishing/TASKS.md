@@ -228,7 +228,7 @@ graph TD
              git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" \
                commit -m "chore(data): refresh available model scores"
          - if: steps.changes.outputs.changed == 'true'
-           run: gh pr create --base "${{ matrix.branch }}" --title "chore(data): refresh available model scores" --label data --label automated
+           run: gh pr create --base "${{ matrix.branch }}" --title "chore(data): refresh available model scores" --body "Automated catalog refresh." --label data --label automated
            env:
              GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
          - if: steps.changes.outputs.changed == 'true'
