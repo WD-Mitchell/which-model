@@ -1090,6 +1090,23 @@ class UpdateAvailableModelRawValuesTests(unittest.TestCase):
             [("Alpha", "high")],
         )
 
+    def test_provider_bridge_uses_current_display_family_to_merge_conflicts(self) -> None:
+        alpha = updater.ModelFamily("Alpha", "alpha")
+        beta = updater.ModelFamily("Beta", "beta")
+        matched = updater.match_provider_models(
+            [model(alpha), model(beta)],
+            {
+                "first": [updater.ProviderModel("first", "alpha-dated", "Alpha", ("high",))],
+                "second": [updater.ProviderModel("second", "beta", "Beta", ("low",))],
+                "bridge": [updater.ProviderModel("bridge", "beta", "Alpha", ("medium",))],
+            },
+        )
+        self.assertEqual({family.name for family in matched.families}, {"Alpha"})
+        self.assertEqual(
+            {(item.family.name, item.reasoning) for item in matched.selected},
+            {("Alpha", "low"), ("Alpha", "medium"), ("Alpha", "high")},
+        )
+
     def test_unknown_provider_fails_before_network_backup_or_replacement(self) -> None:
         class NeverClient:
             def __init__(self) -> None:

@@ -441,19 +441,18 @@ def match_provider_models(
             if len(indexes) > 1:
                 target_index = min(indexes)
                 target = aggregates[target_index]
-                families = {
-                    candidate
-                    for candidate in (
-                        family,
-                        target["family"],
-                        *(aggregates[index]["family"] for index in indexes if index != target_index),
+                winning_family = family or target["family"]
+                if winning_family is None:
+                    winning_family = next(
+                        (
+                            aggregates[index]["family"]
+                            for index in sorted(indexes - {target_index})
+                            if aggregates[index]["family"] is not None
+                        ),
+                        None,
                     )
-                    if candidate is not None
-                }
-                if len(families) > 1:
-                    raise UpdateError(
-                        f"provider model {model.model_id!r} maps to conflicting AA families"
-                    )
+                if winning_family is not None:
+                    target["family"], target["name"] = winning_family, winning_family.name
                 for source_index in sorted(indexes - {target_index}):
                     source = aggregates[source_index]
                     if target["family"] is None and source["family"] is not None:
