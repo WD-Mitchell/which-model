@@ -9,7 +9,7 @@ project: which-model
 
 ## Purpose
 
-The deterministic generator `which-model catalog workflow --write|--check` renders `.github/workflows/refresh-model-data.yml` from `[catalog.publish]`. The generated Action invokes the standalone `scripts/refresh-model-data.py`, which discovers every models.dev provider and benchmark without checked-in provider or benchmark configuration and updates only `available_model_raw_values.csv`. It never builds or invokes the Go application and never runs project tests.
+The deterministic generator `which-model catalog workflow --write|--check` renders `.github/workflows/refresh-model-data.yml` from `[catalog.publish]`. The generated Action invokes the standalone `scripts/refresh-model-data.py`, which discovers every models.dev provider and the union of every models.dev benchmark plus every supported Artificial Analysis benchmark, without checked-in provider or benchmark configuration, and updates only `available_model_raw_values.csv`. It never builds or invokes the Go application and never runs project tests.
 
 ## Behaviour
 

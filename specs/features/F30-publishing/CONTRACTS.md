@@ -145,13 +145,12 @@ Full golden documents live in `specs/features/F30-publishing/TASKS.md` task F30-
 3. `permissions:` block per SPEC Decisions (mode-dependent).
 4. `concurrency.group: refresh-model-data`; `cancel-in-progress: false`.
 5. `jobs.refresh.strategy.matrix.branch` = `branches` in listed order; `fail-fast: false`.
-6. Steps: checkout (pinned `# v6.0.2`, `ref: ${{ matrix.branch }}`), `python3 scripts/refresh-model-data.py` with `ARTIFICIAL_ANALYSIS_API: ${{ secrets.ARTIFICIAL_ANALYSIS_API }}`, changes staging only the raw CSV, commit (bot identity), mode steps, outcome report. No Go setup, build, application invocation, or tests.
+6. Steps: checkout (pinned `# v6.0.2`, `ref: ${{ matrix.branch }}`), `python3 scripts/refresh-model-data.py` with `ARTIFICIAL_ANALYSIS_API: ${{ secrets.ARTIFICIAL_ANALYSIS_API }}`, changes staging only the raw CSV, commit (bot identity), mode steps, outcome report. The standalone script selects all models.dev providers and the union of all models.dev and supported Artificial Analysis benchmarks. No Go setup, build, application invocation, or tests.
 7. `gh pr create --base "${{ matrix.branch }}" --title "<pr_title>"` + one `--label <l>` per `pr_labels`; `gh pr merge --auto --<merge_method>` when `auto_merge`; both with `GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}`; `git push origin HEAD:${{ matrix.branch }}` for direct-push.
 8. No `secrets.` reference other than `ARTIFICIAL_ANALYSIS_API` and `GITHUB_TOKEN`; no usage command anywhere.
 9. Exactly one trailing `\n`; LF line endings.
 
 ## 5. Cross-feature references (pinned)
-
 - F01 `internal/config`: `func (c *Config) UnmarshalKey(key string, out any) error` (DECISION B) — the `UnmarshalKeyer` interface is satisfied structurally; tests use a fake.
 - F23 `pkg/whichmodel/catalog_cmd.go` — `workflow` subcommand added inside `NewCatalogCmd` after F23 lands.
 - `internal/security` (F05) usage: none required (no network, no credentials, no file reads beyond the workflow file).

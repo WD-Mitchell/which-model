@@ -43,14 +43,14 @@ def discover_provider_ids(text: str) -> tuple[str, ...]:
 
 
 def discover_benchmark_names(text: str) -> tuple[str, ...]:
-    """Return every benchmark name present in the models.dev model catalogue."""
+    """Return the union of every models.dev and supported AA benchmark name."""
+    names: set[str] = {name for _, name, _ in collector.AA_BENCHMARK_FIELDS}
     try:
         payload = json.loads(text)
     except json.JSONDecodeError as error:
         raise collector.UpdateError("models.dev benchmark catalogue returned invalid JSON") from error
     if not isinstance(payload, dict) or not payload:
         raise collector.UpdateError("models.dev benchmark catalogue must be a non-empty model mapping")
-    names: set[str] = set()
     for model_id, model in payload.items():
         if not isinstance(model_id, str) or not isinstance(model, dict):
             raise collector.UpdateError(f"models.dev has invalid generic model {model_id!r}")
