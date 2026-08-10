@@ -14,6 +14,15 @@ SPEC.loader.exec_module(refresh_model_data)
 
 
 class RefreshModelDataTests(unittest.TestCase):
+    def test_default_output_is_the_checked_in_raw_csv(self) -> None:
+        self.assertEqual(
+            refresh_model_data.DEFAULT_OUTPUT_PATH,
+            refresh_model_data.REPOSITORY_ROOT
+            / "available-model-data-export"
+            / "available_model_raw_values.csv",
+        )
+        self.assertTrue(refresh_model_data.DEFAULT_OUTPUT_PATH.is_file())
+
     def test_discovers_all_providers_in_stable_order(self) -> None:
         payload = {
             "zeta": {"id": "zeta", "models": {}},

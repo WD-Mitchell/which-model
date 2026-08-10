@@ -18,6 +18,11 @@ COLLECTOR_DIR = (
     / "workflows"
     / "update_available_model_data"
 )
+DEFAULT_OUTPUT_PATH = (
+    REPOSITORY_ROOT
+    / "available-model-data-export"
+    / "available_model_raw_values.csv"
+)
 if str(COLLECTOR_DIR) not in sys.path:
     sys.path.insert(0, str(COLLECTOR_DIR))
 
@@ -142,7 +147,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--output",
         type=Path,
-        default=REPOSITORY_ROOT / "available_model_raw_values.csv",
+        default=DEFAULT_OUTPUT_PATH,
     )
     parser.add_argument("--env-file", type=Path, default=REPOSITORY_ROOT / ".env")
     args = parser.parse_args(argv)
