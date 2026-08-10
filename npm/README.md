@@ -38,7 +38,7 @@ Layout:
 - `scripts/sync-version.js <version>` — stamps one version into all six
   manifests.
 - `scripts/publish.js [--dry-run]` — publishes platform packages, then the
-  launcher. Requires `NPM_TOKEN`.
+  launcher. Authenticates via npm Trusted Publishing (OIDC); no stored token.
 
 The release pipeline (`.github/workflows/npm-release.yml`) builds all five
 binaries from the tag, uploads them as GitHub release assets with

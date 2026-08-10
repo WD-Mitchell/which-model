@@ -5,9 +5,11 @@
 //
 // Usage: node npm/scripts/publish.js [--dry-run]
 //
-// Requires NPM_TOKEN in the environment. Publishes the five platform packages
-// first, then the launcher, so an interrupted run never leaves the launcher
-// pinned to missing optional dependencies.
+// Authentication: npm Trusted Publishing (OIDC) inside GitHub Actions — no
+// long-lived token. Outside that environment, set NPM_TOKEN and the workflow
+// writes an .npmrc auth line before invoking this script. Publishes the five
+// platform packages first, then the launcher, so an interrupted run never
+// leaves the launcher pinned to missing optional dependencies.
 
 const fs = require("fs");
 const path = require("path");
@@ -17,8 +19,10 @@ const DRY_RUN = process.argv.includes("--dry-run");
 const npmRoot = path.join(__dirname, "..");
 
 function main() {
-  if (!DRY_RUN && !process.env.NPM_TOKEN) {
-    console.error("NPM_TOKEN is required to publish");
+  if (!DRY_RUN && !process.env.NPM_TOKEN && !process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN) {
+    console.error(
+      "publish requires npm Trusted Publishing (run in GitHub Actions with id-token: write) or NPM_TOKEN"
+    );
     process.exit(2);
   }
 

@@ -59,8 +59,17 @@ jobs:
     needs: release
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    permissions:
+      contents: read
+      # OIDC token for npm Trusted Publishing — no long-lived token needed.
+      # Configure the trusted publisher once on npmjs.com for each of the six
+      # packages (@wdm-uk/which-model + the five platform packages):
+      #   Provider: GitHub Actions
+      #   Organization: WD-Mitchell
+      #   Repository: which-model
+      #   Workflow filename: npm-release.yml
+      #   Environment name: (leave empty)
+      id-token: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
@@ -69,8 +78,7 @@ jobs:
           path: dist
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: 22
-          registry-url: https://registry.npmjs.org
+          node-version: 24
       - name: Place binaries into platform packages
         run: |
           cp dist/which-model-darwin-arm64      npm/wdm-uk-darwin-arm64/which-model
@@ -81,7 +89,14 @@ jobs:
           chmod +x npm/wdm-uk-*/which-model
       - name: Stamp versions
         run: node npm/scripts/sync-version.js "${GITHUB_REF_NAME#v}"
-      - name: Publish
-        run: node npm/scripts/publish.js
+      - name: Publish (npm Trusted Publishing)
+        run: |
+          # OIDC-capable npm is required for tokenless publishing.
+          npm install -g npm@latest
+          if [ -n "$NPM_TOKEN" ]; then
+            # Escape hatch for manual re-runs without trusted publishing.
+            echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> "$HOME/.npmrc"
+          fi
+          node npm/scripts/publish.js
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
