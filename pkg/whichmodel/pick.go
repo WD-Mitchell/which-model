@@ -866,14 +866,24 @@ func RunPick(args PickArgs, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if err := validateStrategy(args.Strategy, strategyNamesFunc()); err != nil {
-		return err
+	if args.Strategy != "" {
+		if err := validateStrategy(args.Strategy, strategyNamesFunc()); err != nil {
+			return err
+		}
 	}
 	args.Profile = profile
 
 	cfg, err := config.Load(config.LoadOptions{Path: args.ConfigPath})
 	if err != nil {
 		return &UsageError{Message: err.Error()}
+	}
+	enabled, reason := toggleResolveFunc(args.NoUsage, cfg)
+	if args.Strategy == "" {
+		if enabled {
+			args.Strategy = string(pick.StrategyClosestToReset)
+		} else {
+			args.Strategy = string(pick.StrategyPriority)
+		}
 	}
 	st := &runState{cfg: cfg, profile: profile, scores: loadScoreRows(cfg), dataDir: stateDirFunc()}
 	prev := pickRun
@@ -945,7 +955,6 @@ func RunPick(args PickArgs, stdout, stderr io.Writer) error {
 		return classifyNoPick(excluded)
 	}
 
-	enabled, reason := toggleResolveFunc(args.NoUsage, cfg)
 	st.usageEnabled = enabled
 	st.usageReason = reason
 	if !enabled {

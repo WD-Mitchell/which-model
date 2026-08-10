@@ -281,9 +281,13 @@ func cacheFresh(cachePath string, ttl time.Duration) bool {
 // Collect implements the Collect stage: models.dev catalogue (cached) +
 // benchmarks + AA v2 (+ optional page) -> merged raw CSV.
 func (defaultRunner) Collect(ctx context.Context, o CollectOptions) (CollectResult, error) {
-	providers, err := loadProviderConfig(o.ProviderConfigPath)
-	if err != nil {
-		return CollectResult{}, err
+	providers := make(map[string][]string)
+	if o.ProviderConfigPath != "" {
+		var err error
+		providers, err = loadProviderConfig(o.ProviderConfigPath)
+		if err != nil {
+			return CollectResult{}, err
+		}
 	}
 	names, err := loadBenchmarkConfig(o.BenchmarksPath)
 	if err != nil {
@@ -305,6 +309,11 @@ func (defaultRunner) Collect(ctx context.Context, o CollectOptions) (CollectResu
 		}
 		if err := writeCache(o.CatalogueCachePath, catalogue); err != nil {
 			return CollectResult{}, err
+		}
+	}
+	if o.ProviderConfigPath == "" {
+		for _, model := range catalogue {
+			providers[model.Provider] = nil
 		}
 	}
 

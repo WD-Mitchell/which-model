@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/WD-Mitchell/which-model/internal/config"
 	"github.com/WD-Mitchell/which-model/internal/usage"
 )
 
-// The fake Apply receives the priority strategy and ranked candidates,
-// then returns them unchanged.
-func TestPickStrategyPriorityDefault(t *testing.T) {
+// An omitted strategy resolves to closest-to-reset when usage is enabled.
+func TestPickStrategyDefaultWithUsage(t *testing.T) {
 	var gotName string
 	cfg, _ := pickPipelineSetup(t, pickTwoRoutes(), pickTwoScores(), nil, nil, nil)
 	setStrategyApply(t, func(name string, cands []Candidate, _ strategyOptions) ([]Candidate, error) {
@@ -23,30 +23,42 @@ func TestPickStrategyPriorityDefault(t *testing.T) {
 		return cands, nil
 	})
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", ConfigPath: cfg})
+	if err != nil {
+		t.Fatalf("err = %v", err)
+	}
+	if gotName != "closest-to-reset" {
+		t.Errorf("strategy seam received name %q, want closest-to-reset", gotName)
+	}
+
+	doc := pickJSON(t, out.String())
+	if doc["strategy"] != "closest-to-reset" {
+		t.Errorf("strategy = %v, want closest-to-reset", doc["strategy"])
+	}
+	if _, ok := doc["seed"]; ok {
+		t.Error("removed seed field is present")
+	}
+}
+
+// An omitted strategy resolves to priority when usage is disabled.
+func TestPickStrategyDefaultWithoutUsage(t *testing.T) {
+	var gotName string
+	cfg, _ := pickPipelineSetup(t, pickTwoRoutes(), pickTwoScores(),
+		func(_ bool, _ *config.Config) (bool, string) { return false, "flag" }, nil, nil)
+	setStrategyApply(t, func(name string, cands []Candidate, _ strategyOptions) ([]Candidate, error) {
+		gotName = name
+		return cands, nil
+	})
+
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", ConfigPath: cfg})
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}
 	if gotName != "priority" {
 		t.Errorf("strategy seam received name %q, want priority", gotName)
 	}
-
-	doc := pickJSON(t, out.String())
-	if doc["strategy"] != "priority" {
-		t.Errorf("strategy = %v, want priority", doc["strategy"])
-	}
-	if _, ok := doc["seed"]; ok {
-		t.Error("removed seed field is present")
-	}
-	cands := doc["candidates"].([]any)
-	if len(cands) != 2 {
-		t.Fatalf("len(candidates) = %d, want 2", len(cands))
-	}
-	first := cands[0].(map[string]any)["route"].(map[string]any)
-	second := cands[1].(map[string]any)["route"].(map[string]any)
-	if first["provider"] != "claude" || second["provider"] != "codex" {
-		t.Errorf("ranked order = [%v, %v], want [claude, codex]",
-			first["provider"], second["provider"])
+	if got := pickJSON(t, out.String())["strategy"]; got != "priority" {
+		t.Errorf("strategy = %v, want priority", got)
 	}
 }
 

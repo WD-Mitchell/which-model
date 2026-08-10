@@ -27,7 +27,7 @@ func TestPickCommandShape(t *testing.T) {
 	routesCheckFlag(t, cmd, "profile", "string", "")
 	routesCheckFlag(t, cmd, "task-category", "string", "")
 	routesCheckFlag(t, cmd, "complexity", "string", "")
-	routesCheckFlag(t, cmd, "strategy", "string", "priority")
+	routesCheckFlag(t, cmd, "strategy", "string", "")
 	if cmd.Flags().Lookup("seed") != nil {
 		t.Error("removed --seed flag is still registered")
 	}
