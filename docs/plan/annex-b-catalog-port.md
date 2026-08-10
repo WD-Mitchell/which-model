@@ -888,7 +888,8 @@ concurrency:
   cancel-in-progress: false
 jobs:
   refresh:
-    runs-on: ubuntu-latest
+    runs-on:
+      group: WDM-Small
     timeout-minutes: 15
     strategy:
       fail-fast: false
