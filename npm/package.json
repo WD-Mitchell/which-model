@@ -1,0 +1,5 @@
+{
+  "name": "@wdm-uk/which-model-npm",
+  "private": true,
+  "description": "Release packaging for the which-model CLI (npm/pnpm/bun installable). Packages under this directory are published by the release workflow; see .github/workflows/npm-release.yml."
+}
