@@ -148,7 +148,16 @@ func authUsageDisabled(noUsage bool, configPath string) error {
 		}
 		return &CodedError{Code: "usage_disabled", Message: fmt.Sprintf("usage is disabled by [usage] enabled = false in %s", path)}
 	}
-	return nil
+	switch cfg.Usage.Backend {
+	case config.UsageBackendOff, "":
+		return &CodedError{Code: "usage_disabled", Message: "usage is disabled by [usage] backend = off"}
+	case config.UsageBackendCodexBar:
+		return &CodedError{Code: "unsupported", Message: `which-model auth manages native credentials only; CodexBar manages credentials when [usage] backend = "codexbar"`}
+	case config.UsageBackendNative:
+		return nil
+	default:
+		return &UsageError{Message: fmt.Sprintf("unknown usage backend %q", cfg.Usage.Backend)}
+	}
 }
 
 func RunAuthStatus(args AuthStatusArgs, stdout, stderr io.Writer) error {
@@ -262,8 +271,9 @@ func redactAuthMessage(message, secret string) string {
 	}
 	return authSecretPattern.ReplaceAllString(message, "***")
 }
+
 type DeviceFlow struct {
-	Code           string
+	Code            string
 	VerificationURI string
 }
 

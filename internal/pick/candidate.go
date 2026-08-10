@@ -22,10 +22,9 @@ type Candidate struct {
 type Strategy string
 
 const (
-	StrategyScore          Strategy = "score"
 	StrategyPriority       Strategy = "priority"
 	StrategyRoundRobin     Strategy = "round-robin"
 	StrategyLeastUsed      Strategy = "least-used"
-	StrategyWeightedRandom Strategy = "weighted-random"
-	StrategyCostOptimal    Strategy = "cost-optimal"
+	StrategyMostUsed       Strategy = "most-used"
+	StrategyClosestToReset Strategy = "closest-to-reset"
 )

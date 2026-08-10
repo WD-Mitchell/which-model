@@ -17,13 +17,14 @@ type Pressure struct {
 
 // WindowPercent derives the percent used for ONE window, in the priority
 // chain (SPEC §2.2):
-//   1. Synthetic        -> unknown (placeholder, not a real lane)
-//   2. Unlimited        -> 0, known
-//   3. UsageKnown false -> unknown (reset metadata, no usage number)
-//   4. UsedPercent set  -> as reported (may exceed 100)
-//   5. Used + Limit>0   -> Used / Limit * 100
-//   6. Remaining+Limit>0-> (Limit - Remaining) / Limit * 100
-//   7. otherwise        -> unknown (balance only, or non-positive Limit)
+//  1. Synthetic        -> unknown (placeholder, not a real lane)
+//  2. Unlimited        -> 0, known
+//  3. UsageKnown false -> unknown (reset metadata, no usage number)
+//  4. UsedPercent set  -> as reported (may exceed 100)
+//  5. Used + Limit>0   -> Used / Limit * 100
+//  6. Remaining+Limit>0-> (Limit - Remaining) / Limit * 100
+//  7. otherwise        -> unknown (balance only, or non-positive Limit)
+//
 // Float64 conversion uses decimal.NewFromFloat (shortest-representation,
 // exact for 25/50/75/100 and the default weights). No rounding here.
 func WindowPercent(w usage.Window) (decimal.Decimal, bool) {

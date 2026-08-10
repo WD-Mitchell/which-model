@@ -9,6 +9,7 @@ package fetch
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"sort"
 	"strings"
@@ -16,10 +17,12 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/WD-Mitchell/which-model/internal/config"
 	"github.com/WD-Mitchell/which-model/internal/httpkit"
 	"github.com/WD-Mitchell/which-model/internal/usage"
 	"github.com/WD-Mitchell/which-model/internal/usage/cache"
 	"github.com/WD-Mitchell/which-model/internal/usage/credential"
+	"github.com/WD-Mitchell/which-model/internal/usage/provider/codexbar"
 )
 
 const (
@@ -35,20 +38,38 @@ const (
 
 // Options configures one FetchAll call. All fields optional.
 type Options struct {
-	Refresh      bool              // skip cache reads; refetch and rewrite (annex-d --refresh-usage)
-	Offline      bool              // read-only: cache only, never credentials/fetch/writes
-	MaxAge       time.Duration     // TTL override via cache.EffectiveTTL (annex-d --max-age)
-	ShowIdentity bool              // false (default): Account/Plan cleared on RETURNED snapshots
-	Enabled      map[string]bool   // L1a gate, default-deny (SPEC D1)
-	Timeout      time.Duration     // per-provider timeout; 0 → descriptor.Timeout → DefaultTimeoutSec
-	MaxParallel  int               // fan-out cap; <= 0 → min(active, DefaultMaxParallel)
-	CacheDir     string            // "" → cache.New() (system dir); test seam (SPEC D11)
+	Backend      config.UsageBackend // off, native, or codexbar; empty preserves native
+	Refresh      bool                // skip cache reads; refetch and rewrite (annex-d --refresh-usage)
+	Offline      bool                // read-only: cache only, never credentials/fetch/writes
+	MaxAge       time.Duration       // TTL override via cache.EffectiveTTL (annex-d --max-age)
+	ShowIdentity bool                // false (default): Account/Plan cleared on RETURNED snapshots
+	Enabled      map[string]bool     // L1a gate, default-deny (SPEC D1)
+	Timeout      time.Duration       // per-provider timeout; 0 → descriptor.Timeout → DefaultTimeoutSec
+	MaxParallel  int                 // fan-out cap; <= 0 → min(active, DefaultMaxParallel)
+	CacheDir     string              // "" → cache.New() (system dir); test seam (SPEC D11)
+	Source       usage.Source        // optional source forwarded to CodexBar
 }
 
-// FetchAll returns one Snapshot per requested AND enabled provider, sorted
-// by Provider ID. Partial failures are snapshots with Failure set; err is
-// non-nil only on shared-context cancellation (SPEC "Error behaviour").
+var codexbarFetch = codexbar.FetchWithSource
+
+// FetchAll selects the configured usage backend after applying the common
+// enabled-provider gate. An unset backend retains the native implementation
+// for direct callers; config.Default selects off.
 func FetchAll(ctx context.Context, providers []string, opts Options) ([]usage.Snapshot, []credential.Warning, error) {
+	switch opts.Backend {
+	case config.UsageBackendOff:
+		return nil, nil, nil
+	case config.UsageBackendCodexBar:
+		return fetchCodexBarAll(ctx, providers, opts)
+	case config.UsageBackendNative, "":
+		return fetchNativeAll(ctx, providers, opts)
+	default:
+		return nil, nil, fmt.Errorf("unknown usage backend %q", opts.Backend)
+	}
+}
+
+// fetchNativeAll returns native adapter results.
+func fetchNativeAll(ctx context.Context, providers []string, opts Options) ([]usage.Snapshot, []credential.Warning, error) {
 	// L1a gate: skipped providers are never touched (cache/credential/fetch) — SPEC D1.
 	var active []string
 	for _, id := range providers {
@@ -272,11 +293,11 @@ func failureSnapshot(id string, f usage.Failure, cred usage.Credential) usage.Sn
 // MapError converts a provider/resolver error into a canonical Failure
 // (CONTRACTS §1, SPEC §9):
 //
-//	1. usage.AsFailure(err)             → that Failure
-//	2. httpkit.AsError(err)             → Failure{Code: e.Code, Message: e.Error()}
-//	3. errors.Is(err, credential.ErrNotFound)  → login_required
-//	4. errors.Is(err, context.DeadlineExceeded) → timeout
-//	5. otherwise                        → provider_status
+//  1. usage.AsFailure(err)             → that Failure
+//  2. httpkit.AsError(err)             → Failure{Code: e.Code, Message: e.Error()}
+//  3. errors.Is(err, credential.ErrNotFound)  → login_required
+//  4. errors.Is(err, context.DeadlineExceeded) → timeout
+//  5. otherwise                        → provider_status
 func MapError(err error) usage.Failure {
 	if f, ok := usage.AsFailure(err); ok {
 		return f
@@ -321,4 +342,59 @@ func SourceFor(cred usage.Credential, kind usage.Kind) usage.Source {
 	default:
 		return usage.SourceAPI
 	}
+}
+func fetchCodexBarAll(ctx context.Context, providers []string, opts Options) ([]usage.Snapshot, []credential.Warning, error) {
+	active := make([]string, 0, len(providers))
+	for _, id := range providers {
+		if opts.Enabled == nil || !opts.Enabled[id] {
+			continue
+		}
+		active = append(active, id)
+	}
+	if len(active) == 0 {
+		return nil, nil, nil
+	}
+
+	limit := opts.MaxParallel
+	if limit <= 0 || limit > len(active) {
+		limit = min(len(active), DefaultMaxParallel)
+	}
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(limit)
+	results := make([]usage.Snapshot, len(active))
+	for i, id := range active {
+		i, id := i, id
+		g.Go(func() error {
+			snap, err := codexbarFetch(gctx, id, opts.Source)
+			if err != nil {
+				var notFound *codexbar.BinaryNotFoundError
+				message := "codexbar usage fetch failed"
+				if errors.As(err, &notFound) {
+					message = "codexbar CLI not found; install from https://github.com/steipete/CodexBar"
+				}
+				snap = usage.Snapshot{
+					Provider: id,
+					Source:   usage.SourceCLI,
+					Failure:  &usage.Failure{Code: "provider_status", Message: message},
+				}
+			}
+			if !opts.ShowIdentity {
+				snap.Account = ""
+				snap.Plan = ""
+			}
+			if snap.Provider == "" {
+				snap.Provider = id
+			}
+			results[i] = snap
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return results, nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return results, nil, err
+	}
+	sort.Slice(results, func(i, j int) bool { return results[i].Provider < results[j].Provider })
+	return results, nil, nil
 }

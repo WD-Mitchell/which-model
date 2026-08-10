@@ -64,9 +64,13 @@ func TestAuthLogoutNothingToRemove(t *testing.T) {
 
 func TestAuthLogoutPermissionWarning(t *testing.T) {
 	oldTTY, oldResolve, oldRemove, oldPerms := stdinIsTTY, resolveFirstFunc, removeFunc, hasBroadPermsFunc
-	t.Cleanup(func() { stdinIsTTY, resolveFirstFunc, removeFunc, hasBroadPermsFunc = oldTTY, oldResolve, oldRemove, oldPerms })
+	t.Cleanup(func() {
+		stdinIsTTY, resolveFirstFunc, removeFunc, hasBroadPermsFunc = oldTTY, oldResolve, oldRemove, oldPerms
+	})
 	stdinIsTTY = func() bool { return true }
-	resolveFirstFunc = func(string) (AuthResolved, error) { return AuthResolved{Path: "/tmp/cred", FileMode: fs.FileMode(0o644)}, nil }
+	resolveFirstFunc = func(string) (AuthResolved, error) {
+		return AuthResolved{Path: "/tmp/cred", FileMode: fs.FileMode(0o644)}, nil
+	}
 	removeFunc = func(string) error { return nil }
 	hasBroadPermsFunc = func(mode fs.FileMode) bool { return mode == 0o644 }
 	var out, errOut strings.Builder

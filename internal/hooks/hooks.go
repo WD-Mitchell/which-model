@@ -40,7 +40,7 @@ var All = []Hook{
 		ID: "spawn-gate", Event: "PreToolUse", Matcher: "Task", Timeout: 8,
 		Underlying: func(p []string, env map[string]string) []string {
 			profile := envOr(env, "WHICH_MODEL_TASK_PROFILE", "balanced_implementation")
-			return append([]string{"pick", "--profile", profile, "--strategy", "score", "--json"}, p...)
+			return append([]string{"pick", "--profile", profile, "--strategy", "priority", "--json"}, p...)
 		},
 	},
 	{

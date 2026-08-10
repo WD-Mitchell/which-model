@@ -69,3 +69,42 @@ func TestUsageEnabledUnmarshalTOML(t *testing.T) {
 		})
 	}
 }
+func TestParseUsageBackend(t *testing.T) {
+	tests := []struct {
+		in   string
+		want UsageBackend
+		err  bool
+	}{
+		{"off", UsageBackendOff, false},
+		{"native", UsageBackendNative, false},
+		{"codexbar", UsageBackendCodexBar, false},
+		{"auto", "", true},
+	}
+	for _, tt := range tests {
+		got, err := ParseUsageBackend(tt.in)
+		if tt.err {
+			if err == nil || !strings.Contains(err.Error(), "usage.backend") {
+				t.Fatalf("ParseUsageBackend(%q) error = %v", tt.in, err)
+			}
+			continue
+		}
+		if err != nil || got != tt.want {
+			t.Fatalf("ParseUsageBackend(%q) = %q, %v; want %q", tt.in, got, err, tt.want)
+		}
+	}
+}
+
+func TestDefaultUsageBackendOff(t *testing.T) {
+	if got := Default().Usage.Backend; got != UsageBackendOff {
+		t.Fatalf("Default().Usage.Backend = %q, want %q", got, UsageBackendOff)
+	}
+}
+func TestUsageBackendUnmarshalTOML(t *testing.T) {
+	var backend UsageBackend
+	if err := (&backend).UnmarshalTOML("codexbar"); err != nil {
+		t.Fatal(err)
+	}
+	if backend != UsageBackendCodexBar {
+		t.Fatalf("backend = %q, want %q", backend, UsageBackendCodexBar)
+	}
+}

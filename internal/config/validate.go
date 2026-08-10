@@ -12,6 +12,11 @@ func (c *Config) Validate() error {
 			return &ConfigError{Kind: KindInvalidValue, Key: "usage.enabled", Err: err}
 		}
 	}
+	if c.Usage.Backend != "" {
+		if _, err := ParseUsageBackend(string(c.Usage.Backend)); err != nil {
+			return &ConfigError{Kind: KindInvalidValue, Key: "usage.backend", Err: err}
+		}
+	}
 
 	ids := make([]string, 0, len(c.Providers))
 	for id := range c.Providers {

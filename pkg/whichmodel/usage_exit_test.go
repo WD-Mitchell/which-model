@@ -24,7 +24,9 @@ func runUsageWithSnapshots(t *testing.T, snaps []usage.Snapshot, jsonMode bool) 
 	t.Helper()
 	old := fetchAllFunc
 	t.Cleanup(func() { fetchAllFunc = old })
-	fetchAllFunc = func(context.Context, FetchAllOptions) (*FetchResult, error) { return &FetchResult{Snapshots: snaps}, nil }
+	fetchAllFunc = func(context.Context, FetchAllOptions) (*FetchResult, error) {
+		return &FetchResult{Snapshots: snaps}, nil
+	}
 	var out, errOut strings.Builder
 	err := RunUsage(UsageArgs{Providers: []string{"claude", "codex"}, JSON: jsonMode}, &out, &errOut)
 	return err, out.String(), errOut.String()

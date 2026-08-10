@@ -6,36 +6,33 @@ import (
 	"github.com/WD-Mitchell/which-model/internal/pick"
 )
 
-// ParseStrategy validates a CLI/config strategy string, defaulting the empty
-// string to score (specs/features/F20-strategies/SPEC.md §2.8, D17).
+// ParseStrategy validates a CLI/config strategy string, defaulting to priority.
 func ParseStrategy(s string) (pick.Strategy, error) {
 	if s == "" {
-		return pick.StrategyScore, nil
+		return pick.StrategyPriority, nil
 	}
 	switch pick.Strategy(s) {
-	case pick.StrategyScore, pick.StrategyPriority, pick.StrategyRoundRobin,
-		pick.StrategyLeastUsed, pick.StrategyWeightedRandom, pick.StrategyCostOptimal:
+	case pick.StrategyPriority, pick.StrategyRoundRobin, pick.StrategyLeastUsed,
+		pick.StrategyMostUsed, pick.StrategyClosestToReset:
 		return pick.Strategy(s), nil
 	default:
 		return "", fmt.Errorf("%w: %q", ErrUnknownStrategy, s)
 	}
 }
 
-// New constructs the Strategy implementation for one of the six enum values.
+// New constructs an implementation for a registered strategy.
 func New(s pick.Strategy) (Strategy, error) {
 	switch s {
-	case pick.StrategyScore:
-		return &Score{}, nil
 	case pick.StrategyPriority:
 		return &Priority{}, nil
 	case pick.StrategyRoundRobin:
 		return &RoundRobin{}, nil
 	case pick.StrategyLeastUsed:
 		return &LeastUsed{}, nil
-	case pick.StrategyWeightedRandom:
-		return &WeightedRandom{}, nil
-	case pick.StrategyCostOptimal:
-		return &CostOptimal{}, nil
+	case pick.StrategyMostUsed:
+		return &MostUsed{}, nil
+	case pick.StrategyClosestToReset:
+		return &ClosestToReset{}, nil
 	default:
 		return nil, fmt.Errorf("%w: %q", ErrUnknownStrategy, s)
 	}

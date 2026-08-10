@@ -33,6 +33,9 @@ func ParseUsageEnabled(s string) (UsageEnabled, error)
 // any other TOML value (or string) is an error. BurntSushi/toml calls this
 // for `[usage] enabled = …` because UsageEnabled implements Unmarshaler.
 func (u *UsageEnabled) UnmarshalTOML(v interface{}) error
+
+func ParseUsageBackend(s string) (UsageBackend, error)
+func (b *UsageBackend) UnmarshalTOML(v interface{}) error
 ```
 
 ### 1.2 Config types (`internal/config/types.go`)
@@ -44,8 +47,17 @@ type Config struct {
     // unexported: raw merged TOML document + WHICH_MODEL_* overlay
 }
 
+type UsageBackend string
+
+const (
+    UsageBackendOff      UsageBackend = "off"
+    UsageBackendNative   UsageBackend = "native"
+    UsageBackendCodexBar UsageBackend = "codexbar"
+)
+
 type UsageConfig struct {
     Enabled UsageEnabled // default UsageAuto
+    Backend UsageBackend // default UsageBackendOff
 }
 
 type ProviderConfig struct {
@@ -58,7 +70,7 @@ type ProviderConfig struct {
     TrustedFallbackOrigin string
 }
 
-func Default() *Config // Usage.Enabled = UsageAuto; Providers = empty map
+func Default() *Config // Usage.Enabled = UsageAuto; Usage.Backend = UsageBackendOff; Providers = empty map
 ```
 
 ### 1.3 Errors (`internal/config/types.go`)
@@ -188,9 +200,9 @@ func (c *Config) MarshalTOML() ([]byte, error)
 ### 1.9 Validation (`internal/config/validate.go`)
 
 ```go
-// Validates usage.enabled ∈ {auto,true,false}; provider ids non-empty;
-// provider weight ≥ 0 (0 normalized to 1.0); provider cache_ttl ≥ 0.
-// Returns *ConfigError (KindInvalidValue) on first violation.
+// Validates usage.enabled ∈ {auto,true,false} and usage.backend ∈ {off,native,codexbar};
+// provider ids non-empty; provider weight ≥ 0 (0 normalized to 1.0);
+// provider cache_ttl ≥ 0. Returns *ConfigError (KindInvalidValue) on first violation.
 func (c *Config) Validate() error
 ```
 
@@ -199,6 +211,7 @@ func (c *Config) Validate() error
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `usage.enabled` | `UsageEnabled` | `"auto"` | TOML bool or string `"auto"`; three-state; resolution → F21 (README §6.1, annex-d §4.2) |
+| `usage.backend` | `UsageBackend` | `"off"` | `"off"` disables usage; `"native"` selects the Claude/Codex/Copilot adapters; `"codexbar"` selects the CodexBar CLI |
 | `providers.<id>.enabled` | bool | `false` | default-deny (README §6.2); `enabled` is the ONLY key F21/F15-F17 read for gating |
 | `providers.<id>.priority` | int | `0` | priority-strategy ordering → F20 |
 | `providers.<id>.weight` | `decimal.Decimal` | `1.0` | FinalScore multiplier → F19/F20 (annex-d §4.2) |
@@ -215,6 +228,7 @@ Unknown keys under `usage.*` or `providers.<id>.*` → `KindInvalidValue` (stric
 |---|---|
 | `WHICH_MODEL_CONFIG` | config file path override; consumed by `Load` between `--config` and discovery; missing file → `KindNotFound` |
 | `WHICH_MODEL_USAGE_ENABLED` | `usage.enabled` (`"auto"`/`"true"`/`"false"`) |
+| `WHICH_MODEL_USAGE_BACKEND` | `usage.backend` (`"off"`/`"native"`/`"codexbar"`) |
 | `WHICH_MODEL_PROVIDERS_<ID>_ENABLED` | `providers.<id>.enabled` (bool) |
 | `WHICH_MODEL_PROVIDERS_<ID>_PRIORITY` | `providers.<id>.priority` (int) |
 | `WHICH_MODEL_PROVIDERS_<ID>_WEIGHT` | `providers.<id>.weight` (decimal) |

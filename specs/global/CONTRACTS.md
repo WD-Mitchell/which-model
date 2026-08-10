@@ -235,12 +235,11 @@ type Candidate struct {
 type Strategy string
 
 const (
-    StrategyScore          Strategy = "score"
     StrategyPriority       Strategy = "priority"
     StrategyRoundRobin     Strategy = "round-robin"
     StrategyLeastUsed      Strategy = "least-used"
-    StrategyWeightedRandom Strategy = "weighted-random"
-    StrategyCostOptimal    Strategy = "cost-optimal"
+    StrategyMostUsed       Strategy = "most-used"
+    StrategyClosestToReset Strategy = "closest-to-reset"
 )
 ```
 
@@ -285,7 +284,7 @@ Every `--json` output carries:
 type OutputEnvelope struct {
     SchemaVersion        string `json:"schema_version"` // "2.0"
     UsageEnabled         bool   `json:"usage_enabled"`
-    UsageDisabledReason  string `json:"usage_disabled_reason,omitempty"` // flag|config|compiled_out|no_providers_enabled
+    UsageDisabledReason  string `json:"usage_disabled_reason,omitempty"` // flag|config|backend_off|compiled_out|no_providers_enabled
 }
 ```
 

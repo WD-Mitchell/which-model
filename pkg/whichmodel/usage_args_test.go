@@ -64,8 +64,8 @@ func TestResolveProvidersPreservesPositionalOrder(t *testing.T) {
 	}
 }
 
-func TestDisplayNameFallback(t *testing.T) {
-	if got := displayName("claude"); got != "Claude" {
+func TestDisplayNamePassThrough(t *testing.T) {
+	if got := displayName("claude"); got != "claude" {
 		t.Fatalf("displayName(claude) = %q", got)
 	}
 	if got := displayName("no-such-id"); got != "no-such-id" {

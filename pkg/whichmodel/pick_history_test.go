@@ -74,7 +74,7 @@ func historyRawLine(t *testing.T, stateDir string, idx int) map[string]any {
 func TestPickHistoryAppend(t *testing.T) {
 	cfg, dir := pickPipelineSetup(t, pickTwoRoutes(), pickTwoScores(), nil, nil, nil)
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}
@@ -104,8 +104,8 @@ func TestPickHistoryAppend(t *testing.T) {
 	if e.Profile != "complex_implementation" {
 		t.Errorf("profile = %q, want complex_implementation", e.Profile)
 	}
-	if e.Strategy != "score" {
-		t.Errorf("strategy = %q, want score", e.Strategy)
+	if e.Strategy != "priority" {
+		t.Errorf("strategy = %q, want priority", e.Strategy)
 	}
 	if e.CandidateID != "claude:claude-sonnet-4-5" {
 		t.Errorf("candidate_id = %q, want claude:claude-sonnet-4-5", e.CandidateID)
@@ -134,7 +134,7 @@ func TestPickHistoryAppendOnly(t *testing.T) {
 	cfg, dir := pickPipelineSetup(t, pickTwoRoutes(), pickTwoScores(), nil, nil, nil)
 	path := filepath.Join(dir, "pick", "history.jsonl")
 
-	err, _, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, _, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	if err != nil {
 		t.Fatalf("run 1 err = %v", err)
 	}
@@ -144,7 +144,7 @@ func TestPickHistoryAppendOnly(t *testing.T) {
 	}
 	firstLine := strings.TrimSpace(string(first))
 
-	err, _, _ = runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, _, _ = runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	if err != nil {
 		t.Fatalf("run 2 err = %v", err)
 	}
@@ -175,7 +175,7 @@ func TestPickHistoryWriteFailure(t *testing.T) {
 	}
 	setStateDir(t, func() string { return stateFile })
 
-	err, out, errOut := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, out, errOut := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	if err != nil {
 		t.Fatalf("err = %v, want nil (history failure must not fail the pick)", err)
 	}
@@ -213,7 +213,7 @@ func TestPickHistoryEvidence(t *testing.T) {
 				return bandResult{Name: "five hour", UsedPercent: 25, Weight: 0.8}, nil
 			})
 
-		err, _, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+		err, _, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 		if err != nil {
 			t.Fatalf("err = %v", err)
 		}
@@ -261,7 +261,7 @@ func TestPickHistoryEvidence(t *testing.T) {
 		cfg, dir := pickPipelineSetup(t, pickTwoRoutes(), pickTwoScores(),
 			func(_ bool, _ *config.Config) (bool, string) { return false, "flag" }, nil, nil)
 
-		err, _, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+		err, _, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 		if err != nil {
 			t.Fatalf("err = %v", err)
 		}
@@ -298,7 +298,7 @@ func TestPickHistoryExplainLast(t *testing.T) {
 	t.Run("last", func(t *testing.T) {
 		cfg, dir := pickPipelineSetup(t, pickTwoRoutes(), pickTwoScores(), nil, nil, nil)
 
-		err, _, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+		err, _, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 		if err != nil {
 			t.Fatalf("pick err = %v", err)
 		}

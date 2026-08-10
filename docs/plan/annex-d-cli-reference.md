@@ -2,6 +2,12 @@
 
 This annex specifies the complete command surface of the `which-model` binary: global conventions, every command's flags/output/exit codes, the determinism and concurrency contract for `which-model pick`, the config file schema and resolution order, the migration mapping from the two legacy prototypes' entry points, and shell-completion/man-page delivery. It is the normative contract that Annexes A (providers), B (scoring), and C (skills/hooks) invoke against; it does not re-derive provider internals, scoring maths, or the Go-vs-other-languages decision — see [master plan](./README.md) for those.
 
+> **Correction (2026-08-10):** The strategy portions of this historical annex
+> are superseded by `specs/features/F20-strategies/` and
+> `specs/features/F26-cmd-pick/`. `priority` is the default; the supported set is
+> `priority`, `round-robin`, `least-used`, `most-used`, and
+> `closest-to-reset`. The `--seed` flag and seed JSON field are removed.
+
 ## 1. Global conventions
 
 ### 1.1 Binary and command tree

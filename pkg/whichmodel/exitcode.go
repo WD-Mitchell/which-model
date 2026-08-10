@@ -20,7 +20,7 @@ type CodedError struct{ Code, Message string }
 func (e *CodedError) Error() string { return e.Message }
 
 // ReportedError marks a failure whose deliverable already went to stdout
-// (F25 auth status, F27 verify): ExecuteArgs renders the stderr failure line
+// (usage and routes commands): ExecuteArgs renders the stderr failure line
 // only, NEVER the JSON error document.
 type ReportedError struct{ Err error }
 

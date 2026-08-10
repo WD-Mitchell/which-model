@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 )
+
 func TestBenchmarksCmd(t *testing.T) {
 	t.Run("case 1: happy text", func(t *testing.T) {
 		t.Setenv("ARTIFICIAL_ANALYSIS_API", "test-key")

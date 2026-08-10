@@ -53,7 +53,9 @@ func TestResolveStatusesExpired(t *testing.T) {
 	past := time.Now().Add(-time.Hour)
 	old := resolveFirstFunc
 	t.Cleanup(func() { resolveFirstFunc = old })
-	resolveFirstFunc = func(string) (AuthResolved, error) { return AuthResolved{Source: usage.SourceOAuth, Secret: "tok", ExpiresAt: &past}, nil }
+	resolveFirstFunc = func(string) (AuthResolved, error) {
+		return AuthResolved{Source: usage.SourceOAuth, Secret: "tok", ExpiresAt: &past}, nil
+	}
 	entries, err := resolveStatuses(AuthStatusArgs{Providers: []string{"claude"}})
 	if err != nil || entries[0].Status != "expired" || entries[0].ExpiresAt != &past {
 		t.Fatalf("entries = %#v, err = %v", entries, err)
@@ -64,7 +66,7 @@ func TestRunAuthStatusAllExpansion(t *testing.T) {
 	old := resolveFirstFunc
 	t.Cleanup(func() { resolveFirstFunc = old })
 	resolveFirstFunc = func(id string) (AuthResolved, error) { return AuthResolved{Source: usage.SourceOAuth, Secret: id}, nil }
-	path := authStatusConfig(t, "[providers.claude]\nenabled = true\n[providers.codex]\nenabled = true\n")
+	path := authStatusConfig(t, "[usage]\nbackend = \"native\"\n[providers.claude]\nenabled = true\n[providers.codex]\nenabled = true\n")
 	var out, errOut strings.Builder
 	if err := RunAuthStatus(AuthStatusArgs{All: true, JSON: true, ConfigPath: path}, &out, &errOut); err != nil {
 		t.Fatal(err)

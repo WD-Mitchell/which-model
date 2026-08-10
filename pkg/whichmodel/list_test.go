@@ -14,6 +14,7 @@ func sha256HexOf(b []byte) string {
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:])
 }
+
 // listFixture writes a scores CSV with the given header/rows and a matching
 // raw CSV so its provenance hash is fresh (avoids staleness noise unless the
 // test wants it).

@@ -31,7 +31,7 @@ func TestPickDegradedFlagDisabled(t *testing.T) {
 			return bandResult{}, errors.New("band must not be called")
 		})
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}
@@ -62,7 +62,7 @@ func TestPickDegradedConfigDisabled(t *testing.T) {
 	cfg, _ := pickPipelineSetup(t, pickTwoRoutes(), pickTwoScores(),
 		func(_ bool, _ *config.Config) (bool, string) { return false, "config" }, nil, nil)
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}
@@ -75,10 +75,9 @@ func TestPickDegradedConfigDisabled(t *testing.T) {
 	}
 }
 
-// F26-T5 row 3: least_used in degraded mode is refused with usage_disabled
-// (exit 2) BEFORE the strategy seam — Apply is never called.
+// Usage-dependent strategies are refused in degraded mode before Apply.
 func TestPickDegradedLeastUsedRefusal(t *testing.T) {
-	setStrategyNames(t, []string{"score", "least_used", "weighted_random"})
+	setStrategyNames(t, []string{"priority", "least-used", "most-used", "closest-to-reset"})
 	var applyCalls int
 	cfg, _ := pickPipelineSetup(t, pickTwoRoutes(), pickTwoScores(),
 		func(_ bool, _ *config.Config) (bool, string) { return false, "flag" }, nil, nil)
@@ -87,7 +86,7 @@ func TestPickDegradedLeastUsedRefusal(t *testing.T) {
 		return cands, nil
 	})
 
-	err, _, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "least_used", ConfigPath: cfg})
+	err, _, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "least-used", ConfigPath: cfg})
 	var ce *CodedError
 	if !errors.As(err, &ce) {
 		t.Fatalf("err = %v, want *CodedError", err)
@@ -95,8 +94,8 @@ func TestPickDegradedLeastUsedRefusal(t *testing.T) {
 	if ce.Code != "usage_disabled" {
 		t.Errorf("code = %q, want usage_disabled", ce.Code)
 	}
-	if ce.Message != `strategy "least_used" requires usage data` {
-		t.Errorf("message = %q, want %q", ce.Message, `strategy "least_used" requires usage data`)
+	if ce.Message != `strategy "least-used" requires usage data` {
+		t.Errorf("message = %q, want %q", ce.Message, `strategy "least-used" requires usage data`)
 	}
 	if ExitCodeFor(err) != 2 {
 		t.Errorf("exit = %d, want 2", ExitCodeFor(err))
@@ -118,7 +117,7 @@ func TestPickDegradedStrictNoProviders(t *testing.T) {
 	setToggleResolve(t, func(_ bool, _ *config.Config) (bool, string) { return false, "no_providers_enabled" })
 	setStateDir(t, func() string { return t.TempDir() })
 
-	err, _, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, _, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	var ce *CodedError
 	if !errors.As(err, &ce) {
 		t.Fatalf("err = %v, want *CodedError", err)
@@ -135,25 +134,15 @@ func TestPickDegradedStrictNoProviders(t *testing.T) {
 	}
 }
 
-// F26-T5 row 5: byte-reproducibility — two identical RunPick calls produce
-// identical stdout bytes, in degraded mode and with weighted_random plus a
-// fixed seed.
+// Two identical degraded priority picks produce identical output.
 func TestPickDegradedByteReproducible(t *testing.T) {
 	cfg, _ := pickPipelineSetup(t, pickTwoRoutes(), pickTwoScores(),
 		func(_ bool, _ *config.Config) (bool, string) { return false, "flag" }, nil, nil)
 
-	_, out1, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
-	_, out2, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	_, out1, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
+	_, out2, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	if out1.String() != out2.String() {
 		t.Errorf("degraded stdout differs between runs:\n%q\nvs\n%q", out1.String(), out2.String())
-	}
-
-	setStrategyNames(t, []string{"score", "weighted_random"})
-	seed := uint64(7)
-	_, out3, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "weighted_random", Seed: &seed, ConfigPath: cfg})
-	_, out4, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "weighted_random", Seed: &seed, ConfigPath: cfg})
-	if out3.String() != out4.String() {
-		t.Errorf("weighted_random stdout differs between runs:\n%q\nvs\n%q", out3.String(), out4.String())
 	}
 }
 
@@ -163,7 +152,7 @@ func TestPickDegradedCompiledOut(t *testing.T) {
 	cfg, _ := pickPipelineSetup(t, pickTwoRoutes(), pickTwoScores(),
 		func(_ bool, _ *config.Config) (bool, string) { return false, "compiled_out" }, nil, nil)
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}

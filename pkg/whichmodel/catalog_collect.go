@@ -18,7 +18,6 @@ import (
 	sdecimal "github.com/shopspring/decimal"
 )
 
-
 // ensureBootstrapFile creates path with minimal non-empty placeholder
 // content when it does not yet exist (F06's WriteAtomic/WriteAtomicBytes are
 // "replace" primitives that CAS-verify against a pre-existing, non-empty
@@ -33,6 +32,7 @@ func ensureBootstrapFile(path string) error {
 	}
 	return os.WriteFile(path, []byte("# bootstrap\n"), 0o644)
 }
+
 // modelsDevProvidersURL / modelsDevBenchmarksURL / aaV2Fetch / aaPageFetch /
 // aaClientForTest are test seams: production defaults to the pinned F08
 // constants/wrappers; tests redirect them to httptest servers so Collect's
@@ -328,7 +328,6 @@ func (defaultRunner) Collect(ctx context.Context, o CollectOptions) (CollectResu
 			pages[m.Slug] = *p
 		}
 	}
-
 
 	fresh, err := buildFreshRows(catalogue, benchRecords, aaModels, pages, names)
 	if err != nil {

@@ -10,10 +10,9 @@ import (
 	"github.com/WD-Mitchell/which-model/internal/usage"
 )
 
-func TestValidateSourceEnum(t *testing.T) {
-	err := validateSource(usage.Source("bogus"))
-	if err == nil || err.Error() != `invalid --source "bogus"; valid: oauth, api, cli, web, local, cache` {
-		t.Fatalf("err = %v", err)
+func TestValidateSourcePassThrough(t *testing.T) {
+	if err := validateSource(usage.Source("bogus")); err != nil {
+		t.Fatalf("validateSource(bogus) = %v, want nil", err)
 	}
 }
 
@@ -25,12 +24,9 @@ func TestValidateSourceValid(t *testing.T) {
 	}
 }
 
-func TestValidateProviderSource(t *testing.T) {
-	if err := validateProviderSource("claude", usage.SourceWeb); err == nil || !strings.Contains(err.Error(), `provider "claude" has no web source`) || !strings.Contains(err.Error(), "valid sources:") {
-		t.Fatalf("err = %v", err)
-	}
-	if err := validateProviderSource("claude", usage.SourceAPI); err != nil {
-		t.Fatalf("declared source rejected: %v", err)
+func TestValidateProviderSourcePassThrough(t *testing.T) {
+	if err := validateProviderSource("claude", usage.SourceWeb); err != nil {
+		t.Fatalf("validateProviderSource() = %v, want nil", err)
 	}
 }
 
@@ -51,10 +47,19 @@ func TestRunUsageSourceCachePassthrough(t *testing.T) {
 	}
 }
 
-func TestRunUsageInvalidSource(t *testing.T) {
+func TestRunUsageSourcePassThrough(t *testing.T) {
+	old := fetchAllFunc
+	t.Cleanup(func() { fetchAllFunc = old })
+	var got FetchAllOptions
+	fetchAllFunc = func(ctx context.Context, opts FetchAllOptions) (*FetchResult, error) {
+		got = opts
+		return &FetchResult{Snapshots: []usage.Snapshot{{Provider: "claude"}}}, nil
+	}
 	var out, errOut strings.Builder
-	err := RunUsage(UsageArgs{Providers: []string{"claude"}, Source: usage.Source("bogus")}, &out, &errOut)
-	if ExitCodeFor(err) != 2 || !strings.Contains(err.Error(), "invalid --source") {
-		t.Fatalf("err = %v, exit = %d", err, ExitCodeFor(err))
+	if err := RunUsage(UsageArgs{Providers: []string{"claude"}, Source: usage.Source("bogus")}, &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	if got.Source != usage.Source("bogus") {
+		t.Fatalf("source = %q", got.Source)
 	}
 }

@@ -48,7 +48,7 @@ func TestPickExitAuthWins(t *testing.T) {
 			return bandResult{Name: "five hour", UsedPercent: 10, Weight: 1}, nil
 		})
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	var ce *CodedError
 	if !errors.As(err, &ce) {
 		t.Fatalf("err = %v (%T), want *CodedError", err, err)
@@ -56,8 +56,8 @@ func TestPickExitAuthWins(t *testing.T) {
 	if ce.Code != "auth_required" {
 		t.Errorf("code = %q, want auth_required", ce.Code)
 	}
-	if ce.Message != "auth required; run which-model auth status" {
-		t.Errorf("message = %q, want %q", ce.Message, "auth required; run which-model auth status")
+	if ce.Message != "auth required; check CodexBar credentials" {
+		t.Errorf("message = %q, want %q", ce.Message, "auth required; check CodexBar credentials")
 	}
 	if ExitCodeFor(err) != 5 {
 		t.Errorf("exit = %d, want 5", ExitCodeFor(err))
@@ -80,7 +80,7 @@ func TestPickExitGatingBeatsAvailability(t *testing.T) {
 			return bandResult{Name: "five hour", UsedPercent: 95, Gated: true}, nil
 		})
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", Allowlists: []string{allow}, ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", Allowlists: []string{allow}, ConfigPath: cfg})
 	var ce *CodedError
 	if !errors.As(err, &ce) {
 		t.Fatalf("err = %v (%T), want *CodedError", err, err)
@@ -110,7 +110,7 @@ func TestPickExitAvailabilityOnly(t *testing.T) {
 	}
 	cfg, _ := pickPipelineSetup(t, pickTwoRoutes(), nil, nil, nil, nil)
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", Allowlists: []string{allow}, ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", Allowlists: []string{allow}, ConfigPath: cfg})
 	var ce *CodedError
 	if !errors.As(err, &ce) {
 		t.Fatalf("err = %v (%T), want *CodedError", err, err)
@@ -141,7 +141,7 @@ func TestPickExitProviderErrorClass(t *testing.T) {
 			}, map[string]timeValue{}, nil
 		}, nil)
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	var ce *CodedError
 	if !errors.As(err, &ce) {
 		t.Fatalf("err = %v (%T), want *CodedError", err, err)
@@ -179,7 +179,7 @@ func TestPickExitSurvivorWins(t *testing.T) {
 			}, map[string]timeValue{}, nil
 		}, nil)
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	if err != nil {
 		t.Fatalf("err = %v, want nil", err)
 	}

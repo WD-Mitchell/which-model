@@ -165,6 +165,7 @@ func FromTOML(t TOMLConfig) (Config, error) {
 //   - otherwise -> first tier (ascending) with UpperUsedPercent >= p.Percent;
 //     pressure above the last bound clamps to the last tier (SPEC §2.4;
 //     upper bound INCLUSIVE per DEFERRED D8)
+//
 // Precondition: cfg is validated (ValidateBands). Band NAMING follows the
 // pressure tier; direction only chooses the weight: spread -> declared
 // weight, drain -> tier N takes weight[len-1-N] (SPEC §2.5).

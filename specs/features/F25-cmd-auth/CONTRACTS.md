@@ -64,12 +64,13 @@ Consumed global flags: `--json`, `--show-identity`, `--no-usage`. No other per-s
 
 | Key | Read via | Used for |
 |---|---|---|
-| `usage.enabled` | `cfg.UnmarshalKey("usage.enabled", &v)` | L1 disabled refusal (SPEC §2.13) |
+| `usage.enabled` | `config.Load` typed field | L1 disabled refusal (SPEC §2.13) |
+| `usage.backend` | `config.Load` typed field | native-only command gate; off/codexbar refusal (SPEC §2.13) |
 | `providers.<id>.enabled` | `cfg.UnmarshalKey("providers.<id>.enabled", &v)` | `status` with no args (SPEC §2.1) |
 
 ## 5. Error codes and exit codes
 
-Command-level code strings on the failure line (`which-model auth <sub>: [<code>] <message>`): `arguments` (exit-2 argument errors — `UsageError`), `usage_disabled` (L0/L1 refusal), `unsupported` (login for a non-device-flow provider), `runtime` (logout removal failure). F25 `status` exit 5 uses the canonical codes `expired_credential` (any expired) or `login_required` (missing only) — both map to exit 5 via F22's global table. No new `Failure.Code` values are added (global CONTRACTS §1.6 is closed).
+Command-level code strings on the failure line (`which-model auth <sub>: [<code>] <message>`): `arguments` (exit-2 argument errors — `UsageError`), `usage_disabled` (`--no-usage`, `usage.enabled = false`, or `usage.backend = "off"`), `unsupported` (CodexBar backend or login for a non-device-flow provider), `runtime` (logout removal failure). F25 `status` exit 5 uses the canonical codes `expired_credential` (any expired) or `login_required` (missing only) — both map to exit 5 via F22's global table. No new `Failure.Code` values are added (global CONTRACTS §1.6 is closed).
 
 | Subcommand | Exit | Condition |
 |---|---|---|

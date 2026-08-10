@@ -40,7 +40,7 @@ func TestPickJSONGolden(t *testing.T) {
 	setGlobalPickValues(t)
 	cfg, _ := pickPipelineSetup(t, pickTwoRoutes(), pickTwoScores(), nil, nil, t8BandGatesCodex)
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}
@@ -59,11 +59,11 @@ func TestPickJSONGolden(t *testing.T) {
 	if doc["profile"] != "complex_implementation" {
 		t.Errorf("profile = %v, want complex_implementation", doc["profile"])
 	}
-	if doc["strategy"] != "score" {
-		t.Errorf("strategy = %v, want score", doc["strategy"])
+	if doc["strategy"] != "priority" {
+		t.Errorf("strategy = %v, want priority", doc["strategy"])
 	}
-	if doc["seed"] != nil {
-		t.Errorf("seed = %v, want null", doc["seed"])
+	if _, ok := doc["seed"]; ok {
+		t.Error("removed seed field is present")
 	}
 	if doc["normalizer"] != "minmax-linear" {
 		t.Errorf("normalizer = %v, want minmax-linear", doc["normalizer"])
@@ -146,7 +146,7 @@ func TestPickJSONEmptyArrays(t *testing.T) {
 				return bandResult{Name: "five hour", UsedPercent: 95, Gated: true}, nil
 			})
 
-		err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+		err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 		var ce *CodedError
 		if !errors.As(err, &ce) || ce.Code != "usage_gated" {
 			t.Fatalf("err = %v, want CodedError usage_gated", err)
@@ -177,7 +177,7 @@ func TestPickJSONEmptyArrays(t *testing.T) {
 			"claude-sonnet-4-5": decimal.NewFromInt(92),
 		}, nil, nil, nil)
 
-		err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+		err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 		if err != nil {
 			t.Fatalf("err = %v", err)
 		}
@@ -196,7 +196,7 @@ func TestPickJSONDegradedOmission(t *testing.T) {
 	cfg, _ := pickPipelineSetup(t, pickTwoRoutes(), pickTwoScores(),
 		func(_ bool, _ *config.Config) (bool, string) { return false, "flag" }, nil, nil)
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}
@@ -216,32 +216,16 @@ func TestPickJSONDegradedOmission(t *testing.T) {
 	}
 }
 
-// F26-T8 row 4: seed rules — weighted_random with a seed echoes "seed": 7;
-// score echoes "seed": null (SPEC §2.1.4).
-func TestPickJSONSeedRules(t *testing.T) {
-	t.Run("weighted_random seed 7", func(t *testing.T) {
-		setStrategyNames(t, []string{"score", "weighted_random"})
-		cfg, _ := pickPipelineSetup(t, pickTwoRoutes(), pickTwoScores(), nil, nil, nil)
-		seed := uint64(7)
-		err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "weighted_random", Seed: &seed, ConfigPath: cfg})
-		if err != nil {
-			t.Fatalf("err = %v", err)
-		}
-		if got := pickJSON(t, out.String())["seed"]; got != float64(7) {
-			t.Errorf("seed = %v, want 7", got)
-		}
-	})
-
-	t.Run("score seed null", func(t *testing.T) {
-		cfg, _ := pickPipelineSetup(t, pickTwoRoutes(), pickTwoScores(), nil, nil, nil)
-		err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
-		if err != nil {
-			t.Fatalf("err = %v", err)
-		}
-		if got := pickJSON(t, out.String())["seed"]; got != nil {
-			t.Errorf("seed = %v, want null", got)
-		}
-	})
+// Removed strategy-specific seed metadata is absent from pick JSON.
+func TestPickJSONOmitsSeed(t *testing.T) {
+	cfg, _ := pickPipelineSetup(t, pickTwoRoutes(), pickTwoScores(), nil, nil, nil)
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := pickJSON(t, out.String())["seed"]; ok {
+		t.Error("removed seed field is present")
+	}
 }
 
 // F26-T8 row 5: text golden for the same fixture — the picked line plus
@@ -250,13 +234,13 @@ func TestPickJSONTextGolden(t *testing.T) {
 	cfg, _ := pickPipelineSetup(t, pickTwoRoutes(), pickTwoScores(), nil, nil, t8BandGatesCodex)
 
 	var o, e strings.Builder
-	err := RunPick(PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg}, &o, &e)
+	err := RunPick(PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg}, &o, &e)
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}
 	want := "picked claude-sonnet-4-5 via claude (score 73.6)\n" +
 		"  profile: complex_implementation\n" +
-		"  strategy: score\n" +
+		"  strategy: priority\n" +
 		"  band: five hour (25% used, weight 0.8)\n"
 	if o.String() != want {
 		t.Errorf("text = %q, want %q", o.String(), want)

@@ -8,8 +8,8 @@ import (
 
 func TestApplyEnv(t *testing.T) {
 	tests := []struct {
-		name string
-		env  map[string]string
+		name  string
+		env   map[string]string
 		check func(t *testing.T, cfg *Config)
 	}{
 		{
@@ -22,8 +22,17 @@ func TestApplyEnv(t *testing.T) {
 			},
 		},
 		{
-			name: "usage invalid",
-			env:  map[string]string{"WHICH_MODEL_USAGE_ENABLED": "banana"},
+			name: "usage backend",
+			env:  map[string]string{"WHICH_MODEL_USAGE_BACKEND": "codexbar"},
+			check: func(t *testing.T, cfg *Config) {
+				if cfg.Usage.Backend != UsageBackendCodexBar {
+					t.Fatalf("Usage.Backend = %q", cfg.Usage.Backend)
+				}
+			},
+		},
+		{
+			name:  "usage invalid",
+			env:   map[string]string{"WHICH_MODEL_USAGE_ENABLED": "banana"},
 			check: func(t *testing.T, cfg *Config) {},
 		},
 		{
@@ -72,23 +81,23 @@ func TestApplyEnv(t *testing.T) {
 			},
 		},
 		{
-			name: "cache ttl invalid",
-			env:  map[string]string{"WHICH_MODEL_PROVIDERS_CLAUDE_CACHE_TTL": "banana"},
+			name:  "cache ttl invalid",
+			env:   map[string]string{"WHICH_MODEL_PROVIDERS_CLAUDE_CACHE_TTL": "banana"},
 			check: func(t *testing.T, cfg *Config) {},
 		},
 		{
-			name: "enabled invalid",
-			env:  map[string]string{"WHICH_MODEL_PROVIDERS_CLAUDE_ENABLED": "banana"},
+			name:  "enabled invalid",
+			env:   map[string]string{"WHICH_MODEL_PROVIDERS_CLAUDE_ENABLED": "banana"},
 			check: func(t *testing.T, cfg *Config) {},
 		},
 		{
-			name: "unknown provider key",
-			env:  map[string]string{"WHICH_MODEL_PROVIDERS_CLAUDE_BANANA": "1"},
+			name:  "unknown provider key",
+			env:   map[string]string{"WHICH_MODEL_PROVIDERS_CLAUDE_BANANA": "1"},
 			check: func(t *testing.T, cfg *Config) {},
 		},
 		{
-			name: "unknown generic key",
-			env:  map[string]string{"WHICH_MODEL_CATALOG_BANANA": "1"},
+			name:  "unknown generic key",
+			env:   map[string]string{"WHICH_MODEL_CATALOG_BANANA": "1"},
 			check: func(t *testing.T, cfg *Config) {},
 		},
 		{

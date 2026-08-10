@@ -26,8 +26,7 @@ type PickArgs struct {
     Profile      string   // resolved profile id (after --task-category mapping)
     TaskCategory string   // raw --task-category (resolved in T2)
     Complexity   string   // raw --complexity
-    Strategy     string   // "score" default
-    Seed         *uint64  // required iff strategy == "weighted_random"
+    Strategy     string   // "priority" default
     Allowlists   []string // --available paths (raw, pre-read)
     NoUsage      bool     // Global.NoUsage
     JSON         bool     // Global.JSON; forced true when stdout is not a TTY
@@ -65,17 +64,14 @@ type ExcludedCandidate struct {
     Reason     string   `json:"reason"`      // human-readable detail
 }
 
-// PickResult is the pick --json document root: annex-c §4.2 fields
-// (schema_version, profile, strategy, seed, candidates, excluded_candidates)
-// + §4.6 additions (usage_enabled, usage_disabled_reason) + normalizer/
-// aggregator (annex-c §4.6 example) + SPEC Decisions D-17/D-18.
+// PickResult is the pick --json document root: annex-c §4.2 fields plus
+// usage toggle, normalizer, and aggregator metadata.
 type PickResult struct {
     SchemaVersion       string              `json:"schema_version"`          // "2.0"
     UsageEnabled        bool                `json:"usage_enabled"`
     UsageDisabledReason *string             `json:"usage_disabled_reason"`   // null when enabled
     Profile             string              `json:"profile"`
     Strategy            string              `json:"strategy"`
-    Seed                *uint64             `json:"seed"`                    // null unless weighted_random
     Normalizer          string              `json:"normalizer"`              // Global.Normalizer
     Aggregator          string              `json:"aggregator"`              // Global.Aggregator
     Candidates          []Candidate         `json:"candidates"`
@@ -153,8 +149,7 @@ func FormatPickText(res *PickResult) string
 | `--profile` | string | `""` | Profile id; REQUIRED unless `--task-category` given; validated against the 11 annex-c §2.1 names |
 | `--task-category` | string | `""` | Alternative selector, must pair with `--complexity`; mutually exclusive with `--profile` |
 | `--complexity` | string | `""` | `simple\|medium\|complex`; rejected for 1:1-mapped categories |
-| `--strategy` | string | `"score"` | F20 registry name; `--seed` required when `weighted_random` |
-| `--seed` | uint64 | 0 | Determinism seed |
+| `--strategy` | string | `"priority"` | F20 registry name |
 | `--available` | stringSlice | `[]` | Repeatable allowlist file path; missing file → exit 2 |
 
 `explain`:
@@ -189,8 +184,7 @@ Consumed globals: `--json`, `--no-usage`, `--config` (→ `Global.ConfigPath`), 
   "usage_enabled": true,
   "usage_disabled_reason": null,
   "profile": "complex_implementation",
-  "strategy": "score",
-  "seed": null,
+  "strategy": "priority",
   "normalizer": "minmax-linear",
   "aggregator": "weighted-arithmetic-mean",
   "candidates": [
@@ -335,25 +329,13 @@ func Evaluate(snapshot *usage.Snapshot, route string, cfg *config.Config) (Resul
 
 F26 calls `Evaluate` per survivor (SPEC §2.2f); `Gated` → excluded with `reason_code: "band_gated"`, `reason: "band usage <UsedPercent>% > gate"`; surviving → `band`/`band_weight` fields.
 
-### 8.5 F20 `internal/usage/strategy` (canonical owner: `specs/features/F20-usage-strategies/CONTRACTS.md`)
+### 8.5 F20 `internal/pick/strategy`
 
-```go
-package strategy
-
-type Options struct {
-    Seed *uint64 // consumed by weighted_random
-}
-
-// Apply returns the ordered surviving candidates after the strategy pass
-// (single pick = first element), or an error for unavailable strategies.
-func Apply(name string, candidates []pick.Candidate, opts Options) ([]pick.Candidate, error)
-
-// Names returns the registered strategy names (F26 validates --strategy
-// against this list at runtime).
-func Names() []string
-```
-
-F26 resolves the strategy name against `strategy.Names()` (unknown → exit 2). `least_used` + usage disabled is refused by F26 BEFORE calling Apply (SPEC §2.15; master plan §6.4) — F26 does not rely on Apply to refuse.
+F26 validates names against the five canonical strategy constants and passes
+provider priority, usage pressure, and reset metadata through `strategy.State`.
+The selected candidate is the first returned survivor.
+F26 resolves the strategy name against the canonical registry. Usage-disabled
+`least-used`, `most-used`, and `closest-to-reset` are refused before selection.
 
 ### 8.6 F18 `internal/usage/routing` (canonical owner: `specs/features/F18-usage-routing/CONTRACTS.md`)
 

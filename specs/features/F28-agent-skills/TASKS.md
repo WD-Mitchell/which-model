@@ -595,8 +595,8 @@ graph TD
    description: >-
      Use when selecting which provider/model pair to dispatch a task to, given
      current usage allowance across multiple providers. Trigger when a task
-     needs quota-aware routing, a specific selection strategy (score, priority,
-     round-robin, least-used, weighted-random, cost-optimal), or documented
+     needs quota-aware routing, a specific selection strategy (priority,
+     round-robin, least-used, most-used, closest-to-reset), or documented
      evidence for why one candidate was chosen over excluded alternatives.
    ---
 
@@ -627,19 +627,17 @@ graph TD
    ## Commands
 
    ```bash
-   which-model pick --profile balanced_implementation --strategy score --json
-   which-model pick --profile research --strategy priority --json
+   which-model pick --profile balanced_implementation --strategy priority --json
    which-model pick --profile simple_implementation --strategy least-used --json
-   which-model pick --profile complex_implementation --strategy weighted-random --seed 42 --json
+   which-model pick --profile complex_implementation --strategy most-used --json
+   which-model pick --profile research --strategy closest-to-reset --json
    which-model explain <candidate-id> --json
    ```
 
-   Strategy guidance (annex-c §2.3): `score` = no operational constraint beyond
-   quality/cost/speed; `priority` = explicit provider preference order;
-   `round-robin` = spread load across interchangeable providers; `least-used` =
-   balance consumed quota; `weighted-random` = avoid hot-provider bottlenecks
-   (MUST pass `--seed` for any evidence-bearing dispatch); `cost-optimal` =
-   budget ceiling dominates.
+   Strategy guidance: `priority` = configured provider order and the default;
+   `round-robin` = rotate candidates; `least-used` = preserve heavily consumed
+   quota; `most-used` = drain nearly consumed quota; `closest-to-reset` =
+   consume allowance whose reset is earliest.
 
    ## Reading the output
 
@@ -688,7 +686,6 @@ graph TD
 
    - [ ] Check `usage_enabled` first; if false, defer to `model-selection` and record the pick as score-only.
    - [ ] Choose a strategy from the table by the actual operational constraint, not habit.
-   - [ ] For `weighted-random`, pass `--seed` for any evidence-bearing dispatch.
    - [ ] Run `which-model pick --json`; do not dispatch before confirming exit 0.
    - [ ] Run `which-model explain --json` for the chosen candidate and record its full `Evidence` object.
    - [ ] Confirm `Evidence.Confidence != "estimated"` before treating the pick as quota-safe under a `critical`-band provider.
@@ -709,13 +706,13 @@ graph TD
 |---|---|---|
 | 1 | repo `skills/usage-aware-dispatch/SKILL.md` | exists, non-empty |
 | 2 | same | contains `name: usage-aware-dispatch` and `description:` |
-| 3 | same | contains `--strategy score`, `--strategy priority`, `--strategy least-used`, `--strategy weighted-random --seed 42` |
+| 3 | same | contains `--strategy priority`, `--strategy least-used`, `--strategy most-used`, `--strategy closest-to-reset` |
 | 4 | same | contains `which-model explain <candidate-id> --json` |
 | 5 | same | contains `usage_enabled` before-any-band-reasoning wording (substring `usage_enabled` AND `defer`/`defers` AND `score-only`) |
 | 6 | same | contains `band_gated` and `gate_above_used_percent` |
 | 7 | same | contains `evidence.band.{name,used_percent,weight}` and `evidence.snapshot_age_seconds` and `evidence.confidence` |
 | 8 | same | contains exit-table rows `| 0 |` … `| 5 |` and `do NOT dispatch to a gated provider` |
-| 9 | same | contains `## Checklist` and `--seed` |
+| 9 | same | contains `## Checklist` |
 | 10 | `agents/openai.yaml` | contains `display_name:` and `default_prompt:` |
 
 **Acceptance criteria:**

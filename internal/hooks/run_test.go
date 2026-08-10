@@ -388,7 +388,7 @@ func TestSpawnGateProfileEnv(t *testing.T) {
 			t.Errorf("argv = %v, want --profile research", argv)
 		}
 	}
-	if !reflect.DeepEqual(argv, []string{"pick", "--profile", "research", "--strategy", "score", "--json"}) {
+	if !reflect.DeepEqual(argv, []string{"pick", "--profile", "research", "--strategy", "priority", "--json"}) {
 		t.Errorf("argv = %v, want exact underlying command", argv)
 	}
 }

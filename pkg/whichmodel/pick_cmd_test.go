@@ -27,8 +27,10 @@ func TestPickCommandShape(t *testing.T) {
 	routesCheckFlag(t, cmd, "profile", "string", "")
 	routesCheckFlag(t, cmd, "task-category", "string", "")
 	routesCheckFlag(t, cmd, "complexity", "string", "")
-	routesCheckFlag(t, cmd, "strategy", "string", "score")
-	routesCheckFlag(t, cmd, "seed", "uint64", "0")
+	routesCheckFlag(t, cmd, "strategy", "string", "priority")
+	if cmd.Flags().Lookup("seed") != nil {
+		t.Error("removed --seed flag is still registered")
+	}
 	routesCheckFlag(t, cmd, "available", "stringSlice", "[]")
 }
 
@@ -55,7 +57,7 @@ func TestPickRunERequiresSelector(t *testing.T) {
 	Global = GlobalFlags{}
 	t.Cleanup(func() { Global = GlobalFlags{} })
 	cmd := NewPickCmd()
-	cmd.SetArgs([]string{"--strategy", "score"})
+	cmd.SetArgs([]string{"--strategy", "priority"})
 	err := cmd.Execute()
 	var usage *UsageError
 	if !errors.As(err, &usage) {

@@ -14,6 +14,7 @@ import (
 	"github.com/WD-Mitchell/which-model/internal/config"
 	"github.com/WD-Mitchell/which-model/internal/usage"
 	"github.com/WD-Mitchell/which-model/internal/usage/fetch"
+	"github.com/WD-Mitchell/which-model/internal/usage/provider/codexbar"
 )
 
 // UsageArgs is the fully-parsed, validated command input.
@@ -35,6 +36,7 @@ type UsageArgs struct {
 type FetchAllOptions struct {
 	Providers       []string
 	Source          usage.Source
+	Backend         config.UsageBackend
 	ForceRefresh    bool
 	MaxAge          time.Duration
 	Timeout         time.Duration
@@ -44,7 +46,7 @@ type FetchAllOptions struct {
 
 // FetchResult is the normalized result consumed by the command renderer.
 type FetchResult struct {
-	Snapshots   []usage.Snapshot
+	Snapshots    []usage.Snapshot
 	LastVerified map[string]time.Time
 }
 
@@ -56,12 +58,14 @@ func fetchAll(ctx context.Context, opts FetchAllOptions) (*FetchResult, error) {
 		enabled[id] = true
 	}
 	snapshots, _, err := fetch.FetchAll(ctx, opts.Providers, fetch.Options{
+		Backend:      opts.Backend,
 		Refresh:      opts.ForceRefresh,
 		Offline:      opts.Offline || opts.Source == usage.SourceCache,
 		MaxAge:       opts.MaxAge,
 		ShowIdentity: opts.IncludeIdentity,
 		Enabled:      enabled,
 		Timeout:      opts.Timeout,
+		Source:       opts.Source,
 	})
 	if err != nil {
 		return nil, err
@@ -79,14 +83,22 @@ func RunUsage(args UsageArgs, stdout, stderr io.Writer) error {
 	if len(args.Providers) == 0 && !args.All {
 		return &UsageError{Message: "no providers requested; name providers or pass --all"}
 	}
-	for _, id := range args.Providers {
-		if _, err := usage.Get(id); err != nil {
-			return &UsageError{Message: fmt.Sprintf("unknown provider %q; valid providers: %s", id, strings.Join(validUsageIDs(), ", "))}
-		}
-	}
 	cfg, err := config.Load(config.LoadOptions{Path: args.ConfigPath})
 	if err != nil {
 		return &UsageError{Message: err.Error()}
+	}
+	validIDs := validUsageIDsForBackend(cfg.Usage.Backend)
+	for _, id := range args.Providers {
+		found := false
+		for _, valid := range validIDs {
+			if id == valid {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return &UsageError{Message: fmt.Sprintf("unknown provider %q; valid providers: %s", id, strings.Join(validIDs, ", "))}
+		}
 	}
 	if cfg.Usage.Enabled == config.UsageFalse {
 		path := args.ConfigPath
@@ -94,6 +106,9 @@ func RunUsage(args UsageArgs, stdout, stderr io.Writer) error {
 			path = "resolved config"
 		}
 		return &CodedError{Code: "usage_disabled", Message: fmt.Sprintf("usage is disabled by [usage] enabled = false in %s", path)}
+	}
+	if cfg.Usage.Backend == config.UsageBackendOff || cfg.Usage.Backend == "" {
+		return &CodedError{Code: "usage_disabled", Message: "usage is disabled by [usage] backend = off"}
 	}
 	providers, err := resolveProviders(args, cfg)
 	if err != nil {
@@ -110,6 +125,7 @@ func RunUsage(args UsageArgs, stdout, stderr io.Writer) error {
 	res, err := fetchAllFunc(context.Background(), FetchAllOptions{
 		Providers:       providers,
 		Source:          args.Source,
+		Backend:         cfg.Usage.Backend,
 		ForceRefresh:    args.ForceRefresh,
 		MaxAge:          args.MaxAge,
 		Timeout:         args.Timeout,
@@ -179,26 +195,40 @@ func redactIdentity(res *FetchResult, show bool) *FetchResult {
 	copyResult.Snapshots = make([]usage.Snapshot, len(res.Snapshots))
 	for i, snap := range res.Snapshots {
 		snap.Account = ""
+		snap.Plan = ""
 		copyResult.Snapshots[i] = snap
 	}
 	return &copyResult
 }
 
 type UsageReport struct {
-	SchemaVersion string                 `json:"schema_version"`
-	UsageEnabled  bool                   `json:"usage_enabled"`
-	Snapshots     []usage.Snapshot       `json:"snapshots"`
-	LastVerified  map[string]time.Time   `json:"last_verified,omitempty"`
+	SchemaVersion string               `json:"schema_version"`
+	UsageEnabled  bool                 `json:"usage_enabled"`
+	Snapshots     []usage.Snapshot     `json:"snapshots"`
+	LastVerified  map[string]time.Time `json:"last_verified,omitempty"`
 }
 
-func validUsageIDs() []string { return usage.IDs() }
+var nativeUsageIDs = []string{"claude", "codex", "copilot"}
+
+func validUsageIDs() []string { return codexbar.SupportedProviders() }
+
+func validUsageIDsForBackend(backend config.UsageBackend) []string {
+	if backend == config.UsageBackendCodexBar {
+		return validUsageIDs()
+	}
+	return append([]string(nil), nativeUsageIDs...)
+}
 
 func resolveProviders(args UsageArgs, cfg *config.Config) ([]string, error) {
 	if !args.All {
 		return append([]string(nil), args.Providers...), nil
 	}
+	backend := config.UsageBackendNative
+	if cfg != nil {
+		backend = cfg.Usage.Backend
+	}
 	providers := make([]string, 0)
-	for _, id := range usage.IDs() {
+	for _, id := range validUsageIDsForBackend(backend) {
 		if cfg != nil && cfg.Providers[id].Enabled {
 			providers = append(providers, id)
 		}
@@ -206,63 +236,11 @@ func resolveProviders(args UsageArgs, cfg *config.Config) ([]string, error) {
 	return providers, nil
 }
 
-func displayName(id string) string {
-	d, err := usage.Get(id)
-	if err != nil || d.DisplayName == "" {
-		return id
-	}
-	return d.DisplayName
-}
-var validSources = []usage.Source{usage.SourceOAuth, usage.SourceAPI, usage.SourceCLI, usage.SourceWeb, usage.SourceLocal, usage.SourceCache}
+func displayName(id string) string { return id }
 
-func validateSource(source usage.Source) error {
-	if source == "" {
-		return nil
-	}
-	for _, valid := range validSources {
-		if source == valid {
-			return nil
-		}
-	}
-	return fmt.Errorf(`invalid --source %q; valid: oauth, api, cli, web, local, cache`, source)
-}
+func validateSource(source usage.Source) error { return nil }
 
-func validateProviderSource(providerID string, source usage.Source) error {
-	if source == "" || source == usage.SourceCache {
-		return nil
-	}
-	desc, err := usage.Get(providerID)
-	if err != nil {
-		return fmt.Errorf("unknown provider %q; valid providers: %s", providerID, strings.Join(validUsageIDs(), ", "))
-	}
-	declared := make([]usage.Source, 0)
-	seen := make(map[usage.Source]bool)
-	for _, auth := range desc.Auth {
-		mapped := usage.SourceAPI
-		switch auth.Kind {
-		case usage.AuthOAuthDeviceFlow, usage.AuthOAuthRefreshGrant:
-			mapped = usage.SourceOAuth
-		case usage.AuthCLIShellOut, usage.AuthSubprocessRPC:
-			mapped = usage.SourceCLI
-		case usage.AuthBrowserCookie:
-			mapped = usage.SourceWeb
-		}
-		if !seen[mapped] {
-			seen[mapped] = true
-			declared = append(declared, mapped)
-		}
-	}
-	for _, candidate := range declared {
-		if candidate == source {
-			return nil
-		}
-	}
-	names := make([]string, len(declared))
-	for i, candidate := range declared {
-		names[i] = string(candidate)
-	}
-	return fmt.Errorf(`provider %q has no %s source; valid sources: %s`, providerID, source, strings.Join(names, ", "))
-}
+func validateProviderSource(providerID string, source usage.Source) error { return nil }
 
 var usageExitFiveCodes = map[string]bool{
 	"unauthorized":       true,

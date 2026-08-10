@@ -74,7 +74,9 @@ func TestAuthStatusExpiredExitFive(t *testing.T) {
 	oldResolver := resolveFirstFunc
 	t.Cleanup(func() { resolveFirstFunc = oldResolver })
 	past := time.Now().Add(-time.Hour)
-	resolveFirstFunc = func(string) (AuthResolved, error) { return AuthResolved{Source: usage.SourceOAuth, Secret: "tok", ExpiresAt: &past}, nil }
+	resolveFirstFunc = func(string) (AuthResolved, error) {
+		return AuthResolved{Source: usage.SourceOAuth, Secret: "tok", ExpiresAt: &past}, nil
+	}
 	var out, errOut strings.Builder
 	err := RunAuthStatus(AuthStatusArgs{Providers: []string{"claude"}, JSON: true}, &out, &errOut)
 	if ExitCodeFor(err) != 5 || out.Len() == 0 {
@@ -99,5 +101,38 @@ func TestAuthStatusDisabledConfig(t *testing.T) {
 	err := RunAuthStatus(AuthStatusArgs{Providers: []string{"claude"}, ConfigPath: path}, &out, &errOut)
 	if ExitCodeFor(err) != 2 || !strings.Contains(err.Error(), "[usage] enabled = false") || out.Len() != 0 {
 		t.Fatalf("err = %v, exit = %d, out = %q", err, ExitCodeFor(err), out.String())
+	}
+}
+func TestAuthStatusBackendOffDoesNotResolveNativeCredentials(t *testing.T) {
+	oldResolver := resolveFirstFunc
+	t.Cleanup(func() { resolveFirstFunc = oldResolver })
+	resolveFirstFunc = func(string) (AuthResolved, error) {
+		t.Fatal("native credential resolver called with usage backend off")
+		return AuthResolved{}, nil
+	}
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, []byte("[usage]\nbackend = \"off\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	err := RunAuthStatus(AuthStatusArgs{Providers: []string{"claude"}, ConfigPath: path}, nil, nil)
+	if ExitCodeFor(err) != 2 || !strings.Contains(err.Error(), "[usage] backend = off") {
+		t.Fatalf("err = %v, exit = %d", err, ExitCodeFor(err))
+	}
+}
+
+func TestAuthStatusCodexBarDoesNotResolveNativeCredentials(t *testing.T) {
+	oldResolver := resolveFirstFunc
+	t.Cleanup(func() { resolveFirstFunc = oldResolver })
+	resolveFirstFunc = func(string) (AuthResolved, error) {
+		t.Fatal("native credential resolver called with codexbar backend")
+		return AuthResolved{}, nil
+	}
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, []byte("[usage]\nbackend = \"codexbar\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	err := RunAuthStatus(AuthStatusArgs{Providers: []string{"claude"}, ConfigPath: path}, nil, nil)
+	if ExitCodeFor(err) != 2 || !strings.Contains(err.Error(), "CodexBar manages credentials") {
+		t.Fatalf("err = %v, exit = %d", err, ExitCodeFor(err))
 	}
 }

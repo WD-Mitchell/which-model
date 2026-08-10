@@ -111,4 +111,3 @@ type deviceFlowResolver struct{}
 func (deviceFlowResolver) Resolve(ctx context.Context) (usage.Credential, error) {
 	return Credential{}, ErrNotFound
 }
-
