@@ -2,6 +2,13 @@
 
 This annex specifies how AI coding agents (Claude Code, Codex CLI/IDE extension, and generic tool-calling harnesses) consume `which-model`: the skills shipped under `agents/skills/`, the lifecycle hooks that wire `which-model` into a dispatch loop, and the JSON contracts those hooks and skills depend on. It supersedes the agent-facing artifacts of both prototypes (`usage-allowance-checks/SKILL.md` + `usage-allowance-checks/agents/openai.yaml`, and `available-model-data-export/.agents/skills/meta-orchestration-model-selection/SKILL.md`) with a clean cutover — see §2.4. It does not cover provider implementation internals (Annex A), scoring maths (Annex B), or the full CLI flag reference (Annex D); command names here are load-bearing but flags are illustrative only. See the [master plan](./README.md) for architecture and milestone context.
 
+> **Correction (2026-08-10):** Strategy names and examples in this historical
+> annex are superseded by `specs/features/F20-strategies/` and
+> `specs/features/F26-cmd-pick/`. The supported set is `priority` (default),
+> `round-robin`, `least-used`, `most-used`, and `closest-to-reset`; seed fields
+> and the removed `score`, `weighted-random`, and `cost-optimal` strategies do
+> not belong to the current CLI or JSON contract.
+
 ## 1. Design principles for agent-facing CLIs
 
 An agent cannot ask `which-model` a clarifying question, retry with human judgment, or notice a subtly wrong answer the way a human operator would. Every principle below exists to make `which-model`'s behavior legible and safe to consume from inside an unattended tool-call loop.

@@ -3,8 +3,8 @@ name: usage-aware-dispatch
 description: >-
   Use when selecting which provider/model pair to dispatch a task to, given
   current usage allowance across multiple providers. Trigger when a task
-  needs quota-aware routing, a specific selection strategy (score, priority,
-  round-robin, least-used, weighted-random, cost-optimal), or documented
+  needs quota-aware routing, a specific selection strategy (priority,
+  round-robin, least-used, most-used, closest-to-reset), or documented
   evidence for why one candidate was chosen over excluded alternatives.
 ---
 
@@ -21,7 +21,7 @@ reasoning against absent data.
 - A task needs a provider/model pair chosen with awareness of current
   allowance across providers.
 - A specific strategy is warranted (priority order, load spreading, quota
-  balancing, seeded randomization, cost ceiling).
+  balancing, quota draining, or imminent allowance reset).
 - Defensible evidence is required for why one candidate beat excluded
   alternatives.
 
@@ -35,19 +35,17 @@ band, pressure, or quota figure that is absent from the output.
 ## Commands
 
 ```bash
-which-model pick --profile balanced_implementation --strategy score --json
-which-model pick --profile research --strategy priority --json
+which-model pick --profile balanced_implementation --strategy priority --json
 which-model pick --profile simple_implementation --strategy least-used --json
-which-model pick --profile complex_implementation --strategy weighted-random --seed 42 --json
+which-model pick --profile complex_implementation --strategy most-used --json
+which-model pick --profile research --strategy closest-to-reset --json
 which-model explain <candidate-id> --json
 ```
 
-Strategy guidance (annex-c §2.3): `score` = no operational constraint beyond
-quality/cost/speed; `priority` = explicit provider preference order;
-`round-robin` = spread load across interchangeable providers; `least-used` =
-balance consumed quota; `weighted-random` = avoid hot-provider bottlenecks
-(MUST pass `--seed` for any evidence-bearing dispatch); `cost-optimal` =
-budget ceiling dominates.
+Strategy guidance: `priority` = explicit provider preference order and the
+default; `round-robin` = spread load across candidates; `least-used` = preserve
+heavily consumed providers; `most-used` = drain the provider with the least
+allowance remaining; `closest-to-reset` = consume allowance that resets soonest.
 
 ## Reading the output
 
@@ -96,7 +94,6 @@ to a critical-adjacent provider.
 
 - [ ] Check `usage_enabled` first; if false, defer to `model-selection` and record the pick as score-only.
 - [ ] Choose a strategy from the table by the actual operational constraint, not habit.
-- [ ] For `weighted-random`, pass `--seed` for any evidence-bearing dispatch.
 - [ ] Run `which-model pick --json`; do not dispatch before confirming exit 0.
 - [ ] Run `which-model explain --json` for the chosen candidate and record its full `Evidence` object.
 - [ ] Confirm `Evidence.Confidence != "estimated"` before treating the pick as quota-safe under a `critical`-band provider.

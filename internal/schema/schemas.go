@@ -99,9 +99,8 @@ const pickSchemaJSON = `{
     "profile": { "type": "string" },
     "strategy": {
       "type": "string",
-      "enum": ["score", "priority", "round-robin", "least-used", "weighted-random", "cost-optimal"]
+      "enum": ["priority", "round-robin", "least-used", "most-used", "closest-to-reset"]
     },
-    "seed": { "type": ["integer", "null"] },
     "candidates": {
       "type": "array",
       "items": { "$ref": "#/$defs/Candidate" }

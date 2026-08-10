@@ -94,12 +94,12 @@ func TestRegistryUnderlying(t *testing.T) {
 			name: "spawn-gate profile env",
 			hook: "spawn-gate",
 			env:  map[string]string{"WHICH_MODEL_TASK_PROFILE": "research"},
-			want: []string{"pick", "--profile", "research", "--strategy", "score", "--json"},
+			want: []string{"pick", "--profile", "research", "--strategy", "priority", "--json"},
 		},
 		{
 			name: "spawn-gate default profile",
 			hook: "spawn-gate",
-			want: []string{"pick", "--profile", "balanced_implementation", "--strategy", "score", "--json"},
+			want: []string{"pick", "--profile", "balanced_implementation", "--strategy", "priority", "--json"},
 		},
 		{
 			name: "model-audit candidate env",
@@ -133,7 +133,7 @@ func TestRegistryPassthrough(t *testing.T) {
 		t.Fatal("spawn-gate not found")
 	}
 	got := h.Underlying([]string{"--quiet"}, nil)
-	want := []string{"pick", "--profile", "balanced_implementation", "--strategy", "score", "--json", "--quiet"}
+	want := []string{"pick", "--profile", "balanced_implementation", "--strategy", "priority", "--json", "--quiet"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("spawn-gate.Underlying([\"--quiet\"], nil) = %v, want %v", got, want)
 	}

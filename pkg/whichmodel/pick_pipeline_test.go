@@ -160,7 +160,7 @@ func TestPickPipelineAllowlistFilter(t *testing.T) {
 		"gpt-5-codex":       decimal.NewFromInt(80),
 	}))
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", Allowlists: []string{allow}, ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", Allowlists: []string{allow}, ConfigPath: cfg})
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}
@@ -199,7 +199,7 @@ func TestPickPipelineNoScoreExclusion(t *testing.T) {
 		"claude-sonnet-4-5": decimal.NewFromInt(90),
 	}))
 
-	err, out, errOut := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, out, errOut := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}
@@ -240,7 +240,7 @@ func TestPickPipelineUnroutedWarning(t *testing.T) {
 		return decimal.Zero, false, nil
 	})
 
-	err, out, errOut := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, out, errOut := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}
@@ -283,7 +283,7 @@ func TestPickPipelineRankOrder(t *testing.T) {
 		"claude-sonnet-4-5": decimal.NewFromInt(10),
 	}))
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}
@@ -310,7 +310,7 @@ func TestPickPipelineZeroSurvivors(t *testing.T) {
 	})
 	setScoreFunc(t, pickFakeScores(map[string]decimal.Decimal{"claude-sonnet-4-5": decimal.NewFromInt(90)}))
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", Allowlists: []string{allow}, ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", Allowlists: []string{allow}, ConfigPath: cfg})
 	var ce *CodedError
 	if !errors.As(err, &ce) || ce.Code != "no_pick" {
 		t.Fatalf("err = %v, want CodedError no_pick", err)
@@ -342,7 +342,7 @@ func TestPickPipelineJSONShape(t *testing.T) {
 	}))
 	setToggleResolve(t, func(bool, *config.Config) (bool, string) { return true, "" })
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}
@@ -353,11 +353,11 @@ func TestPickPipelineJSONShape(t *testing.T) {
 	if doc["usage_disabled_reason"] != nil {
 		t.Errorf("usage_disabled_reason = %v, want null", doc["usage_disabled_reason"])
 	}
-	if doc["profile"] != "complex_implementation" || doc["strategy"] != "score" {
+	if doc["profile"] != "complex_implementation" || doc["strategy"] != "priority" {
 		t.Errorf("profile/strategy = %v / %v", doc["profile"], doc["strategy"])
 	}
-	if doc["seed"] != nil {
-		t.Errorf("seed = %v, want null", doc["seed"])
+	if _, ok := doc["seed"]; ok {
+		t.Error("removed seed field is present")
 	}
 	cands := doc["candidates"].([]any)
 	if len(cands) != 2 {
@@ -406,10 +406,7 @@ func TestPickPipelineJSONShape(t *testing.T) {
 // message (exit 2).
 func TestPickPipelineMissingAllowlistFile(t *testing.T) {
 	cfg := pickTestConfig(t, t.TempDir(), "")
-	err, _, _ := runPick(t, PickArgs{
-		Profile: "complex_implementation", Strategy: "score",
-		Allowlists: []string{filepath.Join(t.TempDir(), "missing.txt")}, ConfigPath: cfg,
-	})
+	err, _, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", Allowlists: []string{filepath.Join(t.TempDir(), "missing.txt")}, ConfigPath: cfg})
 	var ue *UsageError
 	if !errors.As(err, &ue) {
 		t.Fatalf("err = %v (%T), want *UsageError", err, err)
@@ -434,7 +431,7 @@ func TestPickPipelineProviderWeight(t *testing.T) {
 	setScoreFunc(t, pickFakeScores(map[string]decimal.Decimal{"claude-sonnet-4-5": decimal.NewFromInt(90)}))
 	setToggleResolve(t, func(bool, *config.Config) (bool, string) { return true, "" })
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}

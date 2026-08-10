@@ -35,15 +35,15 @@ graph TD
 **Instructions:**
 1. Write `pick_cmd_test.go` first (package `whichmodel`); must fail to compile until `NewPickCmd` exists.
 2. Test 1: `registeredCommands()` contains `pick`.
-3. Test 2: `NewPickCmd()` flags: `--profile` string `""`, `--task-category` string `""`, `--complexity` string `""`, `--strategy` string `"score"`, `--seed` uint64 `0`, `--available` string slice `[]`; `Use == "pick"`.
+3. Test 2: `NewPickCmd()` flags: `--profile` string `""`, `--task-category` string `""`, `--complexity` string `""`, `--strategy` string `"priority"`, `--available` string slice `[]`; `--seed` is absent; `Use == "pick"`.
 4. Test 3: exit-code registrations — `ExitCodeFor(&CodedError{Code: "no_pick"}) == 3`, `ExitCodeFor(&CodedError{Code: "usage_gated"}) == 4`, `ExitCodeFor(&CodedError{Code: "auth_required"}) == 5`.
-5. Test 4 (RunE → RunPick): `cmd.SetArgs([]string{"--strategy", "score"})` + `cmd.Execute()` with neither `--profile` nor `--task-category` → error is `*UsageError`, message contains `--profile or --task-category is required`.
+5. Test 4 (RunE → RunPick): `cmd.SetArgs([]string{"--strategy", "priority"})` + `cmd.Execute()` with neither selector → the expected `*UsageError`.
 6. Test 5: both `--profile complex_implementation --task-category implementation` → `*UsageError`, message contains `mutually exclusive`.
 7. Test 6: `--task-category implementation` without `--complexity` → `*UsageError`, message contains `must be given together`.
 8. Create `pick_cmd.go` (package `whichmodel`, NO build tag):
    - `func init() { RegisterExitCode("no_pick", 3); RegisterExitCode("usage_gated", 4); RegisterExitCode("auth_required", 5); register(NewPickCmd) }`.
    - `func NewPickCmd() *cobra.Command` — Use `pick`, Short `Pick a model for a task profile`, flags per test 2, RunE `runPickE`.
-   - `func runPickE(c *cobra.Command, args []string) error`: assemble `PickArgs{Profile: <--profile>, TaskCategory: <--task-category>, Complexity: <--complexity>, Strategy: <--strategy>, Seed: <--seed>, Allowlists: <--available>, NoUsage: Global.NoUsage, JSON: Global.JSON || !isTTY(stdout), ConfigPath: Global.ConfigPath}`; `TaskCategory`/`Complexity` are extra fields on `PickArgs` (resolved into `Profile` in T2); `isTTY` = `term.IsTerminal` on the stdout fd (helper `var stdoutIsTTY = func(w io.Writer) bool` — for tests, `&bytes.Buffer` → false); then `return RunPick(a, c.OutOrStdout(), c.ErrOrStderr())`.
+   - `func runPickE(c *cobra.Command, args []string) error`: assemble `PickArgs` from profile, category, complexity, strategy, allowlist, toggle, JSON, and config flags; no seed field exists.
    - `func RunPick(args PickArgs, stdout, stderr io.Writer) error` (temporary home in this file; moves to `pick.go` in T2): the selector validation only — neither → `&UsageError{Message: "--profile or --task-category is required"}`; both → `&UsageError{Message: "--profile and --task-category are mutually exclusive"}`; `--task-category` xor `--complexity` → `&UsageError{Message: "--task-category and --complexity must be given together"}`; else `nil`.
 9. Run `go test ./pkg/whichmodel/...`; then `go build ./pkg/whichmodel/...`.
 
@@ -80,10 +80,10 @@ graph TD
 2. Test 1 (profile names): `resolveProfile(PickArgs{Profile: "complex_implementation"})` → `("complex_implementation", nil)`; `resolveProfile(PickArgs{Profile: "bogus"})` → error containing `unknown profile "bogus"; valid: simple_implementation, simple_action_execution, balanced_implementation, complex_implementation, ui_ux, complex_action_execution, financial_work, research, planning, orchestration, review` (exact 11-name list, verbatim annex-c §2.1 order).
 3. Test 2 (category mapping, 7 rows): `(implementation, simple) → simple_implementation`; `(implementation, medium) → balanced_implementation`; `(implementation, complex) → complex_implementation`; `(action_execution, simple) → simple_action_execution`; `(action_execution, medium) → balanced_implementation`; `(action_execution, complex) → complex_action_execution`; `(ui_ux, "") → ui_ux`, `(financial_work, "") → financial_work`, `(research, "") → research`, `(planning, "") → planning`, `(orchestration, "") → orchestration`, `(review, "") → review`.
 4. Test 3 (rejections): `(ui_ux, "simple")` → error `--complexity is not valid for task category "ui_ux"`; `(implementation, "hard")` → error `unknown complexity "hard"`; `(coding, "simple")` → error `unknown task category "coding"`.
-5. Test 4 (strategy validation): `validateStrategy("score", <fake names>)` → nil; `validateStrategy("weighted_random", <fake names>)` → nil; `validateStrategy("bogus", <fake names>)` → error `unknown strategy "bogus"; valid: score, weighted_random, least_used` (names from the injected list).
-6. Test 5 (seed requirement): `PickArgs{Strategy: "weighted_random", Seed: nil}` → `*UsageError` with `--seed is required for strategy "weighted_random"`; `Seed: ptr(uint64(42))` → nil; `Strategy: "score"` without seed → nil.
+5. Test 4 (strategy validation): canonical F20 names are accepted; removed names and unknown names return the valid five-name list.
+6. Test 5: `priority` is used when the strategy is omitted.
 7. Create `pick.go` (package `whichmodel`, NO build tag):
-   - Move `RunPick` here from `pick_cmd.go`; extend it: selector validation (T1) → `profile, err := resolveProfile(args)` → `strategyName := args.Strategy`; `validateStrategy(strategyName, strategyNamesFunc())` → seed requirement check → `args.Profile = profile` → return `nil` (pipeline lands in T3).
+   - Move `RunPick` here from `pick_cmd.go`; extend it with selector validation, profile resolution, canonical strategy validation/defaulting, and then the pipeline.
    - `var validProfiles = []string{...}` — the exact 11 names in annex-c §2.1 order (verbatim).
    - `func resolveProfile(args PickArgs) (string, error)` per the table; category validation against `validCategories = []string{"implementation", "action_execution", "ui_ux", "financial_work", "research", "planning", "orchestration", "review"}`; 1:1 categories reject non-empty complexity.
    - Seam `var strategyNamesFunc = func() []string { return strategy.Names() }` (F20; tests inject).
@@ -98,8 +98,8 @@ graph TD
 | 2 | 7 category-map rows (table-driven) | mapped profile ids |
 | 3 | `(ui_ux, "simple")`, `(implementation, "hard")`, `(coding, "simple")` | the three rejection messages |
 | 4 | `validateStrategy("bogus", [...])` | `unknown strategy "bogus"; valid: <injected names>` |
-| 5 | `weighted_random` without seed | `--seed is required for strategy "weighted_random"` |
-| 6 | `weighted_random` with seed; `score` without seed | nil |
+| 5 | empty strategy | defaults to `priority` |
+| 6 | removed strategy name | unknown-strategy error listing the five canonical names |
 
 **Acceptance criteria:**
 - [ ] `go build ./pkg/whichmodel/...` succeeds
@@ -135,7 +135,7 @@ graph TD
    - Sort candidates by ModelScore desc, tie → provider order (config order), then model_id lexical.
    - `provider_weight` from config `[providers.<id>].weight` via `UnmarshalKey` (default 1.0).
    - Zero survivors → `&CodedError{Code: "no_pick", Message: "no candidate matched the request"}`.
-   - Assemble `PickResult{SchemaVersion: "2.0", UsageEnabled: <toggle seam>, UsageDisabledReason: nil, Profile, Strategy, Seed, Normalizer: Global.Normalizer, Aggregator: Global.Aggregator, Candidates, ExcludedCandidates}`; emit JSON (marshal indent 2 + newline) or text (`FormatPickText`, T8 refines) — text renderer: minimal correct version for now (`picked <model> via <provider> (score <n>)`); return nil.
+   - Assemble `PickResult` with schema, toggle, profile, strategy, normalizer, aggregator, candidates, and exclusions; no strategy-specific seed metadata exists.
 9. Run `go test ./pkg/whichmodel/...`; then `go build ./pkg/whichmodel/...`.
 
 **Test cases (write these first):**
@@ -208,9 +208,9 @@ graph TD
 1. Write `pick_degraded_test.go` first.
 2. Test 1 (flag disabled): `toggleResolveFunc` returns `(false, "flag")` → `PickResult.usage_enabled == false`, `usage_disabled_reason == "flag"`; candidates carry NO `band`/`band_weight` keys in JSON; `fetchAllFunc` and `bandEvaluateFunc` NEVER called (assert via call flags).
 3. Test 2 (config disabled): toggle returns `(false, "config")` → `usage_disabled_reason == "config"`.
-4. Test 3 (least_used refusal): disabled + `Strategy: "least_used"` → `*CodedError{Code: "usage_disabled"}`, message `strategy "least_used" requires usage data`, exit 2; `strategyApplyFunc` never called.
+4. Test 3 (usage strategy refusal): disabled + each of `least-used`, `most-used`, and `closest-to-reset` → `*CodedError{Code: "usage_disabled"}`, message names the strategy, exit 2; strategy apply is never called.
 5. Test 4 (strict no_providers): toggle returns `(false, "no_providers_enabled")` and config `usage.enabled` parses to `"true"` → `*CodedError{Code: "usage_config"}`, exit 2, message `usage is enabled but no providers are enabled; set [providers.<id>] enabled = true or [usage] enabled = "auto"`.
-6. Test 5 (byte-reproducibility): two `RunPick` calls with identical args/fakes → identical stdout bytes (also with `weighted_random` + fixed seed).
+6. Test 5 (byte-reproducibility): two `RunPick` calls with identical args/fakes → identical stdout bytes.
 7. Test 6 (compiled_out): toggle returns `(false, "compiled_out")` → degraded path works like flag (no refusal; `usage_disabled_reason == "compiled_out"`).
 8. Implement in `pick.go`:
    - `enabled, reason := toggleResolveFunc(Global.NoUsage, cfg)`; strict check: `reason == "no_providers_enabled"` → `UnmarshalKey("usage.enabled", &raw)` (string); `raw == "true"` (config.UsageTrue — compare against the canonical constant per F01 CONTRACTS) → exit 2 `usage_config` per test 4 message.
@@ -246,20 +246,20 @@ graph TD
 **Spec references:** `specs/features/F26-cmd-pick/SPEC.md §2.2g, §2.4`, `specs/features/F26-cmd-pick/CONTRACTS.md §8.5`
 
 **Instructions:**
-1. Write `pick_strategy_test.go` first. Seam: `strategyApplyFunc` (default `strategy.Apply`, signature `func(name string, cands []Candidate, opts strategy.Options) ([]Candidate, error)`).
-2. Test 1 (score default): fake Apply reorders/returns input unchanged → result equals the ranked list; `strategy.Options.Seed == nil` passed.
-3. Test 2 (weighted_random): `Strategy: "weighted_random", Seed: ptr(7)` → fake Apply receives `opts.Seed == 7`; result top candidate emitted.
+1. Write `pick_strategy_test.go` first. Seam: `strategyApplyFunc`, receiving the canonical strategy name, candidates, and assembled strategy state.
+2. Test 1 (`priority` default): fake Apply receives `priority`, no strategy-specific options, and returns the ranked candidates unchanged.
+3. Test 2 (usage state): fake Apply receives provider priority, pressure, and reset metadata assembled by F26.
 4. Test 3 (Apply error): fake Apply returns `errors.New("boom")` → `*CodedError{Code: "runtime"}`, message contains `boom`.
-5. Test 4 (Apply empty): fake Apply returns `[]Candidate{}` → exit per T7's classification — for THIS task assert `*CodedError{Code: "no_pick"}` (classification refinement lands in T7).
-6. Implement in `pick.go`: after bands (or degraded skip), `survivors, err := strategyApplyFunc(args.Strategy, cands, strategy.Options{Seed: args.Seed})`; `err != nil` → `&CodedError{Code: "runtime", Message: err.Error()}`; empty → classify (T7); else pick `survivors[0]` as the result candidate; `PickResult.Seed = args.Seed` only when `weighted_random` (nil otherwise).
+5. Test 4 (Apply empty): fake Apply returns `[]Candidate{}` → exit per T7's classification — for THIS task assert `*CodedError{Code: "no_pick"}`.
+6. Implement in `pick.go`: call the F20 strategy seam with the canonical name and assembled state; error → runtime; empty → classify; otherwise choose the first survivor.
 7. Run `go test ./pkg/whichmodel/...`; then `go build ./pkg/whichmodel/...`.
 
 **Test cases (write these first):**
 
 | # | input | want |
 |---|---|---|
-| 1 | `Strategy: "score"` | ranked order preserved, `Seed: nil` passed, `seed: null` in JSON |
-| 2 | `weighted_random` + seed 7 | `opts.Seed == 7`, top candidate emitted, `"seed": 7` in JSON |
+| 1 | omitted strategy | `priority` received and ranked order preserved |
+| 2 | usage snapshots | pressure and earliest reset maps received by the strategy |
 | 3 | Apply error | exit 1 `runtime`, message `boom` |
 | 4 | Apply returns empty | `CodedError{Code: "no_pick"}` (refined in T7) |
 
@@ -314,16 +314,16 @@ graph TD
 **Spec references:** `specs/features/F26-cmd-pick/SPEC.md §2.3.8`, `specs/features/F26-cmd-pick/CONTRACTS.md §5`, `docs/plan/annex-c-agent-integration.md §4.2`
 
 **Instructions:**
-1. Write `pick_json_test.go` first. Build the full pipeline with fakes: profile `complex_implementation`, strategy `score`, routes claude + codex, band gating codex, usage enabled.
+1. Write `pick_json_test.go` first. Build the full pipeline with fakes: profile `complex_implementation`, strategy `priority`, routes claude + codex, band gating codex, usage enabled.
 2. Test 1 (golden): stdout unmarshals to exactly:
-   - root: `schema_version "2.0"`, `usage_enabled true`, `usage_disabled_reason null`, `profile "complex_implementation"`, `strategy "score"`, `seed null`, `normalizer "minmax-linear"`, `aggregator "weighted-arithmetic-mean"` (Global values in the test),
+   - root: `schema_version "2.0"`, `usage_enabled true`, `usage_disabled_reason null`, `profile "complex_implementation"`, `strategy "priority"`, `normalizer "minmax-linear"`, `aggregator "weighted-arithmetic-mean"` (Global values in the test),
    - `candidates[0]`: `candidate_id "claude:claude-sonnet-4-5"`, `route` object `{provider: "claude", model_id: "claude-sonnet-4-5", model: "claude-sonnet-4-5", reasoning: "default", window_ids: ["5h", "7d"]}` (assert all five keys and NO extra keys), `model_score 92`, `band "five hour"`, `band_weight 0.8`, `provider_weight 1.0`, `final_score 73.6`, `warnings []`,
    - `excluded_candidates[0]`: `{route: {provider: "codex", ...}, reason_code: "band_gated", reason: "band usage 95% > gate"}`.
    Compare via `json.Unmarshal` into `map[string]any` + field-by-field asserts (numeric equality via `float64` comparison).
 3. Test 2 (empty arrays): all-excluded run → `candidates == []` (not null) and `excluded_candidates` populated; a zero-exclusion run → `excluded_candidates == []`.
 4. Test 3 (degraded omission): toggle disabled → JSON keys `band` and `band_weight` ABSENT from the candidate object (not null) — assert via `map[string]any` key presence.
-5. Test 4 (seed rules): `weighted_random` with seed → `seed == 7`; `score` → `seed == null`.
-6. Fix in `pick.go`: ensure all slice fields are initialized (`make([]T, 0)`) before marshal; `Band`/`BandWeight` keep `omitempty`; verify `UsageDisabledReason` is `*string` nil when enabled; `FormatPickText` golden per CONTRACTS §7 (test 5: text golden for the same fixture — `picked claude-sonnet-4-5 via claude (score 73.6)` + indented profile/strategy/band lines).
+5. Test 4: removed strategy-specific seed metadata is absent.
+6. Fix in `pick.go`: ensure all slice fields are initialized (`make([]T, 0)`) before marshal; `Band`/`BandWeight` keep `omitempty`; verify `UsageDisabledReason` is `*string` nil when enabled; `FormatPickText` golden per CONTRACTS §7.
 7. Run `go test ./pkg/whichmodel/...`; then `go build ./pkg/whichmodel/...`.
 
 **Test cases (write these first):**
@@ -333,7 +333,7 @@ graph TD
 | 1 | full fixture, JSON | exact field values per step 2 (all 14 asserts) |
 | 2 | all-excluded / no-exclusion runs | `[]` not `null` on both arrays |
 | 3 | degraded mode | `band`/`band_weight` keys absent |
-| 4 | `weighted_random` seed 7 vs `score` | `"seed": 7` vs `"seed": null` |
+| 4 | result JSON | removed `seed` field absent |
 | 5 | text mode same fixture | `picked claude-sonnet-4-5 via claude (score 73.6)` + reason lines |
 
 **Acceptance criteria:**

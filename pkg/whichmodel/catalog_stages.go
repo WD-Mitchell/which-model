@@ -31,8 +31,8 @@ type CollectOptions struct {
 
 // CollectResult is Collect's outcome summary.
 type CollectResult struct {
-	Providers int
-	Models    int
+	Providers  int
+	Models     int
 	RawCSVPath string
 }
 
@@ -128,6 +128,7 @@ func readFileOrMissing(path string, maxBytes int64) (data []byte, missing bool, 
 	}
 	return data, false, nil
 }
+
 // Derive implements the Derive stage: raw CSV + benchmarks.toml + F09
 // score.Derive -> atomic write with rotation backup.
 func (defaultRunner) Derive(ctx context.Context, o DeriveOptions) (DeriveResult, error) {

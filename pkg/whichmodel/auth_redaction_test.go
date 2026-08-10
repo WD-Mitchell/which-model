@@ -15,7 +15,9 @@ const tokenCanary = "ghp_CANARY-TOKEN-9f3a"
 func TestAuthTokenNeverRendered(t *testing.T) {
 	old := resolveFirstFunc
 	t.Cleanup(func() { resolveFirstFunc = old })
-	resolveFirstFunc = func(string) (AuthResolved, error) { return AuthResolved{Source: usage.SourceOAuth, Secret: tokenCanary}, nil }
+	resolveFirstFunc = func(string) (AuthResolved, error) {
+		return AuthResolved{Source: usage.SourceOAuth, Secret: tokenCanary}, nil
+	}
 	var out, errOut strings.Builder
 	if err := RunAuthStatus(AuthStatusArgs{Providers: []string{"claude"}, JSON: true}, &out, &errOut); err != nil {
 		t.Fatal(err)
@@ -28,7 +30,9 @@ func TestAuthTokenNeverRendered(t *testing.T) {
 func TestAuthAccountHiddenByDefault(t *testing.T) {
 	old := resolveFirstFunc
 	t.Cleanup(func() { resolveFirstFunc = old })
-	resolveFirstFunc = func(string) (AuthResolved, error) { return AuthResolved{Source: usage.SourceOAuth, Secret: "tok", Account: "secret-account-42"}, nil }
+	resolveFirstFunc = func(string) (AuthResolved, error) {
+		return AuthResolved{Source: usage.SourceOAuth, Secret: "tok", Account: "secret-account-42"}, nil
+	}
 	var out, errOut strings.Builder
 	if err := RunAuthStatus(AuthStatusArgs{Providers: []string{"claude"}, JSON: true}, &out, &errOut); err != nil {
 		t.Fatal(err)
@@ -41,7 +45,9 @@ func TestAuthAccountHiddenByDefault(t *testing.T) {
 func TestAuthAccountShownWithFlag(t *testing.T) {
 	old := resolveFirstFunc
 	t.Cleanup(func() { resolveFirstFunc = old })
-	resolveFirstFunc = func(string) (AuthResolved, error) { return AuthResolved{Source: usage.SourceOAuth, Secret: "tok", Account: "secret-account-42"}, nil }
+	resolveFirstFunc = func(string) (AuthResolved, error) {
+		return AuthResolved{Source: usage.SourceOAuth, Secret: "tok", Account: "secret-account-42"}, nil
+	}
 	var out, errOut strings.Builder
 	if err := RunAuthStatus(AuthStatusArgs{Providers: []string{"claude"}, JSON: true, ShowIdentity: true}, &out, &errOut); err != nil {
 		t.Fatal(err)
@@ -54,7 +60,9 @@ func TestAuthAccountShownWithFlag(t *testing.T) {
 func TestAuthTextRedaction(t *testing.T) {
 	old := resolveFirstFunc
 	t.Cleanup(func() { resolveFirstFunc = old })
-	resolveFirstFunc = func(string) (AuthResolved, error) { return AuthResolved{Source: usage.SourceOAuth, Secret: tokenCanary, Account: "secret-account-42"}, nil }
+	resolveFirstFunc = func(string) (AuthResolved, error) {
+		return AuthResolved{Source: usage.SourceOAuth, Secret: tokenCanary, Account: "secret-account-42"}, nil
+	}
 	var out, errOut strings.Builder
 	if err := RunAuthStatus(AuthStatusArgs{Providers: []string{"claude"}}, &out, &errOut); err != nil {
 		t.Fatal(err)
@@ -67,7 +75,9 @@ func TestAuthTextRedaction(t *testing.T) {
 func TestAuthFailureRedaction(t *testing.T) {
 	old := resolveFirstFunc
 	t.Cleanup(func() { resolveFirstFunc = old })
-	resolveFirstFunc = func(string) (AuthResolved, error) { return AuthResolved{}, errors.New("resolver leaked " + tokenCanary) }
+	resolveFirstFunc = func(string) (AuthResolved, error) {
+		return AuthResolved{}, errors.New("resolver leaked " + tokenCanary)
+	}
 	var out, errOut strings.Builder
 	err := RunAuthStatus(AuthStatusArgs{Providers: []string{"claude"}}, &out, &errOut)
 	if strings.Contains(errOut.String(), tokenCanary) || strings.Contains(err.Error(), tokenCanary) {

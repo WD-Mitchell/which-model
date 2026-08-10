@@ -43,7 +43,9 @@ func TestAuthExpiredRendering(t *testing.T) {
 	oldResolver := resolveFirstFunc
 	t.Cleanup(func() { resolveFirstFunc = oldResolver })
 	past := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
-	resolveFirstFunc = func(string) (AuthResolved, error) { return AuthResolved{Source: usage.SourceOAuth, Secret: "tok", ExpiresAt: &past}, nil }
+	resolveFirstFunc = func(string) (AuthResolved, error) {
+		return AuthResolved{Source: usage.SourceOAuth, Secret: "tok", ExpiresAt: &past}, nil
+	}
 	var out, errOut strings.Builder
 	err := RunAuthStatus(AuthStatusArgs{Providers: []string{"claude"}}, &out, &errOut)
 	if ExitCodeFor(err) != 5 || !strings.Contains(out.String(), "(expired 2026-07-01T00:00:00Z)") {
@@ -54,7 +56,9 @@ func TestAuthExpiredRendering(t *testing.T) {
 func TestAuthAccountColumn(t *testing.T) {
 	oldResolver := resolveFirstFunc
 	t.Cleanup(func() { resolveFirstFunc = oldResolver })
-	resolveFirstFunc = func(string) (AuthResolved, error) { return AuthResolved{Source: usage.SourceOAuth, Secret: "tok", Account: "user@x"}, nil }
+	resolveFirstFunc = func(string) (AuthResolved, error) {
+		return AuthResolved{Source: usage.SourceOAuth, Secret: "tok", Account: "user@x"}, nil
+	}
 	var shown, hidden, errOut strings.Builder
 	if err := RunAuthStatus(AuthStatusArgs{Providers: []string{"claude"}, ShowIdentity: true}, &shown, &errOut); err != nil {
 		t.Fatal(err)

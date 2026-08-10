@@ -1,45 +1,42 @@
-// F26-T6: strategy application and seed wiring
-// (specs/features/F26-cmd-pick/TASKS.md T6; SPEC §2.2g, §2.4;
+// F26-T6: strategy application
+// (specs/features/F26-cmd-pick/TASKS.md T6; SPEC §2.2g;
 // CONTRACTS §8.5).
 package whichmodel
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/WD-Mitchell/which-model/internal/usage"
 )
 
-// F26-T6 row 1: Strategy "score" — the fake Apply receives the ranked
-// candidate list and Seed == nil, returns it unchanged, the result equals
-// the ranked list (claude 92 first, codex 80 second), and the JSON
-// document carries "seed": null.
-func TestPickStrategyScoreDefault(t *testing.T) {
+// The fake Apply receives the priority strategy and ranked candidates,
+// then returns them unchanged.
+func TestPickStrategyPriorityDefault(t *testing.T) {
 	var gotName string
-	var gotSeed *uint64
 	cfg, _ := pickPipelineSetup(t, pickTwoRoutes(), pickTwoScores(), nil, nil, nil)
-	setStrategyApply(t, func(name string, cands []Candidate, opts strategyOptions) ([]Candidate, error) {
+	setStrategyApply(t, func(name string, cands []Candidate, _ strategyOptions) ([]Candidate, error) {
 		gotName = name
-		gotSeed = opts.Seed
 		return cands, nil
 	})
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}
-	if gotName != "score" {
-		t.Errorf("strategy seam received name %q, want score", gotName)
-	}
-	if gotSeed != nil {
-		t.Errorf("strategy seam received seed %v, want nil", gotSeed)
+	if gotName != "priority" {
+		t.Errorf("strategy seam received name %q, want priority", gotName)
 	}
 
 	doc := pickJSON(t, out.String())
-	if doc["strategy"] != "score" {
-		t.Errorf("strategy = %v, want score", doc["strategy"])
+	if doc["strategy"] != "priority" {
+		t.Errorf("strategy = %v, want priority", doc["strategy"])
 	}
-	if seed, ok := doc["seed"]; ok && seed != nil {
-		t.Errorf("seed = %v, want null", seed)
+	if _, ok := doc["seed"]; ok {
+		t.Error("removed seed field is present")
 	}
 	cands := doc["candidates"].([]any)
 	if len(cands) != 2 {
@@ -53,49 +50,29 @@ func TestPickStrategyScoreDefault(t *testing.T) {
 	}
 }
 
-// F26-T6 row 2: Strategy "weighted_random" + seed 7 — the fake Apply
-// receives opts.Seed == 7 and reorders the candidates; the emitted top
-// candidate is survivors[0] (codex) and the JSON document carries
-// "seed": 7.
-func TestPickStrategyWeightedRandomSeed(t *testing.T) {
-	setStrategyNames(t, []string{"score", "weighted_random"})
-	var gotName string
-	var gotSeed *uint64
-	cfg, _ := pickPipelineSetup(t, pickTwoRoutes(), pickTwoScores(), nil, nil, nil)
-	setStrategyApply(t, func(name string, cands []Candidate, opts strategyOptions) ([]Candidate, error) {
-		gotName = name
-		gotSeed = opts.Seed
-		// Reorder to prove the result follows the strategy output, not the
-		// ranked input: codex (ranked second) becomes survivors[0].
-		return []Candidate{cands[1], cands[0]}, nil
+func TestPickStrategyReceivesEarliestProviderReset(t *testing.T) {
+	claudeLater := time.Date(2026, 8, 10, 14, 0, 0, 0, time.UTC)
+	claudeSooner := time.Date(2026, 8, 10, 13, 0, 0, 0, time.UTC)
+	codexReset := time.Date(2026, 8, 10, 12, 30, 0, 0, time.UTC)
+	cfg, _ := pickPipelineSetup(t, pickTwoRoutes(), pickTwoScores(), nil,
+		func(_ context.Context, _ []string, _ pickFetchOptions) (map[string]*usageSnapshot, map[string]timeValue, error) {
+			return map[string]*usageSnapshot{
+				"claude": {Provider: "claude", Windows: []usage.Window{{ResetsAt: &claudeLater}, {ResetsAt: &claudeSooner}}},
+				"codex":  {Provider: "codex", Windows: []usage.Window{{ResetsAt: &codexReset}}},
+			}, nil, nil
+		}, nil)
+	setStrategyApply(t, func(_ string, cands []Candidate, _ strategyOptions) ([]Candidate, error) {
+		if got := pickRun.resetAtByProvider["claude"]; !got.Equal(claudeSooner) {
+			t.Errorf("claude reset = %v, want %v", got, claudeSooner)
+		}
+		if got := pickRun.resetAtByProvider["codex"]; !got.Equal(codexReset) {
+			t.Errorf("codex reset = %v, want %v", got, codexReset)
+		}
+		return cands, nil
 	})
 
-	seed := uint64(7)
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "weighted_random", Seed: &seed, ConfigPath: cfg})
-	if err != nil {
-		t.Fatalf("err = %v", err)
-	}
-	if gotName != "weighted_random" {
-		t.Errorf("strategy seam received name %q, want weighted_random", gotName)
-	}
-	if gotSeed == nil || *gotSeed != 7 {
-		t.Errorf("strategy seam received seed %v, want 7", gotSeed)
-	}
-
-	doc := pickJSON(t, out.String())
-	if doc["strategy"] != "weighted_random" {
-		t.Errorf("strategy = %v, want weighted_random", doc["strategy"])
-	}
-	if seed := doc["seed"]; seed != float64(7) {
-		t.Errorf("seed = %v, want 7", seed)
-	}
-	cands := doc["candidates"].([]any)
-	if len(cands) != 2 {
-		t.Fatalf("len(candidates) = %d, want 2", len(cands))
-	}
-	top := cands[0].(map[string]any)["route"].(map[string]any)
-	if top["provider"] != "codex" {
-		t.Errorf("top candidate provider = %v, want codex (survivors[0])", top["provider"])
+	if err, _, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "closest-to-reset", ConfigPath: cfg}); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -107,7 +84,7 @@ func TestPickStrategyApplyError(t *testing.T) {
 		return nil, errors.New("boom")
 	})
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	var ce *CodedError
 	if !errors.As(err, &ce) {
 		t.Fatalf("err = %v, want *CodedError", err)
@@ -135,7 +112,7 @@ func TestPickStrategyApplyEmpty(t *testing.T) {
 		return []Candidate{}, nil
 	})
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	var ce *CodedError
 	if !errors.As(err, &ce) {
 		t.Fatalf("err = %v, want *CodedError", err)

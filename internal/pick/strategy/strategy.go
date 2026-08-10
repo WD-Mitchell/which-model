@@ -7,10 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/WD-Mitchell/which-model/internal/pick"
 	"github.com/WD-Mitchell/which-model/internal/routing"
-	"github.com/shopspring/decimal"
 )
 
 // State carries every strategy's shared runtime context
@@ -20,28 +20,16 @@ type State struct {
 	DataDir             string
 	ProviderPriority    []string
 	Config              Config
-	Seed                int64
-	HasSeed             bool
 	UsageEnabled        bool
 	UsageDisabledReason string
 	PressureByProvider  map[string]float64
-	CostScoreByRouteKey map[string]decimal.Decimal
+	ResetAtByProvider   map[string]time.Time
 	DryRun              bool
 }
 
 // Config is the strategy-owned subset of which-model.toml's [pick] table.
 type Config struct {
-	Default          string  `toml:"default"`
-	CostMaxScoreDrop float64 `toml:"cost_max_score_drop"`
-}
-
-// ResolvedCostMaxScoreDrop returns the configured cost-optimal score-drop
-// threshold, defaulting to 5.0 when unset (specs/features/F20-strategies/SPEC.md D4).
-func (c Config) ResolvedCostMaxScoreDrop() decimal.Decimal {
-	if c.CostMaxScoreDrop == 0 {
-		return decimal.NewFromFloat(5)
-	}
-	return decimal.NewFromFloat(c.CostMaxScoreDrop)
+	Default string `toml:"default"`
 }
 
 // Strategy selects one candidate from a slice, returning the pick and the
@@ -64,11 +52,8 @@ func RouteKeyFromRoute(r routing.Route) string {
 
 // Sentinel errors (specs/features/F20-strategies/CONTRACTS.md §5).
 var (
-	ErrNoCandidates = errors.New("no candidates to pick from")
-	ErrSeedRequired = errors.New("weighted-random requires --seed for reproducibility")
-	// ErrUnknownStrategy message is fixed by specs/features/F20-strategies/CONTRACTS.md §5;
-	// New/ParseStrategy wrap it: fmt.Errorf("%w: %q", ErrUnknownStrategy, s).
-	ErrUnknownStrategy = errors.New("unknown strategy (valid: score, priority, round-robin, least-used, weighted-random, cost-optimal)")
+	ErrNoCandidates    = errors.New("no candidates to pick from")
+	ErrUnknownStrategy = errors.New("unknown strategy (valid: priority, round-robin, least-used, most-used, closest-to-reset)")
 )
 
 // ErrLeastUsedRequiresUsage is returned by LeastUsed.Pick when usage is
@@ -79,12 +64,33 @@ func (e *ErrLeastUsedRequiresUsage) Error() string {
 	return "least-used requires usage data; usage is disabled by " + disableSource(e.Reason)
 }
 
+// ErrMostUsedRequiresUsage is returned by MostUsed.Pick when usage is disabled.
+type ErrMostUsedRequiresUsage struct{ Reason string }
+
+func (e *ErrMostUsedRequiresUsage) Error() string {
+	return "most-used requires usage data; usage is disabled by " + disableSource(e.Reason)
+}
+
+// ErrClosestToResetRequiresUsage is returned by ClosestToReset.Pick when usage is disabled.
+type ErrClosestToResetRequiresUsage struct{ Reason string }
+
+func (e *ErrClosestToResetRequiresUsage) Error() string {
+	return "closest-to-reset requires usage data; usage is disabled by " + disableSource(e.Reason)
+}
+
 // ErrMissingPressure is returned by LeastUsed.Pick when a candidate's
 // provider has no usage pressure reading.
 type ErrMissingPressure struct{ Provider string }
 
 func (e *ErrMissingPressure) Error() string {
 	return fmt.Sprintf("no usage pressure data for provider %q", e.Provider)
+}
+
+// ErrMissingReset is returned when a candidate provider has no reset timestamp.
+type ErrMissingReset struct{ Provider string }
+
+func (e *ErrMissingReset) Error() string {
+	return fmt.Sprintf("no usage reset data for provider %q", e.Provider)
 }
 
 // disableSource maps a usage-disable reason code to its human-readable

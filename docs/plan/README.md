@@ -321,18 +321,17 @@ Default is neutral-with-a-warning rather than optimistic or exclusionary. Treati
 
 | Strategy | Deterministic | State | Rule |
 | --- | --- | --- | --- |
-| `score` | yes | — | Max `FinalScore`, then the existing 7-key tie-break |
-| `priority` | yes | — | Providers in configured `priority` order; first provider with any eligible candidate wins, max `FinalScore` within it |
-| `least-used` | yes | — | Min `pressure`; ties broken by `FinalScore` |
-| `round-robin` | no | cursor | Rotate provider order by persisted cursor, take first eligible, advance |
-| `weighted-random` | with `--seed` | — | Sample provider ∝ `FinalScore` |
-| `cost-optimal` | yes | — | Among candidates within `--score-tolerance` (default 5) of the top `FinalScore`, take the best cost score |
+| `priority` | yes | — | Providers in configured priority order; best `FinalScore` within a provider |
+| `round-robin` | no | cursor | Rotate the deterministic candidate order by persisted cursor |
+| `least-used` | yes | — | Provider with minimum usage pressure; ties by `FinalScore`, then route key |
+| `most-used` | yes | — | Provider with maximum usage pressure; ties by `FinalScore`, then route key |
+| `closest-to-reset` | yes | — | Provider with earliest known reset; ties by `FinalScore`, then route key |
 
-`score` is the default and is a pure function of (scores, usage snapshot, config) — identical inputs give identical output, which is what makes agent behaviour reproducible and reviewable.
+`priority` is the default and gives configuration an explicit, deterministic
+provider preference.
 
 `round-robin` is the only stateful strategy and needs care: many agents may call `which-model pick` concurrently. The cursor lives in a state file guarded by an advisory file lock, with read-modify-write under the lock so two simultaneous picks get different providers rather than the same one. Annex D specifies the file, the lock, and contention behaviour.
 
-`weighted-random` without `--seed` is non-reproducible and MUST warn, because an agent recording evidence for an unseeded random pick is recording something nobody can re-derive.
 
 ---
 
@@ -384,14 +383,13 @@ One trap worth naming explicitly for agent consumers: because routing survives, 
 
 | Strategy | Degraded | Behaviour |
 | --- | --- | --- |
-| `score` | works | Unchanged. Default |
-| `priority` | works | Static config priority; "first provider with capacity" becomes "first provider with any routed candidate" |
-| `round-robin` | works | Rotates providers without consumption data — legitimate load-spreading without telemetry. Still advances persisted cursor state, so it remains the one stateful strategy either way |
-| `weighted-random` | works | Samples proportional to `FinalScore`, now the pure model score |
-| `cost-optimal` | works | Cost is a static catalog metric, not usage-derived |
-| `least-used` | **refused** | Requires consumption data by definition. Exits `2` naming the toggle that disabled usage. **Never** silently falls back to `score` |
+| `priority` | works | Static configured provider priority. Default |
+| `round-robin` | works | Rotates candidates without consumption data and still advances persisted cursor state |
+| `least-used` | **refused** | Requires consumption data; exits `2` naming the disabled source |
+| `most-used` | **refused** | Requires consumption data; exits `2` naming the disabled source |
+| `closest-to-reset` | **refused** | Requires live or cached reset timestamps; exits `2` naming the disabled source |
 
-`least-used` is the only casualty. Degraded `pick` is also *more* deterministic than the enabled path — a pure function of (scores, config) with no network or cache dependency — and MUST be byte-reproducible from the same scores CSV.
+Usage-dependent strategies never silently fall back to `priority`.
 
 ---
 

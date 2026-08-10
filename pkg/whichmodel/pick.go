@@ -59,16 +59,13 @@ var validCategories = []string{
 	"review",
 }
 
-// f20StrategyNames are the canonical F20 registry strategy strings
-// (internal/pick §4.2 enum; F20 CONTRACTS §7). Derived from the enum
-// constants, never hand-typed, so a registry rename cannot drift.
+// f20StrategyNames are the canonical F20 registry strategy strings.
 var f20StrategyNames = []string{
-	string(pick.StrategyScore),
 	string(pick.StrategyPriority),
 	string(pick.StrategyRoundRobin),
 	string(pick.StrategyLeastUsed),
-	string(pick.StrategyWeightedRandom),
-	string(pick.StrategyCostOptimal),
+	string(pick.StrategyMostUsed),
+	string(pick.StrategyClosestToReset),
 }
 
 // strategyNamesFunc is the F20 registry-name seam (SPEC §2.1.3; D-3): F26
@@ -139,17 +136,12 @@ func validateStrategy(name string, names []string) error {
 	return &UsageError{Message: fmt.Sprintf("unknown strategy %q; valid: %s", name, strings.Join(names, ", "))}
 }
 
-// strategyRequiresSeed reports whether name is the weighted-random strategy.
-// F26 accepts both the F20 canonical spelling ("weighted-random") and the
-// SPEC's documented "weighted_random" form (SPEC §2.1.4).
-func strategyRequiresSeed(name string) bool {
-	return name == "weighted-random" || name == "weighted_random"
-}
-
-// isLeastUsedStrategy reports whether name is the least-used strategy
-// (F20 canonical "least-used" and the SPEC's "least_used" form; §2.15).
-func isLeastUsedStrategy(name string) bool {
-	return name == "least-used" || name == "least_used"
+// isUsageRequiredStrategy reports whether selection requires live or cached
+// usage metadata.
+func isUsageRequiredStrategy(name string) bool {
+	return name == string(pick.StrategyLeastUsed) ||
+		name == string(pick.StrategyMostUsed) ||
+		name == string(pick.StrategyClosestToReset)
 }
 
 // RouteRef is the JSON form of a route inside Candidate/ExcludedCandidate —
@@ -190,7 +182,6 @@ type PickResult struct {
 	UsageDisabledReason *string             `json:"usage_disabled_reason"` // null when enabled
 	Profile             string              `json:"profile"`
 	Strategy            string              `json:"strategy"`
-	Seed                *uint64             `json:"seed"` // null unless weighted_random
 	Normalizer          string              `json:"normalizer"`
 	Aggregator          string              `json:"aggregator"`
 	Candidates          []Candidate         `json:"candidates"`
@@ -215,10 +206,8 @@ type bandResult struct {
 	Warning     string
 }
 
-// strategyOptions is the F26-owned strategy seam input (CONTRACTS §8.5).
-type strategyOptions struct {
-	Seed *uint64
-}
+// strategyOptions is reserved for strategy-wide execution options.
+type strategyOptions struct{}
 
 // HistoryEntry is one append-only line of <state_dir>/pick/history.jsonl
 // (CONTRACTS §2; SPEC D-13).
@@ -227,7 +216,6 @@ type HistoryEntry struct {
 	TS            string   `json:"ts"`   // RFC3339
 	Profile       string   `json:"profile"`
 	Strategy      string   `json:"strategy"`
-	Seed          *uint64  `json:"seed"`
 	CandidateID   string   `json:"candidate_id"` // "" when no pick
 	FinalScore    float64  `json:"final_score"`  // 0 when no pick
 	ExcludedCount int      `json:"excluded_count"`
@@ -295,10 +283,10 @@ type runState struct {
 	lastVerified map[string]timeValue
 	usageEnabled bool
 	usageReason  string
-	// pressureByProvider is the max band used-percent per provider (T4);
-	// feeds F20's least-used via the strategy state.
+	// pressureByProvider feeds least-used and most-used; resetAtByProvider
+	// feeds closest-to-reset.
 	pressureByProvider map[string]float64
-	costScores         map[string]decimal.Decimal
+	resetAtByProvider  map[string]time.Time
 	// bandUsedPercent carries each surviving candidate's band used-percent
 	// for the text renderer and evidence (never serialized).
 	bandUsedPercent map[string]float64
@@ -409,14 +397,10 @@ var strategyApplyFunc = func(name string, cands []Candidate, opts strategyOption
 		Profile:             st.profile,
 		DataDir:             st.dataDir,
 		ProviderPriority:    providerOrder(st.cfg),
-		HasSeed:             opts.Seed != nil,
 		UsageEnabled:        st.usageEnabled,
 		UsageDisabledReason: st.usageReason,
 		PressureByProvider:  st.pressureByProvider,
-		CostScoreByRouteKey: st.costScores,
-	}
-	if opts.Seed != nil {
-		state.Seed = int64(*opts.Seed)
+		ResetAtByProvider:   st.resetAtByProvider,
 	}
 	var sc strategy.Config
 	if err := st.cfg.UnmarshalKey("strategy", &sc); err != nil {
@@ -530,6 +514,20 @@ func applyUsageStage(cands *[]Candidate, excluded *[]ExcludedCandidate, st *runS
 	}
 	st.snapshots = snaps
 	st.lastVerified = lastVerified
+	st.resetAtByProvider = make(map[string]time.Time, len(snaps))
+	for provider, snap := range snaps {
+		if snap == nil {
+			continue
+		}
+		for _, window := range snap.Windows {
+			if window.ResetsAt == nil || window.ResetsAt.IsZero() {
+				continue
+			}
+			if current, ok := st.resetAtByProvider[provider]; !ok || window.ResetsAt.Before(current) {
+				st.resetAtByProvider[provider] = *window.ResetsAt
+			}
+		}
+	}
 	kept := make([]Candidate, 0, len(*cands))
 	for _, cand := range *cands {
 		snap, ok := snaps[cand.Route.Provider]
@@ -597,7 +595,7 @@ func historyPath(cfg *config.Config) (string, error) {
 // appendHistory records the run as one JSONL line (SPEC D-13). Write
 // failures are warned and swallowed — history must never fail a pick
 // (D-12).
-func appendHistory(stderr io.Writer, st *runState, profile, strategy string, seed *uint64, top *Candidate, excluded []ExcludedCandidate) {
+func appendHistory(stderr io.Writer, st *runState, profile, strategy string, top *Candidate, excluded []ExcludedCandidate) {
 	if st == nil || st.cfg == nil {
 		return
 	}
@@ -615,7 +613,6 @@ func appendHistory(stderr io.Writer, st *runState, profile, strategy string, see
 		TS:            time.Now().UTC().Format(time.RFC3339),
 		Profile:       profile,
 		Strategy:      strategy,
-		Seed:          seed,
 		ExcludedCount: len(excluded),
 		Evidence:      buildEvidence(st, top, excluded),
 	}
@@ -872,9 +869,6 @@ func RunPick(args PickArgs, stdout, stderr io.Writer) error {
 	if err := validateStrategy(args.Strategy, strategyNamesFunc()); err != nil {
 		return err
 	}
-	if strategyRequiresSeed(args.Strategy) && args.Seed == nil {
-		return &UsageError{Message: fmt.Sprintf("--seed is required for strategy %q", args.Strategy)}
-	}
 	args.Profile = profile
 
 	cfg, err := config.Load(config.LoadOptions{Path: args.ConfigPath})
@@ -947,7 +941,7 @@ func RunPick(args PickArgs, stdout, stderr io.Writer) error {
 		cands[i].ProviderWeight = providerWeight(cfg, cands[i].Route.Provider)
 	}
 	if len(cands) == 0 {
-		appendHistory(stderr, st, profile, args.Strategy, seedForResult(args), nil, excluded)
+		appendHistory(stderr, st, profile, args.Strategy, nil, excluded)
 		return classifyNoPick(excluded)
 	}
 
@@ -960,8 +954,8 @@ func RunPick(args PickArgs, stdout, stderr io.Writer) error {
 		if reason == "no_providers_enabled" && st.cfg.Usage.Enabled == config.UsageTrue {
 			return &CodedError{Code: "usage_config", Message: `usage is enabled but no providers are enabled; set [providers.<id>] enabled = true or [usage] enabled = "auto"`}
 		}
-		// least-used needs usage data; never falls back (SPEC §2.15).
-		if isLeastUsedStrategy(args.Strategy) {
+		// Usage-aware strategies need usage data and never fall back.
+		if isUsageRequiredStrategy(args.Strategy) {
 			return &CodedError{Code: "usage_disabled", Message: fmt.Sprintf("strategy %q requires usage data", args.Strategy)}
 		}
 	} else if err := applyUsageStage(&cands, &excluded, st); err != nil {
@@ -974,7 +968,6 @@ func RunPick(args PickArgs, stdout, stderr io.Writer) error {
 				UsageEnabled:       enabled,
 				Profile:            profile,
 				Strategy:           args.Strategy,
-				Seed:               seedForResult(args),
 				Normalizer:         Global.Normalizer,
 				Aggregator:         Global.Aggregator,
 				Candidates:         make([]Candidate, 0),
@@ -985,16 +978,16 @@ func RunPick(args PickArgs, stdout, stderr io.Writer) error {
 				return &CodedError{Code: "runtime", Message: err.Error()}
 			}
 		}
-		appendHistory(stderr, st, profile, args.Strategy, seedForResult(args), nil, excluded)
+		appendHistory(stderr, st, profile, args.Strategy, nil, excluded)
 		return classifyNoPick(excluded)
 	}
 
-	survivors, err := strategyApplyFunc(args.Strategy, cands, strategyOptions{Seed: args.Seed})
+	survivors, err := strategyApplyFunc(args.Strategy, cands, strategyOptions{})
 	if err != nil {
 		return &CodedError{Code: "runtime", Message: err.Error()}
 	}
 	if len(survivors) == 0 {
-		appendHistory(stderr, st, profile, args.Strategy, seedForResult(args), nil, excluded)
+		appendHistory(stderr, st, profile, args.Strategy, nil, excluded)
 		return classifyNoPick(excluded)
 	}
 	cands = survivors
@@ -1004,7 +997,6 @@ func RunPick(args PickArgs, stdout, stderr io.Writer) error {
 		UsageEnabled:       enabled,
 		Profile:            profile,
 		Strategy:           args.Strategy,
-		Seed:               seedForResult(args),
 		Normalizer:         Global.Normalizer,
 		Aggregator:         Global.Aggregator,
 		Candidates:         cands,
@@ -1018,15 +1010,7 @@ func RunPick(args PickArgs, stdout, stderr io.Writer) error {
 	if err := emitPick(res, args.JSON, stdout); err != nil {
 		return &CodedError{Code: "runtime", Message: err.Error()}
 	}
-	appendHistory(stderr, st, profile, args.Strategy, seedForResult(args), &cands[0], excluded)
-	return nil
-}
-
-// seedForResult exposes the seed in JSON only for weighted-random (SPEC §2.1.4).
-func seedForResult(args PickArgs) *uint64 {
-	if strategyRequiresSeed(args.Strategy) {
-		return args.Seed
-	}
+	appendHistory(stderr, st, profile, args.Strategy, &cands[0], excluded)
 	return nil
 }
 

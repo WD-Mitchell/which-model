@@ -87,7 +87,7 @@ func TestPickUsageBandGated(t *testing.T) {
 			return bandResult{Name: "five hour", UsedPercent: 10, Weight: 1}, nil
 		})
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}
@@ -123,7 +123,7 @@ func TestPickUsageSurvivorBand(t *testing.T) {
 			return bandResult{Name: "five hour", UsedPercent: 25, Weight: 0.8}, nil
 		})
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}
@@ -156,7 +156,7 @@ func TestPickUsageAuthFailure(t *testing.T) {
 			}, map[string]timeValue{}, nil
 		}, nil)
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}
@@ -187,7 +187,7 @@ func TestPickUsageProviderError(t *testing.T) {
 			}, map[string]timeValue{}, nil
 		}, nil)
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}
@@ -215,7 +215,7 @@ func TestPickUsageConfidenceCapture(t *testing.T) {
 				}, map[string]timeValue{"claude": verifiedAt}, nil
 			}, nil)
 
-		err, _, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+		err, _, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 		if err != nil {
 			t.Fatalf("err = %v", err)
 		}
@@ -234,7 +234,7 @@ func TestPickUsageConfidenceCapture(t *testing.T) {
 				}, map[string]timeValue{}, nil
 			}, nil)
 
-		err, _, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+		err, _, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 		if err != nil {
 			t.Fatalf("err = %v", err)
 		}
@@ -256,7 +256,7 @@ func TestPickUsageBandError(t *testing.T) {
 			return bandResult{Name: "five hour", UsedPercent: 10, Weight: 1}, nil
 		})
 
-	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}
@@ -279,7 +279,7 @@ func TestPickUsageFetchError(t *testing.T) {
 			return nil, nil, errors.New("fetch boom")
 		}, nil)
 
-	err, _, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg})
+	err, _, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
 	var ce *CodedError
 	if !errors.As(err, &ce) || ce.Code != "runtime" {
 		t.Fatalf("err = %v, want CodedError runtime", err)

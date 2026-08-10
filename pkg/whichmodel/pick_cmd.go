@@ -33,8 +33,7 @@ func NewPickCmd() *cobra.Command {
 	cmd.Flags().String("profile", "", "profile id (one of the eleven annex-c §2.1 names)")
 	cmd.Flags().String("task-category", "", "task category selector, paired with --complexity")
 	cmd.Flags().String("complexity", "", "task complexity for --task-category (simple|medium|complex)")
-	cmd.Flags().String("strategy", "score", "strategy name from the F20 registry")
-	cmd.Flags().Uint64("seed", 0, "determinism seed (required for weighted-random)")
+	cmd.Flags().String("strategy", "priority", "strategy name from the F20 registry")
 	cmd.Flags().StringSlice("available", nil, "allowlist file of model ids (repeatable)")
 	return cmd
 }
@@ -45,21 +44,12 @@ func runPickE(c *cobra.Command, args []string) error {
 	complexity, _ := c.Flags().GetString("complexity")
 	strategy, _ := c.Flags().GetString("strategy")
 	available, _ := c.Flags().GetStringSlice("available")
-	seedFlag, err := c.Flags().GetUint64("seed")
-	if err != nil {
-		return &UsageError{Message: err.Error()}
-	}
-	var seed *uint64
-	if c.Flags().Changed("seed") {
-		seed = &seedFlag
-	}
 	out := c.OutOrStdout()
 	return RunPick(PickArgs{
 		Profile:      profile,
 		TaskCategory: taskCategory,
 		Complexity:   complexity,
 		Strategy:     strategy,
-		Seed:         seed,
 		Allowlists:   available,
 		NoUsage:      Global.NoUsage,
 		JSON:         Global.JSON || !stdoutIsTTY(out),
@@ -83,8 +73,7 @@ type PickArgs struct {
 	Profile      string   // resolved profile id (after --task-category mapping)
 	TaskCategory string   // raw --task-category (resolved in T2)
 	Complexity   string   // raw --complexity
-	Strategy     string   // "score" default
-	Seed         *uint64  // required iff strategy is weighted-random
+	Strategy     string   // "priority" default
 	Allowlists   []string // --available paths (raw, pre-read)
 	NoUsage      bool     // Global.NoUsage
 	JSON         bool     // Global.JSON; forced true when stdout is not a TTY

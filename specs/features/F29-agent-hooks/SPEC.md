@@ -25,7 +25,7 @@ Wire `which-model` into AI-agent dispatch lifecycles (Claude Code and the generi
    |---|---|---|---|---|
    | `usage-refresh` | §3.1 session-start cache warm | `SessionStart` / `*` | 5 | `which-model usage refresh --json --quiet --timeout 5s` |
    | `quota-guard` | §3.4 quota-guard advisory | `SessionStart` / `*` | 5 | `which-model usage list --json --band-at-or-above critical --quiet` |
-   | `spawn-gate` | §3.2 pre-dispatch model resolution | `PreToolUse` / `Task` | 8 | `which-model pick --profile "${WHICH_MODEL_TASK_PROFILE:-balanced_implementation}" --strategy score --json` |
+   | `spawn-gate` | §3.2 pre-dispatch model resolution | `PreToolUse` / `Task` | 8 | `which-model pick --profile "${WHICH_MODEL_TASK_PROFILE:-balanced_implementation}" --strategy priority --json` |
    | `model-audit` | §3.3 post-dispatch evidence recording | `PostToolUse` / `Task` | 5 | `which-model explain "$WHICH_MODEL_CANDIDATE_ID" --json`, falling back to `which-model explain --last --json` when the env var is unset |
 
    `hooks run <hook> [args...]` appends any extra args AFTER the defaults, so an installed variant can override (`--no-usage --profile balanced_implementation --quiet`).

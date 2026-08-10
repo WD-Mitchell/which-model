@@ -4,17 +4,17 @@ package whichmodel
 
 import (
 	"fmt"
-	"strings"
 	"github.com/spf13/cobra"
+	"strings"
 
 	"github.com/WD-Mitchell/which-model/internal/usage"
 )
-
 
 func init() {
 	RegisterExitCode("unsupported", 2)
 	register(NewAuthCmd)
 }
+
 type AuthStatusArgs struct {
 	Providers    []string
 	All          bool

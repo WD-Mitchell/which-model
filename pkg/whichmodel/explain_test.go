@@ -42,7 +42,7 @@ func explainHistoryEntry(ulid, candidate string, finalScore float64, ev Evidence
 		ULID:          ulid,
 		TS:            "2026-08-07T17:03:11Z",
 		Profile:       ev.Profile,
-		Strategy:      "score",
+		Strategy:      "priority",
 		CandidateID:   candidate,
 		FinalScore:    finalScore,
 		ExcludedCount: len(ev.ExcludedCandidates),

@@ -69,7 +69,7 @@ graph TD
            ID: "spawn-gate", Event: "PreToolUse", Matcher: "Task", Timeout: 8,
            Underlying: func(p []string, env map[string]string) []string {
                profile := envOr(env, "WHICH_MODEL_TASK_PROFILE", "balanced_implementation")
-               return append([]string{"pick", "--profile", profile, "--strategy", "score", "--json"}, p...)
+               return append([]string{"pick", "--profile", profile, "--strategy", "priority", "--json"}, p...)
            },
        },
        {
@@ -107,8 +107,8 @@ graph TD
    - Test 1: `Get` for each of the four ids returns ok=true, and `All` has exactly 4 entries in order `usage-refresh, quota-guard, spawn-gate, model-audit`.
    - Test 2: `Get("nonsense")` returns ok=false.
    - Test 3: registry table — for each hook assert (Event, Matcher, Timeout) == the annex-c values: usage-refresh (SessionStart, `*`, 5), quota-guard (SessionStart, `*`, 5), spawn-gate (PreToolUse, Task, 8), model-audit (PostToolUse, Task, 5).
-   - Test 4: `Underlying` argv builders — usage-refresh: `["usage","refresh","--json","--quiet","--timeout","5s"]`; quota-guard: `["usage","list","--json","--band-at-or-above","critical","--quiet"]`; spawn-gate with env `{"WHICH_MODEL_TASK_PROFILE":"research"}`: `["pick","--profile","research","--strategy","score","--json"]`, without env: default `balanced_implementation`; model-audit with env `{"WHICH_MODEL_CANDIDATE_ID":"c-1"}`: `["explain","c-1","--json"]`, without: `["explain","--last","--json"]`.
-   - Test 5: passthrough — spawn-gate with `["--quiet"]` appends AFTER defaults: `["pick","--profile","balanced_implementation","--strategy","score","--json","--quiet"]`.
+   - Test 4: argv builders use the documented commands; spawn-gate includes `--strategy priority`.
+   - Test 5: passthrough arguments append after the spawn-gate defaults.
 
 **Test cases (write these first):**
 

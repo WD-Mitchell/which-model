@@ -13,7 +13,6 @@ import (
 
 func init() { register(NewUsageCmd) }
 
-
 func NewUsageCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "usage [provider...]",

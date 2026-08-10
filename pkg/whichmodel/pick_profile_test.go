@@ -80,44 +80,15 @@ func TestResolveProfileRejections(t *testing.T) {
 
 // F26-T2 row 4: strategy validation against the injected names list.
 func TestValidateStrategy(t *testing.T) {
-	names := []string{"score", "weighted_random", "least_used"}
-	for _, ok := range []string{"score", "weighted_random"} {
-		if err := validateStrategy(ok, names); err != nil {
-			t.Errorf("validateStrategy(%q) = %v, want nil", ok, err)
+	names := []string{"priority", "round-robin", "least-used", "most-used", "closest-to-reset"}
+	for _, valid := range names {
+		if err := validateStrategy(valid, names); err != nil {
+			t.Errorf("validateStrategy(%q) = %v, want nil", valid, err)
 		}
 	}
-	err := validateStrategy("bogus", names)
-	if err == nil || err.Error() != `unknown strategy "bogus"; valid: score, weighted_random, least_used` {
-		t.Errorf("validateStrategy(bogus) = %v, want unknown strategy error", err)
-	}
-}
-
-// F26-T2 rows 5–6: seed requirement — weighted_random without a seed fails
-// with the SPEC §3 message; with a seed (and score without) the run passes
-// the seed gate (post-T3 the pipeline continues; only the gate is asserted
-// here — a full run needs the T3 fixture).
-func TestPickSeedRequirement(t *testing.T) {
-	setStrategyNames(t, []string{"score", "weighted_random", "least_used"})
-	cfg := pickTestConfig(t, t.TempDir(), "")
-	args := func(seed *uint64) PickArgs {
-		return PickArgs{Profile: "complex_implementation", Strategy: "weighted_random", Seed: seed, ConfigPath: cfg}
-	}
-	err := RunPick(args(nil), nil, nil)
-	var usage *UsageError
-	if !errors.As(err, &usage) {
-		t.Fatalf("err = %v, want *UsageError (exit %d)", err, ExitCodeFor(err))
-	}
-	if err.Error() != `--seed is required for strategy "weighted_random"` {
-		t.Fatalf("message = %q, want %q", err.Error(), `--seed is required for strategy "weighted_random"`)
-	}
-	seed := uint64(42)
-	err = RunPick(args(&seed), nil, nil)
-	if errors.As(err, &usage) {
-		t.Fatalf("weighted_random with seed: unexpected UsageError %v", err)
-	}
-	err = RunPick(PickArgs{Profile: "complex_implementation", Strategy: "score", ConfigPath: cfg}, nil, nil)
-	if errors.As(err, &usage) {
-		t.Fatalf("score without seed: unexpected UsageError %v", err)
+	err := validateStrategy("score", names)
+	if err == nil || err.Error() != `unknown strategy "score"; valid: priority, round-robin, least-used, most-used, closest-to-reset` {
+		t.Errorf("validateStrategy(score) = %v, want unknown strategy error", err)
 	}
 }
 

@@ -16,17 +16,17 @@ func TestUsageAwareDispatchSkill(t *testing.T) {
 	substrings := map[string][]string{
 		"frontmatter": {"name: usage-aware-dispatch", "description:"},
 		"strategies": {
-			"--strategy score",
 			"--strategy priority",
 			"--strategy least-used",
-			"--strategy weighted-random --seed 42",
+			"--strategy most-used",
+			"--strategy closest-to-reset",
 		},
 		"explain command": {"which-model explain <candidate-id> --json"},
 		"defer rule":      {"usage_enabled", "defer", "score-only"},
 		"gating":          {"band_gated", "gate_above_used_percent"},
 		"evidence fields": {"evidence.band.{name,used_percent,weight}", "evidence.snapshot_age_seconds", "evidence.confidence"},
 		"exit table":      {"| 0 |", "| 1 |", "| 2 |", "| 3 |", "| 4 |", "| 5 |", "do NOT dispatch to a gated provider"},
-		"checklist+seed":  {"## Checklist", "--seed"},
+		"checklist":       {"## Checklist"},
 	}
 	for name, wants := range substrings {
 		for _, want := range wants {

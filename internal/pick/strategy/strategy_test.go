@@ -9,6 +9,17 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+func score(value float64) decimal.Decimal {
+	return decimal.NewFromFloat(value)
+}
+
+func newCandidate(provider, modelID, reasoning string, finalScore decimal.Decimal) pick.Candidate {
+	return pick.Candidate{
+		Route:      routing.Route{Provider: provider, ModelID: modelID, Reasoning: reasoning},
+		FinalScore: finalScore,
+	}
+}
+
 func TestRouteKey(t *testing.T) {
 	t.Run("case 1", func(t *testing.T) {
 		c := pick.Candidate{Route: routing.Route{Provider: "claude", ModelID: "claude-opus-4-8-20260115", Reasoning: "max"}}
@@ -29,21 +40,6 @@ func TestRouteKeyFromRoute(t *testing.T) {
 	if got := RouteKeyFromRoute(r); got != "codex/gpt-5.6-sol/high" {
 		t.Errorf("RouteKeyFromRoute() = %q, want codex/gpt-5.6-sol/high", got)
 	}
-}
-
-func TestConfigResolvedCostMaxScoreDrop(t *testing.T) {
-	t.Run("case 4: zero default", func(t *testing.T) {
-		got := Config{}.ResolvedCostMaxScoreDrop()
-		if !got.Equal(decimal.NewFromInt(5)) {
-			t.Errorf("ResolvedCostMaxScoreDrop() = %v, want 5", got)
-		}
-	})
-	t.Run("case 5: explicit override", func(t *testing.T) {
-		got := Config{CostMaxScoreDrop: 3}.ResolvedCostMaxScoreDrop()
-		if !got.Equal(decimal.NewFromInt(3)) {
-			t.Errorf("ResolvedCostMaxScoreDrop() = %v, want 3", got)
-		}
-	})
 }
 
 func TestPriorityOrder(t *testing.T) {
@@ -73,11 +69,6 @@ func TestSentinelErrors(t *testing.T) {
 	t.Run("case 9", func(t *testing.T) {
 		if got := ErrNoCandidates.Error(); got != "no candidates to pick from" {
 			t.Errorf("ErrNoCandidates.Error() = %q", got)
-		}
-	})
-	t.Run("case 10", func(t *testing.T) {
-		if got := ErrSeedRequired.Error(); got != "weighted-random requires --seed for reproducibility" {
-			t.Errorf("ErrSeedRequired.Error() = %q", got)
 		}
 	})
 	t.Run("case 11", func(t *testing.T) {

@@ -94,12 +94,13 @@ Routes connect provider-native model IDs to catalog models and reasoning levels.
 
 ### 3. Pick a model
 
-Start in score-only mode; this performs no provider credential or usage reads:
+Start with the default priority strategy in score-only mode; this performs no
+provider credential or usage reads:
 
 ```bash
 which-model pick \
   --profile balanced_implementation \
-  --strategy score \
+  --strategy priority \
   --no-usage \
   --json
 ```
@@ -159,12 +160,11 @@ Run `which-model <command> --help` for all options.
 
 ## Selection strategies
 
-- **`score`** — highest final score; the default.
-- **`priority`** — prefer providers using configured priority.
+- **`priority`** — prefer providers using configured priority; the default.
 - **`round-robin`** — rotate across candidates.
 - **`least-used`** — prefer the provider with the most allowance remaining.
-- **`weighted-random`** — make a reproducible weighted choice with `--seed`.
-- **`cost-optimal`** — prefer lower cost above a quality floor.
+- **`most-used`** — prefer the provider with the least allowance remaining.
+- **`closest-to-reset`** — prefer the provider whose allowance resets soonest.
 
 Example:
 
