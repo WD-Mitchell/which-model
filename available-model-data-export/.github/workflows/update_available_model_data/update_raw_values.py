@@ -23,6 +23,7 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from get_aa_api_values import (  # noqa: E402
+    AA_BENCHMARK_FIELDS,
     API_KEY_NAME,
     API_URL,
     DEFAULT_ENV_PATH,

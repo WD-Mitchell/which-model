@@ -33,10 +33,12 @@ class RefreshModelDataTests(unittest.TestCase):
                 "benchmarks": [{"name": "GPQA"}, {"name": "Terminal-Bench"}]
             },
         }
-        self.assertEqual(
-            refresh_model_data.discover_benchmark_names(json.dumps(payload)),
-            ("GPQA", "SWE-bench", "Terminal-Bench"),
+        names = refresh_model_data.discover_benchmark_names(json.dumps(payload))
+        self.assertTrue(
+            {"GPQA", "SWE-bench", "Terminal-Bench"}.issubset(names)
         )
+        self.assertIn("Artificial Analysis Coding Agent Index", names)
+        self.assertIn("GDPval-AA", names)
 
     def test_all_provider_parser_accepts_null_default_effort(self) -> None:
         payload = {
