@@ -9,7 +9,7 @@ project: which-model
 
 ## Purpose
 
-Replace the hand-maintained Python scheduled-refresh workflow (`available-model-data-export/.github/workflows/update-available-model-data.yml`) with a deterministic generator: `which-model catalog workflow --write|--check` renders `.github/workflows/refresh-model-data.yml` from the `[catalog.publish]` config section (`docs/plan/annex-b-catalog-port.md` §8, `docs/plan/annex-d-cli-reference.md` §2.3a). The generated Action runs the Collect-then-Derive refresh (never usage — no provider credentials in CI), supports per-branch publishing in listed order with per-branch isolation, and `--check` acts as a CI lint that fails on any drift between config and committed workflow.
+The deterministic generator `which-model catalog workflow --write|--check` renders `.github/workflows/refresh-model-data.yml` from `[catalog.publish]`. The generated Action invokes the standalone `scripts/refresh-model-data.py`, which discovers every models.dev provider and benchmark without checked-in provider or benchmark configuration and updates only `available_model_raw_values.csv`. It never builds or invokes the Go application and never runs project tests.
 
 ## Behaviour
 
@@ -34,9 +34,8 @@ Replace the hand-maintained Python scheduled-refresh workflow (`available-model-
    | `commit_message` | `"chore(data): refresh available model scores"` |
    | `pr_title` | `"chore(data): refresh available model scores"` |
    | `pr_labels` | `["data", "automated"]` |
-   | `run_tests` | `true` |
 
-   F30 also reads `[catalog].raw_csv_path` / `[catalog].scores_csv_path` (blank → `available_model_raw_values.csv` / `available_model_scores.csv`) for the `git add` paths in the generated workflow (annex-b §8 "Staged-commit-only-if-changed" row — "which-model's on-disk equivalents").
+   F30 also reads `[catalog].raw_csv_path` (blank → `available_model_raw_values.csv`) as the sole `git add` path in the generated workflow.
 
 3. **Validation** (all errors are typed, mapped to exit `2`):
    - `schedule`: exactly 5 whitespace-separated fields (minute, hour, day-of-month, month, day-of-week). Per-field tokens: `*`, single number, `A-B` range, `*/N` step, `A-B/N`, or comma-lists of those. Bounds: minute 0–59, hour 0–23, day-of-month 1–31, month 1–12, day-of-week 0–6; month/day-of-week also accept the 3-letter English names (case-insensitive) as single tokens or list elements (`JAN`..`DEC`, `SUN`..`SAT`), never inside ranges/steps. Reject: 6-field (seconds) crons, `@`-keywords (`@daily`, `@hourly`, …), empty fields, out-of-bounds numbers, names in ranges/steps. Decision recorded in `## Decisions` (grammar is the GitHub Actions documented subset).
@@ -44,7 +43,7 @@ Replace the hand-maintained Python scheduled-refresh workflow (`available-model-
    - `merge_method`: exactly `"squash"`, `"merge"`, or `"rebase"` (validated always; used only in `pull-request` mode).
    - `auto_merge`: bool (used only in `pull-request` mode).
    - `branches`: non-empty after defaults; explicit `[]` → error `"catalog.publish.branches must not be empty"`.
-   - `run_tests`, `enabled`: bool.
+   - `enabled`: bool.
    - `pr_labels`: array of non-empty strings (deduplicated, order preserved).
 
 4. **Rendering** (`internal/catalog/publish/workflow.go`, `Render(pc *PublishConfig) ([]byte, error)`): deterministic template — same config in, byte-identical YAML out; exactly one trailing `\n`; no other trailing whitespace; the full template is in `specs/features/F30-publishing/TASKS.md` task F30-T4 (golden files) and implements annex-b §8.7 with the Decisions below. `Render` returns `nil` when `!pc.Enabled` (no file content exists to render; `Write`/`Check` handle the enabled=false lifecycle, behaviour 6). Template elements:
@@ -53,7 +52,7 @@ Replace the hand-maintained Python scheduled-refresh workflow (`available-model-
    - `permissions:` — mode-dependent least privilege (Decision): `pull-request` → `contents: write` + `pull-requests: write` (needed for `gh pr create`); `direct-push` → `contents: write` only.
    - `concurrency:` — group `refresh-model-data` constant (Decision: the §8.7 excerpt's `refresh-model-data-main` hardcodes the default branch; the constant name is branch-agnostic), `cancel-in-progress: false`.
    - One job `refresh`: `runs-on: ubuntu-latest`, `timeout-minutes: 15`; `strategy.fail-fast: false` with `matrix.branch: [<branches in listed order>]` and comment `# from [catalog.publish].branches, listed order` (annex-b §8.3).
-   - Steps in order: `actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2` with `ref: ${{ matrix.branch }}`; `actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0` with `go-version-file: go.mod` + `cache: true` (pinned-SHA-with-comment convention per annex-b §8 "Toolchain setup" row); `go build -o which-model ./cmd/which-model`; the test gate step `go test ./internal/catalog/... ./internal/pick/... ./internal/routing/...` ONLY when `run_tests` is true (annex-b §8 "Test gate" row; when false the step is omitted entirely); `./which-model catalog refresh` with `env: ARTIFICIAL_ANALYSIS_API: ${{ secrets.ARTIFICIAL_ANALYSIS_API }}`; the `changes` step (`id: changes`, verbatim `git add -- <raw> <scores>` + `git diff --cached --quiet || echo "changed=true" >> "$GITHUB_OUTPUT"`); commit step (github-actions[bot] identity, `commit_message`); then mode steps (behaviour 5); then the per-branch outcome report step (behaviour 5).
+   - Steps in order: pinned `actions/checkout`; `python3 scripts/refresh-model-data.py` with `env: ARTIFICIAL_ANALYSIS_API: ${{ secrets.ARTIFICIAL_ANALYSIS_API }}`; the `changes` step (`id: changes`, `git add -- <raw>` + the unchanged diff check); commit, publish, and outcome steps. The workflow contains no Go setup, build, test, `which-model` invocation, provider config, benchmark config, or scores CSV staging.
 
 5. **Publish modes** (annex-b §8.4; `mode` selects per invocation, not per branch):
    - `pull-request`: `gh pr create --base "${{ matrix.branch }}" --title "<pr_title>" --label <l1> --label <l2>…` (one `--label` per `pr_labels` entry) with `env: GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}`; when `auto_merge` is true, immediately `gh pr merge --auto --<merge_method>` (same env). `gh pr merge --auto` defers to GitHub's own auto-merge machinery — branch protection is respected.
@@ -65,7 +64,7 @@ Replace the hand-maintained Python scheduled-refresh workflow (`available-model-
 
 7. **`--check` drift semantics** (annex-b §8.2, annex-d §2.3a): render in memory (the SAME `Render` used by `--write` — never a divergent code path), read the committed file as-is, byte-compare. Any difference — CRLF vs LF, changed indentation, extra/removed blank lines, reordered keys — is drift. On drift: exit `1`, stderr carries the diff with headers `--- <path> (committed)` / `+++ <path> (generated from [catalog.publish])` followed by a minimal line diff (first-difference hunk with 3 lines of context, `-`/`+` pairs, per Decision). Missing committed file = drift: exit `1`, stderr names the file and the fix (`run which-model catalog workflow --write`).
 
-8. **No usage in CI** (annex-b §8.5): the generated workflow contains NO usage command, NO usage credential, NO `--refresh-usage`-class step — the only secret is `ARTIFICIAL_ANALYSIS_API` on the `catalog refresh` step; no other `secrets.*` reference appears anywhere in the generated YAML.
+8. **No app or usage in CI**: the generated workflow contains no Go toolchain, build, test, `which-model`, usage command, usage credential, provider config, or benchmark config. The only data-source secret is `ARTIFICIAL_ANALYSIS_API` on the standalone refresh step.
 
 9. **Stdout shapes** (annex-d §2.3a):
    - `--write` success: `wrote .github/workflows/refresh-model-data.yml (schedule="0 6 * * *", branches=[main], mode=pull-request)` — schedule quoted, branches bracketed, mode named; path replaced by `--out` value when given.
@@ -110,9 +109,8 @@ Replace the hand-maintained Python scheduled-refresh workflow (`available-model-
 | `auto_merge` / `merge_method` in `direct-push` mode | Validated for type/enum, then ignored (no error) | annex-b §8.1 says auto_merge is "pull-request mode only"; ignoring keeps configs toggle-friendly |
 | `mode` selection | Per invocation, never per branch | annex-b §8.4 verbatim |
 | Empty `branches = []` | Validation error, exit 2 | An explicit empty list is ambiguous; default only applies when the key is absent |
-| Artifact paths in `git add` | From `[catalog].raw_csv_path` / `[catalog].scores_csv_path`, defaulting to `available_model_raw_values.csv` / `available_model_scores.csv` | annex-b §8 "Staged-commit-only-if-changed" row; defaults match the legacy names |
-| Repo-root resolution | `--out` wins; else nearest `.git` ancestor of cwd | Annex-d §2.3 `--out` default; self-contained (F30 depends on F01/F23, not F28) |
-| `run_tests` gate | Test step present iff `run_tests`; when false the step is omitted | annex-b §8 "Test gate" row: fail-closed placement; disabling is an explicit risk |
+| Artifact path in `git add` | From `[catalog].raw_csv_path`, defaulting to `available_model_raw_values.csv` | The master refresh publishes raw source values only |
+| Repo-root resolution | `--out` wins; else nearest `.git` ancestor of cwd | Annex-d §2.3 `--out` default; self-contained |
 | `gh pr merge --auto` | Emitted when `auto_merge`; merge method verbatim | Branch protection respected via GitHub auto-merge (annex-b §8.4) |
 | Outcome vocabulary | `published` / `skipped-no-changes` / `failed` in `GITHUB_STEP_SUMMARY` | annex-b §8.3 per-branch outcome reporting |
 | Migration scope | Delete only the legacy workflow file; legacy Python scripts are other features' scope | annex-d §5 migration row; M6 clean cutover |

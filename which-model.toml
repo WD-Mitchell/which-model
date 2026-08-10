@@ -9,4 +9,3 @@ merge_method = "squash"
 commit_message = "chore(data): refresh available model scores"
 pr_title = "chore(data): refresh available model scores"
 pr_labels = ["data", "automated"]
-run_tests = true

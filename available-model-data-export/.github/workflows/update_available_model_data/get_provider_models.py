@@ -51,17 +51,20 @@ def _reasoning_levels(
                 f"models.dev {provider} model {model_id!r} has duplicate effort options"
             )
         values = option.get("values")
-        if not isinstance(values, list) or not values or any(
-            not isinstance(value, str) for value in values
+        if (
+            not isinstance(values, list)
+            or not values
+            or any(value is not None and not isinstance(value, str) for value in values)
         ):
             raise UpdateError(
                 f"models.dev {provider} model {model_id!r} has invalid effort values"
             )
-        if len(values) != len(set(values)):
+        normalized = ["none" if value is None else value for value in values]
+        if len(normalized) != len(set(normalized)):
             raise UpdateError(
                 f"models.dev {provider} model {model_id!r} has invalid effort values"
             )
-        efforts = ["high" if value in {"none", "default"} else value for value in values]
+        efforts = ["high" if value in {"none", "default"} else value for value in normalized]
         if any(
             value not in REASONING_LEVELS for value in efforts
         ):

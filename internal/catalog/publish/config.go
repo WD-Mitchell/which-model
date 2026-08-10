@@ -15,8 +15,8 @@ func (e *ValidationError) Error() string { return e.Message }
 
 func (e *ValidationError) ExitCode() int { return 2 }
 
-// PublishConfig mirrors [catalog.publish] (annex-b §8.1) plus the two
-// [catalog] artifact paths needed by the generated workflow's git add step.
+// PublishConfig mirrors [catalog.publish] plus the raw CSV path staged by the
+// generated workflow.
 type PublishConfig struct {
 	Enabled       bool
 	Schedule      string
@@ -28,9 +28,7 @@ type PublishConfig struct {
 	CommitMessage string
 	PRTitle       string
 	PRLabels      []string
-	RunTests      bool
 	RawCSVPath    string // from [catalog].raw_csv_path; blank -> default
-	ScoresCSVPath string // from [catalog].scores_csv_path; blank -> default
 }
 
 // Defaults (annex-b §8.1; SPEC behaviour 2).
@@ -52,8 +50,8 @@ type UnmarshalKeyer interface {
 	UnmarshalKey(key string, out any) error
 }
 
-// NewDefaults returns a PublishConfig with every annex-b §8.1 default
-// applied. Slice fields are independent copies of the package vars.
+// NewDefaults returns a PublishConfig with every publishing default applied.
+// Slice fields are independent copies of the package vars.
 func NewDefaults() *PublishConfig {
 	return &PublishConfig{
 		Enabled:       true,
@@ -66,13 +64,12 @@ func NewDefaults() *PublishConfig {
 		CommitMessage: DefaultCommitMessage,
 		PRTitle:       DefaultPRTitle,
 		PRLabels:      append([]string(nil), DefaultPRLabels...),
-		RunTests:      true,
 	}
 }
 
-// Load reads [catalog.publish] (and [catalog].raw_csv_path /
-// [catalog].scores_csv_path), applies defaults for absent keys, and runs
-// Validate. Missing section = all defaults. Returns typed errors (→ exit 2).
+// Load reads [catalog.publish] and [catalog].raw_csv_path, applies defaults for
+// absent keys, and runs Validate. Missing section = all defaults. Returns typed
+// errors (→ exit 2).
 func Load(cfg UnmarshalKeyer) (*PublishConfig, error) {
 	pc := NewDefaults()
 	if err := cfg.UnmarshalKey("catalog.publish", pc); err != nil {
@@ -81,15 +78,11 @@ func Load(cfg UnmarshalKeyer) (*PublishConfig, error) {
 	// UnmarshalKey on a missing key leaves the out value untouched (F01
 	// pin), so NewDefaults() already seeded everything; a present but
 	// empty branches=[] must still error in Validate.
-	var rawPath, scoresPath string
+	var rawPath string
 	if err := cfg.UnmarshalKey("catalog.raw_csv_path", &rawPath); err != nil {
 		return nil, err
 	}
-	if err := cfg.UnmarshalKey("catalog.scores_csv_path", &scoresPath); err != nil {
-		return nil, err
-	}
 	pc.RawCSVPath = firstNonEmpty(rawPath, "available_model_raw_values.csv")
-	pc.ScoresCSVPath = firstNonEmpty(scoresPath, "available_model_scores.csv")
 	if err := Validate(pc); err != nil {
 		return nil, err
 	}

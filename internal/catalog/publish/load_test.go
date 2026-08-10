@@ -61,7 +61,7 @@ func TestLoadMissingSection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if !pc.Enabled || !pc.AutoMerge || !pc.RunTests {
+	if !pc.Enabled || !pc.AutoMerge {
 		t.Errorf("bool defaults: %+v", pc)
 	}
 	if pc.Schedule != DefaultSchedule || pc.Timezone != DefaultTimezone ||
@@ -75,8 +75,8 @@ func TestLoadMissingSection(t *testing.T) {
 	if !reflect.DeepEqual(pc.PRLabels, DefaultPRLabels) {
 		t.Errorf("PRLabels = %v", pc.PRLabels)
 	}
-	if pc.RawCSVPath != "available_model_raw_values.csv" || pc.ScoresCSVPath != "available_model_scores.csv" {
-		t.Errorf("artifact paths = %q, %q", pc.RawCSVPath, pc.ScoresCSVPath)
+	if pc.RawCSVPath != "available_model_raw_values.csv" {
+		t.Errorf("raw artifact path = %q", pc.RawCSVPath)
 	}
 }
 
@@ -95,12 +95,9 @@ func TestLoadFullSection(t *testing.T) {
 				"commit_message": "chore: custom commit",
 				"pr_title":       "chore: custom PR",
 				"pr_labels":      []any{"data", "automated"},
-				"run_tests":      true,
 			}, out)
 		case "catalog.raw_csv_path":
 			return jsonRoundTrip("custom_raw.csv", out)
-		case "catalog.scores_csv_path":
-			return jsonRoundTrip("custom_scores.csv", out)
 		default:
 			return jsonRoundTrip(nil, out)
 		}
@@ -112,12 +109,11 @@ func TestLoadFullSection(t *testing.T) {
 	if !pc.Enabled || pc.Schedule != "15 8 * * *" || pc.Timezone != "America/New_York" ||
 		!reflect.DeepEqual(pc.Branches, []string{"main", "release"}) || pc.Mode != "pull-request" ||
 		!pc.AutoMerge || pc.MergeMethod != "squash" || pc.CommitMessage != "chore: custom commit" ||
-		pc.PRTitle != "chore: custom PR" || !reflect.DeepEqual(pc.PRLabels, []string{"data", "automated"}) ||
-		!pc.RunTests {
+		pc.PRTitle != "chore: custom PR" || !reflect.DeepEqual(pc.PRLabels, []string{"data", "automated"}) {
 		t.Errorf("populated fields: %+v", pc)
 	}
-	if pc.RawCSVPath != "custom_raw.csv" || pc.ScoresCSVPath != "custom_scores.csv" {
-		t.Errorf("artifact paths = %q, %q", pc.RawCSVPath, pc.ScoresCSVPath)
+	if pc.RawCSVPath != "custom_raw.csv" {
+		t.Errorf("raw artifact path = %q", pc.RawCSVPath)
 	}
 }
 
@@ -186,7 +182,7 @@ func TestLoadEnabledFalse(t *testing.T) {
 		t.Error("Enabled = true, want false")
 	}
 	if pc.Schedule != DefaultSchedule || pc.Timezone != DefaultTimezone || pc.Mode != DefaultMode ||
-		pc.MergeMethod != DefaultMergeMethod || !pc.AutoMerge || !pc.RunTests ||
+		pc.MergeMethod != DefaultMergeMethod || !pc.AutoMerge ||
 		!reflect.DeepEqual(pc.Branches, DefaultBranches) || !reflect.DeepEqual(pc.PRLabels, DefaultPRLabels) {
 		t.Errorf("other fields must keep defaults: %+v", pc)
 	}

@@ -20,9 +20,7 @@ func GoldenPC() *PublishConfig {
 		CommitMessage: "chore(data): refresh available model scores",
 		PRTitle:       "chore(data): refresh available model scores",
 		PRLabels:      []string{"data", "automated"},
-		RunTests:      true,
 		RawCSVPath:    "available_model_raw_values.csv",
-		ScoresCSVPath: "available_model_scores.csv",
 	}
 }
 
@@ -105,18 +103,19 @@ func TestRenderDirectPush(t *testing.T) {
 	}
 }
 
-func TestRenderRunTestsFalse(t *testing.T) {
-	pc := GoldenPC()
-	pc.RunTests = false
-	out, err := Render(pc)
+func TestRenderUsesStandaloneRawRefresh(t *testing.T) {
+	out, err := Render(GoldenPC())
 	if err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
-	if strings.Contains(string(out), "go test ./internal/catalog") {
-		t.Errorf("test gate present with run_tests=false: %s", out)
+	s := string(out)
+	if !strings.Contains(s, "python3 scripts/refresh-model-data.py") {
+		t.Errorf("standalone refresh step missing: %s", out)
 	}
-	if !strings.Contains(string(out), "go build -o which-model ./cmd/which-model") {
-		t.Errorf("build step missing: %s", out)
+	for _, forbidden := range []string{"setup-go", "go build", "go test", "./which-model", "available_model_scores.csv"} {
+		if strings.Contains(s, forbidden) {
+			t.Errorf("workflow contains app-dependent content %q", forbidden)
+		}
 	}
 }
 
@@ -189,9 +188,6 @@ func TestRenderPins(t *testing.T) {
 	s := string(out)
 	if !strings.Contains(s, "actions/checkout@"+CheckoutPin+" # v6.0.2") {
 		t.Errorf("checkout pin missing: %s", s)
-	}
-	if !strings.Contains(s, "actions/setup-go@"+SetupGoPin+" # v6.3.0") {
-		t.Errorf("setup-go pin missing: %s", s)
 	}
 }
 
