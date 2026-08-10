@@ -11,21 +11,22 @@ npm install -g @wdm-uk/which-model
 
 The package itself contains only a small Node launcher. The real Go binary is
 delivered through a platform-specific optional dependency
-(`@wdm-uk/darwin-arm64`, `@wdm-uk/darwin-x64`, `@wdm-uk/linux-arm64`,
-`@wdm-uk/linux-x64`, `@wdm-uk/windows-x64`), so only the binary for your
-platform is downloaded. If the optional dependency cannot be installed, a
-postinstall script falls back to downloading the matching asset from the
-GitHub release (set `WHICH_MODEL_SKIP_DOWNLOAD=1` to disable the fallback).
+(`@wdm-uk/which-model-darwin-arm64`, `@wdm-uk/which-model-darwin-x64`,
+`@wdm-uk/which-model-linux-arm64`, `@wdm-uk/which-model-linux-x64`,
+`@wdm-uk/which-model-windows-x64`), so only the binary for your platform is
+downloaded. If the optional dependency cannot be installed, a postinstall
+script falls back to downloading the matching asset from the GitHub release
+(set `WHICH_MODEL_SKIP_DOWNLOAD=1` to disable the fallback).
 
 ## Supported platforms
 
 | Platform | Package |
 |---|---|
-| macOS arm64 (Apple Silicon) | `@wdm-uk/darwin-arm64` |
-| macOS x64 (Intel) | `@wdm-uk/darwin-x64` |
-| Linux arm64 | `@wdm-uk/linux-arm64` |
-| Linux x64 | `@wdm-uk/linux-x64` |
-| Windows x64 | `@wdm-uk/windows-x64` |
+| macOS arm64 (Apple Silicon) | `@wdm-uk/which-model-darwin-arm64` |
+| macOS x64 (Intel) | `@wdm-uk/which-model-darwin-x64` |
+| Linux arm64 | `@wdm-uk/which-model-linux-arm64` |
+| Linux x64 | `@wdm-uk/which-model-linux-x64` |
+| Windows x64 | `@wdm-uk/which-model-windows-x64` |
 
 ## Developing the npm packages
 
@@ -33,7 +34,7 @@ Layout:
 
 - `which-model/` — launcher package (`@wdm-uk/which-model`): `bin.js`
   launcher, `install.js` release-asset fallback, manifest.
-- `wdm-uk-<os>-<arch>/` — binary packages; the release workflow drops the
+- `which-model-<os>-<arch>/` — binary packages; the release workflow drops the
   compiled `which-model` executable in before publishing.
 - `scripts/sync-version.js <version>` — stamps one version into all six
   manifests.

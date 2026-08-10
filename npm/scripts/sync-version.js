@@ -26,7 +26,7 @@ function main() {
   const launcherManifest = read(launcher);
 
   const platforms = Object.keys(launcherManifest.optionalDependencies).map(
-    (name) => name.replace("@wdm-uk/", "wdm-uk-")
+    (name) => name.replace("@wdm-uk/", "")
   );
 
   // Launcher: own version + pinned optionalDependencies.
