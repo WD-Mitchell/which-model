@@ -1044,6 +1044,40 @@ class UpdateAvailableModelRawValuesTests(unittest.TestCase):
         rows = updater.collect_rows(RecordingClient({}), result.selected)
         self.assertEqual([(row.model, row.reasoning) for row in rows], identities)
 
+    def test_all_provider_bridge_merges_duplicate_claude_identity(self) -> None:
+        dated = updater.ProviderModel(
+            "anthropic",
+            "claude-haiku-4-5-20251001",
+            "Claude Haiku 4.5 20251001",
+            ("high",),
+        )
+        alias = updater.ProviderModel(
+            "gateway",
+            "claude-haiku-4-5",
+            "Claude Haiku 4.5",
+            ("low",),
+        )
+        bridge = updater.ProviderModel(
+            "replicate",
+            "claude-haiku-4-5-20251001",
+            "Claude Haiku 4.5",
+            ("medium",),
+        )
+
+        matched = updater.match_provider_models(
+            [], {"anthropic": [dated], "gateway": [alias], "replicate": [bridge]}
+        )
+
+        self.assertEqual(len(matched.families), 1)
+        self.assertEqual(
+            [(item.family.name, item.reasoning) for item in matched.selected],
+            [
+                ("Claude Haiku 4.5 20251001", "low"),
+                ("Claude Haiku 4.5 20251001", "medium"),
+                ("Claude Haiku 4.5 20251001", "high"),
+            ],
+        )
+
     def test_provider_display_and_id_conflict_is_rejected_as_ambiguous(self) -> None:
         alpha = updater.ModelFamily("Alpha", "alpha")
         beta = updater.ModelFamily("Beta", "beta")
