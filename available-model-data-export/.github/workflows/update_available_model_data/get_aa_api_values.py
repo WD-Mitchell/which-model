@@ -428,15 +428,13 @@ def match_provider_models(
         counts[provider] = len(models)
         unmatched: list[str] = []
         for model in sorted(models, key=lambda model: (_provider_keys(model), model.model_id)):
-            matches = {family_by_key[key] for key in _provider_keys(model) if key in family_by_key}
-            if len(matches) > 1:
-                raise UpdateError(
-                    f"{provider} model {model.model_id!r} ambiguously matches multiple Artificial Analysis families"
-                )
-            family = next(iter(matches)) if matches else None
+            keys = _provider_keys(model)
+            family = next(
+                (family_by_key[key] for key in keys if key in family_by_key),
+                None,
+            )
             if family is None:
                 unmatched.append(model.model_id)
-            keys = _provider_keys(model)
             indexes = {by_key[key] for key in keys if key in by_key}
             if model.canonical_id is not None and model.canonical_id in by_canonical:
                 indexes.add(by_canonical[model.canonical_id])

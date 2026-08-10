@@ -1078,18 +1078,17 @@ class UpdateAvailableModelRawValuesTests(unittest.TestCase):
             ],
         )
 
-    def test_provider_display_and_id_conflict_is_rejected_as_ambiguous(self) -> None:
+    def test_provider_display_name_wins_conflicting_identifier_match(self) -> None:
         alpha = updater.ModelFamily("Alpha", "alpha")
         beta = updater.ModelFamily("Beta", "beta")
-        api_models = [
-            model(alpha),
-            model(beta),
-        ]
-        with self.assertRaisesRegex(updater.UpdateError, "ambiguously matches"):
-            updater.match_provider_models(
-                api_models,
-                {"provider": [updater.ProviderModel("provider", "beta", "Alpha")]},
-            )
+        matched = updater.match_provider_models(
+            [model(alpha), model(beta)],
+            {"provider": [updater.ProviderModel("provider", "beta", "Alpha", ("high",))]},
+        )
+        self.assertEqual(
+            [(item.family.name, item.reasoning) for item in matched.selected],
+            [("Alpha", "high")],
+        )
 
     def test_unknown_provider_fails_before_network_backup_or_replacement(self) -> None:
         class NeverClient:
