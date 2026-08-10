@@ -7,7 +7,7 @@ import (
 
 func TestPublishConfigZeroValue(t *testing.T) {
 	var pc PublishConfig
-	if pc.Enabled || pc.AutoMerge || pc.RunTests {
+	if pc.Enabled || pc.AutoMerge {
 		t.Errorf("bool fields must be false in the zero value: %+v", pc)
 	}
 	for name, v := range map[string]string{
@@ -18,7 +18,6 @@ func TestPublishConfigZeroValue(t *testing.T) {
 		"CommitMessage": pc.CommitMessage,
 		"PRTitle":       pc.PRTitle,
 		"RawCSVPath":    pc.RawCSVPath,
-		"ScoresCSVPath": pc.ScoresCSVPath,
 	} {
 		if v != "" {
 			t.Errorf("%s = %q, want empty in the zero value", name, v)
@@ -41,15 +40,13 @@ func TestPublishConfigRoundTrip(t *testing.T) {
 		CommitMessage: "chore: refresh",
 		PRTitle:       "chore: refresh PR",
 		PRLabels:      []string{"data"},
-		RunTests:      false,
 		RawCSVPath:    "raw.csv",
-		ScoresCSVPath: "scores.csv",
 	}
 	if pc.Enabled != true || pc.Schedule != "15 8 * * MON" || pc.Timezone != "America/New_York" ||
 		!reflect.DeepEqual(pc.Branches, []string{"release", "canary"}) || pc.Mode != "direct-push" ||
 		pc.AutoMerge != false || pc.MergeMethod != "rebase" || pc.CommitMessage != "chore: refresh" ||
 		pc.PRTitle != "chore: refresh PR" || !reflect.DeepEqual(pc.PRLabels, []string{"data"}) ||
-		pc.RunTests != false || pc.RawCSVPath != "raw.csv" || pc.ScoresCSVPath != "scores.csv" {
+		pc.RawCSVPath != "raw.csv" {
 		t.Errorf("struct literal fields did not round-trip: %+v", pc)
 	}
 }
@@ -80,7 +77,7 @@ func TestPublishDefaults(t *testing.T) {
 		t.Errorf("DefaultPRLabels = %v", DefaultPRLabels)
 	}
 	pc := NewDefaults()
-	if !pc.Enabled || !pc.AutoMerge || !pc.RunTests {
+	if !pc.Enabled || !pc.AutoMerge {
 		t.Errorf("NewDefaults() bool defaults: %+v", pc)
 	}
 	if pc.Schedule != DefaultSchedule || pc.Timezone != DefaultTimezone ||
