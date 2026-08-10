@@ -18,6 +18,9 @@ func setupHome(t *testing.T) (home, userConfig string) {
 	t.Helper()
 	home = t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", "")
+	t.Setenv("XDG_CACHE_HOME", "")
+	t.Setenv("XDG_STATE_HOME", "")
 	userConfig = config.ResolvePaths(runtime.GOOS, home, nil).UserConfigFile
 	return home, userConfig
 }

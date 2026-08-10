@@ -135,6 +135,17 @@ func TestRenderAutoMergeFalse(t *testing.T) {
 	}
 }
 
+func TestRenderPRTitleWithColonIsValidYAMLScalar(t *testing.T) {
+	out, err := Render(GoldenPC())
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	want := "        run: >-\n          gh pr create --base"
+	if !strings.Contains(string(out), want) {
+		t.Errorf("PR create command must use a block scalar: %s", out)
+	}
+}
+
 func TestRenderDisabled(t *testing.T) {
 	pc := GoldenPC()
 	pc.Enabled = false
