@@ -82,7 +82,7 @@ func Load(cfg UnmarshalKeyer) (*PublishConfig, error) {
 	if err := cfg.UnmarshalKey("catalog.raw_csv_path", &rawPath); err != nil {
 		return nil, err
 	}
-	pc.RawCSVPath = firstNonEmpty(rawPath, "available_model_raw_values.csv")
+	pc.RawCSVPath = firstNonEmpty(rawPath, "available-model-data-export/available_model_raw_values.csv")
 	if err := Validate(pc); err != nil {
 		return nil, err
 	}

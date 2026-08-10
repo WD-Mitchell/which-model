@@ -20,7 +20,7 @@ func GoldenPC() *PublishConfig {
 		CommitMessage: "chore(data): refresh available model scores",
 		PRTitle:       "chore(data): refresh available model scores",
 		PRLabels:      []string{"data", "automated"},
-		RawCSVPath:    "available_model_raw_values.csv",
+		RawCSVPath:    "available-model-data-export/available_model_raw_values.csv",
 	}
 }
 
