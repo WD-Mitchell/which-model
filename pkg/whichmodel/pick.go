@@ -344,7 +344,11 @@ func scoreInputsFor(ms pick.ModelScore) map[string]float64 {
 // pickFetchAllFunc because F24's usage.go owns fetchAllFunc in the
 // default build; this F26-owned seam works in both build tags.
 var pickFetchAllFunc = func(ctx context.Context, providers []string, opts pickFetchOptions) (map[string]*usageSnapshot, map[string]timeValue, error) {
-	snaps, _, err := fetch.FetchAll(ctx, providers, fetch.Options{})
+	enabled := make(map[string]bool, len(providers))
+	for _, p := range providers {
+		enabled[p] = true
+	}
+	snaps, _, err := fetch.FetchAll(ctx, providers, fetch.Options{Enabled: enabled})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -497,7 +501,7 @@ func multiplyRound2(vals ...float64) float64 {
 func classifyNoPick(ex []ExcludedCandidate) *CodedError {
 	for _, x := range ex {
 		if x.ReasonCode == "auth_required" {
-			return &CodedError{Code: "auth_required", Message: "auth required; run which-model auth status"}
+			return &CodedError{Code: "auth_required", Message: "auth required; check CodexBar credentials"}
 		}
 	}
 	for _, x := range ex {

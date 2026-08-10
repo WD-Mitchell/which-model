@@ -33,10 +33,10 @@ const (
 type Kind int
 
 const (
-	KindSubscription   Kind = iota // Claude, Codex, Copilot, Cursor, etc.
-	KindAPIKeyBilling              // OpenAI platform, DeepInfra, etc.
-	KindGateway                    // OpenRouter, LiteLLM, ClawRouter, etc.
-	KindLocalTool                  // Ollama, JetBrains (presence-only)
+	KindSubscription  Kind = iota // Claude, Codex, Copilot, Cursor, etc.
+	KindAPIKeyBilling             // OpenAI platform, DeepInfra, etc.
+	KindGateway                   // OpenRouter, LiteLLM, ClawRouter, etc.
+	KindLocalTool                 // Ollama, JetBrains (presence-only)
 )
 
 // String renders the Kind for humans ("subscription", "api_key_billing", "gateway", "local_tool", "unknown").
@@ -81,7 +81,7 @@ type Snapshot struct {
 	Windows    []Window  `json:"windows"`
 	FetchedAt  time.Time `json:"fetched_at"`
 	Source     Source    `json:"source"`
-	Confidence string    `json:"confidence"` // "live" | "cached" | "estimated"
+	Confidence string    `json:"confidence"`  // "live" | "cached" | "estimated"
 	UsageKnown bool      `json:"usage_known"` // at least one window carries a real reading (see DEFERRED D5)
 	Stale      bool      `json:"stale,omitempty"`
 	Failure    *Failure  `json:"error,omitempty"`
@@ -92,6 +92,12 @@ type Snapshot struct {
 type Failure struct {
 	Code    string `json:"code"`
 	Message string `json:"message"` // sanitised; NEVER contains credential material
+}
+
+// Warning is a non-fatal, sanitised diagnostic returned alongside usage
+// snapshots.
+type Warning struct {
+	Message string
 }
 
 // WindowSpec is descriptor-time metadata: which window IDs/labels/units a

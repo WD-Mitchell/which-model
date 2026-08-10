@@ -5,8 +5,6 @@ package whichmodel
 import (
 	"strings"
 	"testing"
-
-	"github.com/WD-Mitchell/which-model/internal/usage"
 )
 
 func TestUsageCommandRegistered(t *testing.T) {
@@ -58,7 +56,6 @@ func TestUsageRunEAllAndProvider(t *testing.T) {
 func TestUsageRunEUnknownProvider(t *testing.T) {
 	Global = GlobalFlags{}
 	t.Cleanup(func() { Global = GlobalFlags{} })
-	_, _ = usage.Get("claude")
 	cmd := NewUsageCmd()
 	cmd.SetArgs([]string{"not-a-provider"})
 	err := cmd.Execute()

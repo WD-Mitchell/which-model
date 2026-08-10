@@ -108,10 +108,9 @@ which-model config set providers.codex.enabled true
 which-model config set providers.copilot.enabled true
 ```
 
-Check which credentials can be resolved, then request a usage report:
+Request a usage report through CodexBar:
 
 ```bash
-which-model auth status claude codex copilot
 which-model usage --all --json
 ```
 
@@ -129,8 +128,7 @@ Once at least one provider is enabled, the default `usage.enabled = "auto"` sett
 | `which-model routes refresh` | Rebuild provider-to-model mappings. |
 | `which-model pick --profile <name>` | Rank candidates and choose a model. |
 | `which-model explain --last` | Show the evidence behind the latest pick. |
-| `which-model usage --all` | Report allowance for enabled providers. |
-| `which-model auth status` | Check credential availability without displaying secrets. |
+| `which-model usage --all` | Report allowance for enabled providers through CodexBar. |
 | `which-model config show` | Print the resolved configuration. |
 | `which-model schema pick` | Print the JSON Schema for automation. |
 

@@ -4,32 +4,45 @@ package whichmodel
 
 import "github.com/WD-Mitchell/which-model/internal/usage"
 
-// F27 provider registry adapters (usage build): validation and descriptor
-// surface for routes add/list/refresh (F11 registry).
-
-// providerExists reports whether id is a registered provider id.
-func providerExists(id string) bool {
-	_, err := usage.Get(id)
-	return err == nil
+var knownProviders = []routeProviderInfo{
+	{ID: "claude", Kind: usage.KindSubscription, Windows: []usage.WindowSpec{
+		{ID: "5h", Label: "5-hour session", Unit: usage.UnitPercent},
+		{ID: "weekly", Label: "Weekly", Unit: usage.UnitPercent},
+	}},
+	{ID: "codex", Kind: usage.KindSubscription, Windows: []usage.WindowSpec{
+		{ID: "session", Label: "Session", Unit: usage.UnitPercent},
+		{ID: "weekly", Label: "Weekly", Unit: usage.UnitPercent},
+	}},
+	{ID: "copilot", Kind: usage.KindSubscription, Windows: []usage.WindowSpec{
+		{ID: "monthly", Label: "Monthly", Unit: usage.UnitPercent},
+	}},
 }
 
-// providerIDs returns every registered provider id, sorted lexicographically.
-func providerIDs() []string { return usage.IDs() }
+func providerExists(id string) bool {
+	for _, provider := range knownProviders {
+		if provider.ID == id {
+			return true
+		}
+	}
+	return false
+}
 
-// routeProviderInfo is the F27 view of one registry descriptor needed by the
-// F18 production adapter (kind + window specs for routing.ProviderInput).
+func providerIDs() []string {
+	ids := make([]string, 0, len(knownProviders))
+	for _, provider := range knownProviders {
+		ids = append(ids, provider.ID)
+	}
+	return ids
+}
+
 type routeProviderInfo struct {
 	ID      string
 	Kind    usage.Kind
 	Windows []usage.WindowSpec
 }
 
-// routeProviders returns every registered provider descriptor.
 func routeProviders() []routeProviderInfo {
-	descs := usage.All()
-	out := make([]routeProviderInfo, 0, len(descs))
-	for _, d := range descs {
-		out = append(out, routeProviderInfo{ID: d.ID, Kind: d.Kind, Windows: d.Windows})
-	}
+	out := make([]routeProviderInfo, len(knownProviders))
+	copy(out, knownProviders)
 	return out
 }

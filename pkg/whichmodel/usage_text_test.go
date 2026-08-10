@@ -20,10 +20,10 @@ func TestFormatUsageTextGolden(t *testing.T) {
 			{ID: "credits", Label: "credits", Unit: usage.UnitCredits, Remaining: f64(340)},
 		}},
 	}}
-	want := "Claude usage allowance\n" +
+	want := "claude usage allowance\n" +
 		"- five hour: 25% used; 75% available; resets 2026-08-07T18:00:00Z\n" +
 		"- seven day: 41% used; 59% available\n\n" +
-		"Codex usage allowance\n" +
+		"codex usage allowance\n" +
 		"- primary window: 12% used; 88% available; resets 2026-08-08T00:00:00Z\n" +
 		"- credits: 340 remaining\n"
 	if got := FormatUsageText(report, false); got != want {
@@ -33,14 +33,14 @@ func TestFormatUsageTextGolden(t *testing.T) {
 
 func TestFormatUsageTextUnlimited(t *testing.T) {
 	report := &UsageReport{Snapshots: []usage.Snapshot{{Provider: "claude", Windows: []usage.Window{{Label: "chat", Unlimited: true}}}}}
-	if got := FormatUsageText(report, false); got != "Claude usage allowance\n- chat: unlimited\n" {
+	if got := FormatUsageText(report, false); got != "claude usage allowance\n- chat: unlimited\n" {
 		t.Fatalf("text = %q", got)
 	}
 }
 
 func TestFormatUsageTextRemainingAndTotal(t *testing.T) {
 	report := &UsageReport{Snapshots: []usage.Snapshot{{Provider: "claude", Windows: []usage.Window{{Label: "chat", Remaining: f64(1200), Limit: f64(4800)}}}}}
-	if got := FormatUsageText(report, false); got != "Claude usage allowance\n- chat: 1200 remaining; 4800 total\n" {
+	if got := FormatUsageText(report, false); got != "claude usage allowance\n- chat: 1200 remaining; 4800 total\n" {
 		t.Fatalf("text = %q", got)
 	}
 }
@@ -94,7 +94,9 @@ func TestRunUsageNoUsageConfig(t *testing.T) {
 func TestRunUsageTextRenderer(t *testing.T) {
 	old := fetchAllFunc
 	t.Cleanup(func() { fetchAllFunc = old })
-	fetchAllFunc = func(context.Context, FetchAllOptions) (*FetchResult, error) { return &FetchResult{Snapshots: []usage.Snapshot{{Provider: "claude"}}}, nil }
+	fetchAllFunc = func(context.Context, FetchAllOptions) (*FetchResult, error) {
+		return &FetchResult{Snapshots: []usage.Snapshot{{Provider: "claude"}}}, nil
+	}
 	var out, errOut strings.Builder
 	if err := RunUsage(UsageArgs{Providers: []string{"claude"}, JSON: false}, &out, &errOut); err != nil {
 		t.Fatal(err)

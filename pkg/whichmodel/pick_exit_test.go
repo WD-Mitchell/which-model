@@ -56,8 +56,8 @@ func TestPickExitAuthWins(t *testing.T) {
 	if ce.Code != "auth_required" {
 		t.Errorf("code = %q, want auth_required", ce.Code)
 	}
-	if ce.Message != "auth required; run which-model auth status" {
-		t.Errorf("message = %q, want %q", ce.Message, "auth required; run which-model auth status")
+	if ce.Message != "auth required; check CodexBar credentials" {
+		t.Errorf("message = %q, want %q", ce.Message, "auth required; check CodexBar credentials")
 	}
 	if ExitCodeFor(err) != 5 {
 		t.Errorf("exit = %d, want 5", ExitCodeFor(err))
