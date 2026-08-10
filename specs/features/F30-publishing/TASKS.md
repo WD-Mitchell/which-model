@@ -212,8 +212,7 @@ graph TD
      cancel-in-progress: false
    jobs:
      refresh:
-       runs-on:
-         group: WDM-Small
+       runs-on: ubuntu-latest
        timeout-minutes: 15
        strategy:
          fail-fast: false
