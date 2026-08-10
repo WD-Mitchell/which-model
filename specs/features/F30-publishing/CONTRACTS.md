@@ -134,7 +134,7 @@ which-model catalog workflow --check [--out PATH]
 | `catalog.publish.commit_message` | string | `"chore(data): refresh available model scores"` | commit `-m` |
 | `catalog.publish.pr_title` | string | `"chore(data): refresh available model scores"` | `gh pr create --title` |
 | `catalog.publish.pr_labels` | array[string] | `["data", "automated"]` | one `--label` each |
-| `catalog.raw_csv_path` | string | `"available_model_raw_values.csv"` | sole `git add` path |
+| `catalog.raw_csv_path` | string | `"available-model-data-export/available_model_raw_values.csv"` | sole `git add` path |
 
 ## 4. Generated workflow shape (golden)
 

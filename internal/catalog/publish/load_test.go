@@ -75,7 +75,7 @@ func TestLoadMissingSection(t *testing.T) {
 	if !reflect.DeepEqual(pc.PRLabels, DefaultPRLabels) {
 		t.Errorf("PRLabels = %v", pc.PRLabels)
 	}
-	if pc.RawCSVPath != "available_model_raw_values.csv" {
+	if pc.RawCSVPath != "available-model-data-export/available_model_raw_values.csv" {
 		t.Errorf("raw artifact path = %q", pc.RawCSVPath)
 	}
 }

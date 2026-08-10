@@ -9,7 +9,7 @@ project: which-model
 
 ## Purpose
 
-The deterministic generator `which-model catalog workflow --write|--check` renders `.github/workflows/refresh-model-data.yml` from `[catalog.publish]`. The generated Action invokes the standalone `scripts/refresh-model-data.py`, which discovers every models.dev provider and the union of every models.dev benchmark plus every supported Artificial Analysis benchmark, without checked-in provider or benchmark configuration, and updates only `available_model_raw_values.csv`. It never builds or invokes the Go application and never runs project tests.
+The deterministic generator `which-model catalog workflow --write|--check` renders `.github/workflows/refresh-model-data.yml` from `[catalog.publish]`. The generated Action invokes the standalone `scripts/refresh-model-data.py`, which discovers every models.dev provider and the union of every models.dev benchmark plus every supported Artificial Analysis benchmark, without checked-in provider or benchmark configuration, and updates only `available-model-data-export/available_model_raw_values.csv`. It never builds or invokes the Go application and never runs project tests.
 
 ## Behaviour
 
@@ -35,7 +35,7 @@ The deterministic generator `which-model catalog workflow --write|--check` rende
    | `pr_title` | `"chore(data): refresh available model scores"` |
    | `pr_labels` | `["data", "automated"]` |
 
-   F30 also reads `[catalog].raw_csv_path` (blank → `available_model_raw_values.csv`) as the sole `git add` path in the generated workflow.
+   F30 also reads `[catalog].raw_csv_path` (blank → `available-model-data-export/available_model_raw_values.csv`) as the sole `git add` path in the generated workflow.
 
 3. **Validation** (all errors are typed, mapped to exit `2`):
    - `schedule`: exactly 5 whitespace-separated fields (minute, hour, day-of-month, month, day-of-week). Per-field tokens: `*`, single number, `A-B` range, `*/N` step, `A-B/N`, or comma-lists of those. Bounds: minute 0–59, hour 0–23, day-of-month 1–31, month 1–12, day-of-week 0–6; month/day-of-week also accept the 3-letter English names (case-insensitive) as single tokens or list elements (`JAN`..`DEC`, `SUN`..`SAT`), never inside ranges/steps. Reject: 6-field (seconds) crons, `@`-keywords (`@daily`, `@hourly`, …), empty fields, out-of-bounds numbers, names in ranges/steps. Decision recorded in `## Decisions` (grammar is the GitHub Actions documented subset).
@@ -109,7 +109,7 @@ The deterministic generator `which-model catalog workflow --write|--check` rende
 | `auto_merge` / `merge_method` in `direct-push` mode | Validated for type/enum, then ignored (no error) | annex-b §8.1 says auto_merge is "pull-request mode only"; ignoring keeps configs toggle-friendly |
 | `mode` selection | Per invocation, never per branch | annex-b §8.4 verbatim |
 | Empty `branches = []` | Validation error, exit 2 | An explicit empty list is ambiguous; default only applies when the key is absent |
-| Artifact path in `git add` | From `[catalog].raw_csv_path`, defaulting to `available_model_raw_values.csv` | The master refresh publishes raw source values only |
+| Artifact path in `git add` | From `[catalog].raw_csv_path`, defaulting to `available-model-data-export/available_model_raw_values.csv` | The master refresh publishes the checked-in raw source values |
 | Repo-root resolution | `--out` wins; else nearest `.git` ancestor of cwd | Annex-d §2.3 `--out` default; self-contained |
 | `gh pr merge --auto` | Emitted when `auto_merge`; merge method verbatim | Branch protection respected via GitHub auto-merge (annex-b §8.4) |
 | Outcome vocabulary | `published` / `skipped-no-changes` / `failed` in `GITHUB_STEP_SUMMARY` | annex-b §8.3 per-branch outcome reporting |
