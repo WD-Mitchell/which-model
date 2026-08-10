@@ -12,7 +12,7 @@ set -euo pipefail
 
 MANAGER="${1:-npm}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PLATFORM_DIR="$(node -p '`${process.platform}-${process.arch}`')"
+PLATFORM_DIR="$(node -p '`${process.platform === "win32" ? "windows" : process.platform}-${process.arch}`')"
 BIN_NAME="which-model"
 [ "$(node -p 'process.platform')" = "win32" ] && BIN_NAME="which-model.exe"
 
@@ -20,9 +20,9 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 echo "==> building host binary"
-CGO_ENABLED=0 go build -trimpath -o "$ROOT/npm/wdm-uk-${PLATFORM_DIR}/${BIN_NAME}" ./cmd/which-model
-chmod +x "$ROOT/npm/wdm-uk-${PLATFORM_DIR}/${BIN_NAME}"
-cleanup_binary() { rm -f "$ROOT/npm/wdm-uk-${PLATFORM_DIR}/${BIN_NAME}"; }
+CGO_ENABLED=0 go build -trimpath -o "$ROOT/npm/which-model-${PLATFORM_DIR}/${BIN_NAME}" ./cmd/which-model
+chmod +x "$ROOT/npm/which-model-${PLATFORM_DIR}/${BIN_NAME}"
+cleanup_binary() { rm -f "$ROOT/npm/which-model-${PLATFORM_DIR}/${BIN_NAME}"; }
 trap 'cleanup_binary; rm -rf "$WORK"' EXIT
 
 echo "==> stamping versions"
@@ -31,8 +31,10 @@ node "$ROOT/npm/scripts/sync-version.js" 0.0.0-smoke
 trap 'node "$ROOT/npm/scripts/sync-version.js" "$SAVED_VERSION" >/dev/null 2>&1; cleanup_binary; rm -rf "$WORK"' EXIT
 
 echo "==> packing"
-(cd "$ROOT/npm/wdm-uk-${PLATFORM_DIR}" && npm pack --pack-destination "$WORK" >/dev/null)
+(cd "$ROOT/npm/which-model-${PLATFORM_DIR}" && npm pack --pack-destination "$WORK" >/dev/null)
 (cd "$ROOT/npm/which-model" && npm pack --pack-destination "$WORK" >/dev/null)
+PLATFORM_TGZ="$WORK/wdm-uk-which-model-${PLATFORM_DIR}-0.0.0-smoke.tgz"
+LAUNCHER_TGZ="$WORK/wdm-uk-which-model-0.0.0-smoke.tgz"
 
 echo "==> installing with $MANAGER"
 cd "$WORK"
@@ -40,14 +42,14 @@ mkdir project && cd project
 case "$MANAGER" in
   npm)
     npm init -y >/dev/null
-    npm install "$WORK"/wdm-uk-"${PLATFORM_DIR}"-*.tgz "$WORK"/wdm-uk-which-model-*.tgz >/dev/null
+    npm install "$PLATFORM_TGZ" "$LAUNCHER_TGZ" >/dev/null
     ;;
   pnpm)
     pnpm init >/dev/null 2>&1 || true
     # pnpm >= 10 exits 1 with ERR_PNPM_IGNORED_BUILDS when a dependency's
     # lifecycle scripts are not pre-approved; the install itself succeeds.
     set +e
-    pnpm_out="$(pnpm add "$WORK"/wdm-uk-"${PLATFORM_DIR}"-*.tgz "$WORK"/wdm-uk-which-model-*.tgz 2>&1)"
+    pnpm_out="$(pnpm add "$PLATFORM_TGZ" "$LAUNCHER_TGZ" 2>&1)"
     pnpm_status=$?
     set -e
     if [ "$pnpm_status" -ne 0 ] && ! echo "$pnpm_out" | grep -q "ERR_PNPM_IGNORED_BUILDS"; then
@@ -58,7 +60,7 @@ case "$MANAGER" in
     ;;
   bun)
     bun init -y >/dev/null
-    bun add "$WORK"/wdm-uk-"${PLATFORM_DIR}"-*.tgz "$WORK"/wdm-uk-which-model-*.tgz >/dev/null
+    bun add "$PLATFORM_TGZ" "$LAUNCHER_TGZ" >/dev/null
     ;;
   *) echo "unknown package manager: $MANAGER" >&2; exit 2 ;;
 esac

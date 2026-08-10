@@ -16,8 +16,9 @@ allowance into a ranked, explainable recommendation.
 ## How it works
 
 This package is a launcher. The real binary ships in a platform-specific
-optional dependency (`@wdm-uk/darwin-arm64`, `@wdm-uk/darwin-x64`,
-`@wdm-uk/linux-arm64`, `@wdm-uk/linux-x64`, `@wdm-uk/windows-x64`); your
+optional dependency (`@wdm-uk/which-model-darwin-arm64`,
+`@wdm-uk/which-model-darwin-x64`, `@wdm-uk/which-model-linux-arm64`,
+`@wdm-uk/which-model-linux-x64`, `@wdm-uk/which-model-windows-x64`); your
 package manager installs only the one matching your platform. If that fails,
 a postinstall fallback downloads the binary from the GitHub release.
 

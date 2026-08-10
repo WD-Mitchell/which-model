@@ -31,7 +31,7 @@ function main() {
   const launcherManifest = read(path.join(npmRoot, "which-model", "package.json"));
   const version = launcherManifest.version;
   const dirs = Object.keys(launcherManifest.optionalDependencies).map(
-    (name) => name.replace("@wdm-uk/", "wdm-uk-")
+    (name) => name.replace("@wdm-uk/", "")
   );
 
   for (const dir of dirs) {
@@ -60,6 +60,10 @@ function main() {
 
 function publish(dir, version) {
   const name = read(path.join(dir, "package.json")).name;
+  if (!DRY_RUN && versionExists(name, version)) {
+    console.log(`skipping ${name}@${version} (already published)`);
+    return;
+  }
   console.log(`${DRY_RUN ? "[dry-run] would publish" : "publishing"} ${name}@${version} from ${dir}`);
   const args = ["publish", "--access", "public"];
   if (DRY_RUN) args.push("--dry-run");
@@ -68,6 +72,16 @@ function publish(dir, version) {
     console.error(`npm publish failed for ${name} (exit ${res.status})`);
     process.exit(res.status || 1);
   }
+}
+
+// versionExists reports whether name@version is already on the registry, so
+// an interrupted multi-package release can be re-run safely.
+function versionExists(name, version) {
+  const res = spawnSync("npm", ["view", `${name}@${version}`, "version"], {
+    encoding: "utf8",
+    env: process.env,
+  });
+  return res.status === 0 && res.stdout.includes(version);
 }
 
 function read(p) {

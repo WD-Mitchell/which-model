@@ -1,7 +1,7 @@
 {
-  "name": "@wdm-uk/linux-x64",
-  "version": "0.1.0",
-  "description": "linux/x64 binary for @wdm-uk/which-model",
+  "name": "@wdm-uk/which-model-windows-x64",
+  "version": "0.1.1",
+  "description": "win32/x64 binary for @wdm-uk/which-model",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/WD-Mitchell/which-model.git"
@@ -9,12 +9,12 @@
   "license": "MIT",
   "preferUnplugged": true,
   "os": [
-    "linux"
+    "win32"
   ],
   "cpu": [
     "x64"
   ],
   "files": [
-    "which-model"
+    "which-model.exe"
   ]
 }

@@ -3,7 +3,7 @@
 // Postinstall fallback for @wdm-uk/which-model.
 //
 // Normal installs get the binary from the platform-specific optional
-// dependency (e.g. @wdm-uk/darwin-arm64). When that package could not be
+// dependency (e.g. @wdm-uk/which-model-darwin-arm64). When that package could not be
 // installed — a registry mirror without optional dependencies, an offline
 // cache that omits it, or a platform filter — this script downloads the
 // matching binary from the GitHub releases of WD-Mitchell/which-model.
@@ -24,9 +24,8 @@ const VERSION = require("./package.json").version;
 const NODE_OS = process.platform === "win32" ? "windows" : process.platform;
 const PLATFORM = { darwin: "darwin", linux: "linux", windows: "windows" }[NODE_OS];
 const ARCH = { arm64: "arm64", x64: "x64" }[process.arch];
-
 function main() {
-  const name = `@wdm-uk/${NODE_OS}-${process.arch}`;
+  const name = `@wdm-uk/which-model-${NODE_OS}-${process.arch}`;
   const binName = process.platform === "win32" ? "which-model.exe" : "which-model";
 
   // Already satisfied by the optional dependency?

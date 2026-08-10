@@ -1,6 +1,6 @@
 {
   "name": "@wdm-uk/which-model",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Choose the right AI model for the task: ranked, explainable model recommendations with cost, speed, task fit, and provider allowance.",
   "keywords": [
     "ai",
@@ -30,11 +30,11 @@
     "postinstall": "node install.js"
   },
   "optionalDependencies": {
-    "@wdm-uk/darwin-arm64": "0.1.0",
-    "@wdm-uk/darwin-x64": "0.1.0",
-    "@wdm-uk/linux-arm64": "0.1.0",
-    "@wdm-uk/linux-x64": "0.1.0",
-    "@wdm-uk/windows-x64": "0.1.0"
+    "@wdm-uk/which-model-darwin-arm64": "0.1.1",
+    "@wdm-uk/which-model-darwin-x64": "0.1.1",
+    "@wdm-uk/which-model-linux-arm64": "0.1.1",
+    "@wdm-uk/which-model-linux-x64": "0.1.1",
+    "@wdm-uk/which-model-windows-x64": "0.1.1"
   },
   "files": [
     "bin.js",

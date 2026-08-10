@@ -21,4 +21,4 @@ __pycache__/
 
 # Release artifacts (npm packaging)
 /dist/
-npm/wdm-uk-*/which-model
+npm/which-model-*/which-model

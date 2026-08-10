@@ -18,9 +18,9 @@ const BINARY_NAME = WINDOWS ? "which-model.exe" : "which-model";
 
 function platformPackage() {
   // Node's process.platform is "win32" on Windows, but the package names use
-  // the conventional "windows" spelling (e.g. @wdm-uk/windows-x64).
+  // the conventional "windows" spelling (e.g. @wdm-uk/which-model-windows-x64).
   const os = WINDOWS ? "windows" : process.platform;
-  return `@wdm-uk/${os}-${process.arch}`;
+  return `@wdm-uk/which-model-${os}-${process.arch}`;
 }
 
 function resolveBinaryFromPackage(name) {
