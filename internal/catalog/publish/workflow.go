@@ -97,7 +97,8 @@ func Render(pc *PublishConfig) ([]byte, error) {
 		for _, l := range pc.PRLabels {
 			labels += " --label " + l
 		}
-		fmt.Fprintf(&b, "        run: gh pr create --base \"${{ matrix.branch }}\" --title %q%s\n", pc.PRTitle, labels)
+		fmt.Fprintf(&b, "        run: >-\n")
+		fmt.Fprintf(&b, "          gh pr create --base \"${{ matrix.branch }}\" --title %q%s\n", pc.PRTitle, labels)
 		fmt.Fprintf(&b, "        env:\n")
 		fmt.Fprintf(&b, "          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n")
 		if pc.AutoMerge {
