@@ -86,7 +86,7 @@ jobs:
           cp dist/which-model-linux-arm64       npm/wdm-uk-linux-arm64/which-model
           cp dist/which-model-linux-x64         npm/wdm-uk-linux-x64/which-model
           cp dist/which-model-windows-x64.exe   npm/wdm-uk-windows-x64/which-model.exe
-          chmod +x npm/wdm-uk-*/which-model
+          chmod +x npm/wdm-uk-darwin-arm64/which-model npm/wdm-uk-darwin-x64/which-model npm/wdm-uk-linux-arm64/which-model npm/wdm-uk-linux-x64/which-model
       - name: Stamp versions
         run: node npm/scripts/sync-version.js "${GITHUB_REF_NAME#v}"
       - name: Publish (npm Trusted Publishing)
