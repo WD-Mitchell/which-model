@@ -22,18 +22,12 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ matrix.branch }}
-      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
-        with:
-          go-version-file: go.mod
-          cache: true
-      - run: go build -o which-model ./cmd/which-model
-      - run: go test ./internal/catalog/... ./internal/pick/... ./internal/routing/...
-      - run: ./which-model catalog refresh
+      - run: python3 scripts/refresh-model-data.py
         env:
           ARTIFICIAL_ANALYSIS_API: ${{ secrets.ARTIFICIAL_ANALYSIS_API }}
       - id: changes
         run: |
-          git add -- available_model_raw_values.csv available_model_scores.csv
+          git add -- available_model_raw_values.csv
           git diff --cached --quiet || echo "changed=true" >> "$GITHUB_OUTPUT"
       - if: steps.changes.outputs.changed == 'true'
         run: |

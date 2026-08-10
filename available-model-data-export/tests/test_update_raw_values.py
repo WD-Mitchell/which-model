@@ -2030,7 +2030,7 @@ class UpdateAvailableModelRawValuesTests(unittest.TestCase):
             update.call_args.kwargs["providers"], ["openai", "github-copilot"]
         )
 
-    def test_cli_config_flag_and_workflow_use_only_aa_secret(self) -> None:
+    def test_cli_config_flags_remain_local_and_master_workflow_is_config_free(self) -> None:
         args = updater.parse_args(
             [
                 "--benchmark-config",
@@ -2042,9 +2042,12 @@ class UpdateAvailableModelRawValuesTests(unittest.TestCase):
         self.assertEqual(args.benchmark_config, Path("bench.toml"))
         self.assertEqual(args.provider_config, Path("providers-custom.toml"))
         workflow = (
-            REPOSITORY_ROOT / ".github/workflows/update-available-model-data.yml"
+            REPOSITORY_ROOT.parent / ".github/workflows/refresh-model-data.yml"
         ).read_text(encoding="utf-8")
         self.assertIn("ARTIFICIAL_ANALYSIS_API", workflow)
+        self.assertIn("python3 scripts/refresh-model-data.py", workflow)
+        self.assertNotIn("--benchmark-config", workflow)
+        self.assertNotIn("--provider-config", workflow)
         self.assertNotIn("COPILOT", workflow.upper())
         self.assertNotIn("OPENAI_API_KEY", workflow)
         self.assertNotIn("ANTHROPIC_API_KEY", workflow)
