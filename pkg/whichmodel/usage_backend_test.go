@@ -4,12 +4,14 @@ package whichmodel
 
 import (
 	"context"
-	"github.com/WD-Mitchell/which-model/internal/config"
-	"github.com/WD-Mitchell/which-model/internal/usage"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/WD-Mitchell/which-model/internal/config"
+	"github.com/WD-Mitchell/which-model/internal/usage"
 )
 
 func TestMain(m *testing.M) {
@@ -21,11 +23,11 @@ func TestMain(m *testing.M) {
 	if err := os.Setenv("HOME", home); err != nil {
 		panic(err)
 	}
-	configDir := filepath.Join(home, "Library", "Application Support", "which-model")
-	if err := os.MkdirAll(configDir, 0o700); err != nil {
+	configPath := config.ResolvePaths(runtime.GOOS, home, os.Getenv).UserConfigFile
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o700); err != nil {
 		panic(err)
 	}
-	if err := os.WriteFile(filepath.Join(configDir, "config.toml"), []byte("[usage]\nbackend = \"native\"\n"), 0o600); err != nil {
+	if err := os.WriteFile(configPath, []byte("[usage]\nbackend = \"native\"\n"), 0o600); err != nil {
 		panic(err)
 	}
 	os.Exit(m.Run())
