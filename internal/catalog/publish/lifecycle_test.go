@@ -100,10 +100,16 @@ func TestOutcomeReportStep(t *testing.T) {
 	if !strings.Contains(s, "- name: Report per-branch outcome\n        if: always()") {
 		t.Errorf("outcome step missing or missing if: always():\n%s", s)
 	}
-	for _, vocab := range []string{"published", "skipped-no-changes", "failed"} {
+	for _, vocab := range []string{"auto-merge-enabled", "skipped-no-changes", "failed"} {
 		if !strings.Contains(s, vocab) {
 			t.Errorf("outcome vocabulary %q missing", vocab)
 		}
+	}
+	if strings.Contains(s, `echo "refresh branch ${{ matrix.branch }}: published"`) {
+		t.Error("pull-request mode must not report a deferred auto-merge as published")
+	}
+	if !strings.Contains(s, `steps.merge.outcome`) {
+		t.Error("pull-request outcome must depend on the merge-request step")
 	}
 	trimmed := strings.TrimRight(s, "\n")
 	if !strings.HasSuffix(trimmed, "fi") {

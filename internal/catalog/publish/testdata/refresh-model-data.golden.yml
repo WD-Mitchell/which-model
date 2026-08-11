@@ -14,6 +14,7 @@ jobs:
   refresh:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    environment: "CSV Update"
     strategy:
       fail-fast: false
       matrix:
@@ -22,6 +23,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ matrix.branch }}
+          token: ${{ secrets.CSV_UPDATE_TOKEN || github.token }}
       - run: python3 scripts/refresh-model-data.py
         env:
           ARTIFICIAL_ANALYSIS_API: ${{ secrets.ARTIFICIAL_ANALYSIS_API }}
@@ -39,18 +41,27 @@ jobs:
           git push origin "HEAD:refs/heads/${head_branch}"
           gh pr create --base "${{ matrix.branch }}" --head "${head_branch}" --title "chore(data): refresh available model scores" --body "Automated catalog refresh." --label data --label automated
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.CSV_UPDATE_TOKEN || github.token }}
       - if: steps.changes.outputs.changed == 'true'
+        run: |
+          if [ -n "$CSV_UPDATE_TOKEN" ]; then
+            gh pr review --approve "refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CSV_UPDATE_TOKEN: ${{ secrets.CSV_UPDATE_TOKEN }}
+      - id: merge
+        if: steps.changes.outputs.changed == 'true'
         run: gh pr merge --auto --squash "refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}"
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
       - name: Report per-branch outcome
         if: always()
         run: |
           if [ "${{ steps.changes.outcome }}" = "success" ] && [ "${{ steps.changes.outputs.changed }}" != "true" ]; then
             echo "refresh branch ${{ matrix.branch }}: skipped-no-changes" >> "$GITHUB_STEP_SUMMARY"
-          elif [ "${{ steps.changes.outcome }}" = "success" ]; then
-            echo "refresh branch ${{ matrix.branch }}: published" >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${{ steps.merge.outcome }}" = "success" ]; then
+            echo "refresh branch ${{ matrix.branch }}: auto-merge-enabled" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "refresh branch ${{ matrix.branch }}: failed" >> "$GITHUB_STEP_SUMMARY"
           fi

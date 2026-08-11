@@ -61,6 +61,9 @@ func Render(pc *PublishConfig) ([]byte, error) {
 	fmt.Fprintf(&b, "  refresh:\n")
 	fmt.Fprintf(&b, "    runs-on: ubuntu-latest\n")
 	fmt.Fprintf(&b, "    timeout-minutes: 15\n")
+	if pc.Environment != "" {
+		fmt.Fprintf(&b, "    environment: %q\n", pc.Environment)
+	}
 	fmt.Fprintf(&b, "    strategy:\n")
 	fmt.Fprintf(&b, "      fail-fast: false\n")
 	fmt.Fprintf(&b, "      matrix:\n")
@@ -69,6 +72,7 @@ func Render(pc *PublishConfig) ([]byte, error) {
 	fmt.Fprintf(&b, "      - uses: actions/checkout@%s # v6.0.2\n", CheckoutPin)
 	fmt.Fprintf(&b, "        with:\n")
 	fmt.Fprintf(&b, "          ref: ${{ matrix.branch }}\n")
+	fmt.Fprintf(&b, "          token: ${{ secrets.CSV_UPDATE_TOKEN || github.token }}\n")
 	fmt.Fprintf(&b, "      - run: python3 scripts/refresh-model-data.py\n")
 	fmt.Fprintf(&b, "        env:\n")
 	fmt.Fprintf(&b, "          ARTIFICIAL_ANALYSIS_API: ${{ secrets.ARTIFICIAL_ANALYSIS_API }}\n")
@@ -81,7 +85,8 @@ func Render(pc *PublishConfig) ([]byte, error) {
 	fmt.Fprintf(&b, "          git -c user.name=\"github-actions[bot]\" -c user.email=\"github-actions[bot]@users.noreply.github.com\" \\\n")
 	fmt.Fprintf(&b, "            commit -m %q\n", pc.CommitMessage)
 	if pc.Mode == "direct-push" {
-		fmt.Fprintf(&b, "      - if: steps.changes.outputs.changed == 'true'\n")
+		fmt.Fprintf(&b, "      - id: publish\n")
+		fmt.Fprintf(&b, "        if: steps.changes.outputs.changed == 'true'\n")
 		fmt.Fprintf(&b, "        run: git push origin HEAD:${{ matrix.branch }}\n")
 	} else {
 		fmt.Fprintf(&b, "      - if: steps.changes.outputs.changed == 'true'\n")
@@ -94,12 +99,21 @@ func Render(pc *PublishConfig) ([]byte, error) {
 		fmt.Fprintf(&b, "          git push origin \"HEAD:refs/heads/${head_branch}\"\n")
 		fmt.Fprintf(&b, "          gh pr create --base \"${{ matrix.branch }}\" --head \"${head_branch}\" --title %q --body %q%s\n", pc.PRTitle, "Automated catalog refresh.", labels)
 		fmt.Fprintf(&b, "        env:\n")
-		fmt.Fprintf(&b, "          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n")
+		fmt.Fprintf(&b, "          GH_TOKEN: ${{ secrets.CSV_UPDATE_TOKEN || github.token }}\n")
 		if pc.AutoMerge {
 			fmt.Fprintf(&b, "      - if: steps.changes.outputs.changed == 'true'\n")
+			fmt.Fprintf(&b, "        run: |\n")
+			fmt.Fprintf(&b, "          if [ -n \"$CSV_UPDATE_TOKEN\" ]; then\n")
+			fmt.Fprintf(&b, "            gh pr review --approve \"refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}\"\n")
+			fmt.Fprintf(&b, "          fi\n")
+			fmt.Fprintf(&b, "        env:\n")
+			fmt.Fprintf(&b, "          GH_TOKEN: ${{ github.token }}\n")
+			fmt.Fprintf(&b, "          CSV_UPDATE_TOKEN: ${{ secrets.CSV_UPDATE_TOKEN }}\n")
+			fmt.Fprintf(&b, "      - id: merge\n")
+			fmt.Fprintf(&b, "        if: steps.changes.outputs.changed == 'true'\n")
 			fmt.Fprintf(&b, "        run: gh pr merge --auto --%s \"refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}\"\n", pc.MergeMethod)
 			fmt.Fprintf(&b, "        env:\n")
-			fmt.Fprintf(&b, "          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n")
+			fmt.Fprintf(&b, "          GH_TOKEN: ${{ github.token }}\n")
 		}
 	}
 	fmt.Fprintf(&b, "      - name: Report per-branch outcome\n")
@@ -107,8 +121,13 @@ func Render(pc *PublishConfig) ([]byte, error) {
 	fmt.Fprintf(&b, "        run: |\n")
 	fmt.Fprintf(&b, "          if [ \"${{ steps.changes.outcome }}\" = \"success\" ] && [ \"${{ steps.changes.outputs.changed }}\" != \"true\" ]; then\n")
 	fmt.Fprintf(&b, "            echo \"refresh branch ${{ matrix.branch }}: skipped-no-changes\" >> \"$GITHUB_STEP_SUMMARY\"\n")
-	fmt.Fprintf(&b, "          elif [ \"${{ steps.changes.outcome }}\" = \"success\" ]; then\n")
-	fmt.Fprintf(&b, "            echo \"refresh branch ${{ matrix.branch }}: published\" >> \"$GITHUB_STEP_SUMMARY\"\n")
+	if pc.Mode == "direct-push" {
+		fmt.Fprintf(&b, "          elif [ \"${{ steps.publish.outcome }}\" = \"success\" ]; then\n")
+		fmt.Fprintf(&b, "            echo \"refresh branch ${{ matrix.branch }}: published\" >> \"$GITHUB_STEP_SUMMARY\"\n")
+	} else {
+		fmt.Fprintf(&b, "          elif [ \"${{ steps.merge.outcome }}\" = \"success\" ]; then\n")
+		fmt.Fprintf(&b, "            echo \"refresh branch ${{ matrix.branch }}: auto-merge-enabled\" >> \"$GITHUB_STEP_SUMMARY\"\n")
+	}
 	fmt.Fprintf(&b, "          else\n")
 	fmt.Fprintf(&b, "            echo \"refresh branch ${{ matrix.branch }}: failed\" >> \"$GITHUB_STEP_SUMMARY\"\n")
 	fmt.Fprintf(&b, "          fi\n")

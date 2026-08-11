@@ -13,6 +13,7 @@ func TestPublishConfigZeroValue(t *testing.T) {
 	for name, v := range map[string]string{
 		"Schedule":      pc.Schedule,
 		"Timezone":      pc.Timezone,
+		"Environment":   pc.Environment,
 		"Mode":          pc.Mode,
 		"MergeMethod":   pc.MergeMethod,
 		"CommitMessage": pc.CommitMessage,
@@ -33,6 +34,7 @@ func TestPublishConfigRoundTrip(t *testing.T) {
 		Enabled:       true,
 		Schedule:      "15 8 * * MON",
 		Timezone:      "America/New_York",
+		Environment:   "csv-update",
 		Branches:      []string{"release", "canary"},
 		Mode:          "direct-push",
 		AutoMerge:     false,
@@ -43,6 +45,7 @@ func TestPublishConfigRoundTrip(t *testing.T) {
 		RawCSVPath:    "raw.csv",
 	}
 	if pc.Enabled != true || pc.Schedule != "15 8 * * MON" || pc.Timezone != "America/New_York" ||
+		pc.Environment != "csv-update" ||
 		!reflect.DeepEqual(pc.Branches, []string{"release", "canary"}) || pc.Mode != "direct-push" ||
 		pc.AutoMerge != false || pc.MergeMethod != "rebase" || pc.CommitMessage != "chore: refresh" ||
 		pc.PRTitle != "chore: refresh PR" || !reflect.DeepEqual(pc.PRLabels, []string{"data"}) ||

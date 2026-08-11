@@ -3,9 +3,13 @@ package publish
 import (
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/WD-Mitchell/which-model/internal/config"
 )
 
 type fakeCfg struct {
@@ -88,6 +92,7 @@ func TestLoadFullSection(t *testing.T) {
 				"enabled":        true,
 				"schedule":       "15 8 * * *",
 				"timezone":       "America/New_York",
+				"environment":    "csv-update",
 				"branches":       []any{"main", "release"},
 				"mode":           "pull-request",
 				"auto_merge":     true,
@@ -107,6 +112,7 @@ func TestLoadFullSection(t *testing.T) {
 		t.Fatalf("Load() error = %v", err)
 	}
 	if !pc.Enabled || pc.Schedule != "15 8 * * *" || pc.Timezone != "America/New_York" ||
+		pc.Environment != "csv-update" ||
 		!reflect.DeepEqual(pc.Branches, []string{"main", "release"}) || pc.Mode != "pull-request" ||
 		!pc.AutoMerge || pc.MergeMethod != "squash" || pc.CommitMessage != "chore: custom commit" ||
 		pc.PRTitle != "chore: custom PR" || !reflect.DeepEqual(pc.PRLabels, []string{"data", "automated"}) {
@@ -170,6 +176,37 @@ func TestLoadDirectPushValuesUsed(t *testing.T) {
 	}
 	if pc.Mode != "direct-push" || pc.AutoMerge {
 		t.Errorf("mode/auto_merge = %q/%v", pc.Mode, pc.AutoMerge)
+	}
+}
+
+func TestLoadRealConfigSnakeCase(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "which-model.toml")
+	body := `[catalog.publish]
+enabled = true
+schedule = "0 6 * * *"
+timezone = "Europe/London"
+environment = "csv-update"
+branches = ["main"]
+mode = "direct-push"
+auto_merge = false
+merge_method = "squash"
+commit_message = "chore(data): refresh available model scores"
+pr_title = "chore(data): refresh available model scores"
+pr_labels = ["data", "automated"]
+`
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	cfg := config.Default()
+	if err := cfg.DecodeFile(path); err != nil {
+		t.Fatalf("DecodeFile() error = %v", err)
+	}
+	pc, err := Load(cfg)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if pc.Mode != "direct-push" || pc.AutoMerge || pc.Environment != "csv-update" {
+		t.Errorf("mode/auto_merge/environment = %q/%v/%q, want direct-push/false/csv-update", pc.Mode, pc.AutoMerge, pc.Environment)
 	}
 }
 

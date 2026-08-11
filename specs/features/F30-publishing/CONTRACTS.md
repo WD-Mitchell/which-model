@@ -23,6 +23,7 @@ type PublishConfig struct {
     Enabled        bool
     Schedule       string
     Timezone       string
+    Environment    string // optional GitHub Actions environment name
     Branches       []string
     Mode           string // "pull-request" | "direct-push"
     AutoMerge      bool
@@ -127,6 +128,7 @@ which-model catalog workflow --check [--out PATH]
 | `catalog.publish.enabled` | bool | `true` | master switch (§8.6) |
 | `catalog.publish.schedule` | string | `"0 6 * * *"` | literal cron into `on.schedule` |
 | `catalog.publish.timezone` | string | `"Europe/London"` | comment on the cron line |
+| `catalog.publish.environment` | string | `""` | optional Actions environment attached to the refresh job |
 | `catalog.publish.branches` | array[string] | `["main"]` | listed order; explicit `[]` = error |
 | `catalog.publish.mode` | string | `"pull-request"` | `"pull-request"`\|`"direct-push"` |
 | `catalog.publish.auto_merge` | bool | `true` | pull-request mode only |
@@ -145,9 +147,9 @@ Full golden documents live in `specs/features/F30-publishing/TASKS.md` task F30-
 3. `permissions:` block per SPEC Decisions (mode-dependent).
 4. `concurrency.group: refresh-model-data`; `cancel-in-progress: false`.
 5. `jobs.refresh.strategy.matrix.branch` = `branches` in listed order; `fail-fast: false`.
-6. Steps: checkout (pinned `# v6.0.2`, `ref: ${{ matrix.branch }}`), `python3 scripts/refresh-model-data.py` with `ARTIFICIAL_ANALYSIS_API: ${{ secrets.ARTIFICIAL_ANALYSIS_API }}`, changes staging only the raw CSV, commit (bot identity), mode steps, outcome report. The standalone script selects all models.dev providers and the union of all models.dev and supported Artificial Analysis benchmarks. No Go setup, build, application invocation, or tests.
-7. Pull-request mode assigns `head_branch="refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}"`, pushes `HEAD:refs/heads/${head_branch}`, then runs `gh pr create --base "${{ matrix.branch }}" --head "${head_branch}" --title "<pr_title>" --body "Automated catalog refresh."` + one `--label <l>` per `pr_labels`; `gh pr merge --auto --<merge_method> "${head_branch}"` when `auto_merge`. PR commands use `GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}`. Direct-push mode uses `git push origin HEAD:${{ matrix.branch }}`.
-8. No `secrets.` reference other than `ARTIFICIAL_ANALYSIS_API` and `GITHUB_TOKEN`; no usage command anywhere.
+6. Optional non-empty `environment` is emitted at `jobs.refresh.environment`. Checkout and PR creation authenticate with `${{ secrets.CSV_UPDATE_TOKEN || github.token }}`; the standalone refresh uses `ARTIFICIAL_ANALYSIS_API`; changes stage only the raw CSV; no Go setup, build, application invocation, or tests.
+7. Pull-request mode assigns a unique head branch, creates a PAT-authored PR when `CSV_UPDATE_TOKEN` is configured, conditionally approves it with `github.token`, and enables auto-merge as step `id: merge`. Direct-push mode uses step `id: publish`.
+8. Outcome reporting keys off the relevant publish-step outcome: `auto-merge-enabled` for an accepted deferred merge request, `published` only for completed direct pushes, `skipped-no-changes`, or `failed`. No usage command or usage credential appears.
 9. Exactly one trailing `\n`; LF line endings.
 
 ## 5. Cross-feature references (pinned)

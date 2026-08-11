@@ -814,6 +814,7 @@ warn_on_stale_scores = true    # raw-CSV hash mismatch warning (§6.2a)
 enabled = true
 schedule = "0 6 * * *"         # cron; MUST be literal in generated workflow YAML
 timezone = "Europe/London"
+environment = ""               # optional GitHub Actions environment for scoped secrets
 branches = ["main"]            # PLURAL - one PR or push per branch
 mode = "pull-request"          # "pull-request" | "direct-push"
 auto_merge = true              # pull-request mode only
@@ -832,6 +833,7 @@ run_tests = true               # fail-closed gate before any commit
 | `warn_on_stale_scores` | enables/disables the §6.2a read-time staleness warning; does not affect whether the hash is written, only whether a mismatch is reported |
 | `enabled` | master switch for the generated Action (§8.5) |
 | `schedule` / `timezone` | literal cron and IANA timezone baked into the generated workflow's `on.schedule` (§8.2) |
+| `environment` | optional GitHub Actions environment attached to the refresh job; blank emits no `environment:` key |
 | `branches` | ordered list of target branches; one publish attempt per branch (§8.3) |
 | `mode` | `pull-request` or `direct-push` (§8.4) |
 | `auto_merge` | pull-request mode only — enables `gh pr merge --auto` after opening the PR |
@@ -851,15 +853,15 @@ GitHub Actions cannot read `on.schedule` from a config file at trigger time — 
 
 `branches` is processed in listed order, one publish attempt per branch:
 
-- A failure publishing to one branch MUST NOT abort the remaining branches — the workflow step continues through the full list and reports **per-branch outcome** (success/failure/skipped-no-changes) in the job summary, so an operator can see at a glance which of several release branches got the refreshed data.
-- Exactly one commit is produced from the single Collect-then-Derive run and applied to each branch independently (cherry-picked or re-committed per branch, whichever the implementation chooses — never a partial application where one branch gets the raw CSV update and another gets only the scores CSV update).
-- The commit-only-if-changed check (§8, "Staged-commit-only-if-changed" row) runs per branch, since a branch that already has current data legitimately produces no diff and MUST be reported as skipped, not failed.
+- A failure publishing to one branch MUST NOT abort the remaining branches. Reports say `published` only after direct push, `auto-merge-enabled` after GitHub accepts a deferred PR merge, `skipped-no-changes`, or `failed`.
+- Exactly one commit is produced from the refresh run and applied to each branch independently.
+- The commit-only-if-changed check runs per branch, since a branch that already has current data is skipped, not failed.
 
 ### 8.4 `pull-request` vs `direct-push` modes
 
 Both modes MUST be implemented; `mode` selects between them per invocation, not per branch.
 
-- **`pull-request`** (default): opens a PR against the target branch carrying the commit, labelled with `pr_labels`, titled `pr_title`. When `auto_merge` is true, immediately runs `gh pr merge --auto --<merge_method>` on the opened PR. `gh pr merge --auto` defers the actual merge to GitHub's own auto-merge machinery, so any branch protection rule on the target branch (required reviews, required status checks) is respected exactly as it would be for a human-opened PR — the Action never bypasses protection.
+- **`pull-request`** (default): opens a PR against the target branch carrying the commit. An optional environment-scoped `CSV_UPDATE_TOKEN` authenticates checkout, push, and PR creation so the PR event triggers required checks; `github.token` is a distinct identity that can approve that PAT-authored PR when repository Actions settings allow approvals. `gh pr merge --auto` then defers the merge until every protection rule passes. Without the optional token, authentication falls back to `github.token` for repositories that do not require this identity split.
 - **`direct-push`**: pushes the commit straight to the target branch with no PR. This is the escape hatch for a repo (or a branch within a multi-branch config) that has no branch protection configured and where the overhead of a PR-per-refresh is unwanted. It is deliberately unsafe on a protected branch — pushing directly to a branch requiring PRs will simply be rejected by GitHub, and that rejection is a normal per-branch failure under §8.3's isolation rule, not a special case.
 
 ### 8.5 The Action runs the equivalent of `--refresh`; usage is out of scope
@@ -875,6 +877,12 @@ When `[catalog.publish].enabled` is `false`, `catalog workflow --write` emits no
 ### 8.7 Illustrative generated workflow excerpt
 
 The following is representative **generated output** from `catalog workflow --write` against the example config in §8.1 — it is emitted by the renderer, never hand-maintained, and any manual edit to it is exactly the drift `--check` (§8.2) is built to catch:
+
+> **Correction (2026-08-11):** The historical excerpt below is superseded by
+> `specs/features/F30-publishing/TASKS.md` F30-T4 and its byte-checked golden
+> file. The current renderer uses the standalone Python refresh, optional
+> environment-scoped `CSV_UPDATE_TOKEN`, distinct approval identity, and
+> outcome-aware reporting.
 
 ```yaml
 # GENERATED by `which-model catalog workflow --write` from [catalog.publish] — do not hand-edit.

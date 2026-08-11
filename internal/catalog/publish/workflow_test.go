@@ -13,6 +13,7 @@ func GoldenPC() *PublishConfig {
 		Enabled:       true,
 		Schedule:      "0 6 * * *",
 		Timezone:      "Europe/London",
+		Environment:   "CSV Update",
 		Branches:      []string{"main", "release"},
 		Mode:          "pull-request",
 		AutoMerge:     true,
@@ -83,6 +84,25 @@ func TestRenderSingleBranch(t *testing.T) {
 	}
 	if !strings.Contains(string(out), "  cancel-in-progress: false\n") {
 		t.Error("cancel-in-progress missing")
+	}
+}
+
+func TestRenderEnvironmentOptional(t *testing.T) {
+	pc := GoldenPC()
+	out, err := Render(pc)
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	if !strings.Contains(string(out), "    environment: \"CSV Update\"\n") {
+		t.Errorf("configured environment missing: %s", out)
+	}
+	pc.Environment = ""
+	out, err = Render(pc)
+	if err != nil {
+		t.Fatalf("Render() without environment error = %v", err)
+	}
+	if strings.Contains(string(out), "\n    environment:") {
+		t.Errorf("empty environment rendered: %s", out)
 	}
 }
 
@@ -180,12 +200,17 @@ func TestRenderNoUsageNoExtraSecrets(t *testing.T) {
 	if got := strings.Count(s, "secrets.ARTIFICIAL_ANALYSIS_API"); got != 1 {
 		t.Errorf("secrets.ARTIFICIAL_ANALYSIS_API count = %d, want 1", got)
 	}
-	gt := strings.Count(s, "secrets.GITHUB_TOKEN")
-	if gt > 2 {
-		t.Errorf("secrets.GITHUB_TOKEN count = %d, want <= 2", gt)
+	if got := strings.Count(s, "secrets.CSV_UPDATE_TOKEN"); got != 3 {
+		t.Errorf("secrets.CSV_UPDATE_TOKEN count = %d, want 3", got)
 	}
-	if total := strings.Count(s, "secrets."); total != 1+gt {
-		t.Errorf("unexpected secrets.* references: total %d, ARTIFICIAL %d, GITHUB %d", total, 1, gt)
+	if strings.Contains(s, "secrets.GITHUB_TOKEN") {
+		t.Error("workflow must use github.token rather than the secrets alias")
+	}
+	if got := strings.Count(s, "github.token"); got != 4 {
+		t.Errorf("github.token count = %d, want 4", got)
+	}
+	if !strings.Contains(s, `gh pr review --approve "refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}"`) {
+		t.Error("admin-token path must approve the PAT-authored PR before enabling auto-merge")
 	}
 }
 
