@@ -679,6 +679,7 @@ schedule = "0 6 * * *"         # cron; rendered LITERALLY into the generated wor
                                 # on.schedule (GitHub Actions cannot read cron from a config
                                 # file at trigger time (§2.3a, §4.2)
 timezone = "Europe/London"     # schedule timezone recorded in the generated workflow
+environment = ""               # optional Actions environment; scope CSV_UPDATE_TOKEN here
 branches = ["main"]            # plural - one PR or direct push produced per branch, processed
                                 # in listed order; a failure on one never aborts the others
 mode = "pull-request"          # "pull-request" opens a PR per branch and enables auto-merge;

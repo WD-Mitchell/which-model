@@ -18,17 +18,18 @@ func (e *ValidationError) ExitCode() int { return 2 }
 // PublishConfig mirrors [catalog.publish] plus the raw CSV path staged by the
 // generated workflow.
 type PublishConfig struct {
-	Enabled       bool
-	Schedule      string
-	Timezone      string
-	Branches      []string
-	Mode          string // "pull-request" | "direct-push"
-	AutoMerge     bool
-	MergeMethod   string // "squash" | "merge" | "rebase"
-	CommitMessage string
-	PRTitle       string
-	PRLabels      []string
-	RawCSVPath    string // from [catalog].raw_csv_path; blank -> default
+	Enabled       bool     `toml:"enabled"`
+	Schedule      string   `toml:"schedule"`
+	Timezone      string   `toml:"timezone"`
+	Environment   string   `toml:"environment"`
+	Branches      []string `toml:"branches"`
+	Mode          string   `toml:"mode"` // "pull-request" | "direct-push"
+	AutoMerge     bool     `toml:"auto_merge"`
+	MergeMethod   string   `toml:"merge_method"` // "squash" | "merge" | "rebase"
+	CommitMessage string   `toml:"commit_message"`
+	PRTitle       string   `toml:"pr_title"`
+	PRLabels      []string `toml:"pr_labels"`
+	RawCSVPath    string   `toml:"-"` // from [catalog].raw_csv_path; blank -> default
 }
 
 // Defaults (annex-b §8.1; SPEC behaviour 2).

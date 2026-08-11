@@ -2,6 +2,7 @@
 enabled = true
 schedule = "0 6 * * *"
 timezone = "Europe/London"
+environment = "CSV Update"
 branches = ["main"]
 mode = "pull-request"
 auto_merge = true

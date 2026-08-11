@@ -50,15 +50,34 @@ jobs:
         with:
           name: release-assets
           path: dist
-      - name: Create release and upload bundles
+      - name: Create immutable release and upload bundles
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
-          else
-            gh release create "$GITHUB_REF_NAME" dist/* --generate-notes
+          release_is_draft="$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft 2>/dev/null || true)"
+          if [ "$release_is_draft" = "false" ]; then
+            release_assets="$(gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name')"
+            missing_assets=()
+            for asset in dist/*; do
+              asset_name="${asset##*/}"
+              if ! printf '%s\n' "$release_assets" | grep -Fxq "$asset_name"; then
+                missing_assets+=("$asset_name")
+              fi
+            done
+            if [ "${#missing_assets[@]}" -ne 0 ]; then
+              printf 'Release %s is immutable and missing assets: %s\n' \
+                "$GITHUB_REF_NAME" "${missing_assets[*]}" >&2
+              printf 'Publish a new version tag; immutable release assets cannot be repaired.\n' >&2
+              exit 1
+            fi
+            echo "Release $GITHUB_REF_NAME is already published with all expected assets."
+            exit 0
           fi
+          if [ -z "$release_is_draft" ]; then
+            gh release create "$GITHUB_REF_NAME" --draft --generate-notes --verify-tag
+          fi
+          gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          gh release edit "$GITHUB_REF_NAME" --draft=false --latest
 
   publish:
     needs: release

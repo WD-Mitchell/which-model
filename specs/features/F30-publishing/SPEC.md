@@ -27,6 +27,7 @@ The deterministic generator `which-model catalog workflow --write|--check` rende
    | `enabled` | `true` |
    | `schedule` | `"0 6 * * *"` |
    | `timezone` | `"Europe/London"` |
+   | `environment` | `""` (no GitHub Actions environment) |
    | `branches` | `["main"]` |
    | `mode` | `"pull-request"` |
    | `auto_merge` | `true` |
@@ -41,6 +42,7 @@ The deterministic generator `which-model catalog workflow --write|--check` rende
    - `schedule`: exactly 5 whitespace-separated fields (minute, hour, day-of-month, month, day-of-week). Per-field tokens: `*`, single number, `A-B` range, `*/N` step, `A-B/N`, or comma-lists of those. Bounds: minute 0–59, hour 0–23, day-of-month 1–31, month 1–12, day-of-week 0–6; month/day-of-week also accept the 3-letter English names (case-insensitive) as single tokens or list elements (`JAN`..`DEC`, `SUN`..`SAT`), never inside ranges/steps. Reject: 6-field (seconds) crons, `@`-keywords (`@daily`, `@hourly`, …), empty fields, out-of-bounds numbers, names in ranges/steps. Decision recorded in `## Decisions` (grammar is the GitHub Actions documented subset).
    - `mode`: exactly `"pull-request"` or `"direct-push"`.
    - `merge_method`: exactly `"squash"`, `"merge"`, or `"rebase"` (validated always; used only in `pull-request` mode).
+   - `environment`: optional string; when non-empty, rendered as the refresh job's GitHub Actions environment so environment-scoped secrets are available only to that job.
    - `auto_merge`: bool (used only in `pull-request` mode).
    - `branches`: non-empty after defaults; explicit `[]` → error `"catalog.publish.branches must not be empty"`.
    - `enabled`: bool.
@@ -51,14 +53,14 @@ The deterministic generator `which-model catalog workflow --write|--check` rende
    - `name: refresh-model-data`; `on.schedule` with literal cron + `# <timezone>, per [catalog.publish].schedule` comment; `workflow_dispatch: {}` unconditionally (annex-b §8.1 "workflow_dispatch kept unconditionally").
    - `permissions:` — mode-dependent least privilege (Decision): `pull-request` → `contents: write` + `pull-requests: write` (needed for `gh pr create`); `direct-push` → `contents: write` only.
    - `concurrency:` — group `refresh-model-data` constant (Decision: the §8.7 excerpt's `refresh-model-data-main` hardcodes the default branch; the constant name is branch-agnostic), `cancel-in-progress: false`.
-   - One job `refresh`: `runs-on: ubuntu-latest`, `timeout-minutes: 15`; `strategy.fail-fast: false` with `matrix.branch: [<branches in listed order>]` and comment `# from [catalog.publish].branches, listed order` (annex-b §8.3).
-   - Steps in order: pinned `actions/checkout`; `python3 scripts/refresh-model-data.py` with `env: ARTIFICIAL_ANALYSIS_API: ${{ secrets.ARTIFICIAL_ANALYSIS_API }}`; the `changes` step (`id: changes`, `git add -- <raw>` + the unchanged diff check); commit, publish, and outcome steps. The workflow contains no Go setup, build, test, `which-model` invocation, provider config, benchmark config, or scores CSV staging.
+   - One job `refresh`: `runs-on: ubuntu-latest`, `timeout-minutes: 15`; optional `environment: "<environment>"` when configured; `strategy.fail-fast: false` with `matrix.branch: [<branches in listed order>]` and comment `# from [catalog.publish].branches, listed order` (annex-b §8.3).
+   - Steps in order: pinned `actions/checkout`, using optional `CSV_UPDATE_TOKEN` with `github.token` fallback; `python3 scripts/refresh-model-data.py` with `env: ARTIFICIAL_ANALYSIS_API: ${{ secrets.ARTIFICIAL_ANALYSIS_API }}`; the `changes` step (`id: changes`, `git add -- <raw>` + the unchanged diff check); commit, publish, and outcome steps. The workflow contains no Go setup, build, test, `which-model` invocation, provider config, benchmark config, or scores CSV staging.
 
 5. **Publish modes** (annex-b §8.4; `mode` selects per invocation, not per branch):
-   - `pull-request`: assign the unique branch `head_branch="refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}"`, push the generated commit with `git push origin "HEAD:refs/heads/${head_branch}"`, then run `gh pr create --base "${{ matrix.branch }}" --head "${head_branch}" --title "<pr_title>" --body "Automated catalog refresh." --label <l1> --label <l2>…` (one `--label` per `pr_labels` entry) with `env: GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}`. The explicit pushed head and fixed body make invocation non-interactive. When `auto_merge` is true, immediately run `gh pr merge --auto --<merge_method> "${head_branch}"` (same env). `gh pr merge --auto` defers to GitHub's own auto-merge machinery — branch protection is respected.
-   - `direct-push`: `git push origin HEAD:${{ matrix.branch }}` (no PR steps, no auto-merge steps).
+   - `pull-request`: assign the unique branch `head_branch="refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}"`, push the generated commit, then create the PR using `${{ secrets.CSV_UPDATE_TOKEN || github.token }}`. When `CSV_UPDATE_TOKEN` is present, the PAT-authored PR is approved by `github.token`; this keeps the PAT repository-scoped while satisfying protected branches that require an approval. When `auto_merge` is true, run `gh pr merge --auto --<merge_method> "${head_branch}"` as step `id: merge`. Auto-merge still waits for every required status check.
+   - `direct-push`: `git push origin HEAD:${{ matrix.branch }}` as step `id: publish` (no PR or auto-merge steps).
    - Every publish step is gated on `if: steps.changes.outputs.changed == 'true'` (commit-only-if-changed, annex-b §8 "Staged-commit-only-if-changed" row).
-   - Per-branch isolation (annex-b §8.3): `fail-fast: false`; a failure on one branch never aborts the others; the final step (gated `if: always()`) reports each branch's outcome to `GITHUB_STEP_SUMMARY` with vocabulary `published` (success + changed), `skipped-no-changes` (success + no diff), or `failed` (any step failure).
+   - Per-branch isolation (annex-b §8.3): `fail-fast: false`; a failure on one branch never aborts the others. The final `if: always()` report emits `skipped-no-changes`; `auto-merge-enabled` only when the PR-mode merge request step succeeded; `published` only when the direct-push step succeeded; otherwise `failed`.
 
 6. **`enabled = false` lifecycle** (annex-b §8.6): `--write` emits no workflow file and REMOVES `.github/workflows/refresh-model-data.yml` if it exists (from a prior `--write`); `--check` passes (exit 0) iff the file is absent, and reports drift (exit 1) if a stale generated file is still present.
 
@@ -111,8 +113,8 @@ The deterministic generator `which-model catalog workflow --write|--check` rende
 | Empty `branches = []` | Validation error, exit 2 | An explicit empty list is ambiguous; default only applies when the key is absent |
 | Artifact path in `git add` | From `[catalog].raw_csv_path`, defaulting to `available-model-data-export/available_model_raw_values.csv` | The master refresh publishes the checked-in raw source values |
 | Repo-root resolution | `--out` wins; else nearest `.git` ancestor of cwd | Annex-d §2.3 `--out` default; self-contained |
-| `gh pr merge --auto` | Emitted when `auto_merge`; merge method verbatim | Branch protection respected via GitHub auto-merge (annex-b §8.4) |
-| Outcome vocabulary | `published` / `skipped-no-changes` / `failed` in `GITHUB_STEP_SUMMARY` | annex-b §8.3 per-branch outcome reporting |
+| `gh pr merge --auto` | Emitted as `id: merge` when `auto_merge`; merge method verbatim | Branch protection and required checks remain enforced; a configured PAT authors the PR and `github.token` supplies the distinct approval |
+| Outcome vocabulary | PR mode: `auto-merge-enabled`; direct-push: `published`; both: `skipped-no-changes` / `failed` | Never claim a deferred PR was already published; key the report to the actual mode step outcome |
 | Migration scope | Delete only the legacy workflow file; legacy Python scripts are other features' scope | annex-d §5 migration row; M6 clean cutover |
 
 ## Out of scope

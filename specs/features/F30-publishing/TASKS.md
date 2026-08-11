@@ -34,7 +34,7 @@ graph TD
 **Instructions:**
 1. Create `internal/catalog/publish/config.go`, `package publish`, with EXACTLY the `PublishConfig` struct, the default constants (`DefaultSchedule`, `DefaultTimezone`, `DefaultMode`, `DefaultMergeMethod`, `DefaultCommitMessage`, `DefaultPRTitle`), `DefaultBranches`, `DefaultPRLabels`, and the `UnmarshalKeyer` interface from CONTRACTS §1 (fields with doc comments). Do NOT implement `Load`/`Validate`/`ValidateCron` yet — declare only the type and defaults so the package compiles.
 2. Create `internal/catalog/publish/config_test.go`:
-   - Test 1 (compiles the struct): zero-value `PublishConfig{}` has all string fields empty and bool fields false; construct a populated one via struct literal and assert each field round-trips.
+   - Test 1 (compiles the struct): zero-value `PublishConfig{}` has all string fields, including `Environment`, empty and bool fields false; construct a populated one via struct literal and assert each field round-trips.
    - Test 2: default constants and slice vars have exactly the publishing values: `DefaultSchedule == "0 6 * * *"`, `DefaultTimezone == "Europe/London"`, `DefaultMode == "pull-request"`, `DefaultMergeMethod == "squash"`, `DefaultCommitMessage == "chore(data): refresh available model scores"`, `DefaultPRTitle` same string, `DefaultBranches == ["main"]`, `DefaultPRLabels == ["data","automated"]`.
    - Test 3: `NewDefaults()` returns slices that do NOT alias `DefaultBranches`/`DefaultPRLabels` (mutating the result's `Branches` does not change `DefaultBranches`).
 
@@ -208,6 +208,7 @@ graph TD
      refresh:
        runs-on: ubuntu-latest
        timeout-minutes: 15
+       environment: "CSV Update"
        strategy:
          fail-fast: false
          matrix:
@@ -216,6 +217,7 @@ graph TD
          - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
            with:
              ref: ${{ matrix.branch }}
+             token: ${{ secrets.CSV_UPDATE_TOKEN || github.token }}
          - run: python3 scripts/refresh-model-data.py
            env:
              ARTIFICIAL_ANALYSIS_API: ${{ secrets.ARTIFICIAL_ANALYSIS_API }}
@@ -233,26 +235,35 @@ graph TD
              git push origin "HEAD:refs/heads/${head_branch}"
              gh pr create --base "${{ matrix.branch }}" --head "${head_branch}" --title "chore(data): refresh available model scores" --body "Automated catalog refresh." --label data --label automated
            env:
-             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+             GH_TOKEN: ${{ secrets.CSV_UPDATE_TOKEN || github.token }}
          - if: steps.changes.outputs.changed == 'true'
+           run: |
+             if [ -n "$CSV_UPDATE_TOKEN" ]; then
+               gh pr review --approve "refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}"
+             fi
+           env:
+             GH_TOKEN: ${{ github.token }}
+             CSV_UPDATE_TOKEN: ${{ secrets.CSV_UPDATE_TOKEN }}
+         - id: merge
+           if: steps.changes.outputs.changed == 'true'
            run: gh pr merge --auto --squash "refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}"
            env:
-             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+             GH_TOKEN: ${{ github.token }}
          - name: Report per-branch outcome
            if: always()
            run: |
              if [ "${{ steps.changes.outcome }}" = "success" ] && [ "${{ steps.changes.outputs.changed }}" != "true" ]; then
                echo "refresh branch ${{ matrix.branch }}: skipped-no-changes" >> "$GITHUB_STEP_SUMMARY"
-             elif [ "${{ steps.changes.outcome }}" = "success" ]; then
-               echo "refresh branch ${{ matrix.branch }}: published" >> "$GITHUB_STEP_SUMMARY"
+             elif [ "${{ steps.merge.outcome }}" = "success" ]; then
+               echo "refresh branch ${{ matrix.branch }}: auto-merge-enabled" >> "$GITHUB_STEP_SUMMARY"
              else
                echo "refresh branch ${{ matrix.branch }}: failed" >> "$GITHUB_STEP_SUMMARY"
              fi
    ```
-   Substitutions (all else verbatim): cron line comment uses `pc.Timezone`; `matrix.branch` list = `["` + `pc.Branches` joined `", "` + `"]` (values quoted, listed order); `git add --` path = `pc.RawCSVPath`; commit `-m` = `pc.CommitMessage`; `--title "…"` = `pc.PRTitle`; one `--label <l>` per `pc.PRLabels`; `--<merge_method>` = `pc.MergeMethod`. Mode-dependent sections:
-   - `direct-push`: `permissions:` block has ONLY `contents: write` (no `pull-requests: write`); the two `gh pr *` steps are replaced by exactly one step `- if: steps.changes.outputs.changed == 'true'` / `run: git push origin HEAD:${{ matrix.branch }}` (no GH_TOKEN env).
-   - The workflow never emits Go setup, build, tests, a `which-model` invocation, or a scores CSV path.
-   - The outcome-report step is ALWAYS emitted, last.
+   Substitutions (all else verbatim): cron line comment uses `pc.Timezone`; non-empty `pc.Environment` emits the quoted job-level `environment`; `matrix.branch` list = `["` + `pc.Branches` joined `", "` + `"]` (values quoted, listed order); `git add --` path = `pc.RawCSVPath`; commit `-m` = `pc.CommitMessage`; `--title "…"` = `pc.PRTitle`; one `--label <l>` per `pc.PRLabels`; `--<merge_method>` = `pc.MergeMethod`. Mode-dependent sections:
+   - `direct-push`: `permissions:` has only `contents: write`; PR steps become one `id: publish` push step; its successful report vocabulary is `published`.
+   - `pull-request`: optional `CSV_UPDATE_TOKEN` authenticates checkout, push, and PR creation; `github.token` approves the PAT-authored PR and enables auto-merge. Successful merge-request reporting is `auto-merge-enabled`, never `published`.
+   - The workflow never emits Go setup, build, tests, a `which-model` invocation, or a scores CSV path. The outcome-report step is always emitted last and keys success to `steps.publish.outcome` or `steps.merge.outcome`.
 4. Write the golden file `testdata/refresh-model-data.golden.yml` = the exact template output above (byte-for-byte; the test compares `Render` output to it).
 5. Create `internal/catalog/publish/workflow_test.go`:
    - build a `pc` helper returning the golden config (`GoldenPC()` in the test file);
@@ -264,7 +275,7 @@ graph TD
    - Test 6: standalone refresh step present; Go setup/build/tests/application invocation and scores CSV absent.
    - Test 7: `AutoMerge:false` → contains `gh pr create`; NOT contains `gh pr merge`.
    - Test 8: `Enabled:false` → `Render` returns nil, nil.
-   - Test 9: usage exclusion — output NOT contains `usage refresh`, `--refresh-usage`, `usage list`; secrets — `secrets.ARTIFICIAL_ANALYSIS_API` appears exactly once, `secrets.GITHUB_TOKEN` at most twice, no other `secrets.` reference.
+   - Test 9: usage exclusion — output NOT contains `usage refresh`, `--refresh-usage`, `usage list`; secrets — `ARTIFICIAL_ANALYSIS_API` once, optional `CSV_UPDATE_TOKEN` references only in checkout/PR authentication and approval gating, and `github.token` for approval/merge.
    - Test 10: pin — output contains `actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2`.
    - Test 11: `pr_labels = ["a","b"]` → two `--label` flags in order; empty `pr_labels` → `gh pr create` line has no `--label` at all.
    - Test 12: `RepoRoot()` in a temp dir with `.git/` (create dir; `t.Chdir` it) returns the temp dir; without `.git` ancestor → error.
