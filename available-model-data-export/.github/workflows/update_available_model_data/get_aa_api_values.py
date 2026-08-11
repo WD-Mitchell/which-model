@@ -428,26 +428,63 @@ def match_provider_models(
         counts[provider] = len(models)
         unmatched: list[str] = []
         for model in sorted(models, key=lambda model: (_provider_keys(model), model.model_id)):
-            matches = {family_by_key[key] for key in _provider_keys(model) if key in family_by_key}
-            if len(matches) > 1:
-                raise UpdateError(
-                    f"{provider} model {model.model_id!r} ambiguously matches multiple Artificial Analysis families"
-                )
-            family = next(iter(matches)) if matches else None
+            keys = _provider_keys(model)
+            family = next(
+                (family_by_key[key] for key in keys if key in family_by_key),
+                None,
+            )
             if family is None:
                 unmatched.append(model.model_id)
-            keys = _provider_keys(model)
             indexes = {by_key[key] for key in keys if key in by_key}
             if model.canonical_id is not None and model.canonical_id in by_canonical:
                 indexes.add(by_canonical[model.canonical_id])
             if len(indexes) > 1:
-                raise UpdateError(f"provider model {model.model_id!r} ambiguously joins multiple models")
+                target_index = min(indexes)
+                target = aggregates[target_index]
+                winning_family = family or target["family"]
+                if winning_family is None:
+                    winning_family = next(
+                        (
+                            aggregates[index]["family"]
+                            for index in sorted(indexes - {target_index})
+                            if aggregates[index]["family"] is not None
+                        ),
+                        None,
+                    )
+                if winning_family is not None:
+                    target["family"], target["name"] = winning_family, winning_family.name
+                for source_index in sorted(indexes - {target_index}):
+                    source = aggregates[source_index]
+                    if target["family"] is None and source["family"] is not None:
+                        target["family"], target["name"] = source["family"], source["name"]
+                    target_levels, source_levels = target["levels"], source["levels"]
+                    assert isinstance(target_levels, set) and isinstance(source_levels, set)
+                    target_levels.update(source_levels)
+                    target_benchmarks, source_benchmarks = target["benchmarks"], source["benchmarks"]
+                    assert isinstance(target_benchmarks, dict) and isinstance(source_benchmarks, dict)
+                    for name, value in source_benchmarks.items():
+                        previous = target_benchmarks.get(name)
+                        if previous is None or value > previous:
+                            target_benchmarks[name] = value
+                    target_overrides, source_overrides = target["overrides"], source["overrides"]
+                    assert isinstance(target_overrides, dict) and isinstance(source_overrides, dict)
+                    for effort, values in source_overrides.items():
+                        merged_values = target_overrides.setdefault(effort, {})
+                        for name, value in values.items():
+                            previous = merged_values.get(name)
+                            if previous is None or value > previous:
+                                merged_values[name] = value
+                    for key, index in tuple(by_key.items()):
+                        if index == source_index:
+                            by_key[key] = target_index
+                    for key, index in tuple(by_canonical.items()):
+                        if index == source_index:
+                            by_canonical[key] = target_index
+                    aggregates[source_index] = {}
+                indexes = {target_index}
             if indexes:
                 aggregate = aggregates[next(iter(indexes))]
-                existing = aggregate["family"]
-                if family is not None and existing is not None and family != existing:
-                    raise UpdateError(f"provider model {model.model_id!r} maps to conflicting AA families")
-                if existing is None and family is not None:
+                if family is not None:
                     aggregate["family"], aggregate["name"] = family, family.name
                 index = next(iter(indexes))
             else:
@@ -487,6 +524,8 @@ def match_provider_models(
     families: list[ModelFamily] = []
     selected_models: list[SelectedModel] = []
     for aggregate in aggregates:
+        if not aggregate:
+            continue
         matched = aggregate["family"]
         family = matched or ModelFamily(str(aggregate["name"]), str(aggregate["model_id"]))
         assert isinstance(family, ModelFamily)

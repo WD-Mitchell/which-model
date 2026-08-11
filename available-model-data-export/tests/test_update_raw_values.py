@@ -1044,18 +1044,80 @@ class UpdateAvailableModelRawValuesTests(unittest.TestCase):
         rows = updater.collect_rows(RecordingClient({}), result.selected)
         self.assertEqual([(row.model, row.reasoning) for row in rows], identities)
 
-    def test_provider_display_and_id_conflict_is_rejected_as_ambiguous(self) -> None:
+    def test_all_provider_bridge_merges_duplicate_claude_identity(self) -> None:
+        dated = updater.ProviderModel(
+            "anthropic",
+            "claude-haiku-4-5-20251001",
+            "Claude Haiku 4.5 20251001",
+            ("high",),
+        )
+        alias = updater.ProviderModel(
+            "gateway",
+            "claude-haiku-4-5",
+            "Claude Haiku 4.5",
+            ("low",),
+        )
+        bridge = updater.ProviderModel(
+            "replicate",
+            "claude-haiku-4-5-20251001",
+            "Claude Haiku 4.5",
+            ("medium",),
+        )
+
+        matched = updater.match_provider_models(
+            [], {"anthropic": [dated], "gateway": [alias], "replicate": [bridge]}
+        )
+
+        self.assertEqual(len(matched.families), 1)
+        self.assertEqual(
+            [(item.family.name, item.reasoning) for item in matched.selected],
+            [
+                ("Claude Haiku 4.5 20251001", "low"),
+                ("Claude Haiku 4.5 20251001", "medium"),
+                ("Claude Haiku 4.5 20251001", "high"),
+            ],
+        )
+
+    def test_provider_display_name_wins_conflicting_identifier_match(self) -> None:
         alpha = updater.ModelFamily("Alpha", "alpha")
         beta = updater.ModelFamily("Beta", "beta")
-        api_models = [
-            model(alpha),
-            model(beta),
-        ]
-        with self.assertRaisesRegex(updater.UpdateError, "ambiguously matches"):
-            updater.match_provider_models(
-                api_models,
-                {"provider": [updater.ProviderModel("provider", "beta", "Alpha")]},
-            )
+        matched = updater.match_provider_models(
+            [model(alpha), model(beta)],
+            {"provider": [updater.ProviderModel("provider", "beta", "Alpha", ("high",))]},
+        )
+        self.assertEqual(
+            [(item.family.name, item.reasoning) for item in matched.selected],
+            [("Alpha", "high")],
+        )
+
+    def test_provider_bridge_uses_current_display_family_to_merge_conflicts(self) -> None:
+        alpha = updater.ModelFamily("Alpha", "alpha")
+        beta = updater.ModelFamily("Beta", "beta")
+        matched = updater.match_provider_models(
+            [model(alpha), model(beta)],
+            {
+                "first": [updater.ProviderModel("first", "alpha-dated", "Alpha", ("high",))],
+                "second": [updater.ProviderModel("second", "beta", "Beta", ("low",))],
+                "bridge": [updater.ProviderModel("bridge", "beta", "Alpha", ("medium",))],
+            },
+        )
+        self.assertEqual({family.name for family in matched.families}, {"Alpha"})
+        self.assertEqual(
+            {(item.family.name, item.reasoning) for item in matched.selected},
+            {("Alpha", "low"), ("Alpha", "medium"), ("Alpha", "high")},
+        )
+
+    def test_later_display_family_overrides_existing_identifier_family(self) -> None:
+        alpha = updater.ModelFamily("Alpha", "alpha")
+        beta = updater.ModelFamily("Beta", "beta")
+        matched = updater.match_provider_models(
+            [model(alpha), model(beta)],
+            {
+                "first": [updater.ProviderModel("first", "beta", "Beta", ("low",))],
+                "second": [updater.ProviderModel("second", "beta", "Alpha", ("high",))],
+            },
+        )
+        self.assertEqual({family.name for family in matched.families}, {"Alpha"})
 
     def test_unknown_provider_fails_before_network_backup_or_replacement(self) -> None:
         class NeverClient:

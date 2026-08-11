@@ -139,9 +139,18 @@ func TestRenderPRTitleWithColonIsValidYAMLScalar(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
-	want := "        run: >-\n          gh pr create --base"
+	want := "        run: |\n          head_branch=\"refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}\""
 	if !strings.Contains(string(out), want) {
-		t.Errorf("PR create command must use a block scalar: %s", out)
+		t.Errorf("PR create command must define a unique pushed head branch: %s", out)
+	}
+	for _, command := range []string{
+		`git push origin "HEAD:refs/heads/${head_branch}"`,
+		`gh pr create --base "${{ matrix.branch }}" --head "${head_branch}"`,
+		`--body "Automated catalog refresh."`,
+	} {
+		if !strings.Contains(string(out), command) {
+			t.Errorf("PR create command missing %q: %s", command, out)
+		}
 	}
 }
 

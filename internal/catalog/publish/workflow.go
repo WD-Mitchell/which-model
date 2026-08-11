@@ -89,13 +89,15 @@ func Render(pc *PublishConfig) ([]byte, error) {
 		for _, l := range pc.PRLabels {
 			labels += " --label " + l
 		}
-		fmt.Fprintf(&b, "        run: >-\n")
-		fmt.Fprintf(&b, "          gh pr create --base \"${{ matrix.branch }}\" --title %q%s\n", pc.PRTitle, labels)
+		fmt.Fprintf(&b, "        run: |\n")
+		fmt.Fprintf(&b, "          head_branch=\"refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}\"\n")
+		fmt.Fprintf(&b, "          git push origin \"HEAD:refs/heads/${head_branch}\"\n")
+		fmt.Fprintf(&b, "          gh pr create --base \"${{ matrix.branch }}\" --head \"${head_branch}\" --title %q --body %q%s\n", pc.PRTitle, "Automated catalog refresh.", labels)
 		fmt.Fprintf(&b, "        env:\n")
 		fmt.Fprintf(&b, "          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n")
 		if pc.AutoMerge {
 			fmt.Fprintf(&b, "      - if: steps.changes.outputs.changed == 'true'\n")
-			fmt.Fprintf(&b, "        run: gh pr merge --auto --%s\n", pc.MergeMethod)
+			fmt.Fprintf(&b, "        run: gh pr merge --auto --%s \"refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}\"\n", pc.MergeMethod)
 			fmt.Fprintf(&b, "        env:\n")
 			fmt.Fprintf(&b, "          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n")
 		}
