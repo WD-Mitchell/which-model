@@ -228,11 +228,14 @@ graph TD
              git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" \
                commit -m "chore(data): refresh available model scores"
          - if: steps.changes.outputs.changed == 'true'
-           run: gh pr create --base "${{ matrix.branch }}" --title "chore(data): refresh available model scores" --body "Automated catalog refresh." --label data --label automated
+           run: |
+             head_branch="refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}"
+             git push origin "HEAD:refs/heads/${head_branch}"
+             gh pr create --base "${{ matrix.branch }}" --head "${head_branch}" --title "chore(data): refresh available model scores" --body "Automated catalog refresh." --label data --label automated
            env:
              GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
          - if: steps.changes.outputs.changed == 'true'
-           run: gh pr merge --auto --squash
+           run: gh pr merge --auto --squash "refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}"
            env:
              GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
          - name: Report per-branch outcome
