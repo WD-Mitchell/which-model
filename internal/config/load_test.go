@@ -94,7 +94,7 @@ func TestLoadFileAndLoad(t *testing.T) {
 					t.Fatal(err)
 				}
 				writeFile(t, repo, ".which-model/config.toml", "[usage]\nenabled = false\n")
-				writeFile(t, home, ".config/which-model/config.toml", "[usage]\nenabled = false\n")
+				writeFile(t, home, ".which-model/config.toml", "[usage]\nenabled = false\n")
 				explicit := writeFile(t, t.TempDir(), "explicit.toml", "[usage]\nenabled = true\n")
 				cfg, err := Load(LoadOptions{Path: explicit, CWD: cwd, Home: home, GOOS: "linux"})
 				if err != nil || cfg.Usage.Enabled != UsageTrue {

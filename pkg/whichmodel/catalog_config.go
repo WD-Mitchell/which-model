@@ -70,10 +70,22 @@ func resolveCatalogPaths(c CatalogConfig, paths config.Paths, cwd string) Resolv
 	provider := c.ProviderConfigPath
 	if provider == "" {
 		provider = walkUp(cwd, "providers.toml")
+		if provider == "" && paths.ConfigDir != "" {
+			candidate := filepath.Join(paths.ConfigDir, "providers.toml")
+			if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+				provider = candidate
+			}
+		}
 	}
 	benchmark := c.BenchmarkConfigPath
 	if benchmark == "" {
 		benchmark = walkUp(cwd, "benchmarks.toml")
+		if benchmark == "" && paths.ConfigDir != "" {
+			candidate := filepath.Join(paths.ConfigDir, "benchmarks.toml")
+			if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+				benchmark = candidate
+			}
+		}
 	}
 	return ResolvedCatalog{
 		RawCSVPath:          raw,
