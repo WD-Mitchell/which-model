@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useToast } from '@which-model/ui'
-import type { ErrorDTO } from '@which-model/core'
+import { Button, useToast } from '@which-model/ui'
+import type { ErrorDTO, ProfileDetail, RankedModel } from '@which-model/core'
 import {
   useCatalogLine,
   useComplexityScale,
@@ -17,6 +17,7 @@ import { PopoverShell } from './PopoverShell'
 import { PopoverHeader } from './Header'
 import { PopoverFooter } from './Footer'
 import { LandingView, ResultsBand } from './LandingView'
+import { WeightsView } from './WeightsView'
 import './PopoverApp.css'
 
 export type PopoverView = 'landing' | 'weights'
@@ -236,12 +237,11 @@ export function PopoverApp() {
         onIndex={setSelectedIndex}
       />
     ) : (
-      // Weights view body is U06; the shell renders the header + the shared
-      // carousel (weights view always shows the carousel — mockup).
       <div className="wa-wbody">
         <div className="wa-wdivider">
           <div className="wa-wdividerLine" />
         </div>
+        <WeightsView baseSlug={activeSlug} />
         <ResultsBand
           slug={activeSlug}
           overridesHash={overridesHash}
@@ -250,6 +250,20 @@ export function PopoverApp() {
         />
       </div>
     )
+
+  const weightsFooter =
+    view === 'weights' ? (
+      <WeightsFooter
+        pick={pick}
+        baseProfile={activeProfile}
+        onSaved={(slug) => {
+          setView('landing')
+          setActiveSlug(slug)
+          setSelectedIndex(0)
+          useOverridesStore.getState().clear()
+        }}
+      />
+    ) : null
 
   return (
     <PopoverShell
@@ -270,7 +284,79 @@ export function PopoverApp() {
         onPickHarness={handlePickHarness}
         onManage={handleManage}
         onLaunch={() => void handleLaunch()}
-      />
+      >
+        {weightsFooter}
+      </PopoverFooter>
     </PopoverShell>
+  )
+}
+
+// U06 footer buttons: Copy model id + Save as profile.
+function WeightsFooter({
+  pick,
+  baseProfile,
+  onSaved,
+}: {
+  pick: RankedModel | undefined
+  baseProfile: ProfileDetail | undefined
+  onSaved(slug: string): void
+}) {
+  const toast = useToast()
+  const store = useOverridesStore()
+  const baseSlug = store.baseSlug
+
+  const handleCopy = async () => {
+    if (!pick) {
+      toast.show('nothing to copy')
+      return
+    }
+    await copyToClipboard(pick.model_id)
+    toast.show(`copied  ${pick.model_id}`)
+  }
+
+  const handleSave = async () => {
+    if (!baseProfile) return
+    let n = 1
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const slug = n === 1 ? `${baseSlug}_custom` : `${baseSlug}_custom_${n}`
+      const name = n === 1 ? `${baseProfile.name} (custom)` : `${baseProfile.name} (custom ${n})`
+      const detail: ProfileDetail = {
+        ...baseProfile,
+        slug,
+        name,
+        builtin: false,
+        core_share: store.coreShare,
+        tier1_weights: { ...store.tier1 },
+        tier2_weights: { ...store.tier2 },
+        picks: 0,
+        last_used: '',
+      }
+      try {
+        await getHost().profiles.save(detail)
+        toast.show(`saved as ${slug}`)
+        store.clear()
+        onSaved(slug)
+        return
+      } catch (e) {
+        if ((e as ErrorDTO).code === 'conflict') {
+          n += 1
+          continue
+        }
+        toast.show((e as ErrorDTO).message ?? 'save failed')
+        return
+      }
+    }
+  }
+
+  return (
+    <>
+      <Button variant="ghost" onClick={() => void handleCopy()}>
+        Copy model id
+      </Button>
+      <Button variant="ghost" onClick={() => void handleSave()}>
+        Save as profile
+      </Button>
+    </>
   )
 }

@@ -1,0 +1,89 @@
+.page {
+  padding-top: 4px;
+}
+
+.kicker {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  margin: 12px 0 4px;
+}
+
+.addRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-top: 1px solid var(--color-divider);
+  cursor: pointer;
+}
+
+.row:hover {
+  background: color-mix(in srgb, var(--color-text) 4%, transparent);
+}
+
+.name {
+  width: 130px;
+  flex: none;
+  font-size: 12.5px;
+}
+
+.installed {
+  flex: none;
+}
+
+.pips {
+  width: 90px;
+  flex: none;
+}
+
+.cmd {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+
+.actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.preview {
+  margin: 12px 0;
+}
+
+.provLabel {
+  font-size: 10px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+  margin: 14px 0 6px;
+}
+
+.provRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--color-divider);
+  font-size: 12px;
+}
+
+.toggle {
+  margin-left: auto;
+}

@@ -1,0 +1,26 @@
+/* settings window app-level styles (shared theme vars from nocturne.css). */
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-weight: 400;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  height: 100%;
+}
+
+.settings-suspend {
+  padding: 24px;
+  font-size: 12px;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+}

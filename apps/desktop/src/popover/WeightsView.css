@@ -1,0 +1,32 @@
+.body {
+  padding: 0 16px 12px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.editor {
+  background: color-mix(in srgb, var(--color-text) 3%, transparent);
+  border-radius: 10px;
+  padding: 12px 12px 6px;
+}
+
+.balance {
+  margin-top: 12px;
+  padding: 12px 4px 0;
+  border-top: 1px solid var(--color-divider);
+}
+
+.balanceLabels {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.balanceLabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 38%, transparent);
+}

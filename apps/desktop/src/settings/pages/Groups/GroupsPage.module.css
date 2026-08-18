@@ -1,0 +1,141 @@
+.page {
+  padding-top: 4px;
+}
+
+.kicker {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  margin: 12px 0 4px;
+}
+
+.colHeader {
+  display: flex;
+  gap: 12px;
+  padding: 6px 0;
+  font-size: 9px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+}
+
+.cName {
+  flex: 1;
+}
+
+.cCount {
+  width: 200px;
+  flex: none;
+}
+
+.cCover {
+  width: 120px;
+  flex: none;
+}
+
+.cActions {
+  width: 128px;
+  flex: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-top: 1px solid var(--color-divider);
+  cursor: pointer;
+}
+
+.row:hover {
+  background: color-mix(in srgb, var(--color-text) 4%, transparent);
+}
+
+.name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+}
+
+.count {
+  width: 200px;
+  flex: none;
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--color-text) 52%, transparent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cover {
+  width: 120px;
+  flex: none;
+}
+
+.actions {
+  width: 128px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+  margin: 10px 0;
+  align-items: center;
+}
+
+.list {
+  margin-top: 6px;
+}
+
+.brow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--color-divider);
+  cursor: pointer;
+}
+
+.brow:hover {
+  background: color-mix(in srgb, var(--color-text) 3%, transparent);
+}
+
+.bname {
+  flex: 1;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bcover {
+  width: 90px;
+  flex: none;
+}
+
+.bon {
+  width: 28px;
+  flex: none;
+  text-align: center;
+}
+
+.benchGroups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 12px;
+}
+
+.tableWrap {
+  margin-top: 6px;
+}

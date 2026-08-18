@@ -1,0 +1,139 @@
+.page {
+  padding-top: 4px;
+}
+
+.kicker {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  margin: 12px 0 4px;
+}
+
+.listHeader {
+  margin-top: 8px;
+}
+
+.colHeader {
+  display: flex;
+  gap: 12px;
+  padding: 6px 0;
+  font-size: 9px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+}
+
+.colName {
+  flex: 1;
+}
+
+.colWeights {
+  width: 120px;
+  flex: none;
+}
+
+.colNum {
+  width: 48px;
+  flex: none;
+  text-align: right;
+}
+
+.colActions {
+  width: 132px;
+  flex: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-top: 1px solid var(--color-divider);
+  cursor: pointer;
+}
+
+.row:hover {
+  background: color-mix(in srgb, var(--color-text) 4%, transparent);
+}
+
+.name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+}
+
+.weights {
+  width: 120px;
+  flex: none;
+}
+
+.num {
+  width: 48px;
+  flex: none;
+  text-align: right;
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+
+.actions {
+  width: 132px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.footnote {
+  margin-top: 16px;
+  font-size: 11px;
+  max-width: 56ch;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+  text-wrap: pretty;
+}
+
+.empty {
+  padding: 16px 0;
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+}
+
+.strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 14px;
+}
+
+.summary {
+  font-size: 11.5px;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+
+.balRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 9px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 38%, transparent);
+  margin-bottom: 6px;
+}
+
+.ratio {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-accent-300);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.editor {
+  margin-top: 16px;
+}
