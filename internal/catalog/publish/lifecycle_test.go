@@ -131,7 +131,7 @@ func TestSecretPlacement(t *testing.T) {
 	if got := strings.Count(s, "secrets.ARTIFICIAL_ANALYSIS_API"); got != 1 {
 		t.Fatalf("secrets.ARTIFICIAL_ANALYSIS_API count = %d, want 1", got)
 	}
-	envBlock := "- run: python3 scripts/refresh-model-data.py\n        env:\n          ARTIFICIAL_ANALYSIS_API: ${{ secrets.ARTIFICIAL_ANALYSIS_API }}"
+	envBlock := "- run: python3 .daily-update/refresh-model-data.py\n        env:\n          ARTIFICIAL_ANALYSIS_API: ${{ secrets.ARTIFICIAL_ANALYSIS_API }}"
 	if !strings.Contains(s, envBlock) {
 		t.Errorf("secret not on the catalog refresh step env:\n%s", s)
 	}

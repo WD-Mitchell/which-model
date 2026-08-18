@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-SCRIPT = Path(__file__).with_name("refresh-model-data.py")
+SCRIPT = Path(__file__).resolve().parent.parent / "refresh-model-data.py"
 SPEC = importlib.util.spec_from_file_location("refresh_model_data", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 refresh_model_data = importlib.util.module_from_spec(SPEC)
@@ -18,7 +18,7 @@ class RefreshModelDataTests(unittest.TestCase):
         self.assertEqual(
             refresh_model_data.DEFAULT_OUTPUT_PATH,
             refresh_model_data.REPOSITORY_ROOT
-            / "available-model-data-export"
+            / "data"
             / "available_model_raw_values.csv",
         )
         self.assertTrue(refresh_model_data.DEFAULT_OUTPUT_PATH.is_file())

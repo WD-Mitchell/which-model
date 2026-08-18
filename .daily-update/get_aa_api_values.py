@@ -21,7 +21,7 @@ from model_types import (
 )
 
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_ENV_PATH = REPOSITORY_ROOT / ".env"
 # The authenticated endpoint includes the per-benchmark evaluation fields.
 # Free-key access may be limited to the headline fields, so the collector

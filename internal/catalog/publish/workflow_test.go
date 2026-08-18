@@ -21,7 +21,7 @@ func GoldenPC() *PublishConfig {
 		CommitMessage: "chore(data): refresh available model scores",
 		PRTitle:       "chore(data): refresh available model scores",
 		PRLabels:      []string{"data", "automated"},
-		RawCSVPath:    "available-model-data-export/available_model_raw_values.csv",
+		RawCSVPath:    "data/available_model_raw_values.csv",
 	}
 }
 
@@ -129,7 +129,7 @@ func TestRenderUsesStandaloneRawRefresh(t *testing.T) {
 		t.Fatalf("Render() error = %v", err)
 	}
 	s := string(out)
-	if !strings.Contains(s, "python3 scripts/refresh-model-data.py") {
+	if !strings.Contains(s, "python3 .daily-update/refresh-model-data.py") {
 		t.Errorf("standalone refresh step missing: %s", out)
 	}
 	for _, forbidden := range []string{"setup-go", "go build", "go test", "./which-model", "available_model_scores.csv"} {

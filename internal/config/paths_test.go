@@ -11,40 +11,20 @@ func TestResolvePaths(t *testing.T) {
 		return func(key string) string { return values[key] }
 	}
 
-	darwin := ResolvePaths("darwin", "/Users/w", getenv(map[string]string{}))
-	if darwin.ConfigDir != "/Users/w/Library/Application Support/which-model" {
-		t.Fatalf("ConfigDir = %q", darwin.ConfigDir)
+	paths := ResolvePaths("darwin", "/Users/w", getenv(map[string]string{}))
+	if paths.ConfigDir != "/Users/w/.which-model" {
+		t.Fatalf("ConfigDir = %q", paths.ConfigDir)
 	}
-	if darwin.CacheDir != "/Users/w/Library/Caches/which-model" {
-		t.Fatalf("CacheDir = %q", darwin.CacheDir)
+	if paths.UserConfigFile != "/Users/w/.which-model/config.toml" {
+		t.Fatalf("UserConfigFile = %q", paths.UserConfigFile)
 	}
-	if darwin.StateDir != "/Users/w/Library/Application Support/which-model/state" {
-		t.Fatalf("StateDir = %q", darwin.StateDir)
+	if paths.CacheDir != "/Users/w/.which-model/cache" {
+		t.Fatalf("CacheDir = %q", paths.CacheDir)
 	}
-	withXDG := ResolvePaths("darwin", "/Users/w", getenv(map[string]string{"XDG_CONFIG_HOME": "/xdg"}))
-	if withXDG.ConfigDir != darwin.ConfigDir || withXDG.CacheDir != darwin.CacheDir || withXDG.StateDir != darwin.StateDir {
-		t.Fatalf("darwin XDG values changed: %#v", withXDG)
+	if paths.StateDir != "/Users/w/.which-model/state" {
+		t.Fatalf("StateDir = %q", paths.StateDir)
 	}
-
-	linux := ResolvePaths("linux", "/home/w", getenv(map[string]string{
-		"XDG_CONFIG_HOME": "/xdg/cfg",
-	}))
-	if linux.ConfigDir != "/xdg/cfg/which-model" || linux.UserConfigFile != "/xdg/cfg/which-model/config.toml" {
-		t.Fatalf("linux config paths = %#v", linux)
-	}
-	linux = ResolvePaths("linux", "/home/w", getenv(map[string]string{
-		"XDG_CONFIG_HOME": "/xdg/cfg",
-		"XDG_CACHE_HOME":  "/xdg/ca",
-		"XDG_STATE_HOME":  "/xdg/st",
-	}))
-	if linux.CacheDir != "/xdg/ca/which-model" || linux.StateDir != "/xdg/st/which-model" {
-		t.Fatalf("linux cache/state paths = %#v", linux)
-	}
-	linux = ResolvePaths("linux", "/home/w", getenv(map[string]string{}))
-	if linux.ConfigDir != "/home/w/.config/which-model" || linux.CacheDir != "/home/w/.cache/which-model" || linux.StateDir != "/home/w/.local/state/which-model" {
-		t.Fatalf("linux defaults = %#v", linux)
-	}
-	if got := UserConfigFile("linux", "/home/w", getenv(map[string]string{})); got != "/home/w/.config/which-model/config.toml" || got != linux.UserConfigFile {
+	if got := UserConfigFile("darwin", "/Users/w", getenv(map[string]string{})); got != "/Users/w/.which-model/config.toml" {
 		t.Fatalf("UserConfigFile = %q", got)
 	}
 }
