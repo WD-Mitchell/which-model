@@ -1,0 +1,79 @@
+.row {
+  cursor: pointer;
+}
+
+.row:hover {
+  background: color-mix(in srgb, var(--color-text) 4%, transparent);
+}
+
+.selected {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+.selected .name {
+  color: var(--color-text);
+}
+
+.selected .score {
+  color: var(--color-accent-300);
+}
+
+.cell {
+  padding: 6px 8px;
+  border-top: 1px solid var(--color-divider);
+  font-size: 12px;
+  vertical-align: middle;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.rank {
+  width: 26px;
+  font-size: 9.5px;
+  color: color-mix(in srgb, var(--color-text) 40%, transparent);
+}
+
+.nameCell {
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.name {
+  font-size: 12.5px;
+  color: color-mix(in srgb, var(--color-text) 72%, transparent);
+}
+
+.modelId {
+  font-size: 9px;
+  color: color-mix(in srgb, var(--color-text) 38%, transparent);
+}
+
+.score {
+  text-align: right;
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+  white-space: nowrap;
+}
+
+.launch {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.launchBtn {
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-accent);
+  font-size: 10.5px;
+  padding: 3px 8px;
+  cursor: pointer;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.launchBtn:hover {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+}

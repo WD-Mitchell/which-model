@@ -1,0 +1,8 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { cx } from '../../utils/cx';
+import styles from './settings.module.css';
+export function SettingsDetailShell({ master, detail, children, title, description, onBack, backLabel = 'Back', actions, className, bodyClassName, }) {
+    const detailContent = detail ?? children;
+    const hasHeader = title !== undefined || description !== undefined || onBack !== undefined || actions !== undefined;
+    return (_jsxs("div", { className: cx(styles.detail, className), children: [hasHeader && (_jsxs("header", { className: styles.detailHeader, children: [onBack !== undefined && (_jsxs("button", { type: "button", className: styles.backButton, onClick: onBack, "aria-label": backLabel, children: [_jsx("svg", { viewBox: "0 0 12 12", fill: "none", stroke: "currentColor", strokeWidth: "1.7", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", children: _jsx("path", { d: "M7.2 2.2 3.4 6l3.8 3.8" }) }), backLabel] })), (title !== undefined || description !== undefined) && (_jsxs("div", { className: styles.detailHeaderCopy, children: [title !== undefined && _jsx("h1", { className: styles.detailTitle, children: title }), description !== undefined && _jsx("p", { className: styles.detailDescription, children: description })] })), actions !== undefined && _jsx("div", { className: styles.detailActions, children: actions })] })), _jsxs("div", { className: cx(styles.detailBody, bodyClassName), children: [master !== undefined && _jsx("aside", { className: styles.master, children: master }), _jsx("div", { className: styles.detailPane, children: detailContent })] })] }));
+}

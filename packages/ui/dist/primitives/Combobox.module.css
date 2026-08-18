@@ -1,0 +1,54 @@
+.root {
+  position: relative;
+}
+
+.surface {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 8;
+  padding: 5px;
+  border-radius: 9px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  padding: 7px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.rowSelected {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+}
+
+.rowLabel {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--color-text);
+}
+
+.rowSub {
+  margin-left: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+}
+
+.empty {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  padding: 8px 9px;
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 40%, transparent);
+}

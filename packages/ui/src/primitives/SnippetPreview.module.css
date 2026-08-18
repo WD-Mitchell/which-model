@@ -1,0 +1,17 @@
+.block {
+  margin: 0;
+  padding: 11px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  line-height: 1.7;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.copyable {
+  cursor: pointer;
+}

@@ -1,0 +1,6 @@
+.empty {
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+  max-width: 56ch;
+  text-wrap: pretty;
+}

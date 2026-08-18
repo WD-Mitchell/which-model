@@ -1,0 +1,26 @@
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.th {
+  padding: 6px 8px;
+  text-align: left;
+  font-size: 9px;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 38%, transparent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.thRight {
+  composes: th;
+  text-align: right;
+}
+
+.thLaunch {
+  composes: th;
+  width: 80px;
+}

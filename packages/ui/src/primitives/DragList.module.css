@@ -1,0 +1,40 @@
+.list {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rowActive {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+}
+
+.handle {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
+  cursor: grab;
+  touch-action: none;
+  color: color-mix(in srgb, var(--color-text) 38%, transparent);
+}
+
+.dots {
+  display: grid;
+  grid-template-columns: repeat(2, 2px);
+  grid-template-rows: repeat(3, 2px);
+  gap: 2px;
+}
+
+.dot {
+  display: block;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: currentColor;
+}

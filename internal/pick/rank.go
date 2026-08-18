@@ -69,10 +69,12 @@ func ScoreModel(row catalog.ScoreRow, profile catalog.Profile) ModelScore {
 	}
 	ms.Tier1 = tier1
 	// Steps 4-6: tier-2 categories with positive weight, iterated in
-	// CategoryNames order (F10 SPEC D2). A blank category never excludes.
+	// CategoryNames order (F10 SPEC D2), then any remaining tier-2 keys
+	// (custom benchmark-group slugs, B05 SPEC §2.11) in sorted order. A
+	// blank category never excludes.
 	var catValues, catWeights []decimal.Decimal
 	var missingOptional []string
-	for _, name := range CategoryNames {
+	for _, name := range categoryIterationOrder(profile) {
 		w, ok := profile.Tier2Weights[name]
 		if !ok || w.Sign() <= 0 {
 			continue
@@ -113,6 +115,46 @@ func ScoreModel(row catalog.ScoreRow, profile catalog.Profile) ModelScore {
 	}
 	return ms
 }
+
+// categoryIterationOrder returns the deterministic tier-2 iteration order
+// for one profile: CategoryNames first (F10 SPEC D2), then any remaining
+// Tier2Weights keys (custom benchmark-group slugs, B05 SPEC §2.11) sorted
+// ascending. Custom slugs are intentionally excluded from CategoryNames' own
+// order so the canonical 12 keep their fixed sequence.
+func categoryIterationOrder(p catalog.Profile) []string {
+	if len(p.Tier2Weights) <= len(CategoryNames) {
+		allNamed := true
+		for key := range p.Tier2Weights {
+			if !categoryNameSet[key] {
+				allNamed = false
+				break
+			}
+		}
+		if allNamed {
+			return CategoryNames
+		}
+	}
+	out := make([]string, 0, len(CategoryNames)+len(p.Tier2Weights))
+	out = append(out, CategoryNames...)
+	var customs []string
+	for key := range p.Tier2Weights {
+		if !categoryNameSet[key] {
+			customs = append(customs, key)
+		}
+	}
+	sort.Strings(customs)
+	out = append(out, customs...)
+	return out
+}
+
+// categoryNameSet is the membership test backing categoryIterationOrder.
+var categoryNameSet = func() map[string]bool {
+	m := make(map[string]bool, len(CategoryNames))
+	for _, name := range CategoryNames {
+		m[name] = true
+	}
+	return m
+}()
 
 // init serializes decimal fields as unquoted JSON numbers: TASKS F10-T7
 // test 1 pins json.Number for total_score/contributions (and annex-b §5.8

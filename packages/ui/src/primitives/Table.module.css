@@ -1,0 +1,35 @@
+.headerRow {
+  display: flex;
+  gap: 12px;
+  padding: 0 32px 6px;
+}
+
+.headerCell {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+}
+
+.sortable {
+  cursor: pointer;
+}
+
+.active {
+  color: var(--color-accent-300);
+}
+
+.alignLeft {
+  text-align: left;
+}
+
+.alignCenter {
+  text-align: center;
+}
+
+.alignRight {
+  text-align: right;
+}

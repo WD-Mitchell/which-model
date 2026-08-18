@@ -1,0 +1,32 @@
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  padding: 22px 16px;
+}
+
+.kicker {
+  font-size: 9px;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.title {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 15px;
+  color: color-mix(in srgb, var(--color-text) 90%, transparent);
+}
+
+.message {
+  font-size: 11px;
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+  max-width: 42ch;
+  text-wrap: pretty;
+}

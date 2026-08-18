@@ -1,0 +1,16 @@
+.row {
+  display: flex;
+  gap: 3px;
+}
+
+.pip {
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-text) 14%, transparent);
+}
+
+.on {
+  background: var(--color-accent-400);
+}

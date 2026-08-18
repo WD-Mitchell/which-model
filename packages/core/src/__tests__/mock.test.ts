@@ -381,7 +381,7 @@ describe('createMockEngineHost — remaining surfaces', () => {
     expect(se.benchmark_count).toBe(24)
 
     const detail = await host.catalog.groupDetail('reasoning')
-    expect(detail.benchmarks.length).toBe(84) // full catalogue, On marks membership
+    expect(detail.benchmarks.length).toBe(86) // full catalogue, on marks membership
     const on = detail.benchmarks.filter((b) => b.on).map((b) => b.name)
     expect(on.sort()).toEqual(['GPQA Diamond', 'FrontierMath', 'ARC-AGI-2', 'AIME', 'HMMT'].sort())
     expect(detail.benchmarks.every((b) => b.covered === 8 && b.coverage_total === 8)).toBe(true)

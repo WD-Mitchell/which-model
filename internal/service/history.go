@@ -14,14 +14,6 @@ import (
 	"time"
 )
 
-// ProfileStats is the D00 canon per-profile pick stats DTO.
-// TODO(IM-B02): move to dto.go (D00 CONTRACTS §2 places it there); declared
-// here temporarily so B11 compiles before dto.go exists.
-type ProfileStats struct {
-	Picks    int    `json:"picks"`
-	LastUsed string `json:"last_used"` // RFC3339 or ""
-}
-
 // PickHistoryEntry is one line of <StateDir>/pick/history.jsonl.
 // KEEP IN SYNC (by convention, field-for-field, identical JSON tags) with
 // HistoryEntry in pkg/whichmodel/pick.go — the CLI owns the on-disk shape;

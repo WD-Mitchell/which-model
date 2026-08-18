@@ -1,0 +1,93 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+  min-width: 220px;
+  padding: 13px 16px 14px;
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+  border-radius: 10px;
+}
+
+.focused {
+  border-top-color: var(--color-accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rank {
+  font-size: 10px;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.name {
+  margin-top: 3px;
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 19px;
+  letter-spacing: -.02em;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  margin-top: 4px;
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.detailRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.score {
+  margin-left: auto;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-accent-300);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.pin {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 6px;
+  border: 0;
+  background: none;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+  cursor: pointer;
+  padding: 0;
+}
+
+.pin:hover {
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
+  color: var(--color-text);
+}
+
+.pinActive {
+  color: var(--color-accent);
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+}
