@@ -1,4 +1,4 @@
-import { fireEvent, render } from '@testing-library/react'
+import { fireEvent, render, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { BalanceSlider } from '../BalanceSlider'
 import { ComplexityScale } from '../ComplexityScale'
@@ -33,17 +33,20 @@ function drag(element: HTMLElement, ...clientX: number[]) {
 describe('WeightRow', () => {
   it.each(['step', 'bar', 'slider'] as const)('maps %s drag fractions and renders the value', (variant) => {
     const onChange = vi.fn()
-    const { getByRole, getByTestId } = render(<WeightRow variant={variant} label="cost" value={2} onChange={onChange} />)
+    const { getByRole, getByTestId, getAllByTestId } = render(<WeightRow variant={variant} label="cost" value={2} onChange={onChange} />)
     const control = getByRole('slider')
     mockRect(control)
     fireEvent.pointerDown(control, { clientX: 50, clientY: 5 })
     fireEvent.pointerMove(window, { clientX: 90, clientY: 5 })
     fireEvent.pointerUp(window)
-    expect(onChange).toHaveBeenCalledTimes(1)
+    // usePointerFraction fires on pointerdown and on each pointermove, and the
+    // onFraction handler emits on every distinct mapped value (see U02 §2.4).
+    expect(onChange).toHaveBeenCalledTimes(2)
+    expect(onChange).toHaveBeenNthCalledWith(1, 3)
     expect(onChange).toHaveBeenLastCalledWith(5)
     expect(control).toHaveAttribute('aria-valuenow', '2')
 
-    if (variant === 'step') expect(getByTestId('weight-step').parentElement?.children).toHaveLength(5)
+    if (variant === 'step') expect(getAllByTestId('weight-step')).toHaveLength(5)
     if (variant === 'bar') expect(getByTestId('weight-bar-fill')).toHaveStyle({ width: '40%' })
     if (variant === 'slider') {
       expect(getByTestId('weight-slider-fill')).toHaveStyle({ width: '40%' })
@@ -94,7 +97,8 @@ describe('BalanceSlider', () => {
     fireEvent.pointerMove(window, { clientX: 100, clientY: 5 })
     fireEvent.pointerMove(window, { clientX: 51, clientY: 5 })
     fireEvent.pointerUp(window)
-    expect(onChange.mock.calls.map(([value]) => value)).toEqual([10, 90, 50])
+    // Long list: pointerdown at 50 fires immediately, then each pointermove.
+    expect(onChange.mock.calls.map(([value]) => value)).toEqual([50, 10, 90, 50])
     expect(getByTestId('balance-core-bar')).toHaveStyle({ flex: '60' })
     expect(getByTestId('balance-task-bar')).toHaveStyle({ flex: '40' })
     expect(getByTestId('balance-slider')).toHaveTextContent('60 / 40')
@@ -126,7 +130,8 @@ describe('ComplexityScale', () => {
     fireEvent.pointerMove(window, { clientX: 70, clientY: 5 })
     fireEvent.pointerMove(window, { clientX: 100, clientY: 5 })
     fireEvent.pointerUp(window)
-    expect(onStop.mock.calls.map(([value]) => value)).toEqual([3, 4])
+    // pointerdown at 50 fires stop 2 immediately, then each pointermove.
+    expect(onStop.mock.calls.map(([value]) => value)).toEqual([2, 3, 4])
     expect(getAllByTestId('complexity-tick')).toHaveLength(5)
     expect(getByTestId('complexity-knob')).toHaveStyle({ left: 'calc(25% - 7px)' })
   })
@@ -179,13 +184,16 @@ describe('WeightEditor', () => {
         onRevert={onRevert}
       />,
     )
-    expect(getByText('core benchmarks (higher = better, cheaper, faster)')).toBeInTheDocument()
+    expect(getByText('core benchmarks')).toBeInTheDocument()
+    expect(getByText('(higher = better, cheaper, faster)')).toBeInTheDocument()
     expect(getByText('60%')).toBeInTheDocument()
     expect(getByText('40%')).toBeInTheDocument()
     expect(getAllByRole('button', { name: /remove/i })).toHaveLength(2)
     fireEvent.click(getAllByRole('button', { name: /remove/i })[0])
     expect(onRemoveWeight).toHaveBeenCalledWith('mmlu')
-    fireEvent.click(getByText('mmlu'))
+    // 'mmlu' is both a task row label and an addable option in the '+ Add metric'
+    // popup; scope the click to the option inside the add popup.
+    fireEvent.click(within(getByTestId('weight-editor-add-popup')).getByText('mmlu'))
     expect(onAddMetric).toHaveBeenCalledWith('mmlu')
     fireEvent.click(getByRole('button', { name: '+ Add metric' }))
     fireEvent.click(getByRole('button', { name: 'Revert' }))
@@ -196,7 +204,7 @@ describe('WeightEditor', () => {
 
   it('renders profile detail values without trailing remove controls', () => {
     const onChangeWeight = vi.fn()
-    const { getByText, queryByRole, getAllByRole } = render(
+    const { getByText, getAllByText, queryByRole, getAllByRole } = render(
       <WeightEditor
         variant="profile-detail"
         sliderStyle="bar"
@@ -208,7 +216,10 @@ describe('WeightEditor', () => {
         onRemoveWeight={vi.fn()}
       />,
     )
-    expect(getByText('3 / 5')).toBeInTheDocument()
+    // verbose value style renders `${current} / 5` per row; intelligence and
+    // mmlu both have value 3, so '3 / 5' appears twice (core + task) and 'ignored'
+    // once (speed = 0).
+    expect(getAllByText('3 / 5')).toHaveLength(2)
     expect(getByText('ignored')).toBeInTheDocument()
     expect(queryByRole('button', { name: /remove/i })).not.toBeInTheDocument()
     expect(getAllByRole('slider')).toHaveLength(5)
