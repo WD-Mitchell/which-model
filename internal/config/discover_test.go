@@ -27,7 +27,7 @@ func TestLoadDiscovery(t *testing.T) {
 		{
 			name: "user",
 			setup: func(t *testing.T, home, repo, cwd string) (string, map[string]string) {
-				writeFile(t, home, ".config/which-model/config.toml", "[usage]\nenabled = false\n")
+				writeFile(t, home, ".which-model/config.toml", "[usage]\nenabled = false\n")
 				return "", nil
 			},
 			check: func(t *testing.T, cfg *Config, err error) {
@@ -64,7 +64,7 @@ func TestLoadDiscovery(t *testing.T) {
 		{
 			name: "project beats user",
 			setup: func(t *testing.T, home, repo, cwd string) (string, map[string]string) {
-				writeFile(t, home, ".config/which-model/config.toml", "[usage]\nenabled = false\n")
+				writeFile(t, home, ".which-model/config.toml", "[usage]\nenabled = false\n")
 				writeFile(t, repo, ".which-model/config.toml", "[usage]\nenabled = \"auto\"\n")
 				return "", nil
 			},
@@ -77,7 +77,7 @@ func TestLoadDiscovery(t *testing.T) {
 		{
 			name: "provider merge",
 			setup: func(t *testing.T, home, repo, cwd string) (string, map[string]string) {
-				writeFile(t, home, ".config/which-model/config.toml", "[providers.claude]\nenabled = true\npriority = 10\n")
+				writeFile(t, home, ".which-model/config.toml", "[providers.claude]\nenabled = true\npriority = 10\n")
 				writeFile(t, repo, ".which-model/config.toml", "[providers.claude]\npriority = 5\n[providers.codex]\nenabled = true\n")
 				return "", nil
 			},
@@ -92,7 +92,7 @@ func TestLoadDiscovery(t *testing.T) {
 			name: "env path",
 			setup: func(t *testing.T, home, repo, cwd string) (string, map[string]string) {
 				path := writeFile(t, t.TempDir(), "env.toml", "[usage]\nenabled = true\n")
-				writeFile(t, home, ".config/which-model/config.toml", "[usage]\nenabled = false\n")
+				writeFile(t, home, ".which-model/config.toml", "[usage]\nenabled = false\n")
 				return "", map[string]string{"WHICH_MODEL_CONFIG": path}
 			},
 			check: func(t *testing.T, cfg *Config, err error) {
@@ -152,7 +152,7 @@ func TestLoadDiscovery(t *testing.T) {
 		{
 			name: "malformed user",
 			setup: func(t *testing.T, home, repo, cwd string) (string, map[string]string) {
-				writeFile(t, home, ".config/which-model/config.toml", "[usage\n")
+				writeFile(t, home, ".which-model/config.toml", "[usage\n")
 				return "", nil
 			},
 			check: func(t *testing.T, cfg *Config, err error) {
@@ -167,7 +167,7 @@ func TestLoadDiscovery(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			home := t.TempDir()
-			repo := filepath.Join(home, "project")
+			repo := filepath.Join(t.TempDir(), "work", "project")
 			cwd := filepath.Join(repo, "sub", "deep")
 			if err := os.MkdirAll(filepath.Join(repo, ".git"), 0o755); err != nil {
 				t.Fatal(err)

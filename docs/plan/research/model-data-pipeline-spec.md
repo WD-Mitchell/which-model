@@ -6,7 +6,7 @@ available-model-data-export/
   providers.toml                                       # provider allow-list + excluded_models
   benchmarks.toml                                      # benchmark group->name selection
   available_model_raw_values.csv                       # generated raw metrics (176 lines incl header = 175 data rows)
-  .centree-agentic-framework/available_model_scores.csv# generated normalized scores (40 lines incl header = 39 data rows)
+  available_model_scores.csv                           # generated normalized scores (40 lines incl header = 39 data rows)
   .github/workflows/update-available-model-data.yml    # nightly cron GH Action
   .github/workflows/update_available_model_data/
     http_client.py        # shared HTTP transport (retries, TLS, redirect-block)
@@ -160,7 +160,7 @@ model=Kimi K2.7 Code, reasoning=default, intelligence_index=43.0, cost_per_intel
 model=GPT-5.6 Sol, reasoning=max, intelligence_index=60.9, time_per_intelligence_index_task_seconds=269, cost_per_intelligence_index_task_usd=1.23, median_end_to_end_response_time_seconds=149, artificial_analysis_coding_index=77.4, artificial_analysis_agentic_index=57.8, benchmark:SWE-Bench Pro=64.6, benchmark:DeepSWE=72.7, benchmark:Terminal-Bench=88.8, benchmark:Artificial Analysis Coding Agent Index=80.0, benchmark:Toolathlon=58.0
 ```
 
-### 3.2 `.centree-agentic-framework/available_model_scores.csv`
+### 3.2 `available_model_scores.csv`
 
 **Row count today: 39 data rows (40 lines incl. header).** Only rows with ALL 3 `REQUIRED_TIER1_METRICS` populated survive (`generate_scores.py:397-403`), which is why 175 raw rows -> 39 score rows.
 
@@ -480,7 +480,7 @@ Warnings are per-row, NOT fatal, and accumulate in the row's `warnings: list[str
 ### 6.8 CLI flags (`parse_args`, `rank_models.py:497-510`)
 | flag | type/default | notes |
 |---|---|---|
-| `--scores` | Path, default `.centree-agentic-framework/available_model_scores.csv` (resolved from `REPOSITORY_ROOT = Path(__file__).resolve().parents[4]`) | |
+| `--scores` | Path, default `available_model_scores.csv` (resolved from `REPOSITORY_ROOT = Path(__file__).resolve().parents[4]`) | |
 | `--profile` | choice from sorted `PROFILES` keys, default `"balanced_implementation"` | |
 | `--weights-json` | str | inline JSON; mutually exclusive with `--profile` selection logic (see below) and with `--tier1-weight`/`--tier2-weight` (both raise if combined) |
 | `--tier1-weight` | repeatable `NAME=VALUE` | e.g. `--tier1-weight intelligence=3` |
@@ -586,7 +586,7 @@ The scheduled GH Action (`.github/workflows/update-available-model-data.yml`) ru
 | `test_malformed_payloads_fail_at_their_own_boundary` | Malformed provider/benchmark JSON payloads raise `UpdateError` naming the specific catalogue ("provider catalogue"/"benchmark catalogue"), not a generic error. |
 | `test_each_source_script_has_a_direct_json_cli` | Every collector module (`get_provider_models.py`, `get_benchmarks.py`, etc.) is independently runnable as a script producing JSON. |
 | `test_workflow_references_existing_renamed_entry_points` | The checked-in GH Actions YAML references entry-point paths that actually exist on disk (catches stale renames). |
-| `test_score_csv_is_tracked_scope_while_user_memory_remains_ignored` | `.centree-agentic-framework/available_model_scores.csv` is git-tracked (not gitignored) while other paths under that directory (user memory) remain ignored. |
+| `test_score_csv_is_tracked` | `available_model_scores.csv` is git-tracked (not gitignored). |
 | `test_old_scripts_tree_and_long_entry_point_names_are_absent` | The legacy `scripts/` directory and old monolithic script names no longer exist (migration completeness guard). |
 | `test_default_paths_resolve_to_repository_root` | `DEFAULT_BENCHMARK_CONFIG_PATH`/`DEFAULT_PROVIDER_CONFIG_PATH`/`DEFAULT_ENV_PATH` all resolve relative to the true repo root regardless of CWD. |
 | `test_artificial_analysis_modules_are_source_pure_and_independent` | `get_aa_api_values.py`/`get_aa_page_values.py` source text contains no `"get_models_dev"` references — architectural isolation from the models.dev collectors. |

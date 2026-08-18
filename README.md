@@ -77,8 +77,8 @@ From the source checkout, refresh the catalog with an [Artificial Analysis](http
 export ARTIFICIAL_ANALYSIS_API="your-api-key"
 
 which-model catalog refresh \
-  --provider-config available-model-data-export/providers.toml \
-  --benchmarks available-model-data-export/benchmarks.toml
+  --provider-config config/providers.toml \
+  --benchmarks config/benchmarks.toml
 ```
 
 You can also place `ARTIFICIAL_ANALYSIS_API=...` in a repository-root `.env` file. Never commit that file.

@@ -9,9 +9,9 @@ from typing import Sequence
 from model_types import BenchmarkConfiguration, ProviderConfiguration, UpdateError
 
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_BENCHMARK_CONFIG_PATH = REPOSITORY_ROOT / "benchmarks.toml"
-DEFAULT_PROVIDER_CONFIG_PATH = REPOSITORY_ROOT / "providers.toml"
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_BENCHMARK_CONFIG_PATH = REPOSITORY_ROOT / "config/benchmarks.toml"
+DEFAULT_PROVIDER_CONFIG_PATH = REPOSITORY_ROOT / "config/providers.toml"
 
 
 def _load_toml(path: Path, *, label: str) -> dict[str, object]:

@@ -24,12 +24,12 @@ jobs:
         with:
           ref: ${{ matrix.branch }}
           token: ${{ secrets.CSV_UPDATE_TOKEN || github.token }}
-      - run: python3 scripts/refresh-model-data.py
+      - run: python3 .daily-update/refresh-model-data.py
         env:
           ARTIFICIAL_ANALYSIS_API: ${{ secrets.ARTIFICIAL_ANALYSIS_API }}
       - id: changes
         run: |
-          git add -- available-model-data-export/available_model_raw_values.csv
+          git add -- data/available_model_raw_values.csv
           git diff --cached --quiet || echo "changed=true" >> "$GITHUB_OUTPUT"
       - if: steps.changes.outputs.changed == 'true'
         run: |

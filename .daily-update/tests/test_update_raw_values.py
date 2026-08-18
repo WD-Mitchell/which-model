@@ -19,10 +19,10 @@ from pathlib import Path
 from unittest import mock
 
 
-REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = (
     REPOSITORY_ROOT
-    / ".github/workflows/update_available_model_data/update_raw_values.py"
+    / ".daily-update/update_raw_values.py"
 )
 SPEC = importlib.util.spec_from_file_location("update_raw_values", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
@@ -2104,10 +2104,10 @@ class UpdateAvailableModelRawValuesTests(unittest.TestCase):
         self.assertEqual(args.benchmark_config, Path("bench.toml"))
         self.assertEqual(args.provider_config, Path("providers-custom.toml"))
         workflow = (
-            REPOSITORY_ROOT.parent / ".github/workflows/refresh-model-data.yml"
+            REPOSITORY_ROOT / ".github/workflows/refresh-model-data.yml"
         ).read_text(encoding="utf-8")
         self.assertIn("ARTIFICIAL_ANALYSIS_API", workflow)
-        self.assertIn("python3 scripts/refresh-model-data.py", workflow)
+        self.assertIn("python3 .daily-update/refresh-model-data.py", workflow)
         self.assertNotIn("--benchmark-config", workflow)
         self.assertNotIn("--provider-config", workflow)
         self.assertNotIn("COPILOT", workflow.upper())
