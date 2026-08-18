@@ -11,16 +11,10 @@ from pathlib import Path
 from typing import Mapping
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-COLLECTOR_DIR = (
-    REPOSITORY_ROOT
-    / "available-model-data-export"
-    / ".github"
-    / "workflows"
-    / "update_available_model_data"
-)
+COLLECTOR_DIR = Path(__file__).resolve().parent
 DEFAULT_OUTPUT_PATH = (
     REPOSITORY_ROOT
-    / "available-model-data-export"
+    / "data"
     / "available_model_raw_values.csv"
 )
 if str(COLLECTOR_DIR) not in sys.path:

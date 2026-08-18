@@ -10,13 +10,13 @@ import unittest
 from pathlib import Path
 
 
-REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = (
     REPOSITORY_ROOT
-    / ".github/workflows/update_available_model_data/generate_scores.py"
+    / ".daily-update/generate_scores.py"
 )
-RAW_VALUES = REPOSITORY_ROOT / "available_model_raw_values.csv"
-GENERATED_SCORES = REPOSITORY_ROOT / "available_model_scores.csv"
+RAW_VALUES = REPOSITORY_ROOT / "data/available_model_raw_values.csv"
+GENERATED_SCORES = REPOSITORY_ROOT / "data/available_model_scores.csv"
 RAW_HEADER = (
     "model,reasoning,intelligence_index,time_per_intelligence_index_task_seconds,"
     "cost_per_intelligence_index_task_usd,median_end_to_end_response_time_seconds,"

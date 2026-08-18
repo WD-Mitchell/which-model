@@ -103,6 +103,10 @@ func walkUp(start, name string) string {
 		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
 			return candidate
 		}
+		configCandidate := filepath.Join(dir, "config", name)
+		if info, err := os.Stat(configCandidate); err == nil && !info.IsDir() {
+			return configCandidate
+		}
 		if isGitBoundary(dir) {
 			return ""
 		}

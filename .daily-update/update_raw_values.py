@@ -90,8 +90,8 @@ from model_types import (  # noqa: E402
 )
 
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_OUTPUT_PATH = REPOSITORY_ROOT / "available_model_raw_values.csv"
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_OUTPUT_PATH = REPOSITORY_ROOT / "data/available_model_raw_values.csv"
 # Keep the legacy page collector available for explicit one-off backfills. It is
 # deliberately absent from the default additions set and scheduled workflow.
 OPTIONAL_SOURCES = frozenset({"aa_page"})

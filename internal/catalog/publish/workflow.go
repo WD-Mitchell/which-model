@@ -73,7 +73,7 @@ func Render(pc *PublishConfig) ([]byte, error) {
 	fmt.Fprintf(&b, "        with:\n")
 	fmt.Fprintf(&b, "          ref: ${{ matrix.branch }}\n")
 	fmt.Fprintf(&b, "          token: ${{ secrets.CSV_UPDATE_TOKEN || github.token }}\n")
-	fmt.Fprintf(&b, "      - run: python3 scripts/refresh-model-data.py\n")
+	fmt.Fprintf(&b, "      - run: python3 .daily-update/refresh-model-data.py\n")
 	fmt.Fprintf(&b, "        env:\n")
 	fmt.Fprintf(&b, "          ARTIFICIAL_ANALYSIS_API: ${{ secrets.ARTIFICIAL_ANALYSIS_API }}\n")
 	fmt.Fprintf(&b, "      - id: changes\n")
