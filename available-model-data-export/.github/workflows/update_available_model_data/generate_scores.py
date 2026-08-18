@@ -27,9 +27,7 @@ from model_types import UpdateError, clean_model_name  # noqa: E402
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_INPUT = REPOSITORY_ROOT / "available_model_raw_values.csv"
-DEFAULT_OUTPUT = (
-    REPOSITORY_ROOT / ".centree-agentic-framework/available_model_scores.csv"
-)
+DEFAULT_OUTPUT = REPOSITORY_ROOT / "available_model_scores.csv"
 
 IDENTITY_COLUMNS = ("model", "reasoning")
 CORE_METRICS = {

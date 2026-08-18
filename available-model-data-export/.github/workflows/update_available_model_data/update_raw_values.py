@@ -288,7 +288,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     print(f"updated {args.output}; backup: {backup}")
     print(
-        ".centree-agentic-framework/available_model_scores.csv was not changed; "
+        "available_model_scores.csv was not changed; "
         "regenerate it separately if desired"
     )
     return 0

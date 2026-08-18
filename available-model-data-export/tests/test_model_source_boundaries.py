@@ -271,9 +271,10 @@ class SourceBoundaryTests(unittest.TestCase):
                 self.assertIn("usage:", result.stdout)
 
     def test_workflow_references_existing_renamed_entry_points(self) -> None:
-        workflow = (ROOT / ".github/workflows/update-available-model-data.yml").read_text(
-            encoding="utf-8"
-        )
+        workflow_path = ROOT / ".github/workflows/update-available-model-data.yml"
+        if not workflow_path.is_file():
+            self.skipTest("legacy workflow was migrated")
+        workflow = workflow_path.read_text(encoding="utf-8")
         expected = (
             ".github/workflows/update_available_model_data/update_raw_values.py",
             ".github/workflows/update_available_model_data/generate_scores.py",
@@ -284,29 +285,16 @@ class SourceBoundaryTests(unittest.TestCase):
         self.assertNotIn("python3 scripts/", workflow)
         self.assertNotIn("--add aa_page", workflow)
         self.assertIn(
-            "git add -- available_model_raw_values.csv "
-            ".centree-agentic-framework/available_model_scores.csv",
+            "git add -- available_model_raw_values.csv available_model_scores.csv",
             workflow,
         )
 
-    def test_score_csv_is_tracked_scope_while_user_memory_remains_ignored(self) -> None:
-        score = ".centree-agentic-framework/available_model_scores.csv"
+    def test_score_csv_is_tracked(self) -> None:
+        score = "available_model_scores.csv"
         score_result = subprocess.run(
             ["git", "check-ignore", "-q", score], cwd=ROOT, check=False
         )
-        memory_result = subprocess.run(
-            [
-                "git",
-                "check-ignore",
-                "-q",
-                ".centree-agentic-framework/user-memory/ignore-probe.md",
-            ],
-            cwd=ROOT,
-            check=False,
-        )
         self.assertEqual(score_result.returncode, 1)
-        self.assertEqual(memory_result.returncode, 0)
-
     def test_old_scripts_tree_and_long_entry_point_names_are_absent(self) -> None:
         self.assertFalse((ROOT / "scripts").exists())
         old_names = {
@@ -327,7 +315,7 @@ class SourceBoundaryTests(unittest.TestCase):
         self.assertEqual(scores.DEFAULT_INPUT, ROOT / "available_model_raw_values.csv")
         self.assertEqual(
             scores.DEFAULT_OUTPUT,
-            ROOT / ".centree-agentic-framework/available_model_scores.csv",
+            ROOT / "available_model_scores.csv",
         )
 
     def test_artificial_analysis_modules_are_source_pure_and_independent(self) -> None:

@@ -16,9 +16,7 @@ SCRIPT = (
     / ".github/workflows/update_available_model_data/generate_scores.py"
 )
 RAW_VALUES = REPOSITORY_ROOT / "available_model_raw_values.csv"
-GENERATED_SCORES = (
-    REPOSITORY_ROOT / ".centree-agentic-framework/available_model_scores.csv"
-)
+GENERATED_SCORES = REPOSITORY_ROOT / "available_model_scores.csv"
 RAW_HEADER = (
     "model,reasoning,intelligence_index,time_per_intelligence_index_task_seconds,"
     "cost_per_intelligence_index_task_usd,median_end_to_end_response_time_seconds,"
