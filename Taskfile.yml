@@ -1,0 +1,16 @@
+version: '3'
+tasks:
+  desktop:dev:
+    cmds:
+      - wails3 dev -config cmd/which-model-desktop/build/config.yml -port 5173
+  desktop:build:
+    cmds:
+      - pnpm -r build
+      - wails3 build -config cmd/which-model-desktop/build/config.yml
+  desktop:package:
+    deps: [desktop:build]
+    cmds:
+      - wails3 package -config cmd/which-model-desktop/build/config.yml
+  desktop:bindings:
+    cmds:
+      - wails3 generate bindings -d apps/desktop/src/bindings

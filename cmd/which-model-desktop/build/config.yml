@@ -1,0 +1,43 @@
+# Wails v3 project config (schema per wails v3.0.0-beta.9).
+# Normative facts (S01 CONTRACTS §7): app name `which-model`, binary
+# `which-model-desktop`, dev URL http://localhost:5173, dist apps/desktop/dist.
+# The dev URL is enforced by `-port 5173` on `wails3 dev` (root Taskfile) +
+# Vite `strictPort`; the binary name/dist dir by the executes below.
+version: '3'
+
+info:
+  companyName: "which-model"
+  productName: "which-model"
+  productIdentifier: "com.wdmitchell.which-model"
+  description: "which-model desktop"
+  copyright: "(c) 2026 William Mitchell"
+  version: "0.0.1"
+
+# Dev mode configuration (consumed by `wails3 dev`; FRONTEND_DEVSERVER_URL is
+# exported by the wails3 CLI and picked up by the app at runtime).
+dev_mode:
+  root_path: .
+  log_level: warn
+  debounce: 1000
+  ignore:
+    dir:
+      - .git
+      - node_modules
+      - apps
+      - packages
+      - specs
+      - bin
+    file:
+      - .DS_Store
+      - .gitignore
+      - "*_test.go"
+    watched_extension:
+      - "*.go"
+    git_ignore: true
+  executes:
+    - cmd: go build -o bin/which-model-desktop ./cmd/which-model-desktop
+      type: blocking
+    - cmd: pnpm --filter desktop dev
+      type: background
+    - cmd: ./bin/which-model-desktop
+      type: primary

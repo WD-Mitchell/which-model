@@ -88,13 +88,33 @@ func (c *Config) MarshalTOML() ([]byte, error) {
 		setKey(doc, key, inferEnvValue(c.env[key]))
 	}
 
+	// B01 SPEC §2.6: fixed render list, then any remaining top-level raw
+	// tables in ascending name order (unknown sections must not be dropped).
+	fixed := []string{"usage", "scoring", "strategy", "bands", "catalog", "output", "gui", "profiles", "groups", "harnesses", "favourites", "routes", "providers"}
+	rendered := make(map[string]bool, len(fixed))
 	var builder strings.Builder
-	for _, name := range []string{"usage", "scoring", "strategy", "bands", "catalog", "output", "providers"} {
+	for _, name := range fixed {
+		rendered[name] = true
 		section, ok := doc[name].(map[string]any)
 		if !ok {
 			continue
 		}
 		if err := renderSection(&builder, name, section); err != nil {
+			return nil, err
+		}
+	}
+	remainder := make([]string, 0, len(doc))
+	for name, value := range doc {
+		if rendered[name] {
+			continue
+		}
+		if _, ok := value.(map[string]any); ok {
+			remainder = append(remainder, name)
+		}
+	}
+	sort.Strings(remainder)
+	for _, name := range remainder {
+		if err := renderSection(&builder, name, doc[name].(map[string]any)); err != nil {
 			return nil, err
 		}
 	}

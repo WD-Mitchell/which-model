@@ -22,3 +22,9 @@ __pycache__/
 # Release artifacts (npm packaging)
 /dist/
 npm/which-model-*/which-model
+
+# Desktop monorepo (S01)
+node_modules/
+apps/desktop/dist/
+bin/
+cmd/which-model-desktop/build/bin/

@@ -1,0 +1,12 @@
+{
+  "name": "which-model-workspace",
+  "private": true,
+  "packageManager": "pnpm@11.5.0",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "pnpm --filter desktop dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
+  }
+}
