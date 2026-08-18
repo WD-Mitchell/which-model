@@ -1,0 +1,50 @@
+/* U05 §2.1 shell — mockup chrome: 400px panel, drop shadow, CSS-triangle
+   arrow (right-margin 96px), corner radial glow. */
+.outer {
+  position: relative;
+  width: 400px;
+  filter: drop-shadow(0 22px 50px rgba(0, 0, 0, 0.55));
+}
+
+.arrow {
+  width: 0;
+  height: 0;
+  margin: 0 0 -1px auto;
+  margin-right: 96px;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 8px solid var(--color-bg);
+}
+
+.panel {
+  position: relative;
+  width: 400px;
+  background: var(--color-bg);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.glow {
+  position: absolute;
+  inset: -70px -60px auto auto;
+  width: 210px;
+  height: 210px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--color-accent) 20%, transparent),
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+/* App menu: anchored top-right (U05 CONTRACTS §4). */
+.appmenu {
+  position: absolute;
+  right: 14px;
+  top: 36px;
+  width: 176px;
+  z-index: 10;
+}

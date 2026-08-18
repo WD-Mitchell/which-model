@@ -1,0 +1,54 @@
+/* U05 §2.2 weights header (back chevron + title) and weights-view scaffold.
+   The editor body itself is U06; here we render the header + shared carousel. */
+.wheaderRow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 16px 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.wheaderBack {
+  width: 20px;
+  height: 20px;
+  margin-left: -4px;
+  flex: none;
+}
+
+.wheaderTitle {
+  font-size: 13px;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+
+.wheaderSlug {
+  color: var(--color-accent-300);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--color-accent) 55%, transparent);
+}
+
+.wheaderHamburger {
+  margin-left: auto;
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+.wbody {
+  padding: 0;
+}
+
+/* Edge-fading 1px divider under the weights header (U06 §2.1). */
+.wdivider {
+  padding: 0 16px;
+}
+
+.wdividerLine {
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--color-divider) 40px,
+    var(--color-divider) calc(100% - 40px),
+    transparent
+  );
+}

@@ -1,6 +1,12 @@
 export { RankCard } from './RankCard'
 export type { RankCardProps } from './RankCard'
 
+export { RankCarousel } from './RankCarousel/RankCarousel'
+export type { RankCarouselProps } from './RankCarousel/RankCarousel'
+
+export { RankList } from './RankList/RankList'
+export type { RankListProps } from './RankList/RankList'
+
 export { ResultsCarousel } from './ResultsCarousel'
 export type { ResultsCarouselProps } from './ResultsCarousel'
 

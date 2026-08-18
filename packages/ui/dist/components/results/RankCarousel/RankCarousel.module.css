@@ -1,0 +1,66 @@
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Accent band (U04 CONTRACTS §3). */
+.band {
+  padding: 13px 16px 14px;
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chev {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+  cursor: pointer;
+}
+.chev:hover:enabled {
+  color: var(--color-text);
+}
+.chev:disabled {
+  color: color-mix(in srgb, var(--color-text) 22%, transparent);
+  cursor: default;
+}
+
+.center {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+.rank {
+  composes: mono;
+  font-size: 10px;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+
+.name {
+  display: block;
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 19px;
+  letter-spacing: -0.02em;
+  margin-top: 3px;
+}
+
+.meta {
+  composes: mono;
+  display: block;
+  font-size: 10.5px;
+  margin-top: 4px;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}

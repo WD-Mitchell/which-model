@@ -1,0 +1,25 @@
+/* which-model Desktop popover app-level styles. The html/body rules belong to
+   the app entries (U00 SPEC §2.3); component chrome lives in co-located CSS. */
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-weight: 400;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  height: 100%;
+}
+
+a {
+  color: var(--color-accent);
+  text-underline-offset: 3px;
+}

@@ -40,8 +40,8 @@ type Services struct {
 	usageFetchMu  sync.Mutex
 	refresherOnce sync.Once
 	// recordPick records a profile pick after a successful harness launch
-	// (B07 SPEC §2.10). Wired to B04's RecordPick in a later wave; until then
-	// it is the no-op stub set by New. Launch logs (never returns) a failure.
+	// (B07 SPEC §2.10). Wired to B04's RecordPick by New; Launch logs (never
+	// returns) a failure. Tests may override it.
 	recordPick func(ctx context.Context, profileSlug, routeKey string) error
 }
 
@@ -102,9 +102,8 @@ func New(paths config.Paths, cfg *config.Config, emit EmitFunc) (*Services, erro
 		paths: paths,
 		cfg:   cfg,
 		emit:  emit,
-		// B07 §2.10 seam: no-op until IM-B04 wires RecordPick.
-		recordPick: func(context.Context, string, string) error { return nil },
 	}
+	s.recordPick = s.RecordPick // B07 §2.10 seam wired to B04's RecordPick
 	if err := s.reloadCatalog(); err != nil {
 		return nil, err
 	}
@@ -117,13 +116,6 @@ func (s *Services) Warnings() []string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return append([]string(nil), s.warnings...)
-}
-
-// Rank is the B04 pick surface. IM-B04 (wave 6) replaces this stub; until
-// then it reports "not implemented" so callers (settings ShellSnippets
-// preview) degrade gracefully.
-func (s *Services) Rank(ctx context.Context, req RankRequest) (RankResponse, error) {
-	return RankResponse{}, fmt.Errorf("pick: rank not implemented (IM-B04 pending)")
 }
 
 // reloadCatalog re-reads scores CSV + benchmarks config + routes table and

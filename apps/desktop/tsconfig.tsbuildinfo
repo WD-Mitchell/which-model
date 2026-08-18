@@ -1,1 +1,1 @@
-{"root":["./src/main-popover.tsx","./src/main-settings.tsx"],"version":"5.9.3"}
+{"root":["./src/main-popover.tsx","./src/main-settings.tsx","./src/lib/host.ts","./src/lib/index.ts","./src/lib/invalidate.ts","./src/lib/overrides.ts","./src/lib/queries.ts","./src/popover/footer.tsx","./src/popover/header.tsx","./src/popover/landingview.tsx","./src/popover/popoverapp.tsx","./src/popover/popovershell.tsx","./src/popover/index.ts","./src/popover/__tests__/popover.test.tsx"],"version":"5.9.3"}

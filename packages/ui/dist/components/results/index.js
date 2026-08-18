@@ -1,4 +1,6 @@
 export { RankCard } from './RankCard';
+export { RankCarousel } from './RankCarousel/RankCarousel';
+export { RankList } from './RankList/RankList';
 export { ResultsCarousel } from './ResultsCarousel';
 export { ResultsTable } from './ResultsTable';
 export { ModelRow } from './ModelRow';

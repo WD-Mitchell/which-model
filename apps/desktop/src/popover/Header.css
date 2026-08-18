@@ -1,0 +1,23 @@
+/* U05 §2.3 landing header — brand + hamburger (.ib, 20×20). */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 18px 0;
+  position: relative;
+  z-index: 1;
+}
+
+.brand {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 12.5px;
+  letter-spacing: -0.01em;
+}
+
+.hamburger {
+  margin-left: auto;
+  width: 20px;
+  height: 20px;
+  flex: none;
+}

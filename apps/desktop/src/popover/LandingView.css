@@ -1,0 +1,61 @@
+/* U05 §2.4–2.8 landing view. */
+.hero {
+  padding: 20px 18px 18px;
+  position: relative;
+}
+
+.title {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 23px;
+  line-height: 1.15;
+  letter-spacing: -0.022em;
+  max-width: 16ch;
+  text-wrap: pretty;
+  margin: 0;
+}
+
+.catalog {
+  margin-top: 10px;
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+
+.search {
+  padding: 0 18px 14px;
+  position: relative;
+}
+
+.scaleLabel {
+  padding: 0 18px 6px;
+  display: flex;
+  align-items: baseline;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+}
+
+.scale {
+  padding: 14px 18px 8px;
+  position: relative;
+}
+
+/* U05 §3 — query errors render em-dash placeholders in the band. */
+.errorBand {
+  padding: 13px 16px 14px;
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+.errorCenter {
+  text-align: center;
+}
+
+.errorLine {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--color-text) 40%, transparent);
+}
