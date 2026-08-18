@@ -88,9 +88,21 @@ func main() {
 
 	// 5. Tray + popover, then hand the app to the bridge (S02 SPEC §2.1.5).
 	pop = newPopoverWindow(app)
-	_, refresh = setupTray(app, svc, pop)
 	bridge.SetApp(app)
 	registerWindowService(app, pop)
+
+	// S05: tray + hotkey + login-item integration. traySetup creates the tray
+	// (popover attach + label refresh) and publishes refresh into the var the
+	// bridge tap reads; buildIntegrations hides the tray when
+	// show_menu_bar_icon is false and wires the hotkey, login-item reconcile,
+	// and settings:changed subscription.
+	var traySetup = func() (*application.SystemTray, func()) {
+		tray, r := setupTray(app, svc, pop)
+		refresh = r
+		return tray, r
+	}
+	in := buildIntegrations(app, svc, pop, traySetup)
+	defer in.Close()
 
 	// 6. Catalog refresher: immediate reload then every 5m until shutdown. The
 	// app context is cancelled during cleanup, stopping the loop (S02 SPEC
