@@ -6,6 +6,7 @@ tasks:
   desktop:build:
     cmds:
       - pnpm -r build
+      - pnpm run check:host
       - wails3 build -config cmd/which-model-desktop/build/config.yml
   desktop:package:
     deps: [desktop:build]

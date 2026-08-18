@@ -16,6 +16,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.101.4
         version: 5.101.4(react@19.2.8)
+      '@wailsio/runtime':
+        specifier: 3.0.0-beta.9
+        version: 3.0.0-beta.9
       '@which-model/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -867,6 +870,9 @@ packages:
 
   '@vitest/utils@4.1.10':
     resolution: {integrity: sha512-fy9am/HWxbaGt/Sawrp90vt6Y6jQwf1RX77cz3uwoJwJVMli/e1IEwRPnMNJ7vKfPTwo0diXifkpPvwH9v7nGA==}
+
+  '@wailsio/runtime@3.0.0-beta.9':
+    resolution: {integrity: sha512-nsC4bwte9wNSxEFvjB5BslF/sfCZXQKrw2VlmAxQoSu77Lu5z292SeNmOKk0gcHd1r36LubSaNBDCEsJQLddYA==}
 
   ansi-regex@5.0.1:
     resolution: {integrity: sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ==}
@@ -2018,6 +2024,8 @@ snapshots:
       '@vitest/pretty-format': 4.1.10
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.1
+
+  '@wailsio/runtime@3.0.0-beta.9': {}
 
   ansi-regex@5.0.1: {}
 

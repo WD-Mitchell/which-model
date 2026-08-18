@@ -76,6 +76,9 @@ func main() {
 				}
 			},
 		},
+		// S04 SPEC §2.2: bind the engine facets (WindowService is registered
+		// after the popover window exists, below).
+		Services: registerServices(svc),
 		// S03 SPEC §2.7: mark the app quitting so the settings close hook
 		// stops intercepting and allows clean teardown.
 		OnShutdown: func() {
@@ -87,6 +90,7 @@ func main() {
 	pop = newPopoverWindow(app)
 	_, refresh = setupTray(app, svc, pop)
 	bridge.SetApp(app)
+	registerWindowService(app, pop)
 
 	// 6. Catalog refresher: immediate reload then every 5m until shutdown. The
 	// app context is cancelled during cleanup, stopping the loop (S02 SPEC
