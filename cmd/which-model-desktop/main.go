@@ -12,6 +12,7 @@ package main
 
 import (
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"os/exec"
@@ -30,12 +31,19 @@ import (
 const fatalStartupTitle = "which-model can't start"
 
 func main() {
-	// 1. Resolve config paths (S02 SPEC §2.1.1).
+	// 1. Resolve config paths.
 	home, _ := os.UserHomeDir()
 	paths := config.ResolvePaths(runtime.GOOS, home, os.Getenv)
 
-	// 2. Load config (S02 SPEC §2.1.2).
-	cfg, err := config.Load(config.LoadOptions{Path: paths.UserConfigFile})
+	// 1b. Bootstrap: create config dir + default config.toml if missing so
+	// the app starts cleanly from a cold install (no prior CLI usage).
+	if warn := bootstrapConfig(paths); warn != "" {
+		log.Printf("bootstrap: %s", warn)
+	}
+
+	// 2. Load config — use discovery (no explicit Path) so a missing file
+	// gracefully yields defaults instead of a fatal error.
+	cfg, err := config.Load(config.LoadOptions{})
 	if err != nil {
 		fatalStartup(nil, fatalStartupTitle, err.Error())
 	}
@@ -55,17 +63,29 @@ func main() {
 
 	svc, err := service.New(paths, cfg, bridge.Emit)
 	if err != nil {
-		title, msg := initErrorMessage(err)
-		fatalStartup(nil, title, msg)
+		// Missing scores CSV is no longer fatal — the app starts with an
+		// empty catalog so the user can refresh from the Settings or CLI.
+		if isCatalogMissing(err) {
+			log.Printf("startup: catalog missing, starting with empty state: %v", err)
+			svc = service.NewEmpty(paths, cfg, bridge.Emit)
+		} else {
+			title, msg := initErrorMessage(err)
+			fatalStartup(nil, title, msg)
+		}
 	}
 
 	// 4. application.New with single-instance (S02 SPEC §2.1.4). The second
 	// launch callback shows the popover (pop is assigned immediately after).
 	var pop *application.WebviewWindow
+	// Serve the embedded frontend dist in production; in dev mode
+	// (FRONTEND_DEVSERVER_URL set), Wails proxies to vite automatically.
+	frontendFS, _ := fs.Sub(frontend, "frontend/dist")
 	app := application.New(application.Options{
 		Name: "which-model",
+		Assets: application.AssetOptions{
+			Handler: application.BundledAssetFileServer(frontendFS),
+		},
 		Mac: application.MacOptions{
-			// Menu-bar app: no Dock icon; only the tray + on-demand windows.
 			ActivationPolicy: application.ActivationPolicyAccessory,
 		},
 		SingleInstance: &application.SingleInstanceOptions{
@@ -142,6 +162,12 @@ func scoresCSVPath(err error) string {
 		rest = rest[:i]
 	}
 	return strings.TrimSpace(rest)
+}
+
+// isCatalogMissing returns true when the service.New error is the missing-scores-CSV
+// sentinel. The app starts with an empty catalog in this case rather than exiting.
+func isCatalogMissing(err error) bool {
+	return scoresCSVPath(err) != ""
 }
 
 // fatalStartup shows a native modal dialog then exits 1 (S02 SPEC §3). The

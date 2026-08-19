@@ -28,3 +28,12 @@ node_modules/
 apps/desktop/dist/
 bin/
 cmd/which-model-desktop/build/bin/
+
+# Desktop build artifacts
+cmd/which-model-desktop/frontend/
+*.app
+
+# Desktop frontend embed: track the placeholder, ignore build-time copies.
+# The packaging script overwrites frontend/dist/ with the real vite output;
+# the placeholder index.html is committed so `go build ./...` always works.
+!cmd/which-model-desktop/frontend/dist/index.html
