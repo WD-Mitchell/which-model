@@ -110,6 +110,25 @@ func New(paths config.Paths, cfg *config.Config, emit EmitFunc) (*Services, erro
 	return s, nil
 }
 
+// NewEmpty creates a Services with an empty catalog (no scores, no benchmarks,
+// no routes). Used by the desktop app when the model catalog hasn't been
+// refreshed yet — the UI shows an empty picker with a prompt to run
+// `which-model catalog refresh`. All service methods work; ranking simply
+// returns zero candidates.
+func NewEmpty(paths config.Paths, cfg *config.Config, emit EmitFunc) *Services {
+	if emit == nil {
+		emit = func(string, any) {}
+	}
+	s := &Services{
+		paths:    paths,
+		cfg:      cfg,
+		emit:     emit,
+		warnings: []string{"catalog not loaded: run `which-model catalog refresh` to populate"},
+	}
+	s.recordPick = s.RecordPick
+	return s
+}
+
 // Warnings returns non-fatal construction warnings (currently only the
 // missing-routes-table warning, CONTRACTS §7), copied, in occurrence order.
 func (s *Services) Warnings() []string {

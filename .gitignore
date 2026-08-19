@@ -28,3 +28,7 @@ node_modules/
 apps/desktop/dist/
 bin/
 cmd/which-model-desktop/build/bin/
+
+# Desktop build artifacts
+cmd/which-model-desktop/frontend/
+*.app

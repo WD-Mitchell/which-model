@@ -4,20 +4,16 @@ tasks:
     cmds:
       - wails3 dev -config cmd/which-model-desktop/build/config.yml -port 5173
   desktop:build:
+    desc: Build the desktop .app bundle (macOS) with embedded frontend
     cmds:
       - pnpm -r build
       - pnpm run check:host
-      - go build -o bin/which-model-desktop ./cmd/which-model-desktop
-  # The packaged .app/.exe needs the Wails build task that `wails3 package`
-  # runs (`build` in the project Taskfile). Wails v3 beta.9's build/package
-  # subcommands do not take -config and read a build task from the project
-  # Taskfile, which the repo deliberately omits (S01 Decisions "Root Taskfile
-  # only"). desktop:build produces the binary via go build; desktop:package is
-  # the documented step once a Wails build task is added.
+      - bash scripts/package-macos.sh
   desktop:package:
     deps: [desktop:build]
+    desc: Package for distribution (currently same as build on macOS)
     cmds:
-      - wails3 package
+      - echo "Packaged at bin/which-model.app — drag to /Applications."
   desktop:bindings:
     cmds:
-      - wails3 generate bindings -d apps/desktop/src/bindings
+      - wails3 generate bindings -d apps/desktop/src/bindings -i -names ./cmd/which-model-desktop
