@@ -81,7 +81,13 @@ jobs:
             gh release create "$GITHUB_REF_NAME" --draft --generate-notes --verify-tag
           fi
           gh release upload "$GITHUB_REF_NAME" dist/* --clobber
-          gh release edit "$GITHUB_REF_NAME" --draft=false --latest
+          # Prerelease tags (contain '-') get the prerelease flag and do NOT
+          # become "Latest"; stable releases do.
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            gh release edit "$GITHUB_REF_NAME" --draft=false --prerelease --latest=false
+          else
+            gh release edit "$GITHUB_REF_NAME" --draft=false --latest
+          fi
 
   publish:
     needs: release
