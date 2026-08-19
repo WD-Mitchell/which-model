@@ -10,21 +10,20 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: go.mod
           cache: true
-      - name: Install Linux build dependencies
-        run: |
-          sudo DEBIAN_FRONTEND=noninteractive apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            pkg-config libgtk-4-dev libwebkitgtk-6.0-dev libx11-dev
-      - run: go build ./...
-      - run: go vet ./...
-      - run: go test ./...
+      # The release ships the CLI (cmd/which-model + its libraries). The Wails
+      # desktop app (cmd/which-model-desktop) is macOS-primary and needs the
+      # full GTK/webkitgtk Linux toolchain to compile, so it is intentionally
+      # out of this CLI-release gate; its Linux build is verified separately.
+      - run: go build ./cmd/which-model ./internal/... ./pkg/...
+      - run: go vet ./cmd/which-model ./internal/... ./pkg/...
+      - run: go test ./cmd/which-model ./internal/... ./pkg/...
 
   build:
     needs: test
