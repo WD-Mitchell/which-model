@@ -65,4 +65,14 @@ fi
 rm -rf "$ROOT/cmd/which-model-desktop/frontend"
 
 echo "==> Packaged: $APP"
-echo "    Drag to /Applications or double-click to launch."
+
+# Auto-install to ~/Applications so the app appears in Spotlight and Launchpad.
+INSTALL_DIR="$HOME/Applications"
+mkdir -p "$INSTALL_DIR"
+rm -rf "$INSTALL_DIR/which-model.app"
+cp -R "$APP" "$INSTALL_DIR/which-model.app"
+# Trigger Spotlight re-index for the new .app.
+mdimport "$INSTALL_DIR/which-model.app" 2>/dev/null || true
+
+echo "==> Installed: $INSTALL_DIR/which-model.app"
+echo "    Search 'which-model' in Spotlight or open from ~/Applications."
