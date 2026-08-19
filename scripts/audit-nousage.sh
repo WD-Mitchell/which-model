@@ -10,8 +10,8 @@
 #   4. the usage-free packages pass their full suites under -tags nousage.
 set -euo pipefail
 
-# Step 1 — default build.
-go build ./...
+# Step 1 — default build (CLI + libraries; desktop app needs GTK on Linux).
+go build ./cmd/which-model ./internal/... ./pkg/...
 
 # Step 2 — compiled-out build.
 BIN="$(mktemp -d)/which-model-nousage"
