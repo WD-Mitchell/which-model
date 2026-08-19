@@ -87,6 +87,7 @@ jobs:
     needs: release
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    environment: Publish
     permissions:
       contents: read
       # OIDC token for npm Trusted Publishing — no long-lived token needed.
@@ -96,7 +97,7 @@ jobs:
       #   Organization: WD-Mitchell
       #   Repository: which-model
       #   Workflow filename: npm-release.yml
-      #   Environment name: (leave empty)
+      #   Environment name: Publish
       id-token: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
