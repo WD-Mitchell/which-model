@@ -37,5 +37,5 @@ export type { SnippetPreviewProps } from './primitives/SnippetPreview';
 export * from './components/results';
 export { BalanceSlider, ComplexityScale, WeightEditor, WeightRow, } from './components/weights';
 export type { BalanceSliderProps, ComplexityScaleProps, WeightEditorProps, WeightEditorRow, WeightRowProps, WeightVariant, } from './components/weights';
-export { SETTINGS_NAV_ITEMS, SettingsDetailShell, SettingsHeader, SettingsModal, SettingsNav, SettingsRow, SettingsSection, SettingsShell, } from './components/settings';
-export type { SettingsDetailShellProps, SettingsHeaderAction, SettingsHeaderActionSlot, SettingsHeaderProps, SettingsModalProps, SettingsNavEntry, SettingsNavItem, SettingsNavItemName, SettingsNavProps, SettingsRowProps, SettingsSectionName, SettingsSectionProps, SettingsShellProps, } from './components/settings';
+export { SETTINGS_NAV_ITEMS, SettingsDetailShell, ProviderUsageRow, SettingsHeader, SettingsModal, SettingsNav, SettingsRow, SettingsSection, SettingsShell, } from './components/settings';
+export type { ProviderUsageRowProps, SettingsDetailShellProps, SettingsHeaderAction, SettingsHeaderActionSlot, SettingsHeaderProps, SettingsModalProps, SettingsNavEntry, SettingsNavItem, SettingsNavItemName, SettingsNavProps, SettingsRowProps, SettingsSectionName, SettingsSectionProps, SettingsShellProps, } from './components/settings';

@@ -21,4 +21,4 @@ export { UsageMeter } from './primitives/UsageMeter';
 export { SnippetPreview } from './primitives/SnippetPreview';
 export * from './components/results';
 export { BalanceSlider, ComplexityScale, WeightEditor, WeightRow, } from './components/weights';
-export { SETTINGS_NAV_ITEMS, SettingsDetailShell, SettingsHeader, SettingsModal, SettingsNav, SettingsRow, SettingsSection, SettingsShell, } from './components/settings';
+export { SETTINGS_NAV_ITEMS, SettingsDetailShell, ProviderUsageRow, SettingsHeader, SettingsModal, SettingsNav, SettingsRow, SettingsSection, SettingsShell, } from './components/settings';

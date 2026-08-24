@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import { cx } from '../utils/cx'
 import styles from './Toast.module.css'
 
 export interface ToastHandle {
@@ -34,7 +35,9 @@ export function ToastProvider(props: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {props.children}
-      {message !== null && <div className={styles.toast}>{message}</div>}
+      {/* `mono` per the mockup's own class list (demo.dc.html 806) — the
+          toast echoes launch commands, so it is a mono surface. */}
+      {message !== null && <div className={cx('mono', styles.toast)}>{message}</div>}
     </ToastContext.Provider>
   )
 }

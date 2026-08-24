@@ -7,6 +7,9 @@ export interface InputProps {
     disabled?: boolean;
     className?: string;
     onFocus?: () => void;
+    /** Commit-on-blur editors (the mockup's inline rename fields, demo.dc.html
+     *  462) need the counterpart to onFocus. */
+    onBlur?: () => void;
     onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }
-export declare function Input({ value, onChange, placeholder, mono, disabled, className, onFocus, onKeyDown, }: InputProps): React.JSX.Element;
+export declare function Input({ value, onChange, placeholder, mono, disabled, className, onFocus, onBlur, onKeyDown, }: InputProps): React.JSX.Element;

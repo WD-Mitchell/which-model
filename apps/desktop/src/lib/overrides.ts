@@ -40,7 +40,11 @@ function mapEqual(a: WeightMap, b: WeightMap): boolean {
   return true
 }
 
-const clampWeight = (v: number): number => Math.max(0, Math.min(5, Math.round(v)))
+// 1..5, matching the engine's (0, 5] rule for both tiers. Dropping a metric is
+// removeMetric's job — setWeight(0) used to do it, which silently deleted core
+// axes the engine requires (intelligence/cost/speed) and made the profile
+// unrankable.
+const clampWeight = (v: number): number => Math.max(1, Math.min(5, Math.round(v)))
 const clampShare = (v: number): number =>
   Math.max(10, Math.min(90, Math.round(v / 5) * 5))
 
@@ -61,8 +65,7 @@ export const useOverridesStore = create<OverridesState>((set, get) => ({
     const tier = tierOf(key)
     set((s) => {
       const map = { ...s[tier] }
-      if (value === 0) delete map[key]
-      else map[key] = value
+      map[key] = value
       return { [tier]: map } as Partial<OverridesState>
     })
   },

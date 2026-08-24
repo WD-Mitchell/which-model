@@ -1,8 +1,12 @@
+/* demo.dc.html 806. `transform: translateX(-50%)` (not the `translate`
+   longhand): app.css's @keyframes toastIn animates `transform`, and the two
+   properties compose — a `translate:-50% 0` here would stack with the
+   keyframe's own -50% and start the toast a full width off-centre. */
 .toast {
   position: fixed;
   left: 50%;
   bottom: 34px;
-  translate: -50% 0;
+  transform: translateX(-50%);
   padding: 9px 14px;
   border-radius: 8px;
   background: rgba(14, 15, 24, 0.92);

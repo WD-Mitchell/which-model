@@ -6,13 +6,21 @@
   flex: 1;
 }
 
+/* overflow:hidden + a truncating label: three meters share a flexible cell, so
+   at narrow widths the label must ellipsis rather than run under the readout.
+   Without this the Providers row rendered "SESSION W42%LY 10%THLY 54%". */
 .labelLine {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 6px;
+  overflow: hidden;
 }
 
 .label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-variant-numeric: tabular-nums;
   font-size: 9px;
@@ -21,13 +29,21 @@
   color: color-mix(in srgb, var(--color-text) 38%, transparent);
 }
 
+/* demo.dc.html 557 + 1111 (`mt.fg`): the readout is 62% text when the meter
+   is live and 34% when it has nothing to report. */
 .value {
   margin-left: auto;
+  flex: none;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-variant-numeric: tabular-nums;
   font-size: 9px;
   letter-spacing: 0;
   text-transform: none;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+
+.valueNull {
+  color: color-mix(in srgb, var(--color-text) 34%, transparent);
 }
 
 .track {

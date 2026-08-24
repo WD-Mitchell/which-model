@@ -12,6 +12,27 @@
   word-break: break-word;
 }
 
+/* variant="command" — the harness launch-command preview, demo.dc.html 530:
+   `class="mono input"` with min-height:30px;padding:7px 10px;font-size:11.5px;
+   color:MUTED. The ground/border/radius come from nocturne's `.input`, which
+   the element also carries, so only the deltas live here. `.input` sets
+   `font: inherit` (which would drop the mono face and re-assert 14px), hence
+   the explicit family/size; `:global(.input)` keeps this above it whatever
+   the emitted stylesheet order. */
+:global(.input).command {
+  margin: 0;
+  width: 100%;
+  min-height: 30px;
+  padding: 7px 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--color-text) 72%, transparent);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .copyable {
   cursor: pointer;
 }

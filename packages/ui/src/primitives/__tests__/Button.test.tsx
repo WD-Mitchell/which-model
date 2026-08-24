@@ -1,6 +1,7 @@
 import { fireEvent, render } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { Button } from '../Button'
+import styles from '../Button.module.css'
 
 function btn(container: HTMLElement): HTMLButtonElement {
   const el = container.querySelector('button')
@@ -21,6 +22,39 @@ describe('Button', () => {
     expect(btn(a.container).className).toContain('btn-primary')
     expect(btn(b.container).className).toContain('btn-secondary')
     expect(btn(c.container).className).toContain('btn-ghost')
+  })
+
+  it('applies only the requested size class', () => {
+    const md = render(<Button variant="ghost">md</Button>)
+    const sm = render(
+      <Button variant="ghost" size="sm">
+        sm
+      </Button>,
+    )
+    const xs = render(
+      <Button variant="ghost" size="xs">
+        xs
+      </Button>,
+    )
+    expect(btn(md.container).classList.contains(styles.sm)).toBe(false)
+    expect(btn(md.container).classList.contains(styles.xs)).toBe(false)
+    expect(btn(sm.container).classList.contains(styles.sm)).toBe(true)
+    expect(btn(sm.container).classList.contains(styles.xs)).toBe(false)
+    expect(btn(xs.container).classList.contains(styles.xs)).toBe(true)
+    expect(btn(xs.container).classList.contains(styles.sm)).toBe(false)
+  })
+
+  it('keeps the nocturne classes alongside a size class', () => {
+    const { container } = render(
+      <Button variant="primary" size="xs" className="extra">
+        go
+      </Button>,
+    )
+    const list = btn(container).classList
+    expect(list.contains('btn')).toBe(true)
+    expect(list.contains('btn-primary')).toBe(true)
+    expect(list.contains(styles.xs)).toBe(true)
+    expect(list.contains('extra')).toBe(true)
   })
 
   it('does not use native disabled by default', () => {

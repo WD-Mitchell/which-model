@@ -20,9 +20,15 @@ export function RankCarousel({ items, index, onIndex }: RankCarouselProps) {
   const model = items[idx]
 
   const rankLine = model ? `rank ${idx + 1} of ${items.length}` : 'no route'
-  const nameLine = model ? model.model_name : 'Enable a provider'
+  // Reasoning belongs to the model's identity, so it is bracketed after the
+  // name in the same type rather than repeated in the meta line.
+  const nameLine = model
+    ? model.reasoning
+      ? `${model.model_name} (${model.reasoning})`
+      : model.model_name
+    : 'Enable a provider'
   const metaLine = model
-    ? `${model.provider} · ${model.reasoning} · ${model.score.toFixed(2)}`
+    ? `${model.provider} · ${model.score.toFixed(2)}`
     : 'every provider is switched off'
 
   // Prev disabled iff at the first item (empty list ⇒ only slot); next

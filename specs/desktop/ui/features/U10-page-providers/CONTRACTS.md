@@ -67,8 +67,10 @@ Queries: `['providers']` → `host.providers.list()`; `['provider', id]` → `ho
 | Detail back link | `Providers` |
 | Summary | `{on} of {total} routes enabled` |
 | Bulk buttons | `Enable all` / `Disable all` (provider-wide and per-model) |
+| Detail delete | icon 13px trash (`.ib` 24px box); tooltip `Delete {id}`, disabled tooltip `Built-in provider — cannot be deleted`; success toast `deleted {id}` |
 | Level label | `reasoning {reasoning}` |
 | Default tag | `default` |
+| Unrouted model marker | `no routes` |
 | Error lines | `couldn't load providers` / `couldn't load {id}` / `Retry` |
 
 ## 5. Test fixtures (vitest + `createMockEngineHost`, U01 CONTRACTS §4)

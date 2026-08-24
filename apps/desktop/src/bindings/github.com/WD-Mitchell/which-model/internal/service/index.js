@@ -68,6 +68,12 @@ import * as $models from "./models.js";
  */
 
 /**
+ * ProviderAccountDTO is one named credential for a provider. Ref is a
+ * REFERENCE (env var, file path, keychain service) — never the secret itself.
+ * @typedef {$models.ProviderAccountDTO} ProviderAccountDTO
+ */
+
+/**
  * ProviderDetail is the provider edit/read shape.
  * @typedef {$models.ProviderDetail} ProviderDetail
  */

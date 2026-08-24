@@ -29,6 +29,17 @@ describe('UsageMeter', () => {
     const f = fill(container)
     expect(f.style.width).toBe('0%')
     expect(f.className).toContain(styles.fillNull)
+    // demo.dc.html 1111 — the readout dims to 34% text when there is nothing
+    // to report, and stays at 62% otherwise.
+    const dash = screen.getByText('—') as HTMLElement
+    expect(dash.classList.contains(styles.valueNull)).toBe(true)
+  })
+
+  it('keeps the live readout colour for a real percent', () => {
+    render(<UsageMeter label="cost" percent={12} />)
+    const value = screen.getByText('12%') as HTMLElement
+    expect(value.classList.contains(styles.value)).toBe(true)
+    expect(value.classList.contains(styles.valueNull)).toBe(false)
   })
 
   it('forces the hot fill when hot is set with a low percent', () => {

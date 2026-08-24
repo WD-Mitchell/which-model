@@ -85,6 +85,21 @@ type ProvidersAPI struct{ svc *service.Services }
 func (a *ProvidersAPI) List() ([]service.ProviderInfo, error) {
 	return a.svc.Providers().List(ctx)
 }
+func (a *ProvidersAPI) Add(id string) error {
+	return a.svc.Providers().Add(ctx, id)
+}
+func (a *ProvidersAPI) Addable() ([]string, error) {
+	return a.svc.Providers().Addable(ctx)
+}
+func (a *ProvidersAPI) Delete(id string) error {
+	return a.svc.Providers().Delete(ctx, id)
+}
+func (a *ProvidersAPI) Duplicate(id string) (string, error) {
+	return a.svc.Providers().Duplicate(ctx, id)
+}
+func (a *ProvidersAPI) SetAccounts(id string, accounts []service.ProviderAccountDTO) error {
+	return a.svc.Providers().SetAccounts(ctx, id, accounts)
+}
 func (a *ProvidersAPI) SetEnabled(id string, on bool) error {
 	return a.svc.Providers().SetEnabled(ctx, id, on)
 }

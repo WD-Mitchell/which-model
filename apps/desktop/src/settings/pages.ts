@@ -25,7 +25,6 @@ export interface PageComponentProps {
 
 export type SettingsPageName =
   | 'General'
-  | 'Usage detection'
   | 'Profiles'
   | 'Benchmark groups'
   | 'Favourites'
@@ -59,7 +58,11 @@ export interface DetailHeaderProps {
 export const NAV_GROUPS: ReadonlyArray<
   readonly [string, ReadonlyArray<SettingsPageName>]
 > = [
-  ['app', ['General', 'Usage detection']],
+  // 'Usage detection' was removed: its only remaining control (the usage
+  // backend) now sits at the top of Providers, next to the live limits it
+  // governs, and the per-provider limits list it duplicated is the Providers
+  // list itself.
+  ['app', ['General']],
   ['ranking', ['Profiles', 'Benchmark groups', 'Favourites']],
   ['routing', ['Providers', 'Harnesses', 'Agent integration']],
 ] as const
@@ -70,7 +73,6 @@ export const PAGE_REGISTRY: Record<
   React.LazyExoticComponent<SettingsPageComponent>
 > = {
   General: React.lazy(() => import('./pages/General/GeneralPage')),
-  'Usage detection': React.lazy(() => import('./pages/Usage/UsagePage')),
   Profiles: React.lazy(() => import('./pages/Profiles/ProfilesPage')),
   'Benchmark groups': React.lazy(() => import('./pages/Groups/GroupsPage')),
   Favourites: React.lazy(() => import('./pages/Favourites/FavouritesPage')),
@@ -109,15 +111,12 @@ export const PAGE_META: Record<
     'How which-model runs on this Mac, and how the pick is drawn in the popover.',
     null,
   ],
-  'Usage detection': [
-    'Usage detection',
-    'Where limits are read from, and how often.',
-    null,
-  ],
   Providers: [
     'Providers',
     'Drag to set priority — highest at the top. Default-deny: a provider is never read until you enable it. Open one to choose which of its models may be routed to.',
-    null,
+    // Deliberate addition over the mockup (user request): custom providers can
+    // be registered here; they route nothing until routes are declared.
+    'Add provider',
   ],
   'Agent integration': [
     'Agent integration',

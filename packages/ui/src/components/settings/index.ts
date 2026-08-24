@@ -18,3 +18,5 @@ export type { SettingsModalProps } from './SettingsModal'
 
 export { SettingsDetailShell } from './SettingsDetailShell'
 export type { SettingsDetailShellProps } from './SettingsDetailShell'
+export { ProviderUsageRow } from './ProviderUsageRow'
+export type { ProviderUsageRowProps } from './ProviderUsageRow'

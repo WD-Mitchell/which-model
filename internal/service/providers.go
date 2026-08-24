@@ -2,13 +2,16 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/WD-Mitchell/which-model/internal/catalog/fetch/modelsdev"
 	"github.com/WD-Mitchell/which-model/internal/catalog/identity"
 	"github.com/WD-Mitchell/which-model/internal/config"
 	"github.com/WD-Mitchell/which-model/internal/pick/band"
@@ -28,9 +31,10 @@ type ProviderService struct{ s *Services }
 // Providers returns the providers facet.
 func (s *Services) Providers() *ProviderService { return &ProviderService{s: s} }
 
-// providerUniverse returns the provider ids from the union of the routes table
-// and configured providers, in raw-priority display order. Callers that already
-// hold s.mu should use providerUniverseLocked.
+// providerUniverse returns the provider ids from the union of the routes table,
+// configured providers, and every provider this binary ships support for, in
+// raw-priority display order. Callers that already hold s.mu should use
+// providerUniverseLocked.
 func (s *Services) providerUniverse() []string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -40,6 +44,20 @@ func (s *Services) providerUniverse() []string {
 func (s *Services) providerUniverseLocked() []string {
 	seen := make(map[string]struct{}, len(s.cfg.Providers)+len(s.routes.Routes))
 	for id := range s.cfg.Providers {
+		seen[id] = struct{}{}
+	}
+	// Every registered usage provider, so a provider the binary supports is
+	// always listable — and therefore enableable — before it has any routes.
+	//
+	// Without this the universe is empty on a cold install: the route table only
+	// exists after `which-model routes refresh` has run against an authenticated
+	// CLI, so the Providers page had no rows and no way to get any, which read
+	// as "you cannot add providers". Default-deny is unaffected: these appear
+	// with Enabled=false until the user turns one on.
+	//
+	// Empty under `-tags nousage` (nothing registers), which is correct: a
+	// binary with no usage providers compiled in should not advertise them.
+	for _, id := range usage.IDs() {
 		seen[id] = struct{}{}
 	}
 	for _, route := range s.routes.Routes {
@@ -133,6 +151,8 @@ func (p *ProviderService) listLocked() ([]ProviderInfo, error) {
 			ID:       id,
 			Enabled:  provider.Enabled,
 			Priority: index + 1,
+			Accounts: len(provider.Accounts),
+			Builtin:  providerBuiltin(id),
 		}
 
 		routesTotal := 0
@@ -281,14 +301,23 @@ func firstWindow(windows []usage.Window, id string) (usage.Window, bool) {
 	return usage.Window{}, false
 }
 
-// Detail returns the provider's models and only the reasoning levels present
-// in the routes table.
+// Detail returns every model currently available from the provider: the
+// routes table's models (with their levels) UNION the provider's full
+// models.dev catalogue — a model with no benchmark row produces no routes,
+// but it is still available from the provider, so it lists with nil Levels
+// and its models.dev name. The catalogue comes from the same cache file
+// Addable reads (<cache>/catalog/modelsdev_providers.json); an absent or
+// unreadable cache degrades to routes-only (never an error, never a fetch).
 func (p *ProviderService) Detail(ctx context.Context, id string) (ProviderDetail, error) {
 	_ = ctx
 	p.s.mu.RLock()
 	defer p.s.mu.RUnlock()
 	if !p.providerKnownLocked(id) {
 		return ProviderDetail{}, fmt.Errorf("%w: providers: unknown provider %q", errNotFound, id)
+	}
+	accounts := make([]ProviderAccountDTO, 0, len(p.s.cfg.Providers[id].Accounts))
+	for _, account := range p.s.cfg.Providers[id].Accounts {
+		accounts = append(accounts, ProviderAccountDTO{Name: account.Name, Kind: account.Kind, Ref: account.Ref})
 	}
 	disabled := p.s.disabledRouteSetLocked(id)
 	type modelData struct {
@@ -313,12 +342,26 @@ func (p *ProviderService) Detail(ctx context.Context, id string) (ProviderDetail
 			model.levels = append(model.levels, route.Reasoning)
 		}
 	}
+	// Catalogue names: models.dev is the naming authority. Unrouted
+	// catalogue models join the list; routed models fall back to the
+	// catalogue name only when the table carries none (user-declared names
+	// are operator input and win).
+	catalogueNames := p.modelsDevNamesLocked(id)
+	for modelID, name := range catalogueNames {
+		if _, routed := models[modelID]; routed {
+			if models[modelID].name == "" {
+				models[modelID].name = name
+			}
+			continue
+		}
+		models[modelID] = &modelData{name: name, seen: map[string]struct{}{}}
+	}
 	modelIDs := make([]string, 0, len(models))
 	for modelID := range models {
 		modelIDs = append(modelIDs, modelID)
 	}
 	sort.Strings(modelIDs)
-	out := ProviderDetail{ID: id, Models: make([]ProviderModel, 0, len(modelIDs))}
+	out := ProviderDetail{ID: id, Accounts: accounts, Builtin: providerBuiltin(id), Models: make([]ProviderModel, 0, len(modelIDs))}
 	for _, modelID := range modelIDs {
 		model := models[modelID]
 		sort.SliceStable(model.levels, func(i, j int) bool {
@@ -336,9 +379,36 @@ func (p *ProviderService) Detail(ctx context.Context, id string) (ProviderDetail
 			_, off := disabled[modelID+"@"+reasoning]
 			levels = append(levels, RouteLevel{Reasoning: reasoning, Enabled: !off, Default: isDefault})
 		}
-		out.Models = append(out.Models, ProviderModel{ModelID: modelID, ModelName: model.name, Levels: levels})
+		var levelPtr []RouteLevel
+		if len(levels) > 0 {
+			levelPtr = levels
+		}
+		out.Models = append(out.Models, ProviderModel{ModelID: modelID, ModelName: model.name, Levels: levelPtr})
 	}
 	return out, nil
+}
+
+// modelsDevNamesLocked returns the provider's models.dev catalogue models as
+// ModelID → Name (models.dev names, already cleaned at collect time). Builtin
+// provider ids map onto their catalogue slug (routing.CatalogueSlugFor); an
+// added provider's id IS its slug. Absent or unreadable cache → nil.
+func (p *ProviderService) modelsDevNamesLocked(id string) map[string]string {
+	data, err := os.ReadFile(filepath.Join(p.s.paths.CacheDir, "catalog", "modelsdev_providers.json"))
+	if err != nil {
+		return nil
+	}
+	var catalogue []modelsdev.ProviderModel
+	if err := json.Unmarshal(data, &catalogue); err != nil {
+		return nil
+	}
+	slug := routing.CatalogueSlugFor(id)
+	names := make(map[string]string)
+	for _, m := range catalogue {
+		if m.Provider == slug {
+			names[m.ModelID] = m.Name
+		}
+	}
+	return names
 }
 
 func reasoningLess(left, right string) bool {
@@ -364,6 +434,15 @@ func (p *ProviderService) providerKnownLocked(id string) bool {
 	}
 	for _, route := range p.s.routes.Routes {
 		if route.Provider == id {
+			return true
+		}
+	}
+	// Must stay in step with providerUniverseLocked, which also admits every
+	// registered usage provider. Listing an id the writes then reject is worse
+	// than not listing it: enabling one returned
+	// `not found: providers: unknown provider "claude"`.
+	for _, registered := range usage.IDs() {
+		if registered == id {
 			return true
 		}
 	}
@@ -407,6 +486,270 @@ func (p *ProviderService) SetEnabled(ctx context.Context, id string, enabled boo
 	p.s.emit(EventConfigChanged, map[string]string{"section": "providers"})
 	return nil
 }
+
+// Add registers a custom provider id in config so it appears in the provider
+// universe (default-deny: Enabled false) at the end of the priority order.
+//
+// This registers an ID ONLY — the binary has no usage adapter or route source
+// for it, so its routes stay empty until the user declares them
+// (`which-model routes add`). That is still useful: an enabled custom provider
+// with user-declared routes participates in ranking. Built-in ids (already in
+// the universe) are conflicts, not re-adds.
+func (p *ProviderService) Add(ctx context.Context, id string) error {
+	_ = ctx
+	id = strings.ToLower(strings.TrimSpace(id))
+	if id == "" || !providerIDPattern.MatchString(id) {
+		return fmt.Errorf("%w: providers: id must be lowercase letters, digits, '-' or '_'", errValidation)
+	}
+	p.s.mu.Lock()
+	for _, existing := range p.s.providerUniverseLocked() {
+		if existing == id {
+			p.s.mu.Unlock()
+			return fmt.Errorf("%w: providers: %q already exists", errConflict, id)
+		}
+	}
+	copyCfg, cleanup, err := cloneConfigForProviders(p.s.cfg)
+	if err == nil {
+		if copyCfg.Providers == nil {
+			copyCfg.Providers = make(map[string]config.ProviderConfig, 1)
+		}
+		copyCfg.Providers[id] = config.ProviderConfig{
+			Enabled:  false,
+			Priority: len(p.s.providerUniverseLocked()) + 1,
+		}
+		err = p.persistConfigLocked(copyCfg)
+	}
+	if cleanup != nil {
+		cleanup()
+	}
+	if err != nil {
+		p.s.mu.Unlock()
+		return err
+	}
+	p.s.mu.Unlock()
+	p.s.emit(EventConfigChanged, map[string]string{"section": "providers"})
+	return nil
+}
+
+// Addable returns the provider ids that can be added: every models.dev
+// provider slug not already in the universe, sorted.
+//
+// The set is READ FROM THE CACHED CATALOGUE (<cache>/catalog/modelsdev_
+// providers.json, written by `catalog refresh` / `routes refresh`), never
+// fetched — the settings window must not block on the network. An absent or
+// unreadable cache yields an empty list, which the UI shows as "refresh the
+// catalogue first" rather than inviting a free-text guess.
+//
+// Slugs are the only ids worth offering: route production maps a provider id
+// onto its models.dev catalogue entries by that exact slug, so an id from
+// anywhere else can never acquire routes.
+func (p *ProviderService) Addable(ctx context.Context) ([]string, error) {
+	_ = ctx
+	p.s.mu.RLock()
+	existing := make(map[string]struct{})
+	for _, id := range p.s.providerUniverseLocked() {
+		existing[id] = struct{}{}
+	}
+	cachePath := filepath.Join(p.s.paths.CacheDir, "catalog", "modelsdev_providers.json")
+	p.s.mu.RUnlock()
+
+	data, err := os.ReadFile(cachePath)
+	if err != nil {
+		return []string{}, nil // no catalogue yet -> nothing to offer
+	}
+	var catalogue []modelsdev.ProviderModel
+	if err := json.Unmarshal(data, &catalogue); err != nil {
+		return []string{}, nil
+	}
+
+	seen := make(map[string]struct{})
+	out := make([]string, 0, 16)
+	for _, m := range catalogue {
+		if m.Provider == "" {
+			continue
+		}
+		if _, taken := existing[m.Provider]; taken {
+			continue
+		}
+		if _, dup := seen[m.Provider]; dup {
+			continue
+		}
+		seen[m.Provider] = struct{}{}
+		out = append(out, m.Provider)
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+// providerBuiltin reports whether id ships a usage adapter in this binary.
+// Builtins are always in the universe (providerUniverseLocked seeds it from
+// usage.IDs), so deleting their config entry would not remove them — Delete
+// refuses instead of doing something that looks like a no-op.
+func providerBuiltin(id string) bool {
+	for _, registered := range usage.IDs() {
+		if registered == id {
+			return true
+		}
+	}
+	return false
+}
+
+// Delete removes a provider's config entry, its routes from the route table,
+// and its disabled-route record. Builtins cannot be deleted.
+//
+// Routes go too: leaving them would keep the provider in the universe (it is
+// unioned from the route table), so the row would reappear and the delete would
+// look broken.
+func (p *ProviderService) Delete(ctx context.Context, id string) error {
+	_ = ctx
+	if providerBuiltin(id) {
+		return fmt.Errorf("%w: providers: %q ships with which-model and cannot be deleted; disable it instead", errValidation, id)
+	}
+	p.s.mu.Lock()
+	if !p.providerKnownLocked(id) {
+		p.s.mu.Unlock()
+		return fmt.Errorf("%w: providers: unknown provider %q", errNotFound, id)
+	}
+	copyCfg, cleanup, err := cloneConfigForProviders(p.s.cfg)
+	if err == nil {
+		delete(copyCfg.Providers, id)
+		err = p.persistConfigLocked(copyCfg)
+	}
+	if cleanup != nil {
+		cleanup()
+	}
+	if err != nil {
+		p.s.mu.Unlock()
+		return err
+	}
+	// Drop its routes so the provider actually leaves the universe.
+	kept := make([]routing.Route, 0, len(p.s.routes.Routes))
+	for _, route := range p.s.routes.Routes {
+		if route.Provider != id {
+			kept = append(kept, route)
+		}
+	}
+	if len(kept) != len(p.s.routes.Routes) {
+		p.s.routes.Routes = kept
+		if err := p.s.saveRoutesLocked(); err != nil {
+			p.s.mu.Unlock()
+			return err
+		}
+	}
+	p.s.mu.Unlock()
+	p.s.emit(EventConfigChanged, map[string]string{"section": "providers"})
+	return nil
+}
+
+// Duplicate copies a provider's config entry (accounts included) to a fresh id
+// and returns it. The copy carries no routes — it is a second ACCOUNT of the
+// same service, which is what a duplicate is for here.
+func (p *ProviderService) Duplicate(ctx context.Context, id string) (string, error) {
+	_ = ctx
+	p.s.mu.Lock()
+	if !p.providerKnownLocked(id) {
+		p.s.mu.Unlock()
+		return "", fmt.Errorf("%w: providers: unknown provider %q", errNotFound, id)
+	}
+	taken := make(map[string]struct{})
+	for _, existing := range p.s.providerUniverseLocked() {
+		taken[existing] = struct{}{}
+	}
+	next := ""
+	for i := 2; i < 100; i++ {
+		candidate := fmt.Sprintf("%s_%d", id, i)
+		if _, clash := taken[candidate]; !clash {
+			next = candidate
+			break
+		}
+	}
+	if next == "" {
+		p.s.mu.Unlock()
+		return "", fmt.Errorf("%w: providers: no free id for a copy of %q", errConflict, id)
+	}
+
+	source := p.s.cfg.Providers[id]
+	copyCfg, cleanup, err := cloneConfigForProviders(p.s.cfg)
+	if err == nil {
+		if copyCfg.Providers == nil {
+			copyCfg.Providers = make(map[string]config.ProviderConfig, 1)
+		}
+		dup := source
+		dup.Enabled = false // default-deny, like any new provider
+		dup.Priority = len(taken) + 1
+		dup.Accounts = append([]config.ProviderAccount(nil), source.Accounts...)
+		copyCfg.Providers[next] = dup
+		err = p.persistConfigLocked(copyCfg)
+	}
+	if cleanup != nil {
+		cleanup()
+	}
+	p.s.mu.Unlock()
+	if err != nil {
+		return "", err
+	}
+	p.s.emit(EventConfigChanged, map[string]string{"section": "providers"})
+	return next, nil
+}
+
+// SetAccounts replaces a provider's account list wholesale — one atomic write
+// covers add, rename, re-kind and remove, so the UI never has to sequence
+// several calls and half-apply on failure.
+func (p *ProviderService) SetAccounts(ctx context.Context, id string, accounts []ProviderAccountDTO) error {
+	_ = ctx
+	seen := make(map[string]struct{}, len(accounts))
+	for _, account := range accounts {
+		name := strings.TrimSpace(account.Name)
+		if name == "" {
+			return fmt.Errorf("%w: providers: an account needs a name", errValidation)
+		}
+		switch account.Kind {
+		case AccountKindOAuth, AccountKindCookie, AccountKindToken:
+		default:
+			return fmt.Errorf("%w: providers: account %q has unknown kind %q (oauth, cookie or token)", errValidation, name, account.Kind)
+		}
+		if _, dup := seen[name]; dup {
+			return fmt.Errorf("%w: providers: duplicate account name %q", errConflict, name)
+		}
+		seen[name] = struct{}{}
+	}
+
+	p.s.mu.Lock()
+	if !p.providerKnownLocked(id) {
+		p.s.mu.Unlock()
+		return fmt.Errorf("%w: providers: unknown provider %q", errNotFound, id)
+	}
+	copyCfg, cleanup, err := cloneConfigForProviders(p.s.cfg)
+	if err == nil {
+		if copyCfg.Providers == nil {
+			copyCfg.Providers = make(map[string]config.ProviderConfig, 1)
+		}
+		provider := copyCfg.Providers[id]
+		provider.Accounts = make([]config.ProviderAccount, 0, len(accounts))
+		for _, account := range accounts {
+			provider.Accounts = append(provider.Accounts, config.ProviderAccount{
+				Name: strings.TrimSpace(account.Name),
+				Kind: account.Kind,
+				Ref:  strings.TrimSpace(account.Ref),
+			})
+		}
+		copyCfg.Providers[id] = provider
+		err = p.persistConfigLocked(copyCfg)
+	}
+	if cleanup != nil {
+		cleanup()
+	}
+	if err != nil {
+		p.s.mu.Unlock()
+		return err
+	}
+	p.s.mu.Unlock()
+	p.s.emit(EventConfigChanged, map[string]string{"section": "providers"})
+	return nil
+}
+
+// providerIDPattern bounds custom provider ids to config-key-safe slugs.
+var providerIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 
 // Reorder rewrites every provider priority to its 1-based display position.
 func (p *ProviderService) Reorder(ctx context.Context, orderedIDs []string) error {

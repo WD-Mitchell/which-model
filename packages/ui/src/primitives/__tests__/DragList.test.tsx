@@ -35,6 +35,18 @@ const items: DragListItem[] = [
 ]
 
 describe('DragList', () => {
+  it('renders the mockup grab handle on the app.css .ib affordance', () => {
+    render(<DragList items={items} onReorder={() => {}} />)
+    const handles = screen.getAllByRole('button')
+    expect(handles.length).toBe(2)
+    handles.forEach((handle) => {
+      expect(handle.classList.contains('ib')).toBe(true)
+      expect(handle.classList.contains(styles.handle)).toBe(true)
+      // six-dot glyph, demo.dc.html 746
+      expect(handle.querySelectorAll('svg circle').length).toBe(6)
+    })
+  })
+
   it('reorders on a drag that moves id a below id b', async () => {
     const onReorder = vi.fn()
     render(<DragList items={items} onReorder={onReorder} />)

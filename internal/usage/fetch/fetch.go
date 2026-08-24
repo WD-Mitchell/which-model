@@ -355,6 +355,20 @@ func fetchCodexBarAll(ctx context.Context, providers []string, opts Options) ([]
 		return nil, nil, nil
 	}
 
+	// Cache store (SPEC D11, native-path parity): "" CacheDir → the system
+	// cache dir; a failure to resolve it fails the whole call. Successful
+	// snapshots are written through so cache-only consumers (B06 Providers
+	// list, offline reads) see codexbar data too.
+	dir := opts.CacheDir
+	if dir == "" {
+		var err error
+		dir, err = cache.CacheDir()
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	store := &cache.Store{Dir: dir}
+
 	limit := opts.MaxParallel
 	if limit <= 0 || limit > len(active) {
 		limit = min(len(active), DefaultMaxParallel)
@@ -362,6 +376,9 @@ func fetchCodexBarAll(ctx context.Context, providers []string, opts Options) ([]
 	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(limit)
 	results := make([]usage.Snapshot, len(active))
+	// Per-provider warning slots: each closure writes only its own slot;
+	// flattened afterwards in provider-sorted order.
+	warnSlots := make([][]credential.Warning, len(active))
 	for i, id := range active {
 		i, id := i, id
 		g.Go(func() error {
@@ -378,12 +395,23 @@ func fetchCodexBarAll(ctx context.Context, providers []string, opts Options) ([]
 					Failure:  &usage.Failure{Code: "provider_status", Message: message},
 				}
 			}
+			if snap.Provider == "" {
+				snap.Provider = id
+			}
+			// Cache write (SPEC §4d parity): failures are never cached
+			// (F13 D5); write errors are warnings, never errors (annex-a
+			// §6 — the cache is an optimization). Writes precede identity
+			// redaction so cache files keep full identity.
+			if snap.Failure == nil {
+				if werr := store.Write(id, snap); werr != nil {
+					warnSlots[i] = append(warnSlots[i], credential.Warning{
+						Message: "failed to cache usage for provider " + id + ": " + werr.Error(),
+					})
+				}
+			}
 			if !opts.ShowIdentity {
 				snap.Account = ""
 				snap.Plan = ""
-			}
-			if snap.Provider == "" {
-				snap.Provider = id
 			}
 			results[i] = snap
 			return nil
@@ -396,5 +424,14 @@ func fetchCodexBarAll(ctx context.Context, providers []string, opts Options) ([]
 		return results, nil, err
 	}
 	sort.Slice(results, func(i, j int) bool { return results[i].Provider < results[j].Provider })
-	return results, nil, nil
+	order := make([]int, len(active))
+	for i := range order {
+		order[i] = i
+	}
+	sort.Slice(order, func(a, b int) bool { return active[order[a]] < active[order[b]] })
+	var warnings []credential.Warning
+	for _, i := range order {
+		warnings = append(warnings, warnSlots[i]...)
+	}
+	return results, warnings, nil
 }

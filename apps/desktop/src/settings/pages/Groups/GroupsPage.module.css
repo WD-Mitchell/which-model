@@ -1,141 +1,490 @@
+/* U09 — Benchmark groups page chrome, ported from the mockup
+   (specs/desktop/mockup/demo.dc.html L400-491).
+
+   Layout contract (U07): <main> carries no horizontal padding, so every block
+   below pays its own 22px gutter. That is what lets the group-list row rules
+   and the global `.row` hover tint bleed edge to edge, while the scrolling
+   benchmark lists inset themselves with a margin instead.
+
+   Where a rule has to beat a global design-system class of the same
+   specificity (`.input`, `.btn-ghost`), it is written `:global(.x).y` (0-2-0)
+   — the same trick Button.module.css / Tag.module.css use, so the override
+   holds whatever order the bundler emits the stylesheets in. */
+
 .page {
-  padding-top: 4px;
+  display: flex;
+  flex-direction: column;
 }
 
+.loading {
+  padding: 15px 22px;
+  font-size: 12px;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+}
+
+/* ——— group list (mockup L431-456) ——————————————————————————————————— */
+
+/* L432 */
 .kicker {
   display: block;
-  font-size: 11px;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: var(--color-accent);
-  font-family: var(--font-mono);
-  margin: 12px 0 4px;
-}
-
-.colHeader {
-  display: flex;
-  gap: 12px;
-  padding: 6px 0;
+  padding: 0 22px 6px;
   font-size: 9px;
   letter-spacing: 0.13em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+  color: var(--color-accent);
+}
+
+/* L433-438 */
+.colHeader {
+  display: flex;
+  gap: 12px;
+  padding: 0 22px 7px;
+}
+
+.colHeader > span {
+  font-size: 9px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 38%, transparent);
 }
 
 .cName {
   flex: 1;
+  min-width: 0;
 }
 
 .cCount {
-  width: 200px;
   flex: none;
+  width: 112px;
+  text-align: right;
 }
 
-.cCover {
-  width: 120px;
+.cProfiles {
   flex: none;
+  width: 74px;
+  text-align: right;
 }
 
 .cActions {
-  width: 128px;
   flex: none;
+  width: 132px;
 }
 
-.row {
+/* L440 — the hover tint comes from the global `.row`, not from here. */
+.groupRow {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 0;
-  border-top: 1px solid var(--color-divider);
+  padding: 11px 22px;
+  border-top: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
   cursor: pointer;
 }
 
-.row:hover {
+/* L441 */
+.slugCell {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+/* L442 */
+.slug {
+  min-width: 0;
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--color-text) 88%, transparent);
+}
+
+/* L445 */
+.count {
+  flex: none;
+  width: 112px;
+  text-align: right;
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+
+/* L446 */
+.profiles {
+  flex: none;
+  width: 74px;
+  text-align: right;
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
+/* L447 */
+.actions {
+  flex: none;
+  width: 132px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+}
+
+/* L448 — 2px 6px, one pixel tighter than the shared `xs` button scale. */
+:global(.btn).dupNarrow {
+  font-size: 11px;
+  padding: 2px 6px;
+}
+
+/* L454 / L463 — `.ib` supplies the grid, radius, ink and hover; these only
+   size the box and clear the UA button chrome. */
+.iconBtn,
+.iconBtnLg {
+  flex: none;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.iconBtn {
+  width: 22px;
+  height: 22px;
+}
+
+.iconBtnLg {
+  width: 24px;
+  height: 24px;
+}
+
+/* L455 — a static affordance, so it keeps its own 38% ink rather than `.ib`'s
+   hover behaviour. */
+.chevron {
+  display: flex;
+  color: color-mix(in srgb, var(--color-text) 38%, transparent);
+}
+
+/* L457 */
+.note {
+  margin: 0;
+  padding: 14px 22px 20px;
+  font-size: 11px;
+  line-height: 1.65;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+  max-width: 56ch;
+  text-wrap: pretty;
+}
+
+/* ——— group detail (mockup L457-491) —————————————————————————————————— */
+
+/* L459 */
+.grSummary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 22px 16px;
+}
+
+.grSummaryText {
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
+.grSummaryActions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* L468-471 — the rename field. */
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 22px 18px;
+}
+
+.nameLabel {
+  width: 44px;
+  flex: none;
+  font-size: 10px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+}
+
+:global(.input).nameInput {
+  width: 264px;
+  flex: none;
+  min-height: 0;
+  padding: 6px 10px;
+}
+
+/* L473-477 — benchmarks label + catalogue filter + the covered-column kicker. */
+.benchHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 22px 9px;
+}
+
+.benchHeadLabel {
+  font-size: 10px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--color-accent);
+}
+
+:global(.input).filterInput {
+  width: 200px;
+  flex: none;
+  min-height: 0;
+  padding: 5px 10px;
+}
+
+.covKicker {
+  margin-left: auto;
+  font-size: 9px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 38%, transparent);
+}
+
+/* L478 — insets itself with a margin so the scrollbar sits inside the gutter. */
+.grList {
+  margin: 0 22px 20px;
+  max-height: 268px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* L480 */
+.grRow {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  background: transparent;
+}
+
+.grRowOn {
+  background: color-mix(in srgb, var(--color-accent) 9%, transparent);
+}
+
+/* L482 — a button (it opens the benchmark) reset back to plain text. */
+.grName {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  text-align: left;
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  color: color-mix(in srgb, var(--color-text) 52%, transparent);
+}
+
+.grNameOn {
+  color: color-mix(in srgb, var(--color-text) 88%, transparent);
+}
+
+/* L483 — CoverageBar draws the track and fill; the caller owns the width. */
+.grCov {
+  flex: none;
+  width: 56px;
+}
+
+/* L484 */
+.grCovText {
+  flex: none;
+  width: 52px;
+  text-align: right;
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--color-text) 38%, transparent);
+}
+
+.grCovTextOn {
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+
+/* L488 */
+.grNote {
+  margin: 0;
+  padding: 0 22px 22px;
+  font-size: 11px;
+  line-height: 1.65;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+  max-width: 56ch;
+  text-wrap: pretty;
+}
+
+/* ——— benchmark detail (mockup L400-430) ——————————————————————————————— */
+
+/* L401 */
+.benchGroups {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 22px 18px;
+  flex-wrap: wrap;
+}
+
+.inGroupsLabel {
+  font-size: 10px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+}
+
+/* L404 — the chip navigates, so it takes a pointer. */
+.groupChip {
+  cursor: pointer;
+}
+
+/* L407 */
+.noGroups {
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+}
+
+/* L410-413 */
+.testedHead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 0 22px 9px;
+}
+
+.testedLabel {
+  font-size: 10px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--color-accent);
+}
+
+.testedCount {
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+
+/* L414 — 32px = the list's own 22px margin plus each row's 10px padding, so
+   the headers land on their columns. */
+.sortRow {
+  display: flex;
+  gap: 12px;
+  padding: 0 32px 6px;
+}
+
+.sortCol {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  white-space: nowrap;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+}
+
+.sortColActive {
+  color: var(--color-accent-300);
+}
+
+.sortModel {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.sortValue {
+  flex: none;
+  width: 124px;
+  text-align: center;
+}
+
+/* 188px = the 32px score column + the 12px gap + the 144px bar. */
+.sortScore {
+  flex: none;
+  width: 188px;
+  text-align: center;
+}
+
+/* L418 */
+.benchList {
+  margin: 0 22px 22px;
+  max-height: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* L420 */
+.benchRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 10px;
+  border-radius: 7px;
   background: color-mix(in srgb, var(--color-text) 4%, transparent);
 }
 
-.name {
+/* L421 */
+.benchLabel {
   flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12.5px;
-}
-
-.count {
-  width: 200px;
-  flex: none;
-  font-size: 10.5px;
-  color: color-mix(in srgb, var(--color-text) 52%, transparent);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cover {
-  width: 120px;
-  flex: none;
-}
-
-.actions {
-  width: 128px;
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
-}
-
-.controls {
-  display: flex;
-  gap: 12px;
-  margin: 10px 0;
-  align-items: center;
-}
-
-.list {
-  margin-top: 6px;
-}
-
-.brow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 0;
-  border-top: 1px solid var(--color-divider);
-  cursor: pointer;
-}
-
-.brow:hover {
-  background: color-mix(in srgb, var(--color-text) 3%, transparent);
-}
-
-.bname {
-  flex: 1;
+  min-width: 0;
   font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: color-mix(in srgb, var(--color-text) 88%, transparent);
 }
 
-.bcover {
-  width: 90px;
+/* L422 */
+.benchValue {
   flex: none;
-}
-
-.bon {
-  width: 28px;
-  flex: none;
+  width: 124px;
   text-align: center;
+  font-size: 11.5px;
+  color: color-mix(in srgb, var(--color-text) 72%, transparent);
 }
 
-.benchGroups {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 8px 0 12px;
+/* L423 */
+.benchScore {
+  flex: none;
+  width: 32px;
+  text-align: right;
+  font-size: 11.5px;
+  color: var(--color-accent-300);
 }
 
-.tableWrap {
-  margin-top: 6px;
+/* L424 */
+.benchBar {
+  flex: none;
+  width: 144px;
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--color-text) 10%, transparent);
+  position: relative;
+  overflow: hidden;
+}
+
+.benchBarFill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  display: block;
+  border-radius: 2px;
+  background: var(--color-accent-500);
+}
+
+.benchEmpty {
+  padding: 8px 10px;
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 38%, transparent);
 }

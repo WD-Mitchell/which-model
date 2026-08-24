@@ -140,6 +140,18 @@ func (s *Services) Warnings() []string {
 // reloadCatalog re-reads scores CSV + benchmarks config + routes table and
 // swaps all three caches atomically under the write lock; on error the
 // previous caches stay live (B02 SPEC §2.10). Emits nothing.
+// ReloadCatalog re-reads the scores CSV, benchmark config and route table from
+// disk and emits catalog:changed. Exported for hosts that rebuild the catalogue
+// out of band (the desktop's Refresh benchmarks menu item) and need the running
+// process to pick it up without a restart.
+func (s *Services) ReloadCatalog() error {
+	if err := s.reloadCatalog(); err != nil {
+		return err
+	}
+	s.emit(EventCatalogChanged, map[string]any{})
+	return nil
+}
+
 func (s *Services) reloadCatalog() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -236,6 +248,15 @@ func (s *Services) loadRoutes() (routing.Table, []string, error) {
 
 	warning := fmt.Sprintf("routes table not found at %s; availability is empty until: which-model routes refresh", primary)
 	return routing.Table{}, []string{warning}, nil
+}
+
+// saveRoutesLocked persists the in-memory route table to the primary routes
+// path. Callers hold s.mu for writing. Used when deleting a provider, whose
+// routes must go with it — the provider universe is unioned FROM the route
+// table, so leaving them would resurrect the row.
+func (s *Services) saveRoutesLocked() error {
+	path := filepath.Join(s.paths.CacheDir, "catalog", "routes.json")
+	return routing.SaveTable(path, s.routes)
 }
 
 // toErrorDTO maps any internal error to the boundary shape (B02 SPEC §2.7):

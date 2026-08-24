@@ -54,6 +54,10 @@ export interface ProviderInfo {
   monthly: number | null
   credits: string
   resets: string
+  /** Configured account count. */
+  accounts: number
+  /** Ships a usage adapter: cannot be deleted, only disabled. */
+  builtin: boolean
 }
 
 export interface RouteLevel {
@@ -66,9 +70,20 @@ export interface ProviderModel {
   model_name: string
   levels: RouteLevel[]
 }
+/** One named credential for a provider. `ref` is a REFERENCE — an env var,
+ *  file path or keychain service — never the secret itself. */
+export interface ProviderAccount {
+  name: string
+  kind: 'oauth' | 'cookie' | 'token'
+  ref: string
+}
+
 export interface ProviderDetail {
   id: string
   models: ProviderModel[]
+  accounts: ProviderAccount[]
+  /** Ships a usage adapter: cannot be deleted, only disabled. */
+  builtin: boolean
 }
 
 export interface HarnessInfo {
@@ -144,6 +159,8 @@ export interface Favourite {
 
 export interface GUISettings {
   layout: 'carousel' | 'list'
+  /** Which popover tab opens by default. Shipped default: 'profiles'. */
+  default_tab: 'profiles' | 'sliders'
   weight_control: 'step' | 'bar' | 'slider'
   holds: number
   shortcut: 'alt+space' | 'ctrl+space' | 'cmd+shift+m'

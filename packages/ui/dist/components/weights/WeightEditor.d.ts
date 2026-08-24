@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { type WeightVariant } from './WeightRow';
 export interface WeightEditorRow {
     key: string;
@@ -21,5 +22,9 @@ export interface WeightEditorProps {
     onAddMetric?: (key: string) => void;
     onToggleAdd?: () => void;
     onRevert?: () => void;
+    /** Extra buttons in the action row, left of Revert. The popover puts its
+     *  weights actions (Copy model id / Save as profile) here — they act on the
+     *  weights, and the popover footer is now tab-independent. */
+    extraActions?: ReactNode;
 }
-export declare function WeightEditor({ variant, sliderStyle, coreRows, taskRows, sectionPcts, readOnly, addable, addOpen, onChangeWeight, onRemoveWeight, onAddMetric, onToggleAdd, onRevert, }: WeightEditorProps): import("react").JSX.Element;
+export declare function WeightEditor({ variant, sliderStyle, coreRows, taskRows, sectionPcts, readOnly, addable, addOpen, onChangeWeight, onRemoveWeight, onAddMetric, onToggleAdd, onRevert, extraActions, }: WeightEditorProps): import("react").JSX.Element;

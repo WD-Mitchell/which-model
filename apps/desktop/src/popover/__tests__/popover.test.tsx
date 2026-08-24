@@ -31,7 +31,25 @@ function AppWithEvents() {
 const initialScaleProfile = 'simple_implementation' // scale[1] — mockup initial
 
 async function settle() {
-  // Wait for the initial profile + scale to resolve.
+  // Wait for the landing view to resolve. The complexity scale now lives behind
+  // the Advanced tab (gui.default_tab ships as 'profiles'), so the search field —
+  // the Quick tab's own control — is what proves the view is ready.
+  await screen.findByPlaceholderText('type to find a profile')
+}
+
+/** Switch back to the Quick tab, where the search field lives. */
+async function showProfiles() {
+  await act(async () => {
+    fireEvent.click(screen.getByRole('tab', { name: 'Quick' }))
+  })
+  await screen.findByPlaceholderText('type to find a profile')
+}
+
+/** Switch to the Advanced tab, where the weight editor lives. */
+async function showSliders() {
+  await act(async () => {
+    fireEvent.click(screen.getByRole('tab', { name: 'Advanced' }))
+  })
   await screen.findAllByRole('slider')
 }
 
@@ -63,8 +81,11 @@ describe('popover landing', () => {
 
   it('renders hero, catalog line and launch in first harness', async () => {
     renderApp()
+    // The strapline leads with the product name, which carries its own size
+    // and weight — hence the span the exact match below resolves to.
+    expect(await screen.findByText('Which Model')).toBeTruthy()
     expect(
-      await screen.findByText('The right model for the job in front of you.'),
+      await screen.findByText((_, el) => el?.tagName === 'H1' && el.textContent === 'Which Model for the task at hand'),
     ).toBeTruthy()
     expect(await screen.findByText(/models · .* providers on · .* harnesses/)).toBeTruthy()
     expect(await screen.findByText('Launch in Claude Code')).toBeTruthy()
@@ -94,6 +115,7 @@ describe('popover landing', () => {
   it('sticky stop: off-scale pick keeps the handle; scale pick moves it', async () => {
     renderApp()
     await settle()
+    // The complexity scale lives on the Quick tab, which is the default.
     const slider = () => screen.getByRole('slider')
     expect(slider().getAttribute('aria-valuenow')).toBe('1')
 
@@ -115,21 +137,38 @@ describe('popover landing', () => {
     expect(await screen.findByText('no profile by that name')).toBeTruthy()
 
     fireEvent.change(input, { target: { value: 'research' } })
-    // 'research' + 'research_fast' both match (substring, cap 5)
-    await waitFor(() => expect(screen.getAllByText(/research/).length).toBeGreaterThanOrEqual(2))
+    // 'research' + 'research_fast' both match (substring, cap 5). The rows are
+    // labelled with the DISPLAY name now ("Research", "Research (fast)"), so
+    // the match is case-insensitive — the query still matches on either.
+    await waitFor(() => expect(screen.getAllByText(/research/i).length).toBeGreaterThanOrEqual(2))
   })
 
-  it('weights-view navigation', async () => {
+  it('tab navigation: Advanced shows the weight editor, Quick the search', async () => {
     renderApp()
     await settle()
+    expect(screen.getByRole('tab', { name: 'Quick' }).getAttribute('aria-selected')).toBe('true')
 
-    fireEvent.click(screen.getByLabelText('App menu'))
-    fireEvent.click(await screen.findByText('Custom weights…'))
-    expect(await screen.findByText(/Weights for/)).toBeTruthy()
+    await showSliders()
+    expect(screen.getByRole('tab', { name: 'Advanced' }).getAttribute('aria-selected')).toBe('true')
+    // The weight editor is many sliders; the complexity scale is exactly one.
+    expect(screen.getAllByRole('slider').length).toBeGreaterThan(1)
+    expect(screen.queryByPlaceholderText('type to find a profile')).toBeNull()
 
-    // back to landing
-    fireEvent.click(screen.getByLabelText('Back to landing'))
-    expect(await screen.findByText('which-model')).toBeTruthy()
+    await showProfiles()
+    expect(screen.getByRole('tab', { name: 'Quick' }).getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('the tray "Custom weights…" item opens the Advanced tab', async () => {
+    renderApp()
+    await settle()
+    // The app menu moved to the tray's right-click menu, so this arrives over
+    // the tray channel; outside Wails that is a DOM CustomEvent of the same name.
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('tray:view', { detail: { view: 'weights' } }))
+    })
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Advanced' }).getAttribute('aria-selected')).toBe('true'),
+    )
   })
 
   it('launch spawn mode toasts the command and never copies', async () => {

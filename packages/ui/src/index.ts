@@ -75,6 +75,7 @@ export type {
 export {
   SETTINGS_NAV_ITEMS,
   SettingsDetailShell,
+  ProviderUsageRow,
   SettingsHeader,
   SettingsModal,
   SettingsNav,
@@ -83,6 +84,7 @@ export {
   SettingsShell,
 } from './components/settings'
 export type {
+  ProviderUsageRowProps,
   SettingsDetailShellProps,
   SettingsHeaderAction,
   SettingsHeaderActionSlot,

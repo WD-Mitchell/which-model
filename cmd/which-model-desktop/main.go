@@ -49,8 +49,11 @@ func main() {
 	}
 
 	// 3. Events bridge + service (S02 SPEC §2.1.3). The bridge queues events
-	// until the app exists; refresh wires to the tray label and is set after
+	// until the app exists; refresh wires to the tray label AND the tray's
+	// profile menu (setupTray returns one func doing both) and is set after
 	// setupTray. nil-safe guard: refresh is populated before any event drains.
+	// config:changed is what a profile add/rename/delete emits
+	// (internal/service/profiles.go:108,153), so the menu rebuilds with it.
 	var refresh func()
 	bridge := newEmitBridge(func(name string) {
 		switch name {
@@ -91,9 +94,9 @@ func main() {
 		SingleInstance: &application.SingleInstanceOptions{
 			UniqueID: "com.wdmitchell.which-model",
 			OnSecondInstanceLaunch: func(application.SecondInstanceData) {
-				if pop != nil {
-					showPopover(pop)
-				}
+				// showPopover records the show timestamp the popover's blur
+				// grace period reads (popover.go); never call w.Show() direct.
+				showPopover(pop)
 			},
 		},
 		// S04 SPEC §2.2: bind the engine facets (WindowService is registered
@@ -112,10 +115,11 @@ func main() {
 	registerWindowService(app, pop)
 
 	// S05: tray + hotkey + login-item integration. traySetup creates the tray
-	// (popover attach + label refresh) and publishes refresh into the var the
-	// bridge tap reads; buildIntegrations hides the tray when
-	// show_menu_bar_icon is false and wires the hotkey, login-item reconcile,
-	// and settings:changed subscription.
+	// (popover attach, explicit left-click toggle, label + right-click menu
+	// refresh) and publishes refresh into the var the bridge tap reads;
+	// buildIntegrations hides the tray when show_menu_bar_icon is false and
+	// wires the hotkey, login-item reconcile, and settings:changed
+	// subscription.
 	var traySetup = func() (*application.SystemTray, func()) {
 		tray, r := setupTray(app, svc, pop)
 		refresh = r

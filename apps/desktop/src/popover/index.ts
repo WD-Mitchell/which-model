@@ -1,5 +1,5 @@
 export { PopoverApp, type PopoverView } from './PopoverApp'
 export { PopoverShell, type PopoverShellProps } from './PopoverShell'
-export { PopoverHeader, type PopoverHeaderProps } from './Header'
+export { PopoverHeader } from './Header'
 export { PopoverFooter, type PopoverFooterProps } from './Footer'
 export { LandingView, ResultsBand, type LandingViewProps } from './LandingView'

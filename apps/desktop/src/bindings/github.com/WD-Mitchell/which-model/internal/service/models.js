@@ -41,6 +41,7 @@
  * GUISettings is the [gui] section as the settings page reads/writes it.
  * @typedef {Object} GUISettings
  * @property {string} layout - "carousel"|"list"
+ * @property {string} default_tab - "profiles"|"sliders"
  * @property {string} weight_control - "step"|"bar"|"slider"
  * @property {number} holds - 3|5|10
  * @property {string} shortcut - "alt+space"|"ctrl+space"|"cmd+shift+m"
@@ -122,10 +123,21 @@
  */
 
 /**
+ * ProviderAccountDTO is one named credential for a provider. Ref is a
+ * REFERENCE (env var, file path, keychain service) — never the secret itself.
+ * @typedef {Object} ProviderAccountDTO
+ * @property {string} name
+ * @property {string} kind - oauth | cookie | token
+ * @property {string} ref
+ */
+
+/**
  * ProviderDetail is the provider edit/read shape.
  * @typedef {Object} ProviderDetail
  * @property {string} id
  * @property {ProviderModel[] | null} models
+ * @property {ProviderAccountDTO[] | null} accounts
+ * @property {boolean} builtin - Builtin providers ship a usage adapter and cannot be deleted; the UI disables Delete for them rather than failing the call.
  */
 
 /**
@@ -143,6 +155,8 @@
  * @property {number | null} monthly
  * @property {string} credits
  * @property {string} resets
+ * @property {number} accounts - configured account count
+ * @property {boolean} builtin - ships a usage adapter -> not deletable
  */
 
 /**

@@ -1,61 +1,109 @@
-/* U05 §2.4–2.8 landing view. */
-.hero {
-  padding: 20px 18px 18px;
-  position: relative;
-}
-
-.title {
-  font-family: var(--font-heading);
-  font-weight: 500;
-  font-size: 23px;
-  line-height: 1.15;
-  letter-spacing: -0.022em;
-  max-width: 16ch;
-  text-wrap: pretty;
-  margin: 0;
-}
-
-.catalog {
-  margin-top: 10px;
-  font-size: 10.5px;
-  color: color-mix(in srgb, var(--color-text) 55%, transparent);
-}
-
-.search {
-  padding: 0 18px 14px;
-  position: relative;
-}
-
-.scaleLabel {
-  padding: 0 18px 6px;
+/* U05 §2.4–2.8 landing view (mockup demo.dc.html lines 66-88). The landing
+   body is a flex column inside the panel: hero → search → scale, then a
+   flexible spacer (the mockup's 10px filler, line 87) that pushes the results
+   band down onto the footer in the 620px-tall popover window. */
+.lv {
   display: flex;
-  align-items: baseline;
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
-.scale {
-  padding: 14px 18px 8px;
+/* The results band (RankCarousel/RankList/error) never grows or shrinks — it
+   is the fixed slab the footer sits under. */
+.lv > :last-child {
+  flex: none;
+}
+
+
+
+
+/* The search now sits UNDER the scale's profile name (LandingView.tsx), so its
+   top padding is the gap to that name rather than to the tab strip above. */
+.lv-search {
+  padding: 12px 18px 14px;
   position: relative;
+}
+
+/* Mockup search field (line 77): min-height 34px, 7px 11px, 7px gap. The
+   design-system .input (36px / 6px 10px) is imported after the primitives'
+   module CSS, so the popover metrics are restated at a higher specificity. */
+.lv-search .input {
+  min-height: 34px;
+  padding: 7px 11px;
+  gap: 7px;
+}
+
+.lv-scale {
+  padding: 4px 18px 0;
+  position: relative;
+}
+
+/* Mockup's 10px filler under the scale (demo.dc.html line 87) — FIXED, not
+   flexed: the window is content-sized now (host setPopoverHeight), so there is
+   no surplus to absorb, and flexing here was what opened the oversized gap
+   between the profile name and the results band. */
+.lv-spacer {
+  flex: none;
+  height: 10px;
 }
 
 /* U05 §3 — query errors render em-dash placeholders in the band. */
-.errorBand {
+.lv-errorBand {
   padding: 13px 16px 14px;
   background: color-mix(in srgb, var(--color-accent) 8%, transparent);
   border-top: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
 }
 
-.errorCenter {
+.lv-errorCenter {
   text-align: center;
 }
 
-.errorLine {
+.lv-errorLine {
   display: block;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: 10.5px;
   color: color-mix(in srgb, var(--color-text) 40%, transparent);
+}
+
+/* Landing tabs — a 50/50 segmented bar, not a kicker row: each tab takes half
+   the width so the two are equally weighted targets, and they read at body
+   size rather than the 10px uppercase of the labels around them. */
+.lv-tabs {
+  display: flex;
+  /* Fixed: only the tab BODY gives when the panel hits its height cap. */
+  flex: none;
+  gap: 4px;
+  margin: 0 18px 12px;
+  padding: 3px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--color-text) 5%, transparent);
+}
+
+.lv-tab {
+  flex: 1 1 50%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 7px 0;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: center;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 12.5px;
+  letter-spacing: -0.01em;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+
+.lv-tab:hover:not(.lv-tabOn) {
+  color: color-mix(in srgb, var(--color-text) 80%, transparent);
+  background: color-mix(in srgb, var(--color-text) 4%, transparent);
+}
+
+.lv-tabOn {
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  color: var(--color-accent-200);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 30%, transparent);
 }

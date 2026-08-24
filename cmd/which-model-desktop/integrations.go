@@ -18,10 +18,12 @@ import (
 const serviceSettingsChanged = "settings:changed"
 
 // trayToggle is the shared popover show/hide used by both the tray click path
-// and the hotkey (S05 SPEC §2.1: same code path).
-func trayToggle(pop *application.WebviewWindow) func() {
+// and the hotkey (S05 SPEC §2.1: same code path). tray may be nil (no tray, or
+// the menu bar icon turned off), in which case the popover keeps its last
+// position instead of being placed under the icon.
+func trayToggle(tray *application.SystemTray, pop *application.WebviewWindow) func() {
 	return func() {
-		togglePopover(pop)
+		togglePopoverAt(tray, pop)
 	}
 }
 
@@ -55,9 +57,9 @@ func (in *integrations) settingsChanged(_ *application.App, svc *service.Service
 }
 
 // buildIntegrations reads startup settings and wires the hotkey, login-item
-// reconcile, and settings:changed subscription. It owns the tray so it can
-// hide it when show_menu_bar_icon is false. traySetup recreates the tray
-// (with popover attach + label refresh) when re-shown. Returns a handle with
+// reconcile, and settings:changed subscription. It owns the tray's existence:
+// traySetup is called (creating the tray with its popover attach, label and
+// right-click menu) only when show_menu_bar_icon is on. Returns a handle with
 // Close() for shutdown.
 func buildIntegrations(
 	app *application.App,
@@ -65,33 +67,44 @@ func buildIntegrations(
 	pop *application.WebviewWindow,
 	traySetup func() (*application.SystemTray, func()),
 ) *integrations {
+	// showTray defaults to true and only follows the setting when the settings
+	// read succeeded: a read failure must not silently take the menu-bar icon
+	// away, which is the app's only visible surface.
+	showTray := true
 	gui, err := svc.Settings().Get(context.Background())
 	if err != nil {
 		log.Printf("integrations: cannot read settings: %v", err)
+	} else {
+		showTray = gui.ShowMenuBarIcon
+	}
+
+	// Tray visibility (S05 SPEC §2.6): the tray is simply not created when the
+	// icon is off — SystemTray.Destroy() is a no-op before the app runs
+	// (systemtray.go: `if s.impl == nil { return }`) and the tray is still in
+	// App.pendingRun at that point, so destroying it here would leave the icon
+	// on screen and hand the tray menu a released NSStatusItem. The popover
+	// stays reachable via the hotkey and a second launch.
+	//
+	// The tray is built before the hotkey manager so the hotkey can share its
+	// show path and land the popover under the menu-bar icon however it was
+	// opened (S05 SPEC §2.1). traySetup may be nil when no tray is wanted.
+	var tray *application.SystemTray
+	if traySetup != nil {
+		if showTray {
+			tray, _ = traySetup()
+		} else {
+			notice(app, "menu bar icon hidden — relaunch the app or edit config.toml to restore")
+		}
 	}
 
 	in := &integrations{
 		app:    app,
-		hotkey: newHotkeyManager(app, trayToggle(pop)),
+		hotkey: newHotkeyManager(app, trayToggle(tray, pop)),
 	}
 	if gui.Shortcut != "" {
 		in.hotkey.Apply(gui.Shortcut)
 	}
 	in.reconcileLoginItem(gui.LaunchAtLogin)
-
-	// Tray visibility: default visible; hide when the setting is off.
-	// The popover stays reachable via the hotkey + second launch (S05 SPEC
-	// §2.6). traySetup may be nil when no tray was created.
-	if traySetup != nil {
-		tray, refresh := traySetup()
-		_ = refresh
-		if !gui.ShowMenuBarIcon {
-			if tray != nil {
-				tray.Destroy()
-			}
-			notice(app, "menu bar icon hidden — relaunch the app or edit config.toml to restore")
-		}
-	}
 
 	// Subscribe to settings:changed for hotkey/login-item re-apply.
 	off := app.Event.On(serviceSettingsChanged, func(ev *application.CustomEvent) {

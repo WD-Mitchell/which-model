@@ -11,6 +11,16 @@ export interface WeightRowProps {
   readOnly?: boolean
   labelWidth?: 104 | 150
   valueStyle?: 'compact' | 'verbose'
+  /**
+   * Lowest value the control can be dragged or keyed to.
+   *
+   * 1 wherever the weight must stay a weight: the engine rejects any weight
+   * outside (0, 5] (internal/pick/profile.go rules 4 and 6), so a 0 there is
+   * not "off", it is an unsaveable profile — and for a core axis it would
+   * delete a key the engine requires. Editors that offer 0 use it as the
+   * "ignored" gesture for a TASK benchmark they have no other way to drop.
+   */
+  min?: 0 | 1
   onChange?: (v: number) => void
   onRemove?: () => void
 }
@@ -20,22 +30,42 @@ const DIM = 'color-mix(in srgb,var(--color-text) 45%,transparent)'
 const UNFILLED = 'color-mix(in srgb,var(--color-text) 12%,transparent)'
 const KNOB_SHADOW = '0 0 0 1.5px var(--color-accent)'
 
+/** Display clamp: [0, 5]. Kept open at the bottom so a 0 that already exists
+ *  in a config still reads as "ignored" instead of being shown as a 1. */
 function clampWeight(value: number): number {
   if (!Number.isFinite(value)) return 0
   return Math.max(0, Math.min(5, Math.round(value)))
 }
 
-function weightPercentage(value: number): string {
-  return `${(value / 5) * 100}%`
+/** Interaction clamp: [min, 5]. What a drag or an arrow key may produce. */
+function clampInput(value: number, min: 0 | 1): number {
+  if (!Number.isFinite(value)) return min
+  return Math.max(min, Math.min(5, Math.round(value)))
 }
 
-function StepTrack({ value }: { value: number }) {
+/**
+ * Where a value sits along the track, as a percentage.
+ *
+ * The scale runs from `min` to 5, so a 1..5 row puts 1 at the far LEFT and 5
+ * at the far right — the whole track is the range the row can actually take.
+ * (A 0..5 row is unchanged: 0 is empty, 5 is full.) Without this, a 1..5 row
+ * parked its floor a fifth of the way in and the leftmost stretch of track was
+ * unreachable dead zone.
+ */
+function weightPercentage(value: number, min: 0 | 1 = 0): string {
+  const span = 5 - min
+  return `${((value - min) / span) * 100}%`
+}
+
+function StepTrack({ value, min }: { value: number; min: 0 | 1 }) {
   return (
     <span
       data-testid="weight-step-track"
       style={{ display: 'flex', gap: '3px', width: '100%' }}
     >
-      {[1, 2, 3, 4, 5].map((step) => (
+      {/* Segments are the scale itself, so a 1..5 row drops the segment that
+          would stand for 0 and keeps one lit at its floor. */}
+      {(min === 1 ? [2, 3, 4, 5] : [1, 2, 3, 4, 5]).map((step) => (
         <span
           key={step}
           data-testid="weight-step"
@@ -51,8 +81,8 @@ function StepTrack({ value }: { value: number }) {
   )
 }
 
-function BarTrack({ value }: { value: number }) {
-  const width = weightPercentage(value)
+function BarTrack({ value, min }: { value: number; min: 0 | 1 }) {
+  const width = weightPercentage(value, min)
   return (
     <span
       data-testid="weight-bar-track"
@@ -81,8 +111,8 @@ function BarTrack({ value }: { value: number }) {
   )
 }
 
-function SliderTrack({ value }: { value: number }) {
-  const width = weightPercentage(value)
+function SliderTrack({ value, min }: { value: number; min: 0 | 1 }) {
+  const width = weightPercentage(value, min)
   return (
     <span
       data-testid="weight-slider-track"
@@ -132,18 +162,21 @@ export function WeightRow({
   readOnly = false,
   labelWidth = 104,
   valueStyle = 'compact',
+  min = 0,
   onChange,
   onRemove,
 }: WeightRowProps) {
   const current = clampWeight(value)
-  const width = weightPercentage(current)
   const isVerbose = valueStyle === 'verbose'
   const labelColor = accent ? 'var(--color-accent-300)' : current > 0 ? MUTED : DIM
   const controlCursor = readOnly ? 'default' : 'pointer'
 
+  // The pointer maps onto [min, 5] rather than [0, 5], so the track's left end
+  // IS the floor: a 1..5 row reaches 1 at 0% and 5 at 100%, with the five
+  // values evenly spread between them.
   const onFraction = usePointerFraction((fraction) => {
     if (readOnly) return
-    const next = clampWeight(Math.round(fraction * 5))
+    const next = clampInput(min + Math.round(fraction * (5 - min)), min)
     if (next !== current) onChange?.(next)
   })
 
@@ -154,7 +187,7 @@ export function WeightRow({
     if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') delta = -1
     if (delta === 0) return
     event.preventDefault()
-    const next = clampWeight(current + delta)
+    const next = clampInput(current + delta, min)
     if (next !== current) onChange?.(next)
   }
 
@@ -205,7 +238,7 @@ export function WeightRow({
         data-testid="weight-control"
         role="slider"
         aria-label={label}
-        aria-valuemin={0}
+        aria-valuemin={min}
         aria-valuemax={5}
         aria-valuenow={current}
         tabIndex={readOnly ? undefined : 0}
@@ -213,9 +246,9 @@ export function WeightRow({
         onKeyDown={readOnly ? undefined : onKeyDown}
         style={controlStyle}
       >
-        {variant === 'step' ? <StepTrack value={current} /> : null}
-        {variant === 'bar' ? <BarTrack value={current} /> : null}
-        {variant === 'slider' ? <SliderTrack value={current} /> : null}
+        {variant === 'step' ? <StepTrack value={current} min={min} /> : null}
+        {variant === 'bar' ? <BarTrack value={current} min={min} /> : null}
+        {variant === 'slider' ? <SliderTrack value={current} min={min} /> : null}
       </span>
       <span style={valueStyleObject}>
         {isVerbose ? (current > 0 ? `${current} / 5` : 'ignored') : current}

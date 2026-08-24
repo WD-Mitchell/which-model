@@ -36,3 +36,48 @@ func TestProfileValidationAndScale(t *testing.T) {
     if err := p.Save(context.Background(), ProfileDetail{Slug:"bad-slug!", CoreShare:60}); !errors.Is(err, errValidation) { t.Fatalf("slug err=%v", err) }
     scale := p.ComplexityScale(); scale[0] = "x"; if p.ComplexityScale()[0] != "simple_action_execution" { t.Fatal("scale not copied") }
 }
+
+// The engine's profile names ARE its snake_case slugs, so every surface that
+// named a profile — popover, settings list, tray menu, menu-bar title — showed
+// "balanced_implementation". The DTO carries a display name instead; the slug
+// stays the id.
+func TestProfileDisplayName(t *testing.T) {
+    cases := map[string]string{
+        "balanced_implementation": "Balanced Implementation",
+        "research":                "Research",
+        "simple_action_execution": "Simple Action Execution",
+        // Initialisms read as typos when title-cased.
+        "ui_ux":     "UI UX",
+        "my_api_v2": "My API V2",
+        // Degenerate slugs must not produce an empty name.
+        "":     "",
+        "__":   "__",
+        "x":    "X",
+    }
+    for slug, want := range cases {
+        if got := profileDisplayName(slug); got != want {
+            t.Errorf("profileDisplayName(%q) = %q, want %q", slug, got, want)
+        }
+    }
+}
+
+// The list must carry the display name for built-ins AND customs — a custom
+// profile named after its slug would otherwise be the one row still shouting
+// snake_case at the user.
+func TestProfileListUsesDisplayNames(t *testing.T) {
+    svc, _ := newTestServices(t)
+    p := svc.Profiles()
+    d := ProfileDetail{Slug:"my_custom_profile", Name:"my_custom_profile", CoreShare:65,
+        Tier1Weights: map[string]int{"intelligence":3,"cost":3,"speed":3},
+        Tier2Weights: map[string]int{"research":3}}
+    if err := p.Save(context.Background(), d); err != nil { t.Fatal(err) }
+    list, err := p.List(context.Background()); if err != nil { t.Fatal(err) }
+    seen := map[string]string{}
+    for _, s := range list { seen[s.Slug] = s.Name }
+    if seen["balanced_implementation"] != "Balanced Implementation" {
+        t.Errorf("built-in name = %q, want %q", seen["balanced_implementation"], "Balanced Implementation")
+    }
+    if seen["my_custom_profile"] != "My Custom Profile" {
+        t.Errorf("custom name = %q, want %q", seen["my_custom_profile"], "My Custom Profile")
+    }
+}

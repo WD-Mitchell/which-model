@@ -17,9 +17,12 @@ function SectionHeader({ children, percentage, }) {
                 }, children: percentage })] }));
 }
 function Rows({ rows, sliderStyle, labelWidth, valueStyle, readOnly, removable, onChangeWeight, onRemoveWeight, }) {
-    return (_jsx(_Fragment, { children: rows.map((row) => (_jsx(WeightRow, { variant: sliderStyle, label: row.key, value: row.value, accent: row.accent, labelWidth: labelWidth, valueStyle: valueStyle, readOnly: readOnly, onChange: onChangeWeight ? (value) => onChangeWeight(row.key, value) : undefined, onRemove: removable && !readOnly && onRemoveWeight ? () => onRemoveWeight(row.key) : undefined }, row.key))) }));
+    return (_jsx(_Fragment, { children: rows.map((row) => (_jsx(WeightRow, { variant: sliderStyle, label: row.key, value: row.value, accent: row.accent, labelWidth: labelWidth, valueStyle: valueStyle, readOnly: readOnly, 
+            // 1..5, never 0: a metric is dropped with the row's × button, and a
+            // 0 would be a weight the engine refuses to rank on.
+            min: 1, onChange: onChangeWeight ? (value) => onChangeWeight(row.key, value) : undefined, onRemove: removable && !readOnly && onRemoveWeight ? () => onRemoveWeight(row.key) : undefined }, row.key))) }));
 }
-export function WeightEditor({ variant, sliderStyle, coreRows, taskRows, sectionPcts, readOnly = false, addable = [], addOpen = false, onChangeWeight, onRemoveWeight, onAddMetric, onToggleAdd, onRevert, }) {
+export function WeightEditor({ variant, sliderStyle, coreRows, taskRows, sectionPcts, readOnly = false, addable = [], addOpen = false, onChangeWeight, onRemoveWeight, onAddMetric, onToggleAdd, onRevert, extraActions, }) {
     const isPopover = variant === 'popover';
     const labelWidth = isPopover ? 104 : 150;
     const valueStyle = isPopover ? 'compact' : 'verbose';
@@ -38,7 +41,7 @@ export function WeightEditor({ variant, sliderStyle, coreRows, taskRows, section
             display: 'flex',
             flexDirection: 'column',
             gap: '12px',
-        }, children: [_jsxs(SectionHeader, { percentage: sectionPcts.core, children: ["core benchmarks", ' ', _jsx("span", { style: { textTransform: 'none', letterSpacing: 0 }, children: "(higher = better, cheaper, faster)" })] }), _jsx(Rows, { rows: coreRows, sliderStyle: sliderStyle, labelWidth: labelWidth, valueStyle: valueStyle, readOnly: readOnly, removable: false, onChangeWeight: onChangeWeight }), _jsx(SectionHeader, { percentage: sectionPcts.task, children: "task benchmarks" }), _jsx(Rows, { rows: taskRows, sliderStyle: sliderStyle, labelWidth: labelWidth, valueStyle: valueStyle, readOnly: readOnly, removable: isPopover, onChangeWeight: onChangeWeight, onRemoveWeight: onRemoveWeight }), isPopover ? (_jsxs("div", { style: actionRowStyle, children: [_jsx("button", { type: "button", className: "btn btn-ghost", style: buttonStyle, onClick: onToggleAdd, children: "+ Add metric" }), _jsx("button", { type: "button", className: "btn btn-ghost", style: { ...buttonStyle, marginLeft: 'auto' }, onClick: onRevert, children: "Revert" }), addOpen ? (_jsx("span", { "data-testid": "weight-editor-add-popup", style: {
+        }, children: [_jsxs(SectionHeader, { percentage: sectionPcts.core, children: ["core benchmarks", ' ', _jsx("span", { style: { textTransform: 'none', letterSpacing: 0 }, children: "(higher = better, cheaper, faster)" })] }), _jsx(Rows, { rows: coreRows, sliderStyle: sliderStyle, labelWidth: labelWidth, valueStyle: valueStyle, readOnly: readOnly, removable: false, onChangeWeight: onChangeWeight }), _jsx(SectionHeader, { percentage: sectionPcts.task, children: "task benchmarks" }), _jsx(Rows, { rows: taskRows, sliderStyle: sliderStyle, labelWidth: labelWidth, valueStyle: valueStyle, readOnly: readOnly, removable: isPopover, onChangeWeight: onChangeWeight, onRemoveWeight: onRemoveWeight }), isPopover ? (_jsxs("div", { style: actionRowStyle, children: [_jsx("button", { type: "button", className: "btn btn-ghost", style: buttonStyle, onClick: onToggleAdd, children: "+ Add metric" }), _jsxs("span", { style: { marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }, children: [extraActions, _jsx("button", { type: "button", className: "btn btn-ghost", style: buttonStyle, onClick: onRevert, children: "Revert" })] }), addOpen ? (_jsx("span", { "data-testid": "weight-editor-add-popup", style: {
                             position: 'absolute',
                             left: 0,
                             bottom: '26px',

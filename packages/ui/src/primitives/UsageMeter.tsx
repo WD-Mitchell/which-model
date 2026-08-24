@@ -19,7 +19,9 @@ export function UsageMeter({ label, percent, hot = false }: UsageMeterProps) {
     <div className={styles.meter}>
       <span className={styles.labelLine}>
         <span className={styles.label}>{label}</span>
-        <span className={styles.value}>{percent === null ? '—' : percent + '%'}</span>
+        <span className={cx(styles.value, percent === null && styles.valueNull)}>
+          {percent === null ? '—' : percent + '%'}
+        </span>
       </span>
       <span className={styles.track}>
         <span className={cx(styles.fill, fillClass)} style={{ width: pct + '%' }} />

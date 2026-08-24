@@ -1,9 +1,13 @@
-// Settings window (S03). A lazy singleton 820x560 WebviewWindow hosting the
-// settings.html entry. Created on first showSettings, never destroyed while
-// the app runs: the native close action is intercepted and turned into a
-// Hide() so webview state survives across open/close cycles (S00 §4 decision
-// "Settings close = hide"). macOS uses the hidden-inset titlebar variant; the
-// web page draws its draggable titlebar over the full-size content.
+// Settings window (S03). A lazy singleton resizable WebviewWindow hosting the
+// settings.html entry, opening at 820x560. Created on first showSettings, never
+// destroyed while the app runs: the native close action is intercepted and
+// turned into a Hide() so webview state survives across open/close cycles (S00
+// §4 decision "Settings close = hide").
+//
+// macOS uses the hidden titlebar over full-size content: AppKit draws the real
+// traffic lights — standard size, standard hover symbols, working zoom — and
+// the page draws its own draggable title row underneath, reserving 78px on the
+// left for them (U07 SettingsShell). The page draws no window buttons itself.
 package main
 
 import (
@@ -14,14 +18,24 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
-// Settings geometry (S03 SPEC §2.2): 820 wide, 560 total height (520 content
-// + ~40 web titlebar), fixed: min = max = 820x560, resize disabled.
+// Settings geometry. 820x560 (520 content + ~40 web titlebar) is the OPENING
+// size, no longer the only one: the window is resizable, so these are a
+// starting point plus a floor small enough to keep the sidebar and one content
+// column readable. S03 SPEC §2.2 specified a fixed window; that is relaxed
+// deliberately — several pages (Providers, Benchmark groups) carry tables that
+// were truncating at 820.
 const (
-	settingsName   = "settings"
-	settingsTitle  = "which-model settings"
-	settingsWidth  = 820
-	settingsHeight = 560
+	settingsName      = "settings"
+	settingsTitle     = "which-model settings"
+	settingsWidth     = 820
+	settingsHeight    = 560
+	settingsMinWidth  = 720
+	settingsMinHeight = 460
 )
+
+// settingsBackground is nocturne's --color-bg (#161826) — the settings page's
+// own background, mirrored onto the native window so the two never disagree.
+var settingsBackground = application.NewRGBA(0x16, 0x18, 0x26, 255)
 
 var (
 	// settingsMu guards settingsWin; creation may fail and be retried, so this
@@ -66,24 +80,38 @@ func ensureSettingsWindow(app *application.App) (*application.WebviewWindow, err
 	w := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:          settingsName,
 		Title:         settingsTitle,
-		Width:         settingsWidth,
-		Height:        settingsHeight,
-		MinWidth:      settingsWidth,
-		MinHeight:     settingsHeight,
-		MaxWidth:      settingsWidth,
-		MaxHeight:     settingsHeight,
-		DisableResize: true,
-		Hidden:        true, // shown only by showSettings
-		Frameless:     false,
-		AlwaysOnTop:   false,
+		Width:  settingsWidth,
+		Height: settingsHeight,
+		// Floor only; no Max*, so zoom and the resize grips work.
+		MinWidth:    settingsMinWidth,
+		MinHeight:   settingsMinHeight,
+		Hidden:      true, // shown only by showSettings
+		Frameless:   false,
+		AlwaysOnTop: false,
 		URL:           "/settings.html",
+		// Nocturne --color-bg, so the frame behind the webview matches the page
+		// instead of flashing white before first paint.
+		BackgroundColour: settingsBackground,
+		// The real AppKit window buttons: standard size, standard spacing, and
+		// the hover symbols and press states that only the OS draws. The
+		// web-drawn set that replaced them earlier could not reproduce those,
+		// and with the window now resizable, zoom is a live control rather than
+		// the inert dot a fixed-size window justified.
 		Mac: application.MacWindow{
-			// Traffic-light buttons inset over web content, no native title.
-			TitleBar: application.MacTitleBarHiddenInset,
+			// Hidden titlebar over full-size content: the page still draws its
+			// own title row, and AppKit insets the buttons into it.
+			TitleBar: application.MacTitleBarHidden,
+			// The UI is dark-only; force dark chrome so the window frame
+			// matches it on light-mode systems too.
+			Appearance: application.NSAppearanceNameDarkAqua,
 		},
 	})
 
 	w.Center()
+
+	// Even padding above, below and left of the window buttons; AppKit's own
+	// placement assumes its 28pt titlebar, not the page's 40px title row.
+	positionTrafficLights(w)
 
 	// Close = hide: cancel the native close (traffic light, Cmd-W, menu) and
 	// Hide the window instead of destroying it — unless the app is quitting,

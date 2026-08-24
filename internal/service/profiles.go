@@ -6,6 +6,8 @@ import (
     "path/filepath"
     "regexp"
     "sort"
+    "strings"
+    "unicode"
 
     "github.com/shopspring/decimal"
     "github.com/WD-Mitchell/which-model/internal/catalog"
@@ -38,6 +40,36 @@ func (p *ProfileService) ComplexityScale() []string {
     return append([]string(nil), complexityScaleSlugs...)
 }
 
+// profileDisplayName turns a profile slug into the name the UI shows:
+// "balanced_implementation" -> "Balanced Implementation".
+//
+// The engine's profile identifiers are snake_case and its Profile.Name is that
+// same slug (internal/pick/profiles.go), so every surface — the popover, the
+// settings list, the tray menu and the menu-bar title — was showing raw slugs.
+// Title-casing here rather than in each front end keeps one spelling across
+// all of them; the SLUG remains the id, and search still matches on it.
+//
+// Segments listed in profileNameAcronyms are upper-cased whole ("ui" -> "UI"),
+// because title-casing an initialism reads as a typo.
+func profileDisplayName(slug string) string {
+    parts := strings.Split(slug, "_")
+    out := make([]string, 0, len(parts))
+    for _, part := range parts {
+        if part == "" { continue }
+        if up, ok := profileNameAcronyms[part]; ok { out = append(out, up); continue }
+        r := []rune(part)
+        out = append(out, string(unicode.ToUpper(r[0]))+string(r[1:]))
+    }
+    if len(out) == 0 { return slug }
+    return strings.Join(out, " ")
+}
+
+// profileNameAcronyms are the slug segments that are initialisms, not words.
+// "ui_ux" is the only built-in that needs it; the rest are for custom slugs.
+var profileNameAcronyms = map[string]string{
+    "ui": "UI", "ux": "UX", "api": "API", "ai": "AI", "ml": "ML", "sql": "SQL", "qa": "QA",
+}
+
 func (p *ProfileService) List(ctx context.Context) ([]ProfileSummary, error) {
     _ = ctx
     p.s.mu.RLock()
@@ -54,7 +86,7 @@ func (p *ProfileService) listLocked() ([]ProfileSummary, error) {
     out := make([]ProfileSummary, 0, len(builtins))
     for _, slug := range builtins {
         ep := pick.Profiles[slug]
-        out = append(out, ProfileSummary{Slug: slug, Name: ep.Name, Builtin: true, CoreShare: int(ep.Tier1Share.IntPart()), Tier1Weights: dtoWeights(ep.Tier1Weights), Tier2Weights: dtoWeights(ep.Tier2Weights), Picks: stats[slug].Picks, LastUsed: stats[slug].LastUsed})
+        out = append(out, ProfileSummary{Slug: slug, Name: profileDisplayName(slug), Builtin: true, CoreShare: int(ep.Tier1Share.IntPart()), Tier1Weights: dtoWeights(ep.Tier1Weights), Tier2Weights: dtoWeights(ep.Tier2Weights), Picks: stats[slug].Picks, LastUsed: stats[slug].LastUsed})
     }
     customs, err := p.s.cfg.LoadProfiles(pick.CategoryNames)
     if err != nil { return nil, err }
@@ -63,7 +95,7 @@ func (p *ProfileService) listLocked() ([]ProfileSummary, error) {
     sort.Strings(slugs)
     for _, slug := range slugs {
         cp := customs[slug]
-        out = append(out, ProfileSummary{Slug: slug, Name: slug, CoreShare: cp.CoreShare, Tier1Weights: cloneWeights(cp.Tier1), Tier2Weights: cloneWeights(cp.Tier2), Picks: stats[slug].Picks, LastUsed: stats[slug].LastUsed})
+        out = append(out, ProfileSummary{Slug: slug, Name: profileDisplayName(slug), CoreShare: cp.CoreShare, Tier1Weights: cloneWeights(cp.Tier1), Tier2Weights: cloneWeights(cp.Tier2), Picks: stats[slug].Picks, LastUsed: stats[slug].LastUsed})
     }
     return out, nil
 }

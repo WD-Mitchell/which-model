@@ -54,11 +54,25 @@ describe('SettingsShell close', () => {
     host = createMockEngineHost() as EngineHost & { data: never }
   })
 
-  it('calls window.closeSettings when the close dot is clicked', async () => {
+  // The shell draws NO window buttons: AppKit draws the real ones over the
+  // titlebar (settings.go, MacTitleBarHidden), which is what gives them
+  // standard sizing, hover symbols and a working zoom on a resizable window.
+  // Escape is the web-side close.
+  it('calls window.closeSettings when Escape is pressed', async () => {
     const spy = vi.spyOn(host.window, 'closeSettings').mockResolvedValue(undefined)
     renderApp(host)
-    const closeBtn = (await screen.findAllByLabelText('Close settings'))[0]
-    fireEvent.click(closeBtn)
+    await screen.findByText('How which-model runs on this Mac, and how the pick is drawn in the popover.')
+    fireEvent.keyDown(document.body, { key: 'Escape' })
     expect(spy).toHaveBeenCalledTimes(1)
+  })
+
+  it('draws no window buttons of its own — AppKit owns them', async () => {
+    renderApp(host)
+    await screen.findByText('which-model — Settings')
+    // A web-drawn set would shadow the native one and could not reproduce the
+    // hover symbols or press states, so there must be none.
+    expect(screen.queryByLabelText('Close settings')).toBeNull()
+    expect(screen.queryByLabelText('Minimise settings')).toBeNull()
+    expect(screen.queryByLabelText('Zoom settings')).toBeNull()
   })
 })

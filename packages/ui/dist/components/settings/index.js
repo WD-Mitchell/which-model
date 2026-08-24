@@ -5,3 +5,4 @@ export { SettingsSection } from './SettingsSection';
 export { SettingsRow } from './SettingsRow';
 export { SettingsModal } from './SettingsModal';
 export { SettingsDetailShell } from './SettingsDetailShell';
+export { ProviderUsageRow } from './ProviderUsageRow';

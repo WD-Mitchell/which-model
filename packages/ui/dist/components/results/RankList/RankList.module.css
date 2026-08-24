@@ -63,10 +63,15 @@
   color: var(--color-accent-300);
 }
 
+/* The mockup's 52px: this holds the provider alone again — reasoning moved
+   inline after the model name (see RankList.tsx). */
 .route {
   composes: mono;
   width: 52px;
   flex: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 9.5px;
   text-align: right;
   color: color-mix(in srgb, var(--color-text) 40%, transparent);

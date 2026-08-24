@@ -5,9 +5,11 @@ import { ToastProvider } from '@which-model/ui'
 import { getHost } from './lib/host'
 import { useEngineEvents } from './lib/invalidate'
 import { SettingsApp } from './settings/SettingsApp'
-import '@fontsource/inter/400.css'
-import '@fontsource/inter/500.css'
-import '@fontsource/inter/600.css'
+// Inter Variable, not the static cuts: the Nocturne canvas renders Google
+// Fonts' Inter, which is the variable face. Its optical-size axis makes 9-13px
+// text — most of this UI — visibly looser and taller than the static 400/500,
+// which is why the app read as "nearly right" against the design.
+import '@fontsource-variable/inter'
 import '../../../packages/ui/dist/theme/nocturne.css'
 import '../../../packages/ui/dist/theme/app.css'
 import './settings.css'

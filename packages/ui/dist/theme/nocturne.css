@@ -57,9 +57,15 @@
   --color-section-glow: #353b80;
   --color-section-ghost: #4c5397;
 
-  --font-heading: "Inter", system-ui, sans-serif;
+  /* "Inter Variable" is the family name @fontsource-variable/inter registers,
+     and it is the face the Nocturne canvas actually renders: the design's own
+     @import pulls Google Fonts' Inter:wght@400;500;600;700, which is served as
+     the variable font. The static 400/500 cuts we shipped first were close but
+     measurably tighter at the 9-13px sizes this UI lives at. "Inter" is kept
+     after it so a system-installed static Inter still wins over system-ui. */
+  --font-heading: "Inter Variable", "Inter", system-ui, sans-serif;
   --font-heading-weight: 500;
-  --font-body: "Inter", system-ui, sans-serif;
+  --font-body: "Inter Variable", "Inter", system-ui, sans-serif;
 
   --space-1: 2.8px;
   --space-2: 5.6px;

@@ -21,6 +21,10 @@ export interface WeightEditorProps {
   onAddMetric?: (key: string) => void
   onToggleAdd?: () => void
   onRevert?: () => void
+  /** Extra buttons in the action row, left of Revert. The popover puts its
+   *  weights actions (Copy model id / Save as profile) here — they act on the
+   *  weights, and the popover footer is now tab-independent. */
+  extraActions?: ReactNode
 }
 
 
@@ -92,6 +96,9 @@ function Rows({
           labelWidth={labelWidth}
           valueStyle={valueStyle}
           readOnly={readOnly}
+          // 1..5, never 0: a metric is dropped with the row's × button, and a
+          // 0 would be a weight the engine refuses to rank on.
+          min={1}
           onChange={onChangeWeight ? (value) => onChangeWeight(row.key, value) : undefined}
           onRemove={removable && !readOnly && onRemoveWeight ? () => onRemoveWeight(row.key) : undefined}
         />
@@ -114,6 +121,7 @@ export function WeightEditor({
   onAddMetric,
   onToggleAdd,
   onRevert,
+  extraActions,
 }: WeightEditorProps) {
   const isPopover = variant === 'popover'
   const labelWidth = isPopover ? 104 : 150
@@ -169,9 +177,12 @@ export function WeightEditor({
           <button type="button" className="btn btn-ghost" style={buttonStyle} onClick={onToggleAdd}>
             + Add metric
           </button>
-          <button type="button" className="btn btn-ghost" style={{ ...buttonStyle, marginLeft: 'auto' }} onClick={onRevert}>
-            Revert
-          </button>
+          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+            {extraActions}
+            <button type="button" className="btn btn-ghost" style={buttonStyle} onClick={onRevert}>
+              Revert
+            </button>
+          </span>
           {addOpen ? (
             <span
               data-testid="weight-editor-add-popup"

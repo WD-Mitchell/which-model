@@ -18,8 +18,21 @@ type UsageConfig struct {
 	Backend UsageBackend `toml:"backend"`
 }
 
+// ProviderAccount is one named credential a provider can authenticate with.
+//
+// It records a REFERENCE, never a secret: Ref is the env var, file path or
+// keychain service the credential lives in, mirroring how usage descriptors
+// already resolve auth (internal/usage AuthSource). config.toml is
+// world-readable in practice, so a token in it would be a liability.
+type ProviderAccount struct {
+	Name string `toml:"name"` // display name, e.g. "Work"
+	Kind string `toml:"kind"` // oauth | cookie | token
+	Ref  string `toml:"ref"`  // env var, file path, or keychain service
+}
+
 type ProviderConfig struct {
-	Enabled               bool            `toml:"enabled"`
+	Enabled               bool              `toml:"enabled"`
+	Accounts              []ProviderAccount `toml:"accounts"`
 	Priority              int             `toml:"priority"`
 	Weight                decimal.Decimal `toml:"weight"`
 	CacheTTL              time.Duration   `toml:"cache_ttl"`

@@ -294,7 +294,9 @@ func (defaultRunner) Collect(ctx context.Context, o CollectOptions) (CollectResu
 		return CollectResult{}, err
 	}
 
-	client := httpkit.NewClient(httpkit.WithTimeout(o.Timeout))
+	// models.dev api.json measured at ~4 MB (2026-08-19) — far past httpkit's
+	// 256 KiB default bound, which made every fetch fail response_too_large.
+	client := httpkit.NewClient(httpkit.WithTimeout(o.Timeout), httpkit.WithMaxBytes(16<<20))
 
 	var catalogue []modelsdev.ProviderModel
 	if cacheFresh(o.CatalogueCachePath, o.CacheTTL) {

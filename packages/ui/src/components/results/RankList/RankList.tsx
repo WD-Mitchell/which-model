@@ -15,7 +15,13 @@ export function RankList({ items, index, onPick }: RankListProps) {
     <div className={styles.band}>
       {items.map((model, i) => {
         const selected = i === index
+        // Reasoning reads as part of the model's identity, so it sits in
+        // brackets right after the name in the same type — not off in the route
+        // column. It is load-bearing: the same model routinely holds several
+        // adjacent ranks at different efforts, and the name alone renders them
+        // as duplicate rows.
         const provider = model.route_key.split('/')[0]
+        const name = model.reasoning ? `${model.model_name} (${model.reasoning})` : model.model_name
         return (
           <button
             type="button"
@@ -25,9 +31,7 @@ export function RankList({ items, index, onPick }: RankListProps) {
             onClick={() => onPick(i)}
           >
             <span className={styles.rank}>{model.rank}</span>
-            <span className={cx(styles.name, selected && styles.nameSelected)}>
-              {model.model_name}
-            </span>
+            <span className={cx(styles.name, selected && styles.nameSelected)}>{name}</span>
             <span className={cx(styles.score, selected && styles.scoreSelected)}>
               {model.score.toFixed(2)}
             </span>

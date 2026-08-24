@@ -30,11 +30,17 @@
   background: color-mix(in srgb, var(--color-accent) 14%, transparent);
 }
 
+/* demo.dc.html 1053–1054: an unselected row's name is BRIGHT (88% text) and
+   the selected row's is var(--color-accent-200) — not full-strength text. */
 .rowLabel {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-variant-numeric: tabular-nums;
   font-size: 12px;
-  color: var(--color-text);
+  color: color-mix(in srgb, var(--color-text) 88%, transparent);
+}
+
+.rowSelected .rowLabel {
+  color: var(--color-accent-200);
 }
 
 .rowSub {

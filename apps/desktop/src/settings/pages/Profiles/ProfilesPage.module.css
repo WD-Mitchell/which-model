@@ -1,139 +1,278 @@
+/* U08 — Profiles page, ported from the mockup: demo.dc.html L278-324 (list)
+   and L325-399 (detail).
+
+   The settings content column (<main>) carries NO horizontal padding of its
+   own (U07 layout contract), so every block below pays its own 22px gutter.
+   That is what lets the row rules and the .row hover tint bleed the full
+   width of the column while the text still lines up with the header block. */
+
 .page {
-  padding-top: 4px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
+/* ─────────────────────────── list (L278-324) ─────────────────────────── */
+
+/* Section kicker — accent, 9px, wide tracking (L279). */
 .kicker {
   display: block;
-  font-size: 11px;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: var(--color-accent);
-  font-family: var(--font-mono);
-  margin: 12px 0 4px;
-}
-
-.listHeader {
-  margin-top: 8px;
-}
-
-.colHeader {
-  display: flex;
-  gap: 12px;
-  padding: 6px 0;
+  padding: 0 22px 6px;
   font-size: 9px;
   letter-spacing: 0.13em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+  color: var(--color-accent);
+}
+
+/* Column-header row (L280-286): same 12px gutters and column widths as the
+   data rows, one notch dimmer than the kicker at 38% text. */
+.colHeader {
+  display: flex;
+  gap: 12px;
+  padding: 0 22px 7px;
+}
+
+.colHeader > span {
+  font-size: 9px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 38%, transparent);
 }
 
 .colName {
   flex: 1;
+  min-width: 0;
 }
 
 .colWeights {
-  width: 120px;
   flex: none;
+  width: 120px;
 }
 
-.colNum {
-  width: 48px;
+.colPicks {
   flex: none;
+  width: 48px;
+  text-align: right;
+}
+
+.colUsed {
+  flex: none;
+  width: 64px;
   text-align: right;
 }
 
 .colActions {
-  width: 132px;
   flex: none;
+  width: 132px;
 }
 
+/* Data row (L288). The hover tint comes from the global `.row` helper in
+   theme/app.css — deliberately not re-declared here. The rule is a hairline
+   at 8% text, lighter than --color-divider (16%), because a list of eight
+   profiles would otherwise read as a grid. */
 .row {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 0;
-  border-top: 1px solid var(--color-divider);
+  padding: 11px 22px;
+  border-top: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
   cursor: pointer;
 }
 
-.row:hover {
-  background: color-mix(in srgb, var(--color-text) 4%, transparent);
-}
-
-.name {
+.slug {
   flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 12.5px;
+  color: color-mix(in srgb, var(--color-text) 88%, transparent);
 }
 
-.weights {
+/* Weights sparkline cell (L290-312): core bars, a 1px hairline, task bars.
+   Bars are bottom-aligned inside a fixed 24px band so the strip reads as one
+   baseline across every row. */
+.spark {
+  flex: none;
   width: 120px;
-  flex: none;
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 24px;
 }
 
-.num {
-  width: 48px;
+.sparkGroup {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 24px;
+}
+
+.sparkRule {
+  width: 1px;
+  height: 16px;
+  background: color-mix(in srgb, var(--color-text) 16%, transparent);
+}
+
+/* Full-height hover target: the bar itself is only 8-24px tall, but the
+   tooltip has to hang off the top of the band, not off the bar. */
+.barCol {
+  width: 5px;
+  height: 24px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.bar {
+  width: 5px;
+  border-radius: 1.5px;
+}
+
+.picks {
   flex: none;
+  width: 48px;
   text-align: right;
   font-size: 11px;
   color: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
 
-.actions {
-  width: 132px;
+.used {
   flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
+  width: 64px;
+  text-align: right;
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
 }
 
-.footnote {
-  margin-top: 16px;
+.actions {
+  flex: none;
+  width: 132px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+}
+
+/* `.ib` (app.css) supplies the hover chip and the .off disabled treatment;
+   these are the button-element resets it assumes away on a <span>. */
+.iconBtn {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+/* The row-trailing chevron is NOT an .ib — it never lights up on hover, it
+   is just an affordance printed at 38% text (L318). */
+.chevron {
+  display: flex;
+  color: color-mix(in srgb, var(--color-text) 38%, transparent);
+}
+
+/* Trailing note (L321). */
+.note {
+  margin: 0;
+  padding: 14px 22px 20px;
   font-size: 11px;
-  max-width: 56ch;
   color: color-mix(in srgb, var(--color-text) 42%, transparent);
+  max-width: 56ch;
   text-wrap: pretty;
 }
 
-.empty {
-  padding: 16px 0;
+/* Empty / loading lines. The mockup ships seeded profiles and so has no empty
+   state; these borrow the trailing note's voice. */
+.placeholder {
+  padding: 14px 22px 20px;
   font-size: 11px;
   color: color-mix(in srgb, var(--color-text) 42%, transparent);
 }
 
-.strip {
+/* ────────────────────────── detail (L325-399) ────────────────────────── */
+
+/* Tag + summary on the left, Duplicate + delete pushed right (L326-333).
+   The page action button is absent on the detail view (meta[2] is null when a
+   profile is open), so this strip owns every verb. */
+.detailStrip {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 8px 0 14px;
+  gap: 8px;
+  padding: 0 22px 16px;
 }
 
 .summary {
-  font-size: 11.5px;
-  color: color-mix(in srgb, var(--color-text) 62%, transparent);
-}
-
-.balRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  font-size: 9px;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--color-text) 38%, transparent);
-  margin-bottom: 6px;
-}
-
-.ratio {
-  font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--color-accent-300);
-  text-transform: none;
-  letter-spacing: 0;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
 }
 
-.editor {
-  margin-top: 16px;
+.detailActions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* One size up from the list's trash — the detail strip is the primary place
+   a profile gets deleted (L331). */
+.iconBtnLg {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+/* Sub-section head (L334-337 / L362-365). Accent here, unlike the popover's
+   muted 42% version — the settings detail leads with the section, the
+   percentage is the supporting read. */
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0 22px 8px;
+}
+
+.sectionHeadTask {
+  padding-top: 20px;
+}
+
+.sectionLabel {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.sectionPct {
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding: 0 22px;
+}
+
+/* Real profiles carry only the task benchmarks they actually weight, so the
+   task list can be empty in a way the mockup's seeded data never is. */
+.rowsEmpty {
+  padding: 0 22px;
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+}
+
+/* Core/task balance rail, last block on the page (L390-396). */
+.balance {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px 22px 22px;
+  max-width: 434px;
 }

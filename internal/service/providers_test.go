@@ -490,7 +490,7 @@ func TestProviderDetail_LevelsAndDefault(t *testing.T) {
 	if detail.ID != "claude" {
 		t.Fatalf("Detail.ID = %q", detail.ID)
 	}
-	want := ProviderDetail{
+	want := ProviderDetail{Accounts: []ProviderAccountDTO{}, 
 		ID: "claude",
 		Models: []ProviderModel{
 			{ModelID: "claude-eco", ModelName: "Claude Eco", Levels: []RouteLevel{
@@ -518,6 +518,72 @@ func TestProviderDetail_Unknown(t *testing.T) {
 	_, err := svc.Providers().Detail(context.Background(), "nope")
 	providersCheckErr(t, err, errNotFound, `not found: providers: unknown provider "nope"`)
 	assertZeroEvents(t, rec)
+}
+
+// seedModelsDev writes a models.dev providers catalogue cache for Detail's
+// augmentation path (same file Addable reads).
+func seedModelsDev(t *testing.T, svc *Services, rows string) {
+	t.Helper()
+	dir := filepath.Join(svc.paths.CacheDir, "catalog")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "modelsdev_providers.json"), []byte(rows), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Detail shows the provider's FULL models.dev model list, not just the
+// benchmarked models that produced routes: unrouted catalogue models append
+// with nil Levels, and names come from models.dev (routes-only fallback when
+// no catalogue cache exists).
+func TestProviderDetail_IncludesCatalogueModels(t *testing.T) {
+	svc, _ := newTestServices(t,
+		WithConfigTOML("[routes.disabled]\nclaude = [\"claude-opus-5@max\"]\n"),
+		WithRoutes(detailRoutes()),
+	)
+	seedModelsDev(t, svc, `[
+		{"Provider":"anthropic","ModelID":"claude-eco","Name":"Claude Eco"},
+		{"Provider":"anthropic","ModelID":"claude-haiku-4","Name":"Claude Haiku 4"},
+		{"Provider":"anthropic","ModelID":"claude-opus-5","Name":"Claude Opus 5"},
+		{"Provider":"openai","ModelID":"gpt-5.6","Name":"GPT-5.6"}
+	]`)
+	detail, err := svc.Providers().Detail(context.Background(), "claude")
+	if err != nil {
+		t.Fatalf("Detail: %v", err)
+	}
+	var gotIDs []string
+	for _, m := range detail.Models {
+		gotIDs = append(gotIDs, m.ModelID)
+	}
+	// Routed models keep their levels; the unrouted catalogue model
+	// (claude-haiku-4) joins with nil levels; the openai row belongs to a
+	// different slug and must not leak in. model_id ascending overall.
+	wantIDs := []string{"claude-eco", "claude-haiku-4", "claude-opus-5", "claude-sonnet-4"}
+	if !reflect.DeepEqual(gotIDs, wantIDs) {
+		t.Fatalf("Detail model ids = %v, want %v", gotIDs, wantIDs)
+	}
+	for _, m := range detail.Models {
+		if m.ModelID == "claude-haiku-4" {
+			if m.ModelName != "Claude Haiku 4" {
+				t.Errorf("unrouted ModelName = %q, want models.dev name %q", m.ModelName, "Claude Haiku 4")
+			}
+			if m.Levels != nil {
+				t.Errorf("unrouted Levels = %#v, want nil", m.Levels)
+			}
+		}
+	}
+}
+
+func TestProviderDetail_NoCatalogueCacheIsRoutesOnly(t *testing.T) {
+	svc, _ := newTestServices(t, WithRoutes(detailRoutes()))
+	detail, err := svc.Providers().Detail(context.Background(), "claude")
+	if err != nil {
+		t.Fatalf("Detail: %v", err)
+	}
+	if len(detail.Models) != 3 {
+		t.Fatalf("Detail models = %d, want 3 (routes only)", len(detail.Models))
+	}
 }
 
 func TestProviderRoutes_DisabledArithmetic(t *testing.T) {
@@ -657,4 +723,141 @@ func detailRoutes() routing.Table {
 		routing.Route{Provider: "claude", ModelID: "claude-eco", Model: "Claude Eco", Reasoning: "low", Provenance: routing.ProvenanceProviderLive},
 		routing.Route{Provider: "claude", ModelID: "claude-eco", Model: "Claude Eco", Reasoning: "default", Provenance: routing.ProvenanceProviderLive},
 	)
+}
+
+func TestProviderAdd(t *testing.T) {
+	svc, rec := newTestServices(t, WithConfigTOML(`
+[providers.claude]
+enabled = true
+priority = 1
+`))
+	useTempUsageCache(t, svc)
+	ctx := context.Background()
+
+	// A new id persists default-deny and shows up in the universe.
+	if err := svc.Providers().Add(ctx, "myprovider"); err != nil {
+		t.Fatalf("Add: %v", err)
+	}
+	assertConfigChanged(t, rec, "providers")
+	rel := reloadConfig(t, svc)
+	if _, ok := rel.Providers["myprovider"]; !ok {
+		t.Fatal("myprovider missing from config on disk")
+	}
+	if rel.Providers["myprovider"].Enabled {
+		t.Error("a new provider must be default-deny (enabled=false)")
+	}
+
+	// Re-adding anything already in the universe is a conflict, not a reset.
+	if err := svc.Providers().Add(ctx, "myprovider"); !errors.Is(err, errConflict) {
+		t.Errorf("re-add err = %v, want errConflict", err)
+	}
+	if err := svc.Providers().Add(ctx, "claude"); !errors.Is(err, errConflict) {
+		t.Errorf("add existing err = %v, want errConflict", err)
+	}
+
+	// Ids must be config-key safe.
+	for _, bad := range []string{"", "  ", "Has Spaces", "UPPER!", "-", "a/b"} {
+		if err := svc.Providers().Add(ctx, bad); !errors.Is(err, errValidation) {
+			t.Errorf("Add(%q) err = %v, want errValidation", bad, err)
+		}
+	}
+}
+
+func TestProviderDeleteDuplicateAndAccounts(t *testing.T) {
+	svc, rec := newTestServices(t, WithConfigTOML(`
+[providers.claude]
+enabled = true
+priority = 1
+`))
+	useTempUsageCache(t, svc)
+	ctx := context.Background()
+	ps := svc.Providers()
+
+	// A builtin ships a usage adapter and stays in the universe whatever the
+	// config says, so deleting it would look like a no-op. Refuse instead.
+	//
+	// Nothing is builtin by default in this package's tests: descriptors come
+	// from the blank imports in the binaries, not from internal/service. So the
+	// case is set up explicitly, under an id no real adapter uses.
+	const builtinID = "wm_test_builtin"
+	registerTestProvider(t, builtinID)
+	if err := ps.Delete(ctx, builtinID); !errors.Is(err, errValidation) {
+		t.Errorf("Delete(builtin) err = %v, want errValidation", err)
+	}
+
+	if err := ps.Add(ctx, "myprov"); err != nil {
+		t.Fatalf("Add: %v", err)
+	}
+
+	// Accounts: validated, then persisted as a set.
+	bad := []ProviderAccountDTO{{Name: "Work", Kind: "smoke-signal"}}
+	if err := ps.SetAccounts(ctx, "myprov", bad); !errors.Is(err, errValidation) {
+		t.Errorf("SetAccounts(bad kind) err = %v, want errValidation", err)
+	}
+	if err := ps.SetAccounts(ctx, "myprov", []ProviderAccountDTO{{Name: " ", Kind: AccountKindToken}}); !errors.Is(err, errValidation) {
+		t.Errorf("SetAccounts(blank name) err = %v, want errValidation", err)
+	}
+	dupes := []ProviderAccountDTO{{Name: "A", Kind: AccountKindToken}, {Name: "A", Kind: AccountKindOAuth}}
+	if err := ps.SetAccounts(ctx, "myprov", dupes); !errors.Is(err, errConflict) {
+		t.Errorf("SetAccounts(duplicate name) err = %v, want errConflict", err)
+	}
+
+	good := []ProviderAccountDTO{
+		{Name: "Work", Kind: AccountKindOAuth, Ref: "~/.creds.json"},
+		{Name: "Personal", Kind: AccountKindToken, Ref: "WM_TOKEN"},
+	}
+	if err := ps.SetAccounts(ctx, "myprov", good); err != nil {
+		t.Fatalf("SetAccounts: %v", err)
+	}
+	detail, err := ps.Detail(ctx, "myprov")
+	if err != nil {
+		t.Fatalf("Detail: %v", err)
+	}
+	if len(detail.Accounts) != 2 || detail.Accounts[0].Name != "Work" || detail.Accounts[1].Ref != "WM_TOKEN" {
+		t.Errorf("Detail accounts = %+v", detail.Accounts)
+	}
+	if detail.Builtin {
+		t.Error("myprov must not report as builtin")
+	}
+
+	// Duplicate carries the accounts but never the enabled state.
+	copyID, err := ps.Duplicate(ctx, "myprov")
+	if err != nil {
+		t.Fatalf("Duplicate: %v", err)
+	}
+	if copyID != "myprov_2" {
+		t.Errorf("copy id = %q, want myprov_2", copyID)
+	}
+	rel := reloadConfig(t, svc)
+	if rel.Providers[copyID].Enabled {
+		t.Error("a duplicate must be default-deny")
+	}
+	if len(rel.Providers[copyID].Accounts) != 2 {
+		t.Errorf("copy accounts = %+v", rel.Providers[copyID].Accounts)
+	}
+
+	// Delete removes a non-builtin outright.
+	if err := ps.Delete(ctx, copyID); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	rel = reloadConfig(t, svc)
+	if _, still := rel.Providers[copyID]; still {
+		t.Error("deleted provider still in config")
+	}
+	if len(rec.Events()) == 0 {
+		t.Error("expected config:changed emissions")
+	}
+}
+
+// registerTestProvider adds a usage descriptor so providerBuiltin sees an id as
+// shipped. usage.Register panics on a duplicate id and the registry has no
+// removal, so this registers at most once per test binary.
+func registerTestProvider(t *testing.T, id string) {
+	t.Helper()
+	for _, existing := range usage.IDs() {
+		if existing == id {
+			return
+		}
+	}
+	usage.Register(usage.Descriptor{ID: id, DisplayName: id, Kind: usage.KindSubscription, Tier: 1})
 }

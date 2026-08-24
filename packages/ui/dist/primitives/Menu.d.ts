@@ -1,3 +1,4 @@
+import type React from 'react';
 export interface MenuItem {
     key: string;
     label?: string;
@@ -11,5 +12,8 @@ export interface MenuProps {
     onPick: (key: string) => void;
     onClose: () => void;
     className?: string;
+    /** Inline positioning for a context menu opened at the pointer, where the
+     *  coordinates are only known at click time and cannot live in CSS. */
+    style?: React.CSSProperties;
 }
-export declare function Menu({ items, onPick, onClose, className }: MenuProps): import("react").JSX.Element;
+export declare function Menu({ items, onPick, onClose, className, style }: MenuProps): React.JSX.Element;

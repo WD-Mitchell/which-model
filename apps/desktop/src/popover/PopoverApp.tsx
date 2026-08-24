@@ -13,6 +13,7 @@ import {
 } from '../lib/queries'
 import { copyToClipboard, getHost, hidePopover, openSettings, quit } from '../lib/host'
 import { useOverridesStore } from '../lib/overrides'
+import { onTrayProfile, onTrayView } from '../lib/trayEvents'
 import { PopoverShell } from './PopoverShell'
 import { PopoverHeader } from './Header'
 import { PopoverFooter } from './Footer'
@@ -20,66 +21,41 @@ import { LandingView, ResultsBand } from './LandingView'
 import { WeightsView } from './WeightsView'
 import './PopoverApp.css'
 
+/** The popover's two tabs. 'profiles' is Quick — the search + complexity
+ *  scale; 'sliders' is Advanced — the per-benchmark weight editor. The ids
+ *  keep their original names because gui.default_tab persists them. */
+export type PopoverTab = 'profiles' | 'sliders'
+
+/** Retained name for the footer's variant, which still speaks in views. */
 export type PopoverView = 'landing' | 'weights'
 
-function WeightsHeader({
-  slug,
-  onBack,
-  onToggleMenu,
-}: {
-  slug: string
-  onBack(): void
-  onToggleMenu(): void
-}) {
+/**
+ * The popover's tab strip: Quick (search + complexity scale) and Advanced
+ * (the per-benchmark weight editor).
+ *
+ * This replaced the weights view's own back-chevron header — with tabs, the
+ * strip IS the navigation, so a second way back would be redundant.
+ */
+function PopoverTabs({ tab, onTab }: { tab: PopoverTab; onTab(next: PopoverTab): void }) {
   return (
-    <div className="wa-wheaderRow">
+    <div className="lv-tabs" role="tablist">
       <button
         type="button"
-        className="ib wa-wheaderBack"
-        aria-label="Back to landing"
-        onClick={(e) => {
-          e.stopPropagation()
-          onBack()
-        }}
+        role="tab"
+        aria-selected={tab === 'profiles'}
+        className={tab === 'profiles' ? 'lv-tab lv-tabOn' : 'lv-tab'}
+        onClick={() => onTab('profiles')}
       >
-        <svg
-          width="13"
-          height="13"
-          viewBox="0 0 12 12"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.7"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M7.2 2.2 3.4 6l3.8 3.8"></path>
-        </svg>
+        Quick
       </button>
-      <span className="wa-wheaderTitle">
-        Weights for <span className="mono wa-wheaderSlug">{slug}</span>
-      </span>
       <button
         type="button"
-        className="ib wa-wheaderHamburger"
-        aria-label="App menu"
-        onClick={(e) => {
-          e.stopPropagation()
-          onToggleMenu()
-        }}
+        role="tab"
+        aria-selected={tab === 'sliders'}
+        className={tab === 'sliders' ? 'lv-tab lv-tabOn' : 'lv-tab'}
+        onClick={() => onTab('sliders')}
       >
-        <svg
-          width="13"
-          height="13"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        >
-          <path d="M1.8 4.2h12.4M1.8 8h12.4M1.8 11.8h12.4"></path>
-          <circle cx="5.4" cy="4.2" r="1.7" fill="var(--color-bg)"></circle>
-          <circle cx="10.6" cy="11.8" r="1.7" fill="var(--color-bg)"></circle>
-        </svg>
+        Advanced
       </button>
     </div>
   )
@@ -92,12 +68,13 @@ export function PopoverApp() {
   const settingsQuery = useSettings()
   const catalogQuery = useCatalogLine()
 
-  const [view, setView] = useState<PopoverView>('landing')
+  // null until settings resolve, so the first paint cannot show the wrong tab
+  // and then swap under the user.
+  const [tabOverride, setTabOverride] = useState<PopoverTab | null>(null)
   const [activeSlug, setActiveSlug] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [stop, setStop] = useState(1)
   const [harnessSlug, setHarnessSlug] = useState<string | undefined>(undefined)
-  const [appMenuOpen, setAppMenuOpen] = useState(false)
   const [harnessMenuOpen, setHarnessMenuOpen] = useState(false)
 
   const toast = useToast()
@@ -148,6 +125,32 @@ export function PopoverApp() {
     }
   }, [activeProfile, activeSlug])
 
+  // Content-driven window height (U05 divergence from the fixed 620 window):
+  // the design's panel is content-sized, so the host window follows the
+  // panel's natural height. Measured off .ps-panel — with .ps-outer at
+  // height:auto its scrollHeight IS the natural stack height, independent of
+  // the current window size, so this never feeds back on itself. Rounded up
+  // and change-guarded to keep resize traffic at zero when nothing moved.
+  useEffect(() => {
+    const panel = document.querySelector('.ps-panel')
+    if (!panel) return
+    let last = 0
+    const push = (): void => {
+      const h = Math.ceil((panel as HTMLElement).scrollHeight)
+      if (h > 0 && h !== last) {
+        last = h
+        void getHost().window.setPopoverHeight(h).catch(() => {})
+      }
+    }
+    push()
+    // jsdom (vitest) has no ResizeObserver; the initial push above still runs,
+    // so the measurement contract is exercised without the observer.
+    if (typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(push)
+    ro.observe(panel)
+    return () => ro.disconnect()
+  }, [])
+
   const activeName = profiles.find((p) => p.slug === activeSlug)?.name ?? activeSlug
   const overridesHash = useOverridesHash(activeSlug)
   const holds = settings?.holds ?? 5
@@ -156,6 +159,23 @@ export function PopoverApp() {
   const pickIndex = candidates.length === 0 ? 0 : Math.min(selectedIndex, candidates.length - 1)
   const pick = candidates[pickIndex]
 
+  // Keep the menu bar showing what the popover shows. The host ranks for the
+  // menu bar itself at startup, but the active profile and the ephemeral weight
+  // overrides never leave the webview — so without this push the menu bar kept
+  // naming whichever profile the host last ranked, unmoved by the scale or the
+  // sliders. Runs on every change of profile, pick or rank (a weight edit
+  // refetches the rank, which lands here as a new pick).
+  useEffect(() => {
+    // Nothing is pushed until there IS something: the first paints have no
+    // profile and no rank yet, and pushing those would blank the menu bar for
+    // a beat every time the popover mounts. Until the first real pick, the
+    // host's own startup ranking holds the title.
+    if (!activeName || !pick) return
+    void getHost()
+      .window.setTrayPick(activeName, pick.model_name, pick.reasoning, pick.provider)
+      .catch(() => {})
+  }, [activeName, pick?.model_name, pick?.reasoning, pick?.provider])
+
   const handleSelectProfile = useCallback((slug: string, scaleIndex: number | null) => {
     setSelectedIndex(0)
     if (scaleIndex !== null) setStop(scaleIndex)
@@ -163,25 +183,48 @@ export function PopoverApp() {
     setActiveSlug(slug)
   }, [])
 
-  const toggleAppMenu = useCallback(() => {
-    setAppMenuOpen((v) => !v)
-    setHarnessMenuOpen(false)
-  }, [])
+  // Menu-bar right-click → profile quick-select (traymenu.go emits
+  // "tray:profile"). Same entry point as clicking a stop on the scale; profiles
+  // that are not on the complexity scale leave the scale position alone.
+  useEffect(
+    () =>
+      onTrayProfile((slug) => {
+        const scaleIndex = scale.indexOf(slug)
+        handleSelectProfile(slug, scaleIndex === -1 ? null : scaleIndex)
+      }),
+    [scale, handleSelectProfile],
+  )
 
   const handleCustomWeights = useCallback(() => {
-    setAppMenuOpen(false)
-    setView('weights')
+    setTabOverride('sliders')
   }, [])
 
-  const handleOpenSettings = useCallback(() => {
-    setAppMenuOpen(false)
-    void openSettings()
-  }, [])
+  // Tray menu -> "Custom weights…". The menu shows the popover host-side; this
+  // only decides which view it lands on.
+  useEffect(
+    () =>
+      onTrayView((view) => {
+        // The tray still speaks in views ("Custom weights…"); they map onto tabs.
+        if (view === 'weights') setTabOverride('sliders')
+        else if (view === 'landing') setTabOverride('profiles')
+      }),
+    [],
+  )
 
-  const handleQuit = useCallback(() => {
-    setAppMenuOpen(false)
-    void quit()
-  }, [])
+  // Copy the current pick's model id. Lives here, not in the weights actions,
+  // because the footer offers it on both tabs now.
+  const handleCopyModelId = useCallback(async () => {
+    if (!pick) {
+      toast.show('no model to copy — enable a provider')
+      return
+    }
+    try {
+      await copyToClipboard(pick.model_id)
+      toast.show(`copied ${pick.model_id}`)
+    } catch (e) {
+      toast.show((e as ErrorDTO).message ?? 'copy failed')
+    }
+  }, [pick, toast])
 
   const handleManage = useCallback(() => {
     void openSettings()
@@ -211,21 +254,22 @@ export function PopoverApp() {
     }
   }, [pick, harnessSlug, activeSlug, settings, toast])
 
-  const header =
-    view === 'landing' ? (
-      <PopoverHeader onToggleMenu={toggleAppMenu} />
-    ) : (
-      <WeightsHeader
-        slug={activeSlug}
-        onBack={() => setView('landing')}
-        onToggleMenu={toggleAppMenu}
-      />
-    )
+  // Shipped default is 'profiles'; gui.default_tab overrides it until the user
+  // picks a tab in this session.
+  const tab: PopoverTab =
+    tabOverride ?? (settings?.default_tab === 'sliders' ? 'sliders' : 'profiles')
+
+  // The header carries the hero — it describes the app, so it sits above the
+  // tab strip and shows on both tabs.
+  const catalog = catalogQuery.data
+  const catalogLine = catalog
+    ? `${catalog.models} models · ${catalog.providers_on} providers on · ${catalog.harnesses} harnesses`
+    : '—'
+  const header = <PopoverHeader catalogLine={catalogLine} />
 
   const body =
-    view === 'landing' ? (
+    tab === 'profiles' ? (
       <LandingView
-        catalog={catalogQuery.data}
         profiles={profiles}
         scale={scale}
         activeSlug={activeSlug}
@@ -238,10 +282,22 @@ export function PopoverApp() {
       />
     ) : (
       <div className="wa-wbody">
-        <div className="wa-wdivider">
-          <div className="wa-wdividerLine" />
-        </div>
-        <WeightsView baseSlug={activeSlug} />
+        {/* No divider rule here: it used to separate the weights body from the
+            "Weights for <slug>" header row, which the tab strip replaced. */}
+        <WeightsView
+          baseSlug={activeSlug}
+          actions={
+            <WeightsActions
+              baseProfile={activeProfile}
+              onSaved={(slug) => {
+                setTabOverride('profiles')
+                setActiveSlug(slug)
+                setSelectedIndex(0)
+                useOverridesStore.getState().clear()
+              }}
+            />
+          }
+        />
         <ResultsBand
           slug={activeSlug}
           overridesHash={overridesHash}
@@ -251,68 +307,38 @@ export function PopoverApp() {
       </div>
     )
 
-  const weightsFooter =
-    view === 'weights' ? (
-      <WeightsFooter
-        pick={pick}
-        baseProfile={activeProfile}
-        onSaved={(slug) => {
-          setView('landing')
-          setActiveSlug(slug)
-          setSelectedIndex(0)
-          useOverridesStore.getState().clear()
-        }}
-      />
-    ) : null
-
   return (
-    <PopoverShell
-      header={header}
-      menuOpen={appMenuOpen}
-      onToggleMenu={toggleAppMenu}
-      onCustomWeights={handleCustomWeights}
-      onOpenSettings={handleOpenSettings}
-      onQuit={handleQuit}
-    >
+    <PopoverShell header={header}>
+      <PopoverTabs tab={tab} onTab={setTabOverride} />
       {body}
+      {/* Tab-independent: Settings + Launch stay put on both tabs. Only the
+          content area above changes. */}
       <PopoverFooter
-        variant={view}
         harnesses={harnesses}
         harnessSlug={harnessSlug}
         harnessMenuOpen={harnessMenuOpen}
         onToggleHarnessMenu={() => setHarnessMenuOpen((v) => !v)}
         onPickHarness={handlePickHarness}
         onManage={handleManage}
+        onCopy={() => void handleCopyModelId()}
         onLaunch={() => void handleLaunch()}
-      >
-        {weightsFooter}
-      </PopoverFooter>
+      />
     </PopoverShell>
   )
 }
 
-// U06 footer buttons: Copy model id + Save as profile.
-function WeightsFooter({
-  pick,
+// U06 weights actions: Copy model id + Save as profile. They sit in the
+// weights editor's action row — the footer is the same on both tabs.
+function WeightsActions({
   baseProfile,
   onSaved,
 }: {
-  pick: RankedModel | undefined
   baseProfile: ProfileDetail | undefined
   onSaved(slug: string): void
 }) {
   const toast = useToast()
   const store = useOverridesStore()
   const baseSlug = store.baseSlug
-
-  const handleCopy = async () => {
-    if (!pick) {
-      toast.show('nothing to copy')
-      return
-    }
-    await copyToClipboard(pick.model_id)
-    toast.show(`copied  ${pick.model_id}`)
-  }
 
   const handleSave = async () => {
     if (!baseProfile) return
@@ -351,10 +377,10 @@ function WeightsFooter({
 
   return (
     <>
-      <Button variant="ghost" onClick={() => void handleCopy()}>
-        Copy model id
-      </Button>
-      <Button variant="ghost" onClick={() => void handleSave()}>
+      {/* Copy model id moved to the footer (both tabs offer it). What is left
+          is the one action that only makes sense here, at the action row's
+          `xs` scale, bordered as this tab's committing action. */}
+      <Button variant="secondary" size="xs" onClick={() => void handleSave()}>
         Save as profile
       </Button>
     </>

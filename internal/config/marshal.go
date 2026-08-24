@@ -66,6 +66,21 @@ func (c *Config) MarshalTOML() ([]byte, error) {
 		if provider.TrustedFallbackOrigin != "" {
 			values["trusted_fallback_origin"] = provider.TrustedFallbackOrigin
 		}
+		if len(provider.Accounts) > 0 {
+			// []map[string]any, not []any: renderSection dispatches on that
+			// exact type to emit [[providers.<id>.accounts]]. As []any it fell
+			// through to the scalar branch and rendered a top-level
+			// [[accounts]] table, which would corrupt the file on round-trip.
+			accounts := make([]map[string]any, 0, len(provider.Accounts))
+			for _, account := range provider.Accounts {
+				entry := map[string]any{"name": account.Name, "kind": account.Kind}
+				if account.Ref != "" {
+					entry["ref"] = account.Ref
+				}
+				accounts = append(accounts, entry)
+			}
+			values["accounts"] = accounts
+		}
 		providers[id] = values
 	}
 	if len(providers) > 0 {

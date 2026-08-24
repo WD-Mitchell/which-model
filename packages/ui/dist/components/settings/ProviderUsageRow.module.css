@@ -1,0 +1,100 @@
+/* Provider usage card — ported from the harness detail's provider list
+   (mockup demo.dc.html 542-566) and shared with the Providers page. */
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 13px;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-text) 7%, transparent);
+}
+
+.rowOn {
+  background: color-mix(in srgb, var(--color-text) 4%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+
+.idCell {
+  flex: none;
+  width: 96px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.id {
+  font-size: 12.5px;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
+.idOn {
+  color: color-mix(in srgb, var(--color-text) 88%, transparent);
+}
+
+.auth {
+  font-size: 10px;
+  color: color-mix(in srgb, var(--color-text) 50%, transparent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.authOff {
+  color: color-mix(in srgb, var(--color-text) 34%, transparent);
+}
+
+.meters {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 10px;
+}
+
+/* 112px, tightened from the harness card's 138px: the Providers row adds a
+   priority and an open affordance, and the meters are what must not collapse. */
+.creditsCell {
+  flex: none;
+  width: 112px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: right;
+}
+
+.credits {
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--color-text) 72%, transparent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.creditsOff {
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
+.resets {
+  font-size: 10px;
+  color: color-mix(in srgb, var(--color-text) 38%, transparent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Leading slot: content between the switch and the id (the Providers page puts
+   the priority number here rather than in its own column, which would take the
+   width the meters need). */
+.leading {
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+
+/* Shown in place of the meters when a provider reports no window. */
+.noUsage {
+  font-size: 10px;
+  color: color-mix(in srgb, var(--color-text) 34%, transparent);
+}

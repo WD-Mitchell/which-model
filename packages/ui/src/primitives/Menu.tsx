@@ -1,3 +1,4 @@
+import type React from 'react'
 import { useEffect, useRef } from 'react'
 import { cx } from '../utils/cx'
 import styles from './Menu.module.css'
@@ -16,9 +17,12 @@ export interface MenuProps {
   onPick: (key: string) => void
   onClose: () => void // Escape or outside pointerdown
   className?: string // caller positions the surface
+  /** Inline positioning for a context menu opened at the pointer, where the
+   *  coordinates are only known at click time and cannot live in CSS. */
+  style?: React.CSSProperties
 }
 
-export function Menu({ items, onPick, onClose, className }: MenuProps) {
+export function Menu({ items, onPick, onClose, className, style }: MenuProps) {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -40,7 +44,7 @@ export function Menu({ items, onPick, onClose, className }: MenuProps) {
   }, [onClose])
 
   return (
-    <div ref={ref} role="menu" className={cx(styles.surface, className)}>
+    <div ref={ref} role="menu" className={cx(styles.surface, className)} style={style}>
       {items.map((item) =>
         item.separator ? (
           <div key={item.key} role="separator" className={styles.separator} />

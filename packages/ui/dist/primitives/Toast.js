@@ -1,5 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { cx } from '../utils/cx';
 import styles from './Toast.module.css';
 export const TOAST_DURATION_MS = 2600;
 const ToastContext = createContext(null);
@@ -22,7 +23,7 @@ export function ToastProvider(props) {
         }, TOAST_DURATION_MS);
     }, []);
     const value = useMemo(() => ({ show }), [show]);
-    return (_jsxs(ToastContext.Provider, { value: value, children: [props.children, message !== null && _jsx("div", { className: styles.toast, children: message })] }));
+    return (_jsxs(ToastContext.Provider, { value: value, children: [props.children, message !== null && _jsx("div", { className: cx('mono', styles.toast), children: message })] }));
 }
 export function useToast() {
     const ctx = useContext(ToastContext);

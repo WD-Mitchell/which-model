@@ -1,7 +1,9 @@
 // U06 — WeightsView: the popover's ephemeral weights editor. Renders the
 // tinted editor section (core/task rows), the add-metric / Revert actions,
 // and the core-task balance band. Mounted by PopoverApp in the 'weights' view
-// above the shared carousel; footer buttons live in PopoverFooter children.
+// above the shared carousel; the weights actions render in the editor's own
+// action row (the popover footer is tab-independent).
+import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { BalanceSlider, useToast, WeightEditor } from '@which-model/ui'
 import { useGroups, useProfile, useSettings } from '../lib/queries'
@@ -10,9 +12,12 @@ import './WeightsView.css'
 
 export interface WeightsViewProps {
   baseSlug: string
+  /** Buttons for the editor's action row (Copy model id / Save as profile).
+   *  They live here rather than the footer, which no longer changes per tab. */
+  actions?: ReactNode
 }
 
-export function WeightsView({ baseSlug }: WeightsViewProps) {
+export function WeightsView({ baseSlug, actions }: WeightsViewProps) {
   const profile = useProfile(baseSlug).data
   const groups = useGroups().data ?? []
   const settings = useSettings().data
@@ -53,8 +58,10 @@ export function WeightsView({ baseSlug }: WeightsViewProps) {
   }, [tier1, tier2, groups])
 
   return (
-    <div className="wv-body">
-      <div className="wv-editor">
+    <div className="wv-root">
+      {/* Mockup line 133: the metric rows are a full-bleed tinted section, and
+          in the fixed-height popover window they are the scroll region. */}
+      <div className="wv-metrics scroll">
         <WeightEditor
           variant="popover"
           sliderStyle={sliderStyle}
@@ -69,6 +76,7 @@ export function WeightsView({ baseSlug }: WeightsViewProps) {
             store.addMetric(key)
             setAddOpen(false)
           }}
+          extraActions={actions}
           onToggleAdd={() => setAddOpen((v) => !v)}
           onRevert={() => {
             if (profile) {
@@ -78,15 +86,10 @@ export function WeightsView({ baseSlug }: WeightsViewProps) {
           }}
         />
       </div>
+      {/* Mockup line 181: balance band — tinted, divider-topped. BalanceSlider
+          renders its own core/task caption row, so none is added here. */}
       <div className="wv-balance">
-        <div className="wv-balanceLabels">
-          <span className="wv-balanceLabel">core</span>
-          <span className="wv-balanceLabel">task</span>
-        </div>
-        <BalanceSlider
-          core={coreShare}
-          onChange={(v) => store.setCoreShare(v)}
-        />
+        <BalanceSlider core={coreShare} onChange={(v) => store.setCoreShare(v)} />
       </div>
     </div>
   )

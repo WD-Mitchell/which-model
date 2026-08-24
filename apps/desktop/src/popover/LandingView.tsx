@@ -4,8 +4,10 @@ import type { CatalogSummary, ProfileSummary } from '@which-model/core'
 import { useRank, useSettings } from '../lib/queries'
 import './LandingView.css'
 
+/** The popover's two landing tabs (gui.default_tab). */
+export type PopoverTab = 'profiles' | 'sliders'
+
 export interface LandingViewProps {
-  catalog?: CatalogSummary
   profiles: ProfileSummary[]
   scale: string[]
   activeSlug: string
@@ -54,7 +56,6 @@ export function ResultsBand({ slug, overridesHash, index, onIndex }: {
 }
 
 export function LandingView({
-  catalog,
   profiles,
   scale,
   activeSlug,
@@ -72,9 +73,12 @@ export function LandingView({
   const matches = profiles
     .filter((p) => !q || p.name.toLowerCase().includes(q) || p.slug.includes(q))
     .slice(0, 5)
+  // Display name, not the slug: the service title-cases it
+  // (internal/service/profiles.go profileDisplayName) and the scale's caption
+  // under the slider shows the same string, so the two must not disagree.
   const comboboxItems = matches.map((p) => ({
     key: p.slug,
-    label: p.slug,
+    label: p.name,
     sub: `${p.core_share}/${100 - p.core_share}`,
   }))
 
@@ -85,15 +89,23 @@ export function LandingView({
     onSelectProfile(slug, i >= 0 ? i : null)
   }
 
-  const catalogLine = catalog
-    ? `${catalog.models} models · ${catalog.providers_on} providers on · ${catalog.harnesses} harnesses`
-    : '—'
-
   return (
     <div className="lv">
-      <div className="lv-hero">
-        <h1 className="lv-title">The right model for the job in front of you.</h1>
-        <div className="mono lv-catalog">{catalogLine}</div>
+      {/* Scale first, then the search. The scale is the tab's primary gesture
+          and the profile name under it is what the search would otherwise
+          change out of sight; putting the field UNDER that name keeps the
+          selection and the way to change it next to each other. The "or slide"
+          kicker went with the reorder — it introduced the scale as the second
+          option, and the scale is no longer second. */}
+      <div className="lv-scale">
+        <ComplexityScale
+          stop={stop}
+          labels={['simple action', 'planning']}
+          profileName={activeName}
+          onStop={(i) => {
+            if (scale[i]) onSelectProfile(scale[i], i)
+          }}
+        />
       </div>
 
       <div className="lv-search">
@@ -113,17 +125,8 @@ export function LandingView({
         />
       </div>
 
-      <div className="lv-scaleLabel">or slide</div>
-      <div className="lv-scale">
-        <ComplexityScale
-          stop={stop}
-          labels={['simple action', 'planning']}
-          profileName={activeName}
-          onStop={(i) => {
-            if (scale[i]) onSelectProfile(scale[i], i)
-          }}
-        />
-      </div>
+      {/* Mockup's fixed 10px filler (line 87); the window is content-sized. */}
+      <div className="lv-spacer" />
 
       <ResultsBand slug={activeSlug} overridesHash={overridesHash} index={index} onIndex={onIndex} />
     </div>

@@ -1,5 +1,5 @@
-import '@fontsource/inter/400.css'
-import '@fontsource/inter/500.css'
+// Inter Variable — see main-settings.tsx for why the static cuts are wrong.
+import '@fontsource-variable/inter'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ToastProvider } from '@which-model/ui'

@@ -1,6 +1,7 @@
 package modelsdev
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -62,6 +63,28 @@ func FetchModelsDevProvidersFrom(client *httpkit.Client, url string) ([]Provider
 		return nil, wrapHTTPError(err)
 	}
 
+	return parseProviders(body)
+}
+
+// parseProviders decodes either models.dev payload shape:
+//
+//   - The PRODUCTION shape (https://models.dev/api.json, verified 2026-08-19,
+//     ~4 MB): a JSON object keyed by provider slug, each carrying a `models`
+//     object keyed by model id. reasoning_options there is an ARRAY of typed
+//     entries ({type: "effort"|"toggle"|"budget_tokens", values: [...]});
+//     only the "effort" entries carry effort levels. There is no status field.
+//   - The legacy/fixture shape this package was originally written against: a
+//     flat array of {provider, id, name, status, base_model,
+//     reasoning_options: {values}} records.
+//
+// The first non-space byte picks the decoder, so recorded fixtures and the
+// live endpoint both work.
+func parseProviders(body []byte) ([]ProviderModel, error) {
+	trimmed := bytes.TrimLeft(body, " \t\r\n")
+	if len(trimmed) > 0 && trimmed[0] == '{' {
+		return parseProviderTree(trimmed)
+	}
+
 	var records []providerRecord
 	if err := json.Unmarshal(body, &records); err != nil {
 		return nil, wrapUnmarshalError(err)
@@ -88,6 +111,85 @@ func FetchModelsDevProvidersFrom(client *httpkit.Client, url string) ([]Provider
 			m.Reasoning = len(efforts) > 0
 		}
 		models = append(models, m)
+	}
+	return models, nil
+}
+
+// treeModel mirrors one model record of the production object shape. Fields
+// the array shape carried but the tree lacks: status (absent → available) and
+// base_model (the tree's nearest equivalent is `family`).
+type treeModel struct {
+	ID               string `json:"id"`
+	Name             string `json:"name"`
+	Status           string `json:"status"`
+	Family           string `json:"family"`
+	ReasoningOptions []struct {
+		Type   string   `json:"type"`
+		Values []string `json:"values"`
+	} `json:"reasoning_options"`
+}
+
+func parseProviderTree(body []byte) ([]ProviderModel, error) {
+	var tree map[string]struct {
+		Models map[string]treeModel `json:"models"`
+	}
+	if err := json.Unmarshal(body, &tree); err != nil {
+		return nil, wrapUnmarshalError(err)
+	}
+
+	// Deterministic order: map iteration would shuffle the cache file and the
+	// route table between otherwise-identical refreshes.
+	slugs := make([]string, 0, len(tree))
+	for slug := range tree {
+		slugs = append(slugs, slug)
+	}
+	sort.Strings(slugs)
+
+	var models []ProviderModel
+	for _, slug := range slugs {
+		ids := make([]string, 0, len(tree[slug].Models))
+		for id := range tree[slug].Models {
+			ids = append(ids, id)
+		}
+		sort.Strings(ids)
+
+		for _, id := range ids {
+			rec := tree[slug].Models[id]
+			if rec.Status == "deprecated" {
+				continue
+			}
+			modelID := rec.ID
+			if modelID == "" {
+				modelID = id
+			}
+			m := ProviderModel{
+				Provider:  slug,
+				ModelID:   modelID,
+				Name:      identity.CleanModelName(rec.Name),
+				Status:    rec.Status,
+				BaseModel: rec.Family,
+			}
+			var efforts []string
+			for _, opt := range rec.ReasoningOptions {
+				if opt.Type != "effort" {
+					continue // toggle/budget_tokens entries carry no levels
+				}
+				for _, v := range opt.Values {
+					if v != "" { // the live data holds the odd JSON null
+						efforts = append(efforts, v)
+					}
+				}
+			}
+			if len(efforts) > 0 {
+				normalized, err := normalizeEfforts(efforts)
+				if err != nil {
+					return nil, err
+				}
+				m.EffortLevels = normalized
+				m.Reasoning = len(normalized) > 0
+			}
+			models = append(models, m)
+		}
 	}
 	return models, nil
 }

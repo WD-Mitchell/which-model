@@ -33,6 +33,7 @@ func (g *SettingsService) Set(ctx context.Context, in GUISettings) error {
 	if err := ctx.Err(); err != nil {
 		return toErrorDTO(err)
 	}
+	in = normaliseGUISettings(in)
 	if err := validateGUISettings(in); err != nil {
 		return toErrorDTO(err)
 	}
@@ -96,11 +97,11 @@ func (g *SettingsService) ShellSnippets(ctx context.Context) (ShellSnippets, err
 }
 
 func guiDTO(g config.GUIConfig, path string) GUISettings {
-	return GUISettings{Layout: g.Layout, WeightControl: g.WeightControl, Holds: g.Holds, Shortcut: g.Shortcut, ShowMenuBarIcon: g.ShowMenuBarIcon, LaunchAtLogin: g.LaunchAtLogin, CopyCommandInstead: g.CopyCommandInstead, ClosePopoverAfterLaunch: g.ClosePopoverAfterLaunch, AutoUpdate: g.AutoUpdate, AutoUpdateFrequency: g.AutoUpdateFrequency, MCPServer: g.MCPServer, ClaudeMDHint: g.ClaudeMDHint, ShellAlias: g.ShellAlias, ConfigPath: path}
+	return GUISettings{Layout: g.Layout, DefaultTab: g.DefaultTab, WeightControl: g.WeightControl, Holds: g.Holds, Shortcut: g.Shortcut, ShowMenuBarIcon: g.ShowMenuBarIcon, LaunchAtLogin: g.LaunchAtLogin, CopyCommandInstead: g.CopyCommandInstead, ClosePopoverAfterLaunch: g.ClosePopoverAfterLaunch, AutoUpdate: g.AutoUpdate, AutoUpdateFrequency: g.AutoUpdateFrequency, MCPServer: g.MCPServer, ClaudeMDHint: g.ClaudeMDHint, ShellAlias: g.ShellAlias, ConfigPath: path}
 }
 
 func guiConfig(g GUISettings) config.GUIConfig {
-	return config.GUIConfig{Layout: g.Layout, WeightControl: g.WeightControl, Holds: g.Holds, Shortcut: g.Shortcut, ShowMenuBarIcon: g.ShowMenuBarIcon, LaunchAtLogin: g.LaunchAtLogin, CopyCommandInstead: g.CopyCommandInstead, ClosePopoverAfterLaunch: g.ClosePopoverAfterLaunch, AutoUpdate: g.AutoUpdate, AutoUpdateFrequency: g.AutoUpdateFrequency, MCPServer: g.MCPServer, ClaudeMDHint: g.ClaudeMDHint, ShellAlias: g.ShellAlias}
+	return config.GUIConfig{Layout: g.Layout, DefaultTab: g.DefaultTab, WeightControl: g.WeightControl, Holds: g.Holds, Shortcut: g.Shortcut, ShowMenuBarIcon: g.ShowMenuBarIcon, LaunchAtLogin: g.LaunchAtLogin, CopyCommandInstead: g.CopyCommandInstead, ClosePopoverAfterLaunch: g.ClosePopoverAfterLaunch, AutoUpdate: g.AutoUpdate, AutoUpdateFrequency: g.AutoUpdateFrequency, MCPServer: g.MCPServer, ClaudeMDHint: g.ClaudeMDHint, ShellAlias: g.ShellAlias}
 }
 
 func validateGUISettings(g GUISettings) error {
@@ -119,7 +120,23 @@ func validateGUISettings(g GUISettings) error {
 	if g.AutoUpdateFrequency != "hourly" && g.AutoUpdateFrequency != "daily" && g.AutoUpdateFrequency != "weekly" && g.AutoUpdateFrequency != "monthly" {
 		return fmt.Errorf("%w: gui: auto_update_frequency must be \"hourly\", \"daily\", \"weekly\", or \"monthly\", got %q", errValidation, g.AutoUpdateFrequency)
 	}
+	// Checked last so the existing field order in the error path is untouched.
+	// Empty is not an error: it is normalised to the shipped default by
+	// normaliseGUISettings before this runs, so only a WRONG value reaches here.
+	if g.DefaultTab != "profiles" && g.DefaultTab != "sliders" {
+		return fmt.Errorf("%w: gui: default_tab must be \"profiles\" or \"sliders\", got %q", errValidation, g.DefaultTab)
+	}
 	return nil
+}
+
+// normaliseGUISettings fills fields a caller may legitimately omit. default_tab
+// postdates the DTO, so a client (or a stored config) written before it sends
+// "" — which means "unset", not "invalid".
+func normaliseGUISettings(g GUISettings) GUISettings {
+	if g.DefaultTab == "" {
+		g.DefaultTab = "profiles"
+	}
+	return g
 }
 
 // cloneConfig creates an independent config using the canonical TOML form.

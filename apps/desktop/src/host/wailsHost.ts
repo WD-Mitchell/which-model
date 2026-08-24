@@ -61,6 +61,13 @@ export function createWailsHost(): EngineHost {
       deleteGroup: (slug: string) => offable(CatalogAPI.DeleteGroup(slug) as Cancellable<void>).then(() => {}),
     },
     providers: {
+      add: (id: string) => offable(ProvidersAPI.Add(id) as Cancellable<void>).then(() => {}),
+      addable: () => offable(ProvidersAPI.Addable() as Cancellable<unknown>).then((r) => r as never),
+      delete: (id: string) => offable(ProvidersAPI.Delete(id) as Cancellable<void>).then(() => {}),
+      duplicate: (id: string) =>
+        offable(ProvidersAPI.Duplicate(id) as Cancellable<unknown>).then((r) => r as never),
+      setAccounts: (id, accounts) =>
+        offable(ProvidersAPI.SetAccounts(id, accounts) as Cancellable<void>).then(() => {}),
       list: () => offable(ProvidersAPI.List() as Cancellable<unknown>).then((r) => r as never),
       setEnabled: (id: string, on: boolean) => offable(ProvidersAPI.SetEnabled(id, on) as Cancellable<void>).then(() => {}),
       reorder: (orderedIds: string[]) => offable(ProvidersAPI.Reorder(orderedIds) as Cancellable<void>).then(() => {}),
@@ -105,6 +112,12 @@ export function createWailsHost(): EngineHost {
       quit: () => offable(WindowService.Quit() as Cancellable<void>).then(() => {}),
       copyToClipboard: (text: string) =>
         offable(WindowService.CopyToClipboard(text) as Cancellable<void>).then(() => {}),
+      setPopoverHeight: (height: number) =>
+        offable(WindowService.SetPopoverHeight(height) as Cancellable<void>).then(() => {}),
+      setTrayPick: (profileName: string, modelName: string, reasoning: string, provider: string) =>
+        offable(
+          WindowService.SetTrayPick(profileName, modelName, reasoning, provider) as Cancellable<void>,
+        ).then(() => {}),
     },
     on(event: EngineEvent, cb: (payload: unknown) => void): () => void {
       // Subscribe to the Wails runtime event; angular/promise-of the payload

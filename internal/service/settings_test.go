@@ -17,7 +17,7 @@ func TestSettingsDefaultsAndRoundTrip(t *testing.T) {
 	def := config.DefaultGUIConfig()
 	want := guiDTO(def, svc.paths.UserConfigFile)
 	if !reflect.DeepEqual(got, want) { t.Fatalf("defaults = %#v, want %#v", got, want) }
-	in := GUISettings{Layout: "list", WeightControl: "bar", Holds: 10, Shortcut: "cmd+shift+m", ShowMenuBarIcon: false, LaunchAtLogin: true, CopyCommandInstead: true, ClosePopoverAfterLaunch: false, AutoUpdate: false, AutoUpdateFrequency: "weekly", MCPServer: true, ClaudeMDHint: true, ShellAlias: true, ConfigPath: "/evil"}
+	in := GUISettings{Layout: "list", DefaultTab: "sliders", WeightControl: "bar", Holds: 10, Shortcut: "cmd+shift+m", ShowMenuBarIcon: false, LaunchAtLogin: true, CopyCommandInstead: true, ClosePopoverAfterLaunch: false, AutoUpdate: false, AutoUpdateFrequency: "weekly", MCPServer: true, ClaudeMDHint: true, ShellAlias: true, ConfigPath: "/evil"}
 	if err := svc.Settings().Set(context.Background(), in); err != nil { t.Fatal(err) }
 	got, err = svc.Settings().Get(context.Background())
 	if err != nil { t.Fatal(err) }
@@ -72,4 +72,37 @@ func TestSettingsSnippetsPinned(t *testing.T) {
 	if got.Alias != "alias wm='which-model pick --profile'" { t.Fatal("alias changed") }
 	if strings.Count(got.ClaudeMD, "\n") != 2 { t.Fatal("ClaudeMD must contain exactly three lines") }
 	_ = svc
+}
+
+// default_tab postdates the GUISettings DTO, so a client written before it (or
+// a config saved by one) sends "". That means "unset" and must normalise to the
+// shipped default, not fail validation — while a genuinely wrong value still
+// errors, and after every other field so the documented order is untouched.
+func TestSettingsDefaultTabNormalisation(t *testing.T) {
+	svc, _ := newTestServices(t)
+	ctx := context.Background()
+	base := GUISettings{
+		Layout: "carousel", WeightControl: "slider", Holds: 5, Shortcut: "alt+space",
+		AutoUpdateFrequency: "daily",
+	}
+
+	if err := svc.Settings().Set(ctx, base); err != nil {
+		t.Fatalf("Set with empty default_tab: %v", err)
+	}
+	got, err := svc.Settings().Get(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.DefaultTab != "profiles" {
+		t.Errorf("default_tab = %q, want the shipped default %q", got.DefaultTab, "profiles")
+	}
+
+	// Errors cross the service boundary as ErrorDTO (toErrorDTO), so this
+	// package asserts on the rendered message, as the sibling cases do.
+	bad := base
+	bad.DefaultTab = "elsewhere"
+	want := `validation_failed: validation failed: gui: default_tab must be "profiles" or "sliders", got "elsewhere"`
+	if err := svc.Settings().Set(ctx, bad); err == nil || err.Error() != want {
+		t.Errorf("Set with bad default_tab err = %v, want %q", err, want)
+	}
 }

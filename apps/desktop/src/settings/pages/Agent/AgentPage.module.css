@@ -1,36 +1,66 @@
+/* U14 — Agent integration page, ported from the mockup's `onAgent` block
+   (demo.dc.html L784-799). <main> has no horizontal padding (U07 layout
+   contract); here the whole block carries the 22px gutter in one place, so
+   the toggle-row rules stop at the gutter instead of bleeding edge-to-edge
+   the way the list pages' `.row` rules do. */
+
 .page {
-  padding-top: 4px;
+  display: flex;
+  flex-direction: column;
 }
 
-.section {
-  margin-top: 16px;
+/* mockup: padding:0 22px 18px;display:flex;flex-direction:column */
+.body {
+  display: flex;
+  flex-direction: column;
+  padding: 0 22px 18px;
 }
 
-.sectionHeader {
-  font-size: 10px;
-  letter-spacing: 0.11em;
+/* Section kicker — accent mono caps, 9px/.13em (mockup L786, L796). */
+.kicker {
+  padding: 0 0 5px;
+  font-size: 9px;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--color-text) 42%, transparent);
-  margin-bottom: 8px;
+  color: var(--color-accent);
 }
 
-.snippet {
-  margin-bottom: 8px;
+/* The `shell hook` kicker sits 16px below the last toggle row (mockup
+   padding:16px 0 5px). */
+.kickerGap {
+  padding-top: 16px;
 }
 
+/* Toggle row. Not a `.row`: the mockup gives this block no hover tint and no
+   click target — only the switch is interactive. */
 .row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
-  padding: 10px 0;
-  border-top: 1px solid var(--color-divider);
+  padding: 9px 0;
+  border-top: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
 }
 
-.label {
+.rowText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* MUTED by default, BRIGHT while the integration is on (mockup `a.fg`). */
+.name {
   font-size: 12.5px;
+  color: color-mix(in srgb, var(--color-text) 72%, transparent);
 }
 
-.toggle {
-  flex: none;
+.nameOn {
+  color: color-mix(in srgb, var(--color-text) 88%, transparent);
+}
+
+.note {
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+  text-wrap: pretty;
 }

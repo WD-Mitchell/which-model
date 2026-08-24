@@ -8,5 +8,5 @@ export function UsageMeter({ label, percent, hot = false }) {
         : hot || percent >= 70
             ? styles.fillHot
             : styles.fillCool;
-    return (_jsxs("div", { className: styles.meter, children: [_jsxs("span", { className: styles.labelLine, children: [_jsx("span", { className: styles.label, children: label }), _jsx("span", { className: styles.value, children: percent === null ? '—' : percent + '%' })] }), _jsx("span", { className: styles.track, children: _jsx("span", { className: cx(styles.fill, fillClass), style: { width: pct + '%' } }) })] }));
+    return (_jsxs("div", { className: styles.meter, children: [_jsxs("span", { className: styles.labelLine, children: [_jsx("span", { className: styles.label, children: label }), _jsx("span", { className: cx(styles.value, percent === null && styles.valueNull), children: percent === null ? '—' : percent + '%' })] }), _jsx("span", { className: styles.track, children: _jsx("span", { className: cx(styles.fill, fillClass), style: { width: pct + '%' } }) })] }));
 }

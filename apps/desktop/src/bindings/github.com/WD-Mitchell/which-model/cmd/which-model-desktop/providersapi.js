@@ -17,10 +17,41 @@ import * as service$0 from "../../internal/service/models.js";
 
 /**
  * @param {string} id
+ * @returns {$CancellablePromise<void>}
+ */
+export function Add(id) {
+    return $Call.ByName("main.ProvidersAPI.Add", id);
+}
+
+/**
+ * @returns {$CancellablePromise<string[] | null>}
+ */
+export function Addable() {
+    return $Call.ByName("main.ProvidersAPI.Addable");
+}
+
+/**
+ * @param {string} id
+ * @returns {$CancellablePromise<void>}
+ */
+export function Delete(id) {
+    return $Call.ByName("main.ProvidersAPI.Delete", id);
+}
+
+/**
+ * @param {string} id
  * @returns {$CancellablePromise<service$0.ProviderDetail>}
  */
 export function Detail(id) {
     return $Call.ByName("main.ProvidersAPI.Detail", id);
+}
+
+/**
+ * @param {string} id
+ * @returns {$CancellablePromise<string>}
+ */
+export function Duplicate(id) {
+    return $Call.ByName("main.ProvidersAPI.Duplicate", id);
 }
 
 /**
@@ -36,6 +67,15 @@ export function List() {
  */
 export function Reorder(orderedIds) {
     return $Call.ByName("main.ProvidersAPI.Reorder", orderedIds);
+}
+
+/**
+ * @param {string} id
+ * @param {service$0.ProviderAccountDTO[] | null} accounts
+ * @returns {$CancellablePromise<void>}
+ */
+export function SetAccounts(id, accounts) {
+    return $Call.ByName("main.ProvidersAPI.SetAccounts", id, accounts);
 }
 
 /**

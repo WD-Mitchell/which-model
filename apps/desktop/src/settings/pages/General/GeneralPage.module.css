@@ -1,46 +1,262 @@
+/* U12 — General settings page. Every metric here is literal from the mockup's
+   <sc-if onGeneral> block (specs/desktop/mockup/demo.dc.html L591-696); the
+   ring / caption / opacity triples come from its swatch() helper (L1045-1049)
+   and the label colours from BRIGHT + MUTED (L934-936). */
+
 .page {
-  padding-top: 4px;
+  display: flex;
+  flex-direction: column;
 }
 
-.sectionHeader {
-  font-size: 10px;
-  letter-spacing: 0.11em;
+/* Mockup L592 — the section is ONE 22px-inset column (<main> has no padding of
+   its own, U07 layout contract), so the row rules stop 22px short of the
+   content edge rather than bleeding like the list pages. */
+.body {
+  display: flex;
+  flex-direction: column;
+  padding: 0 22px 12px;
+}
+
+/* Section kicker (L593). */
+.kicker {
+  display: block;
+  padding: 0 0 5px;
+  font-size: 9px;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--color-text) 42%, transparent);
-  margin: 18px 0 6px;
+  color: var(--color-accent);
+}
+/* The second kicker carries the gap to the section above it (L625). */
+.kickerNext {
+  padding: 14px 0 5px;
 }
 
+/* Setting row (L595): hairline above, label block left, control right. */
 .row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
-  padding: 10px 0;
-  border-top: 1px solid var(--color-divider);
+  padding: 9px 0;
+  border-top: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+/* results-display rows sit tighter (L627, L654, L685). */
+.rowTight {
+  padding: 7px 0;
+}
+/* update-frequency row (L615), dimmed while auto-update is off
+   (`freqOpacity`, L1533). */
+.freqRow {
+  padding: 6px 0;
+}
+.freqRow[data-dim='true'] {
+  opacity: 0.38;
 }
 
+.labelBlock {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 .label {
   font-size: 12.5px;
-  color: var(--color-text);
+  color: color-mix(in srgb, var(--color-text) 82%, transparent);
 }
-
-.hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  margin-left: 10px;
+.note {
   font-size: 11px;
   color: color-mix(in srgb, var(--color-text) 42%, transparent);
 }
-
-.control {
-  flex: none;
+/* Rows with no second line (L616, L686). */
+.labelPlain {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  color: color-mix(in srgb, var(--color-text) 82%, transparent);
 }
 
-.configPath {
-  margin-top: 20px;
-  font-size: 10.5px;
+/* Toggle labels track their switch — MUTED off, BRIGHT on (L1538). */
+.toggleLabel {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  color: color-mix(in srgb, var(--color-text) 72%, transparent);
+}
+.toggleLabel[data-on='true'] {
+  color: color-mix(in srgb, var(--color-text) 88%, transparent);
+}
+
+/* L606 — the five switches plus the frequency select, two per line. */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 28px;
+}
+
+/* — preview swatches (L631-683) — */
+.swatches {
+  display: flex;
+  gap: 12px;
+}
+.swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.swatch:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+.swatchLabel {
+  font-size: 10px;
   color: color-mix(in srgb, var(--color-text) 42%, transparent);
-  border-top: 1px solid var(--color-divider);
-  padding-top: 12px;
+}
+.swatch[data-on='true'] .swatchLabel {
+  color: var(--color-accent-200);
+}
+
+/* swatch() unselected state: 1px hairline ring at .55 opacity (L1046-1048). */
+.box {
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-text) 5%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-text) 10%, transparent);
+  opacity: 0.55;
+}
+.swatch[data-on='true'] .box {
+  box-shadow: inset 0 0 0 1.5px var(--color-accent);
+  opacity: 1;
+}
+
+/* Ranking-layout tiles (L634-649). */
+.dispBox {
+  width: 82px;
+  height: 40px;
+}
+.carouselBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.carArrow {
+  width: 4px;
+  height: 7px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--color-text) 26%, transparent);
+}
+.carStack {
+  width: 44px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.carBarA {
+  height: 6px;
+  border-radius: 2px;
+  background: var(--color-accent);
+}
+.carBarB {
+  height: 3px;
+  width: 70%;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--color-text) 24%, transparent);
+}
+.listBox {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 12px;
+}
+.listBarA {
+  height: 5px;
+  border-radius: 2px;
+  background: var(--color-accent);
+}
+.listBarB {
+  height: 5px;
+  width: 80%;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--color-text) 24%, transparent);
+}
+.listBarC {
+  height: 5px;
+  width: 62%;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--color-text) 18%, transparent);
+}
+
+/* Weight-control tiles (L662-680). */
+.wcBox {
+  width: 66px;
+  height: 26px;
+}
+.stepBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+.stepChip {
+  width: 9px;
+  height: 8px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--color-text) 20%, transparent);
+}
+.stepChipOn {
+  background: var(--color-accent);
+}
+.barBox {
+  display: flex;
+  align-items: center;
+  padding: 0 9px;
+}
+.barTrack {
+  flex: 1;
+  height: 7px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-text) 18%, transparent);
+  overflow: hidden;
+}
+.barFill {
+  display: block;
+  width: 62%;
+  height: 100%;
+  background: var(--color-accent);
+}
+.sliderBox {
+  display: flex;
+  align-items: center;
+  padding: 0 9px;
+  position: relative;
+}
+.sliderTrack {
+  flex: 1;
+  height: 2px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--color-text) 22%, transparent);
+}
+.sliderKnob {
+  position: absolute;
+  left: 58%;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+
+/* Pre-settings placeholder, drawn with the trailing-note metrics. */
+.loading {
+  margin: 0;
+  padding: 14px 22px 20px;
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
 }

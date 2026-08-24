@@ -8,6 +8,7 @@ import type {
   GUISettings,
   HarnessInfo,
   ProfileDetail,
+  ProviderAccount,
   ProviderDetail,
   ProviderInfo,
   RankedModel,
@@ -206,6 +207,7 @@ function seedProviders(): MockProvider[] {
 function seedSettings(): GUISettings {
   return {
     layout: 'carousel',
+  default_tab: 'profiles',
     weight_control: 'slider',
     holds: 5,
     shortcut: 'alt+space',
@@ -306,6 +308,11 @@ function scoreModel(data: MockData, m: MockModel, p: ProfileDetail): number {
 // ---------------------------------------------------------------------------
 // Mock host
 // ---------------------------------------------------------------------------
+
+// Per-provider accounts for browser mode; the real store is config.toml.
+const mockAccounts: Record<string, ProviderAccount[]> = {
+  claude: [{ name: 'Work', kind: 'oauth', ref: '~/.claude/.credentials.json' }],
+}
 
 export function createMockEngineHost(
   overrides?: Partial<MockData>,
@@ -571,6 +578,18 @@ export function createMockEngineHost(
     },
 
     providers: {
+      async add(_id) {},
+      async addable() {
+        return ['google', 'mistral', 'xai']
+      },
+      async delete(_id) {},
+      async duplicate(id) {
+        return `${id}_2`
+      },
+      async setAccounts(id, accounts) {
+        mockAccounts[id] = accounts.map((a) => ({ ...a }))
+        emit('config:changed', { section: 'providers' })
+      },
       async list() {
         return providersByPriority().map((p): ProviderInfo => {
           const models = data.models.filter((m) => m.providers.includes(p.id))
@@ -587,6 +606,9 @@ export function createMockEngineHost(
             monthly: p.monthly,
             credits: p.credits,
             resets: p.resets,
+            accounts: (mockAccounts[p.id] ?? []).length,
+            // Mirrors the real registry: these three ship usage adapters.
+            builtin: ['claude', 'codex', 'copilot'].includes(p.id),
           }
         })
       },
@@ -608,6 +630,8 @@ export function createMockEngineHost(
         const p = requireProvider(id)
         const detail: ProviderDetail = {
           id: p.id,
+          accounts: mockAccounts[p.id] ?? [],
+          builtin: ['claude', 'codex', 'copilot'].includes(p.id),
           models: data.models
             .filter((m) => m.providers.includes(p.id))
             .map((m) => ({
@@ -809,6 +833,8 @@ export function createMockEngineHost(
       async hidePopover() {},
       async quit() {},
       async copyToClipboard(_text) {},
+      async setPopoverHeight(_height) {},
+      async setTrayPick(_profileName, _modelName, _reasoning, _provider) {},
     },
 
     on(event, cb) {

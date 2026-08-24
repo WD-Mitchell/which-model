@@ -43,6 +43,29 @@ func (w *WindowService) HidePopover() error {
 	return nil
 }
 
+// SetPopoverHeight resizes the popover window to the measured natural height
+// of its content, clamped to [320, 620]. The frontend calls this whenever the
+// active view's height changes, which is what keeps the window content-sized
+// like the design's panel instead of stretching a fixed 620 with filler.
+func (w *WindowService) SetPopoverHeight(height int) error {
+	resizePopover(w.popover, height)
+	return nil
+}
+
+// SetTrayPick puts the popover's current pick in the menu bar: the profile it
+// is ranking for, and the model that came out on top.
+//
+// The host ranks for the menu bar on its own at startup and on catalog/config
+// events, but it cannot see the popover's state — the active profile and the
+// ephemeral weight overrides live in the webview and never reach the engine as
+// config. So the popover pushes what it is showing, and from the first push it
+// owns the title: whatever the user does with the scale or the sliders, the
+// menu bar says the same thing the popover does.
+func (w *WindowService) SetTrayPick(profileName, modelName, reasoning, provider string) error {
+	setTrayPickFromUI(profileName, modelName, reasoning, provider)
+	return nil
+}
+
 // Quit terminates the application cleanly.
 func (w *WindowService) Quit() error {
 	if w.app != nil {

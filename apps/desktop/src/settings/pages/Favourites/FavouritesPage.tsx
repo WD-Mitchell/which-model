@@ -1,7 +1,16 @@
 // U14 — Favourites settings page: pinned models with route chips, availability,
 // add-model combobox, unpin.
+//
+// Layout ported verbatim from the mockup's `onFavourites` branch
+// (specs/desktop/mockup/demo.dc.html L574-589): accent "pinned models" kicker,
+// a mono column-header row (model / route), rows of a fixed 200px model column
+// plus a flexible route column, a "pinned" chip, a ghost Unpin button pushed
+// right with `margin-left:auto`, and the trailing note. Per the U07 content-
+// column contract <main> has no horizontal padding, so every child below
+// supplies its own 22px inline padding — that is what lets the row rules bleed
+// edge to edge.
 import { useCallback, useState } from 'react'
-import { Combobox, Tag, useToast } from '@which-model/ui'
+import { Button, Combobox, Tag, useToast } from '@which-model/ui'
 import type { RankedModel } from '@which-model/core'
 import { useFavourites, useRank, useSettings } from '../../../lib/queries'
 import { getHost } from '../../../lib/host'
@@ -59,6 +68,8 @@ export function FavouritesPage(_props: PageComponentProps) {
 
   return (
     <div className={styles.page}>
+      {/* The header block (back link, 19px title, blurb, right-aligned primary
+          action) is DetailHeader's job — "Add model" toggles the combobox. */}
       <DetailHeader
         title={PAGE_META.Favourites[0]}
         blurb={PAGE_META.Favourites[1]}
@@ -82,33 +93,54 @@ export function FavouritesPage(_props: PageComponentProps) {
           />
         </div>
       ) : null}
-      <div className={styles.kicker}>favourites</div>
+
+      {/* demo.dc.html L575 — section kicker. */}
+      <span className={`mono ${styles.kicker}`}>pinned models</span>
+
+      {/* demo.dc.html L576-579 — column headers; only the model and route
+          columns are labelled, the chip and Unpin cells are unlabelled. */}
+      <div className={styles.headRow}>
+        <span className={`mono ${styles.headModel}`}>model</span>
+        <span className={`mono ${styles.headRoute}`}>route</span>
+      </div>
+
       {list.length === 0 ? (
-        <div className={styles.empty}>{'No pinned models yet — pin one to offer it first when in range.'}</div>
+        <div className={styles.empty}>No pinned models yet — pin one to offer it first when in range.</div>
       ) : (
         list.map((f) => (
+          // demo.dc.html L581-587 — a favourite row is presentational (no
+          // detail view behind it), so it carries no `.row` hover tint.
           <div key={f.route_key} className={styles.row}>
-            <span className={styles.name}>
-              <span className="mono">{f.model_name}</span>
-            </span>
-            <span className={styles.route}>
-              <CodeLabel text={f.route_key} />
-            </span>
-            <span className={styles.tag}>
-              <Tag variant={f.in_range ? 'accent' : 'outline'}>{f.in_range ? 'in range' : 'out of range'}</Tag>
-            </span>
+            <span className={styles.name}>{f.model_name}</span>
+            {/* route_label is already "provider · reasoning", exactly the
+                string the mockup composes for this column. */}
+            <span className={`mono ${styles.route}`}>{f.route_label}</span>
+            {/* The mockup only ever renders the accent "pinned" chip; the real
+                engine also reports whether the pin still ranks in range, so an
+                out-of-range favourite swaps to the neutral variant. */}
+            <Tag variant={f.in_range ? 'accent' : 'neutral'} size="chip" className={styles.chip}>
+              {f.in_range ? 'pinned' : 'out of range'}
+            </Tag>
             <span className={styles.actions}>
-              <button type="button" className="ib" title={`Unpin ${f.route_key}`}
-                onClick={() => void handleUnpin(f.route_key)}>×</button>
+              <Button
+                variant="ghost"
+                className={styles.unpin}
+                onClick={() => void handleUnpin(f.route_key)}
+              >
+                Unpin
+              </Button>
             </span>
           </div>
         ))
       )}
+
+      {/* demo.dc.html L588 — trailing note, verbatim copy. */}
+      <div className={styles.note}>
+        A favourite is only offered when the profile&apos;s weights still rank it in range — pinning never
+        forces a model that does not fit the task.
+      </div>
     </div>
   )
 }
 
-function CodeLabel({ text }: { text: string }) {
-  return <code className="mono">{text}</code>
-}
 export default FavouritesPage

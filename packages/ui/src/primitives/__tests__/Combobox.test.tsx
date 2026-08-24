@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { Combobox } from '../Combobox'
+import styles from '../Combobox.module.css'
 
 const items = [
   { key: 'p1', label: 'main', sub: '60/40' },
@@ -36,6 +37,14 @@ describe('Combobox', () => {
     expect(screen.getByText('30/70')).not.toBeNull()
   })
 
+  it('marks only the selected row (demo.dc.html 1053-1054 accent tint)', () => {
+    const { container } = setup({ open: true, selectedKey: 'p2' })
+    const rows = Array.from(container.querySelectorAll<HTMLElement>(`.${styles.row}`))
+    expect(rows.length).toBe(2)
+    expect(rows[0].classList.contains(styles.rowSelected)).toBe(false)
+    expect(rows[1].classList.contains(styles.rowSelected)).toBe(true)
+  })
+
   it('picks a row on click', () => {
     const { getByText, onPick } = setup({ open: true })
     fireEvent.click(getByText('main'))
@@ -68,10 +77,14 @@ describe('Combobox', () => {
     expect(screen.getByText('no profile by that name')).not.toBeNull()
   })
 
-  it('opens on focus', () => {
-    const { container, onOpenChange } = setup()
+  it('opens on pointer-down, not on bare focus', () => {
+    const { container, onOpenChange } = setup({ open: false })
     const input = container.querySelector('input')!
+    // Bare focus must NOT open: the popover auto-focuses this input on every
+    // show, which used to pop the full list before any user interaction.
     fireEvent.focus(input)
+    expect(onOpenChange).not.toHaveBeenCalled()
+    fireEvent.pointerDown(input)
     expect(onOpenChange).toHaveBeenCalledWith(true)
   })
 
@@ -80,5 +93,19 @@ describe('Combobox', () => {
     const input = container.querySelector('input')!
     fireEvent.change(input, { target: { value: 'cod' } })
     expect(onQuery).toHaveBeenCalledWith('cod')
+  })
+})
+describe('Combobox click-away', () => {
+  it('closes when a pointer-down lands outside the control', () => {
+    const { onOpenChange } = setup({ open: true })
+    fireEvent.pointerDown(document.body)
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it('stays open for a pointer-down inside it', () => {
+    const { container, onOpenChange } = setup({ open: true })
+    const input = container.querySelector('input')!
+    fireEvent.pointerDown(input)
+    expect(onOpenChange).not.toHaveBeenCalledWith(false)
   })
 })

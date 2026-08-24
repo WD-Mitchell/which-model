@@ -92,6 +92,8 @@ type ProviderInfo struct {
 	Monthly     *int   `json:"monthly"`
 	Credits     string `json:"credits"`
 	Resets      string `json:"resets"`
+	Accounts    int    `json:"accounts"` // configured account count
+	Builtin     bool   `json:"builtin"`  // ships a usage adapter -> not deletable
 }
 
 // RouteLevel is one reasoning level of a provider model.
@@ -108,10 +110,29 @@ type ProviderModel struct {
 	Levels    []RouteLevel `json:"levels"`
 }
 
+// AccountKind is the credential a provider account links to.
+const (
+	AccountKindOAuth  = "oauth"
+	AccountKindCookie = "cookie"
+	AccountKindToken  = "token"
+)
+
+// ProviderAccountDTO is one named credential for a provider. Ref is a
+// REFERENCE (env var, file path, keychain service) — never the secret itself.
+type ProviderAccountDTO struct {
+	Name string `json:"name"`
+	Kind string `json:"kind"` // oauth | cookie | token
+	Ref  string `json:"ref"`
+}
+
 // ProviderDetail is the provider edit/read shape.
 type ProviderDetail struct {
-	ID     string          `json:"id"`
-	Models []ProviderModel `json:"models"`
+	ID       string               `json:"id"`
+	Models   []ProviderModel      `json:"models"`
+	Accounts []ProviderAccountDTO `json:"accounts"`
+	// Builtin providers ship a usage adapter and cannot be deleted; the UI
+	// disables Delete for them rather than failing the call.
+	Builtin bool `json:"builtin"`
 }
 
 // HarnessInfo is one harness's shape.
@@ -201,7 +222,8 @@ type Favourite struct {
 
 // GUISettings is the [gui] section as the settings page reads/writes it.
 type GUISettings struct {
-	Layout                  string `json:"layout"` // "carousel"|"list"
+	Layout                  string `json:"layout"`      // "carousel"|"list"
+	DefaultTab              string `json:"default_tab"` // "profiles"|"sliders"
 	WeightControl           string `json:"weight_control"` // "step"|"bar"|"slider"
 	Holds                   int    `json:"holds"`          // 3|5|10
 	Shortcut                string `json:"shortcut"`       // "alt+space"|"ctrl+space"|"cmd+shift+m"

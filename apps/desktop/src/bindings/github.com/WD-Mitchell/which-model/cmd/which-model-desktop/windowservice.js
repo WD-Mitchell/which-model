@@ -55,3 +55,35 @@ export function OpenSettings() {
 export function Quit() {
     return $Call.ByName("main.WindowService.Quit");
 }
+
+/**
+ * SetPopoverHeight resizes the popover window to the measured natural height
+ * of its content, clamped to [320, 620]. The frontend calls this whenever the
+ * active view's height changes, which is what keeps the window content-sized
+ * like the design's panel instead of stretching a fixed 620 with filler.
+ * @param {number} height
+ * @returns {$CancellablePromise<void>}
+ */
+export function SetPopoverHeight(height) {
+    return $Call.ByName("main.WindowService.SetPopoverHeight", height);
+}
+
+/**
+ * SetTrayPick puts the popover's current pick in the menu bar: the profile it
+ * is ranking for, and the model that came out on top.
+ * 
+ * The host ranks for the menu bar on its own at startup and on catalog/config
+ * events, but it cannot see the popover's state — the active profile and the
+ * ephemeral weight overrides live in the webview and never reach the engine as
+ * config. So the popover pushes what it is showing, and from the first push it
+ * owns the title: whatever the user does with the scale or the sliders, the
+ * menu bar says the same thing the popover does.
+ * @param {string} profileName
+ * @param {string} modelName
+ * @param {string} reasoning
+ * @param {string} provider
+ * @returns {$CancellablePromise<void>}
+ */
+export function SetTrayPick(profileName, modelName, reasoning, provider) {
+    return $Call.ByName("main.WindowService.SetTrayPick", profileName, modelName, reasoning, provider);
+}

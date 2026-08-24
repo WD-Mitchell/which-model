@@ -54,6 +54,90 @@ describe('WeightRow', () => {
     }
   })
 
+  // min={1} is what the popover's editor and the core axes pass: the engine
+  // rejects a weight outside (0, 5], so 0 is not "off" there, it is a profile
+  // that cannot be ranked. Dropping a metric is the row's × button instead.
+  it('floors drags and arrow keys at min instead of reaching 0', () => {
+    const onChange = vi.fn()
+    const { getByRole } = render(
+      <WeightRow variant="slider" label="cost" value={2} min={1} onChange={onChange} />,
+    )
+    const control = getByRole('slider')
+    expect(control).toHaveAttribute('aria-valuemin', '1')
+
+    mockRect(control)
+    fireEvent.pointerDown(control, { clientX: 0, clientY: 5 })
+    fireEvent.pointerUp(window)
+    expect(onChange).toHaveBeenLastCalledWith(1)
+
+    onChange.mockClear()
+    fireEvent.keyDown(control, { key: 'ArrowLeft' })
+    expect(onChange).toHaveBeenCalledWith(1)
+  })
+
+  // The floor sits at the track's left END, not a fifth of the way in: with
+  // min=1 the five values spread across the whole track, so 1 is 0% and 5 is
+  // 100%. Anything else leaves a stretch of track that cannot be reached.
+  it('spreads a 1..5 row across the whole track', () => {
+    const { getByTestId, rerender, getAllByTestId } = render(
+      <WeightRow variant="slider" label="cost" value={1} min={1} />,
+    )
+    expect(getByTestId('weight-slider-fill')).toHaveStyle({ width: '0%' })
+    expect(getByTestId('weight-slider-knob')).toHaveStyle({ left: 'calc(0% - 6px)' })
+
+    rerender(<WeightRow variant="slider" label="cost" value={3} min={1} />)
+    expect(getByTestId('weight-slider-fill')).toHaveStyle({ width: '50%' })
+
+    rerender(<WeightRow variant="slider" label="cost" value={5} min={1} />)
+    expect(getByTestId('weight-slider-fill')).toHaveStyle({ width: '100%' })
+
+    // The step track spends its segments on the same range: four of them.
+    rerender(<WeightRow variant="step" label="cost" value={1} min={1} />)
+    expect(getAllByTestId('weight-step')).toHaveLength(4)
+  })
+
+  // Halfway along a 1..5 track is 3, not the 2.5 a 0..5 mapping would round.
+  it('maps drag fractions onto [min, 5]', () => {
+    const onChange = vi.fn()
+    const { getByRole } = render(
+      <WeightRow variant="slider" label="cost" value={1} min={1} onChange={onChange} />,
+    )
+    const control = getByRole('slider')
+    mockRect(control)
+    fireEvent.pointerDown(control, { clientX: 50, clientY: 5 })
+    fireEvent.pointerUp(window)
+    expect(onChange).toHaveBeenLastCalledWith(3)
+  })
+
+  // A row already at the floor emits nothing rather than re-emitting it, so a
+  // drag along the dead zone cannot spam the store.
+  it('emits nothing when already at min', () => {
+    const onChange = vi.fn()
+    const { getByRole } = render(
+      <WeightRow variant="bar" label="cost" value={1} min={1} onChange={onChange} />,
+    )
+    const control = getByRole('slider')
+    mockRect(control)
+    fireEvent.pointerDown(control, { clientX: 2, clientY: 5 })
+    fireEvent.pointerUp(window)
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  // Default stays 0: the settings profile editor has no × button, so dropping a
+  // TASK benchmark to "ignored" is the only way to remove one there.
+  it('still allows 0 when min is not set', () => {
+    const onChange = vi.fn()
+    const { getByRole } = render(
+      <WeightRow variant="bar" label="ui_visual" value={2} valueStyle="verbose" onChange={onChange} />,
+    )
+    const control = getByRole('slider')
+    expect(control).toHaveAttribute('aria-valuemin', '0')
+    mockRect(control)
+    fireEvent.pointerDown(control, { clientX: 0, clientY: 5 })
+    fireEvent.pointerUp(window)
+    expect(onChange).toHaveBeenLastCalledWith(0)
+  })
+
   it('suppresses repeated mapped values and removes pointer listeners after pointerup', () => {
     const onChange = vi.fn()
     const { getByRole } = render(<WeightRow variant="bar" label="speed" value={3} onChange={onChange} />)

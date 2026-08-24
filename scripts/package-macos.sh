@@ -22,7 +22,15 @@ rm -rf "$APP"
 mkdir -p "$MACOS" "$RESOURCES"
 
 echo "==> Building desktop binary…"
-(cd "$ROOT" && go build -trimpath -o "$MACOS/which-model-desktop" ./cmd/which-model-desktop)
+# Stamp the release identity, exactly as scripts/build-release.sh does for the
+# CLI. Without it whichmodel.Version stays "dev" and the tray's "Check for
+# updates" has nothing to compare against.
+MODULE="github.com/WD-Mitchell/which-model"
+VERSION="$(git -C "$ROOT" describe --tags --always --dirty 2>/dev/null || echo dev)"
+COMMIT="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+BUILDDATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+LDFLAGS="-X ${MODULE}/pkg/whichmodel.Version=${VERSION} -X ${MODULE}/pkg/whichmodel.Commit=${COMMIT} -X ${MODULE}/pkg/whichmodel.BuildDate=${BUILDDATE}"
+(cd "$ROOT" && go build -trimpath -ldflags "$LDFLAGS" -o "$MACOS/which-model-desktop" ./cmd/which-model-desktop)
 
 # Info.plist — LSUIElement=true keeps the app out of the Dock (menu-bar only).
 cat > "$CONTENTS/Info.plist" <<'PLIST'

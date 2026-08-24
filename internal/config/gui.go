@@ -60,6 +60,7 @@ type GroupsTOML map[string]GroupTOML
 // (which adds the transport-only ConfigPath — deliberately absent here).
 type GUIConfig struct {
 	Layout                  string `toml:"layout"`
+	DefaultTab              string `toml:"default_tab"`
 	WeightControl           string `toml:"weight_control"`
 	Holds                   int    `toml:"holds"`
 	Shortcut                string `toml:"shortcut"`
@@ -78,6 +79,7 @@ type GUIConfig struct {
 // back to its DefaultGUIConfig value independently when unset.
 type guiConfigTOML struct {
 	Layout                  *string `toml:"layout"`
+	DefaultTab              *string `toml:"default_tab"`
 	WeightControl           *string `toml:"weight_control"`
 	Holds                   *int    `toml:"holds"`
 	Shortcut                *string `toml:"shortcut"`
@@ -96,6 +98,9 @@ type guiConfigTOML struct {
 func DefaultGUIConfig() GUIConfig {
 	return GUIConfig{
 		Layout:                  "carousel",
+		// The popover opens on the profile picker; the complexity slider is the
+		// other tab. Shipped default is profiles.
+		DefaultTab:              "profiles",
 		WeightControl:           "slider",
 		Holds:                   5,
 		Shortcut:                "alt+space",
@@ -133,6 +138,9 @@ func (c *Config) LoadGUI() (GUIConfig, error) {
 	}
 	if mirror.Layout != nil {
 		gui.Layout = *mirror.Layout
+	}
+	if mirror.DefaultTab != nil {
+		gui.DefaultTab = *mirror.DefaultTab
 	}
 	if mirror.WeightControl != nil {
 		gui.WeightControl = *mirror.WeightControl
@@ -265,6 +273,7 @@ func (c *Config) SetGUI(g GUIConfig) error {
 	}
 	c.setRaw("gui", map[string]any{
 		"layout":                     g.Layout,
+		"default_tab":                g.DefaultTab,
 		"weight_control":             g.WeightControl,
 		"holds":                      int64(g.Holds),
 		"shortcut":                   g.Shortcut,
@@ -512,6 +521,11 @@ func validateGUI(g GUIConfig) error {
 	case "carousel", "list":
 	default:
 		return invalidValue("gui.layout", `must be "carousel" or "list"`)
+	}
+	switch g.DefaultTab {
+	case "profiles", "sliders":
+	default:
+		return invalidValue("gui.default_tab", `must be "profiles" or "sliders"`)
 	}
 	switch g.WeightControl {
 	case "step", "bar", "slider":

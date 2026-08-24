@@ -1,32 +1,26 @@
-.body {
-  padding: 0 16px 12px;
-  overflow-y: auto;
-  flex: 1;
+/* U06 weights body (mockup demo.dc.html lines 133-190). The mockup renders
+   two full-bleed tinted sections on color-mix(text 3%): the metric rows
+   (padding 13px 16px 6px) and the core/task balance band (12px 16px 14px,
+   divider top border). The popover window is a fixed 620px tall, so the rows
+   section is the scroll region (.scroll supplies the thin overlay bar). */
+.wv-root {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
   min-height: 0;
 }
 
-.editor {
+.wv-metrics {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 13px 16px 6px;
   background: color-mix(in srgb, var(--color-text) 3%, transparent);
-  border-radius: 10px;
-  padding: 12px 12px 6px;
+  position: relative;
 }
 
-.balance {
-  margin-top: 12px;
-  padding: 12px 4px 0;
+.wv-balance {
+  flex: none;
+  padding: 12px 16px 14px;
+  background: color-mix(in srgb, var(--color-text) 3%, transparent);
   border-top: 1px solid var(--color-divider);
-}
-
-.balanceLabels {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 6px;
-}
-
-.balanceLabel {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--color-text) 38%, transparent);
 }
