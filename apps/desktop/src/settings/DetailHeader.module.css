@@ -1,0 +1,75 @@
+/* U07 — content-column header block, ported from the mockup (demo.dc.html
+   L267-277). The 22px inline padding is the header's own: <main> has none, so
+   every child pays for its own gutter. */
+
+.header {
+  display: flex;
+  flex-direction: column;
+  padding: 15px 22px 14px;
+}
+
+/* Back link: pulled 6px left so its hover pill hangs into the gutter and the
+   chevron optically aligns with the title below it. */
+.back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 8px -6px;
+  padding: 3px 7px 3px 6px;
+  border: 0;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--color-text) 52%, transparent);
+}
+
+.back:hover {
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+  color: var(--color-text);
+}
+
+.back svg {
+  display: block;
+}
+
+/* Title + blurb on the left, action button pushed to the right edge; both
+   sit on the block's bottom edge (mockup align-items:flex-end). */
+.titleRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.titleBlock {
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 19px;
+  /* tighter than the app's 1.55 body leading — the mockup's headings run at
+     the browser default, not the body line-height. */
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  color: var(--color-text);
+}
+
+.blurb {
+  display: block;
+  margin: 5px 0 0;
+  max-width: 56ch;
+  font-size: 12px;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+  text-wrap: pretty;
+}
+
+.actionWrap {
+  margin-left: auto;
+}

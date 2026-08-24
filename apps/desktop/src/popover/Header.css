@@ -1,0 +1,69 @@
+/* U05 §2.3 landing header — brand + hamburger (.ib, 20×20); mockup line 62. */
+.ph-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 18px 0;
+  position: relative; /* paints above the panel bloom, as in the mockup */
+  z-index: 1;
+  flex: none;
+}
+
+.ph-brand {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 12.5px;
+  letter-spacing: -0.01em;
+}
+
+/* The mockup's icon affordances are spans; ours are real <button>s (UI SPEC
+   §2.6 accessibility floor), so the UA button chrome is reset here. The
+   sizing/hover/idle colour still come from the global .ib class. */
+.ph-hamburger {
+  margin-left: auto;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+/* Hero — headline + catalogue line, moved here from LandingView so it shows
+   above the tab strip on BOTH tabs: it describes the app, not either tab. */
+.ph-hero {
+  padding: 20px 18px 18px;
+  position: relative;
+  /* Never squashed when the panel hits its height cap: the tab body is the
+     only region that gives (PopoverShell.css). */
+  flex: none;
+}
+/* The strapline reads as one sentence, so it is one heading: the brand span
+   below is the only part that steps up in size and weight. Base size sits
+   under the mockup's 23px because the brand now sets the line's top note. */
+.ph-title {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 18px;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  margin: 0;
+  color: color-mix(in srgb, var(--color-text) 78%, transparent);
+}
+
+/* The product name. Bold and a size up — it is the app's name, not part of the
+   sentence's grammar. Kerned tighter than the trailing words, as display type. */
+.ph-titleBrand {
+  font-size: 27px;
+  font-weight: 700;
+  letter-spacing: -0.028em;
+  color: var(--color-text);
+}
+.ph-catalog {
+  margin-top: 10px;
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}

@@ -17,9 +17,13 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - run: go build ./...
-      - run: go vet ./...
-      - run: go test ./...
+      # The release ships the CLI (cmd/which-model + its libraries). The Wails
+      # desktop app (cmd/which-model-desktop) is macOS-primary and needs the
+      # full GTK/webkitgtk Linux toolchain to compile, so it is intentionally
+      # out of this CLI-release gate; its Linux build is verified separately.
+      - run: go build ./cmd/which-model ./internal/... ./pkg/...
+      - run: go vet ./cmd/which-model ./internal/... ./pkg/...
+      - run: go test ./cmd/which-model ./internal/... ./pkg/...
 
   build:
     needs: test
@@ -41,7 +45,7 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
     permissions:
       contents: write
     steps:
@@ -77,12 +81,19 @@ jobs:
             gh release create "$GITHUB_REF_NAME" --draft --generate-notes --verify-tag
           fi
           gh release upload "$GITHUB_REF_NAME" dist/* --clobber
-          gh release edit "$GITHUB_REF_NAME" --draft=false --latest
+          # Prerelease tags (contain '-') get the prerelease flag and do NOT
+          # become "Latest"; stable releases do.
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            gh release edit "$GITHUB_REF_NAME" --draft=false --prerelease --latest=false
+          else
+            gh release edit "$GITHUB_REF_NAME" --draft=false --latest
+          fi
 
   publish:
     needs: release
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    environment: Publish
     permissions:
       contents: read
       # OIDC token for npm Trusted Publishing — no long-lived token needed.
@@ -92,7 +103,7 @@ jobs:
       #   Organization: WD-Mitchell
       #   Repository: which-model
       #   Workflow filename: npm-release.yml
-      #   Environment name: (leave empty)
+      #   Environment name: Publish
       id-token: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

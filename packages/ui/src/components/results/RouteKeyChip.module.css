@@ -1,0 +1,24 @@
+.chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
+  padding: 2px 7px;
+  font-size: 9.5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.provider {
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
+.model {
+  color: var(--color-accent-200);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

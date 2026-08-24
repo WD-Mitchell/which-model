@@ -1,0 +1,21 @@
+/* U02 SPEC §2.5 — size variants override nocturne's `.btn` metrics (14px /
+   var(--space-2) calc(var(--space-3)*1.2)) with the mockup's settings-scale
+   ones. Written as `:global(.btn).x` (0-2-0) rather than a bare local class
+   (0-1-0) so the override also beats `.btn-ghost { padding-inline: … }` —
+   which is 0-1-0 too — regardless of which stylesheet the bundler emits
+   first. Compare the mockup's inline styles, which win the same way. */
+
+/* demo.dc.html lines 219, 220, 274 — footer/page-action scale. */
+:global(.btn).sm {
+  font-size: 12px;
+  padding: 5px 11px;
+}
+
+/* demo.dc.html lines 330, 462, 539, 540, 760, 761, 769 — the inline ghost
+   scale used across the settings pages ("Enable all", "Duplicate", …).
+   The 2px 6px pairings (lines 316, 448, 585) differ by 1px only; callers
+   needing them pass `className` as the mockup passes inline padding. */
+:global(.btn).xs {
+  font-size: 11px;
+  padding: 2px 7px;
+}

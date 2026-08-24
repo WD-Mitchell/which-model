@@ -14,12 +14,16 @@ import (
 	"runtime"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/WD-Mitchell/which-model/internal/catalog/csvstore"
+	"github.com/WD-Mitchell/which-model/internal/catalog/fetch/modelsdev"
 	"github.com/WD-Mitchell/which-model/internal/catalog/identity"
 	"github.com/WD-Mitchell/which-model/internal/config"
+	"github.com/WD-Mitchell/which-model/internal/httpkit"
 	"github.com/WD-Mitchell/which-model/internal/output"
 	"github.com/WD-Mitchell/which-model/internal/routing"
+	"github.com/WD-Mitchell/which-model/internal/usage"
 	"github.com/WD-Mitchell/which-model/internal/usage/toggle"
 )
 
@@ -191,14 +195,51 @@ func scoresSHA256(cfg *config.Config) (string, error) {
 // table's user-declared routes, registry provider descriptors) and returns
 // exactly the routes ProduceRoutes built (F27 never re-implements merge).
 func produceRoutes(cfg *config.Config) ([]routing.Route, error) {
+	// The models.dev catalogue is the ALWAYS-AVAILABLE route source (F18 SPEC
+	// §2.3 "ModelsDev — always available, collected by F08"). Until this call
+	// was wired, refresh built every ProviderInput with an empty ModelsDev, so
+	// with no user-declared routes it structurally produced ZERO routes — the
+	// desktop's Providers page showed "0 routes" for an enabled provider and
+	// ranking had nothing to rank.
+	catalogue, excluded := loadRouteCatalogue(cfg)
+
 	input := routing.Input{
 		Providers: make([]routing.ProviderInput, 0, len(routeProviders())),
 	}
+	known := make(map[string]struct{}, len(routeProviders()))
 	for _, p := range routeProviders() {
+		known[p.ID] = struct{}{}
 		input.Providers = append(input.Providers, routing.ProviderInput{
-			Provider: p.ID,
-			Kind:     p.Kind,
-			Windows:  p.Windows,
+			Provider:         p.ID,
+			Kind:             p.Kind,
+			Windows:          p.Windows,
+			ModelsDev:        catalogue[routing.CatalogueSlugFor(p.ID)],
+			ExcludedModelIDs: excluded[routing.CatalogueSlugFor(p.ID)],
+		})
+	}
+
+	// Config-declared providers beyond the three built-ins (Settings ▸ Providers
+	// ▸ Add provider, which offers models.dev slugs). Their id IS the catalogue
+	// slug, so they route off the same catalogue; without this an added provider
+	// would sit at 0 routes forever, which is exactly what made "add" useless.
+	//
+	// Kind is KindSubscription so ProduceRoutes treats them as eligible
+	// (build.go gates auto-derived routes on subscription/api-key-billing), and
+	// Windows is empty: no usage descriptor exists for them, so no window can
+	// gate them and BindWindowIDs correctly yields none.
+	for id := range cfg.Providers {
+		if _, isKnown := known[id]; isKnown {
+			continue
+		}
+		entries := catalogue[id]
+		if len(entries) == 0 {
+			continue // not a models.dev slug: nothing to route
+		}
+		input.Providers = append(input.Providers, routing.ProviderInput{
+			Provider:         id,
+			Kind:             usage.KindSubscription,
+			ModelsDev:        entries,
+			ExcludedModelIDs: excluded[id],
 		})
 	}
 	enabled, _ := toggle.ResolveUsageEnabled(Global.NoUsage, cfg)
@@ -571,4 +612,67 @@ func writeJSONDoc(w io.Writer, doc any) error {
 	data = append(data, '\n')
 	_, err = w.Write(data)
 	return err
+}
+
+// loadRouteCatalogue returns the models.dev catalogue grouped by models.dev
+// provider slug, plus each slug's excluded_models from providers.toml. Both
+// use the F08 collect-stage machinery (same cache file, TTL, and fetcher), so
+// `routes refresh` and `catalog refresh` share one snapshot.
+//
+// Failures degrade rather than fail: routes built without the catalogue are
+// exactly the pre-existing behaviour (user-declared only), so a missing cache
+// under --offline, or a fetch error, warns on stderr and returns empty maps.
+func loadRouteCatalogue(cfg *config.Config) (map[string][]routing.ModelEntry, map[string][]string) {
+	entries := map[string][]routing.ModelEntry{}
+	excludedBySlug := map[string][]string{}
+
+	cc, err := loadCatalogConfig(cfg)
+	if err != nil {
+		_ = output.WriteWarning(os.Stderr, fmt.Sprintf("routes: catalog config unreadable, building without models.dev catalogue: %v", err))
+		return entries, excludedBySlug
+	}
+	cwd, _ := os.Getwd()
+	res := resolveCatalogPaths(cc, defaultPaths(), cwd)
+	ttl, err := parseCacheTTL(cc.CacheTTL)
+	if err != nil {
+		ttl = 24 * time.Hour
+	}
+
+	var catalogue []modelsdev.ProviderModel
+	if cacheFresh(res.CatalogueCachePath, ttl) {
+		if cached, ok, err := readCache(res.CatalogueCachePath); err == nil && ok {
+			catalogue = cached
+		}
+	}
+	if catalogue == nil {
+		if Global.Offline {
+			_ = output.WriteWarning(os.Stderr, "routes: offline and no fresh models.dev cache; building from user-declared routes only")
+			return entries, excludedBySlug
+		}
+		// 16 MiB bound: models.dev api.json is ~4 MB (see catalog_collect.go).
+		client := httpkit.NewClient(httpkit.WithTimeout(Global.Timeout), httpkit.WithMaxBytes(16<<20))
+		catalogue, err = modelsdev.FetchModelsDevProvidersFrom(client, modelsDevProvidersURL)
+		if err != nil {
+			_ = output.WriteWarning(os.Stderr, fmt.Sprintf("routes: models.dev catalogue unavailable, building from user-declared routes only: %v", err))
+			return entries, excludedBySlug
+		}
+		if err := writeCache(res.CatalogueCachePath, catalogue); err != nil {
+			_ = output.WriteWarning(os.Stderr, fmt.Sprintf("routes: could not cache models.dev catalogue: %v", err))
+		}
+	}
+
+	for _, m := range catalogue {
+		entries[m.Provider] = append(entries[m.Provider], routing.ModelEntry{
+			ModelID:   m.ModelID,
+			Name:      m.Name,
+			Reasoning: m.EffortLevels,
+		})
+	}
+
+	if res.ProviderConfigPath != "" {
+		if perProvider, err := loadProviderConfig(res.ProviderConfigPath); err == nil {
+			excludedBySlug = perProvider
+		}
+	}
+	return entries, excludedBySlug
 }

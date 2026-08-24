@@ -1,0 +1,337 @@
+/* U10 — Providers page chrome, ported from the mockup
+   (specs/desktop/mockup/demo.dc.html L734-783).
+
+   Layout contract (U07): <main> has no horizontal padding. The list rows are
+   DragList's, so their gutter and row rule arrive through `rowClassName`
+   rather than through a wrapper — that keeps the grab handle inside the 22px
+   gutter, where the mockup puts it. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+}
+
+.loading {
+  padding: 15px 22px;
+  font-size: 12px;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+}
+
+/* ——— provider list (mockup L734-755) ————————————————————————————————— */
+
+/* L735 */
+.kicker {
+  display: block;
+  padding: 0 22px 6px;
+  font-size: 9px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+/* L747 */
+.order {
+  flex: none;
+  width: 14px;
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 40%, transparent);
+}
+
+/* L752 */
+.chevron {
+  flex: none;
+  display: flex;
+  color: color-mix(in srgb, var(--color-text) 38%, transparent);
+}
+
+/* ——— provider detail (mockup L756-783) ——————————————————————————————— */
+
+/* L757 */
+.summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 22px 14px;
+}
+
+.summaryText {
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
+.summaryActions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* L761, L771 — the "off"/secondary ghost buttons carry the mockup's muted
+   ink. 0-2-0 so it beats `.btn-ghost`'s own accent colour. */
+:global(.btn).muted {
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+
+/* Detail-summary delete — `.ib` supplies the grid, radius, ink and hover
+   (same box as U09's iconBtnLg, mockup L463); this only sizes the box and
+   clears the UA button chrome. */
+.iconBtnLg {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+/* L765 */
+.model {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 13px 22px;
+  border-top: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+
+/* L766-771 */
+.modelMeta {
+  flex: none;
+  width: 168px;
+}
+
+.modelName {
+  font-size: 12.5px;
+  color: color-mix(in srgb, var(--color-text) 88%, transparent);
+}
+
+.modelId {
+  display: block;
+  margin-top: 4px;
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
+:global(.btn).modelAll {
+  margin-top: 7px;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+
+/* L772 */
+.levels {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  max-width: 420px;
+}
+
+/* L773 */
+.level {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border-top: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+
+.levelName {
+  font-size: 11.5px;
+  color: color-mix(in srgb, var(--color-text) 88%, transparent);
+}
+
+.levelOff {
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
+/* Empty-list explainer — same gutter as the rows it replaces. */
+.empty {
+  padding: 14px 22px 20px;
+}
+
+
+/* Usage backend selector — the one control kept from the removed Usage
+   detection page, placed where the limits it governs are shown. */
+.backendRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 22px 16px;
+}
+
+.backendLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.backendTitle {
+  font-size: 12.5px;
+  color: color-mix(in srgb, var(--color-text) 88%, transparent);
+}
+
+.backendNote {
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
+.seg {
+  margin-left: auto;
+  flex: none;
+}
+
+/* Add-provider row (no mockup counterpart; metrics mirror the Harnesses one). */
+.addRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 22px 14px;
+}
+
+.addId {
+  width: 240px;
+  flex: none;
+}
+
+.addNote {
+  min-width: 0;
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* One draggable provider: handle, priority, then the usage card. Cards carry
+   their own ring, so rows are separated by a gap rather than a rule. */
+.dragRow {
+  padding: 0 22px 6px;
+  align-items: center;
+}
+
+.order {
+  flex: none;
+  width: 14px;
+  font-size: 11px;
+  text-align: right;
+  color: color-mix(in srgb, var(--color-text) 40%, transparent);
+}
+
+.card {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Route count + chevron: the card's trailing slot, and the open affordance. */
+.openCell {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.routes {
+  font-size: 10.5px;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
+.chevron {
+  display: flex;
+  color: color-mix(in srgb, var(--color-text) 38%, transparent);
+}
+
+/* Context menu: fixed to the viewport at the cursor (coordinates come from the
+   contextmenu event, so they cannot live in CSS). */
+.contextMenu {
+  position: fixed;
+  z-index: 40;
+  width: 168px;
+}
+
+/* ——— accounts ——————————————————————————————————————————————————————— */
+
+.accounts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 22px 18px;
+}
+
+.accountsHead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.accountsLabel {
+  font-size: 10px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--color-accent);
+}
+
+.accountsNote {
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
+.accountsActions {
+  margin-left: auto;
+}
+
+.accountRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.accountName {
+  flex: none;
+  width: 132px;
+}
+
+.accountKind {
+  flex: none;
+}
+
+.accountRef {
+  flex: 1;
+  min-width: 0;
+}
+
+.accountDelete {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.accountsFoot {
+  font-size: 11px;
+  line-height: 1.6;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+  max-width: 56ch;
+  text-wrap: pretty;
+}
+
+/* OAuth accounts get a sign-in button instead of a ref field. */
+.oauthCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.oauthRef {
+  min-width: 0;
+  font-size: 10px;
+  color: color-mix(in srgb, var(--color-text) 38%, transparent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

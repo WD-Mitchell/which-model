@@ -1,0 +1,19 @@
+version: '3'
+tasks:
+  desktop:dev:
+    cmds:
+      - wails3 dev -config cmd/which-model-desktop/build/config.yml -port 5173
+  desktop:build:
+    desc: Build the desktop .app bundle (macOS) with embedded frontend
+    cmds:
+      - pnpm -r build
+      - pnpm run check:host
+      - bash scripts/package-macos.sh
+  desktop:package:
+    deps: [desktop:build]
+    desc: Package for distribution (currently same as build on macOS)
+    cmds:
+      - echo "Packaged at bin/which-model.app — drag to /Applications."
+  desktop:bindings:
+    cmds:
+      - wails3 generate bindings -d apps/desktop/src/bindings -i -names ./cmd/which-model-desktop

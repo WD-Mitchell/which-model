@@ -1,0 +1,97 @@
+/* U05 §2.1 shell — the mockup's panel chrome (demo.dc.html lines 55-60):
+   500px wide (25% over the mockup's 400 — see cmd/which-model-desktop/
+   popover.go popoverWidth, which this must match), background var(--color-bg),
+   radius 12px, --shadow-lg,
+   overflow hidden, 13px base type, plus the corner accent bloom
+   (210×210 circle at inset:-70px -60px auto auto).
+
+   Selector convention: these popover stylesheets are plain global CSS with a
+   per-component prefix (ps-/ph-/pf-/lv-/wv-/wa-) matching the class strings in
+   the TSX. The prefix is what keeps them clear of the global design classes
+   they compose with (.ib, .row, .input, .btn, .mono — packages/ui/theme/app.css
+   and nocturne.css); unprefixed selectors here would collide with those.
+
+   Window-context adaptation: the mockup composes the panel over a simulated
+   desktop, so it carries an 8px caret aimed at the tray glyph and an outer
+   drop-shadow. The shipped popover is a frameless, opaque 400×620 window
+   (S02 CONTRACTS §3) that the host docks under the tray icon: the caret would
+   paint as a stray triangle inside the window and both outer shadows fall
+   outside the window bounds where they are clipped, never seen. The panel
+   therefore fills the window and the caret stays in the DOM unpainted. */
+.ps-outer {
+  position: relative;
+  width: 500px;
+  max-width: 100%;
+  /* auto, not 100%: the panel takes its natural content height and the HOST
+     window follows it (WindowService.SetPopoverHeight), which is what keeps
+     the design's spacing intact instead of stretching filler to 620. */
+  height: auto;
+  /* ...but never past the host's ceiling. popover.go clamps the window to
+     popoverMaxHeight, so without this cap the Advanced tab's editor made the
+     DOM taller than the window could ever be and the footer was laid out
+     BELOW the visible area — the footer looked missing on that tab. Capping
+     here makes the panel's own scroll region absorb the surplus instead.
+     Must equal popoverMaxHeight (cmd/which-model-desktop/popover.go). */
+  max-height: 620px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Mockup caret: 8px CSS triangle, right margin 96px (U05 §2.1) — not painted
+   in the frameless window, see the note above. */
+.ps-arrow {
+  display: none;
+  width: 0;
+  height: 0;
+  margin: 0 96px -1px auto;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 8px solid var(--color-bg);
+}
+
+/* The panel is the window: a flex column of header / body / footer, so the
+   footer sits on the bottom edge and the body owns the scroll. */
+.ps-panel {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  /* Same ceiling as .ps-outer: the panel IS what the height measurement reads
+     (PopoverApp.tsx), so it is what must stop growing at the window's max. */
+  max-height: 620px;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  border-radius: 12px;
+  /* No --shadow-lg here. That token is `0 0 0 1px #9397ab, 0 16px 40px …`:
+     the hairline is a light EDGE for a panel floating over a desktop, which is
+     how the mockup composes it. The shipped popover is a frameless window that
+     the panel fills, so the ring painted as a pale line down the left and
+     across the bottom, and the ambient shadow falls outside the window where
+     it is clipped. The window's own edge is the elevation here. */
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.ps-glow {
+  position: absolute;
+  inset: -70px -60px auto auto;
+  width: 210px;
+  height: 210px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--color-accent) 20%, transparent),
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+/* App menu: 176px anchored top-right (U05 CONTRACTS §4; mockup line 236). */
+.ps-appmenu {
+  position: absolute;
+  right: 14px;
+  top: 36px;
+  width: 176px;
+  z-index: 10;
+}

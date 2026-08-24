@@ -1,0 +1,144 @@
+/* U07 — settings-window chrome, ported from the mockup (demo.dc.html
+   L243-277). Inline values there are literal design values; they are kept
+   px-for-px here. */
+
+.window {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Mockup titlebar (L245): padding 11px 14px + a divider rule, with the left
+   padding grown to 78px to clear the REAL macOS window buttons, which AppKit
+   insets over this row (settings.go, MacTitleBarHidden). */
+.titlebar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px 11px 78px;
+  border-bottom: 1px solid var(--color-divider);
+  user-select: none;
+}
+
+.title {
+  /* auto margins centre the title in the space left over; the spacer below
+     balances the dot cluster so the title sits on the window's true centre
+     line (mockup L249-250: `margin:0 auto` + a 46px spacer). */
+  margin: 0 auto;
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 12.5px;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--color-text) 72%, transparent);
+}
+
+/* Balances the 78px button reserve minus the 14px right padding, so the title's
+   auto margins resolve to the window's true centre (mockup L250, same trick). */
+.titleSpacer {
+  flex: none;
+  width: 64px;
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+/* Mockup sidebar: 184px, faintly tinted, divider on its right edge. */
+.sidebar {
+  width: 184px;
+  flex: none;
+  background: color-mix(in srgb, var(--color-text) 3%, transparent);
+  border-right: 1px solid var(--color-divider);
+  display: flex;
+  flex-direction: column;
+  padding: 14px 10px;
+  gap: 14px;
+}
+
+.navGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Group kicker — indented to line up with the nav item labels (21px = the
+   item's 9px padding + 4px dot + 8px gap). */
+.navLabel {
+  font-size: 9px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 34%, transparent);
+  padding: 0 9px 6px 21px;
+}
+
+/* Nav items stay <button>s for keyboard/AT reachability, so the UA button
+   styling is reset before the mockup's span styling is applied. */
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 6px 9px;
+  border-radius: 6px;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--color-text) 72%, transparent);
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.navDot {
+  flex: none;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+/* Not in the mockup (a static canvas has no hover state) — a live app needs
+   one, kept below the active chip's 10% tint so the two never read alike. */
+.navItem:hover:not(.navActive) {
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
+}
+
+/* Active = neutral raised chip + accent dot (mockup L1313-1318). */
+.navActive {
+  background: color-mix(in srgb, var(--color-text) 10%, transparent);
+  color: var(--color-text);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 1px color-mix(in srgb, var(--color-text) 13%, transparent);
+}
+
+.navActive .navDot {
+  background: var(--color-accent);
+}
+
+/* Pinned to the sidebar's base. Absolute paths are longer than 164px of
+   content width, so the path wraps rather than truncating — it is meant to be
+   read; the title attribute covers the pathological case. */
+.configPath {
+  margin-top: auto;
+  padding: 8px 9px;
+  font-size: 9.5px;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--color-text) 38%, transparent);
+  overflow-wrap: anywhere;
+}
+
+/* Content column — the .scroll class (app.css) supplies overflow + thin
+   scrollbar; horizontal padding belongs to the page children, not here. */
+.content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}

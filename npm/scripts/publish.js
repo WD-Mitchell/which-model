@@ -66,6 +66,10 @@ function publish(dir, version) {
   }
   console.log(`${DRY_RUN ? "[dry-run] would publish" : "publishing"} ${name}@${version} from ${dir}`);
   const args = ["publish", "--access", "public"];
+  // Prerelease versions (e.g. 1.1.0-beta.0) tag as `beta` so a beta release
+  // never moves the `latest` dist-tag and is installed via
+  // `pnpm add -g @wdm-uk/which-model@beta`.
+  if (/-/.test(version)) args.push("--tag", "beta");
   if (DRY_RUN) args.push("--dry-run");
   const res = spawnSync("npm", args, { cwd: dir, stdio: "inherit", env: process.env });
   if (res.status !== 0) {

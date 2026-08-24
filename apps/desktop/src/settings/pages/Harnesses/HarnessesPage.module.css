@@ -1,0 +1,254 @@
+/* U11 — Harnesses page, ported value-for-value from the mockup
+   (specs/desktop/mockup/demo.dc.html L492-523 list, L524-573 detail).
+   <main> carries no horizontal padding (U07 layout contract), so every block
+   below pays its own 22px gutter — that is what lets the row rules and the
+   .row hover tint bleed to the edges of the content column. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── list ────────────────────────────────────────────────────────────── */
+
+/* demo.dc.html 493 — accent section kicker. */
+.kicker {
+  display: block;
+  padding: 0 22px 6px;
+  font-size: 9px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+/* demo.dc.html 494-499 — column header row; the cells reuse the same width
+   tokens as the data row so the two grids stay locked together. */
+.head {
+  display: flex;
+  gap: 12px;
+  padding: 0 22px 7px;
+}
+
+.headCell {
+  font-size: 9px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 38%, transparent);
+}
+
+.colName {
+  flex: 1;
+  min-width: 0;
+}
+
+.colProv {
+  flex: none;
+  width: 84px;
+}
+
+.colEnd {
+  flex: none;
+  width: 44px;
+}
+
+/* demo.dc.html 501 — the hover tint comes from the global `.row` (app.css);
+   only the rule, padding and metrics belong here. */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 22px;
+  border-top: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+  cursor: pointer;
+}
+
+/* demo.dc.html 502-505 — name + optional "custom" badge on a shared baseline. */
+.nameCell {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.name {
+  font-size: 12.5px;
+  color: color-mix(in srgb, var(--color-text) 88%, transparent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Not on this Mac: the mockup has no per-row "not detected" tag, so the
+   detection signal rides the name colour (DIM) plus the trailing note. */
+.nameOff {
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
+.badge {
+  flex: none;
+}
+
+/* demo.dc.html 506-513 — provider pips followed by the mono count. */
+.provCell {
+  flex: none;
+  width: 84px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.provCount {
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+
+/* demo.dc.html 1510 (`provFg`) — DIM when no provider is switched on. */
+.provNone {
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
+/* demo.dc.html 515-518 — 44px trailing cell: .ib trash box + plain chevron. */
+.actions {
+  flex: none;
+  width: 44px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Only the <button> reset lives here: the look (ground, hover, .off dimming)
+   is the global `.ib`, which outranks these on its :hover/.off selectors. */
+.del {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.chev {
+  display: flex;
+  color: color-mix(in srgb, var(--color-text) 38%, transparent);
+}
+
+/* demo.dc.html 521 — trailing detect note. */
+.note {
+  padding: 14px 22px 20px;
+  font-size: 11px;
+  line-height: 1.65;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+  max-width: 56ch;
+  text-wrap: pretty;
+}
+
+.empty {
+  padding: 12px 22px 0;
+}
+
+/* Add-custom form — no mockup counterpart (its page action creates a harness
+   outright); styled to the page's gutter and to the column widths above so it
+   reads as the row it is about to create. */
+.addRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 22px 14px;
+}
+
+.addSlug {
+  flex: none;
+  width: 120px;
+}
+
+.addName {
+  flex: none;
+  width: 140px;
+}
+
+.addCmd {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── detail ──────────────────────────────────────────────────────────── */
+
+/* demo.dc.html 525-531 — launch command block. */
+.cmdBlock {
+  padding: 0 22px 18px;
+}
+
+.blockHead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-bottom: 6px;
+}
+
+.label {
+  font-size: 10px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  font-weight: 500;
+}
+
+.headNote {
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
+/* The harness slug + its detection state; the mockup's identity affordances
+   (title, blurb) carry the name only, so the slug rides the right edge of the
+   launch-command header where the row is otherwise empty. */
+.slugNote {
+  margin-left: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--color-text) 38%, transparent);
+}
+
+/* demo.dc.html 533-571 — providers block. */
+.provBlock {
+  display: flex;
+  flex-direction: column;
+  padding: 0 22px 24px;
+}
+
+.provHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 9px;
+}
+
+.headActions {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+}
+
+/* demo.dc.html 540 — "Disable all" is the quieter of the pair. */
+.ghostOff {
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+
+.provList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* demo.dc.html 570 — closing note, inside the block's own padding. */
+.closing {
+  padding-top: 14px;
+  font-size: 11px;
+  line-height: 1.65;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+  max-width: 56ch;
+  text-wrap: pretty;
+}

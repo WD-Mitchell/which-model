@@ -1,0 +1,30 @@
+.list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* demo.dc.html 745 — the handle is the row's first child, so the row gap is
+   the mockup's 12px, not a separate handle margin. */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* demo.dc.html 745/1070 — the dragged row takes ACCENT_BG. */
+.rowActive {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+}
+
+/* demo.dc.html 746 — the grab affordance is app.css's `.ib` at 16x16 with
+   the colour pinned to 35% text and cursor:grab. Pinning at 0-2-0 keeps the
+   colour steady through `.ib:hover` (0-1-1) while still letting that rule
+   paint its hover ground, exactly as the mockup's inline colour does. */
+:global(.ib).handle {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: color-mix(in srgb, var(--color-text) 35%, transparent);
+  cursor: grab;
+  touch-action: none;
+}

@@ -1,0 +1,75 @@
+/* U05 §2.2 weights header (back chevron + title) and weights-view scaffold.
+   The editor body itself is U06; here we render the header + shared carousel.
+   Mockup demo.dc.html lines 129-132. */
+.wa-wheaderRow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 16px 12px;
+  position: relative; /* above the panel bloom, as in the mockup */
+  z-index: 1;
+  flex: none;
+}
+
+/* Real <button>s where the mockup used spans (UI SPEC §2.6): reset the UA
+   chrome and let the global .ib class own size, radius, colour and hover. */
+.wa-wheaderBack,
+.wa-wheaderHamburger {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.wa-wheaderBack {
+  margin-left: -4px;
+}
+
+.wa-wheaderHamburger {
+  margin-left: auto;
+}
+
+.wa-wheaderTitle {
+  font-size: 13px;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+
+.wa-wheaderSlug {
+  color: var(--color-accent-300);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--color-accent) 55%, transparent);
+}
+
+/* Weights body: divider → scrolling editor → results band, with the band
+   fixed on the footer like the landing view. */
+.wa-wbody {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.wa-wbody > :last-child {
+  flex: none;
+}
+
+/* Edge-fading 1px divider under the weights header (U06 §2.1). */
+.wa-wdivider {
+  padding: 0 16px;
+  flex: none;
+}
+
+.wa-wdividerLine {
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--color-divider) 40px,
+    var(--color-divider) calc(100% - 40px),
+    transparent
+  );
+}

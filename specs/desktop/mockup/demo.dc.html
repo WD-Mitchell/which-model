@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><meta name="design_doc_mode" content="canvas"><link rel="stylesheet" href="_ds/nocturne-0b88de3e-f7a5-4243-8e9b-7ade199ee44e/styles.css"><script src="_ds/nocturne-0b88de3e-f7a5-4243-8e9b-7ade199ee44e/_ds_bundle.js"></script><style>
+html,body{margin:0;background:#0e0f18;font-family:var(--font-body)}
+a{color:var(--color-accent)}a:hover{color:var(--color-accent-400)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
+.ib{display:grid;place-items:center;border-radius:6px;color:color-mix(in srgb,var(--color-text) 62%,transparent);cursor:pointer}
+.ib:hover{background:color-mix(in srgb,var(--color-text) 8%,transparent);color:var(--color-text)}
+.ib.off,.ib.off:hover{opacity:.3;background:none;color:color-mix(in srgb,var(--color-text) 62%,transparent);cursor:default}
+.row:hover{background:color-mix(in srgb,var(--color-text) 4%,transparent)}
+.sw{display:inline-block;width:30px;height:17px;border-radius:9px;background:color-mix(in srgb,var(--color-text) 14%,transparent);position:relative;flex:none;cursor:pointer;transition:background .12s}
+.sw i{position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:var(--color-neutral-400);display:block;transition:left .12s}
+.sw.on{background:color-mix(in srgb,var(--color-accent) 45%,transparent)}
+.sw.on i{left:15px;background:var(--color-accent-200)}
+.sw.off{opacity:.4;pointer-events:none}
+.scroll{overflow:auto;scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--color-text) 18%,transparent) transparent}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
+input.wminput{background:transparent;border:0;outline:0;color:var(--color-text);width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+input.wminput::placeholder{color:color-mix(in srgb,var(--color-text) 45%,transparent)}
+select.wmsel{appearance:none;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;color:var(--color-text);background:color-mix(in srgb,var(--color-text) 7%,transparent);border:0;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--color-text) 12%,transparent);border-radius:6px;padding:4px 24px 4px 9px;cursor:pointer;background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:calc(100% - 13px) 52%,calc(100% - 9px) 52%;background-size:4px 4px,4px 4px;background-repeat:no-repeat}
+select.wmsel option{background:#171826;color:var(--color-text)}
+</style><script src="image-slot.js"></script></helmet>
+
+<div style="position:relative;width:1180px;height:700px;border-radius:12px;overflow:hidden;background:#10111b;color:var(--color-text);user-select:none" onClick="{{ onDesktop }}">
+  <div style="position:absolute;inset:0"><image-slot id="demo-wallpaper" shape="rect" fit="cover" placeholder="Drop your macOS desktop wallpaper"></image-slot></div>
+  <div style="position:absolute;inset:0;background:radial-gradient(120% 90% at 78% -10%, color-mix(in srgb,var(--color-accent) 18%,transparent), transparent 55%),linear-gradient(160deg,rgba(13,14,24,.55),rgba(16,18,32,.35))"></div>
+
+  <div style="position:relative;display:flex;align-items:center;gap:18px;height:28px;padding:0 14px;background:rgba(10,11,18,.55);backdrop-filter:blur(18px);box-shadow:inset 0 -0.5px 0 rgba(255,255,255,.08)">
+    <span style="display:flex;align-items:center;color:color-mix(in srgb,var(--color-text) 88%,transparent)"><svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M11 8.4c0-1.5 1.1-2.2 1.2-2.3-.7-1-1.7-1.1-2.1-1.1-.9-.1-1.7.5-2.2.5s-1.2-.5-2-.5c-1 0-2 .6-2.5 1.6-1.1 1.8-.3 4.5.8 6 .5.7 1.1 1.5 1.9 1.5.8 0 1-.5 2-.5s1.1.5 1.9.5c.8 0 1.4-.8 1.9-1.5.3-.5.5-1 .6-1.2-1.4-.5-1.5-2.4-1.5-3zM9.6 3.7c.4-.5.7-1.2.6-1.9-.6 0-1.4.4-1.8 1-.4.5-.7 1.2-.6 1.8.7.1 1.4-.3 1.8-.9z"></path></svg></span>
+    <span style="font-size:12.5px;color:color-mix(in srgb,var(--color-text) 95%,transparent);font-weight:500">Terminal</span>
+    <span style="font-size:12.5px;color:color-mix(in srgb,var(--color-text) 78%,transparent)">File</span>
+    <span style="font-size:12.5px;color:color-mix(in srgb,var(--color-text) 78%,transparent)">Edit</span>
+    <span style="font-size:12.5px;color:color-mix(in srgb,var(--color-text) 78%,transparent)">View</span>
+    <span style="font-size:12.5px;color:color-mix(in srgb,var(--color-text) 78%,transparent)">Window</span>
+    <span style="font-size:12.5px;color:color-mix(in srgb,var(--color-text) 78%,transparent)">Help</span>
+    <span style="margin-left:auto;display:flex;align-items:center;gap:14px;color:color-mix(in srgb,var(--color-text) 72%,transparent)">
+      <span style="display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:6px;cursor:pointer;background:{{ iconBg }};box-shadow:{{ iconRing }}" onClick="{{ onTogglePopover }}" title="which-model">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="var(--color-accent-200)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.2 4.6h11.6"></path><path d="M2.2 8h7.4"></path><path d="M2.2 11.4h4.2"></path><circle cx="12.4" cy="11.2" r="2.1"></circle></svg>
+        <span class="mono" style="font-size:10.5px;color:var(--color-accent-100)">{{ pickScoreShort }}</span>
+      </span>
+      <span style="display:flex"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M2.4 5h11.2M2.4 11h11.2"></path><circle cx="6" cy="5" r="1.7"></circle><circle cx="10.4" cy="11" r="1.7"></circle></svg></span>
+      <span style="display:flex"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M2.2 6.1a8.6 8.6 0 0 1 11.6 0"></path><path d="M4.4 8.5a5.4 5.4 0 0 1 7.2 0"></path><path d="M6.5 10.9a2.3 2.3 0 0 1 3 0"></path><circle cx="8" cy="12.7" r=".7" fill="currentColor" stroke="none"></circle></svg></span>
+      <span style="display:flex"><svg width="22" height="14" viewBox="0 0 24 14" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="1" y="3" width="19" height="8.5" rx="2.4"></rect><rect x="2.6" y="4.6" width="11" height="5.3" rx="1.4" fill="currentColor" stroke="none"></rect><path d="M21.6 6v3.5" stroke-linecap="round"></path></svg></span>
+      <span class="mono" style="font-size:12px;color:color-mix(in srgb,var(--color-text) 86%,transparent)">Mon 11 Aug&nbsp;&nbsp;9:41</span>
+    </span>
+  </div>
+
+  <sc-if value="{{ popoverOpen }}" hint-placeholder-val="{{ true }}">
+  <div style="position:absolute;top:30px;right:132px;width:400px;filter:drop-shadow(0 22px 50px rgba(0,0,0,.55))" onClick="{{ onPopoverClick }}">
+    <div style="width:0;height:0;margin:0 0 -1px auto;margin-right:96px;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:8px solid var(--color-bg)"></div>
+    <div style="width:400px;background:var(--color-bg);border-radius:12px;box-shadow:var(--shadow-lg);overflow:hidden;font-size:13px;position:relative">
+      <div style="position:absolute;inset:-70px -60px auto auto;width:210px;height:210px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--color-accent) 20%,transparent),transparent 70%);pointer-events:none"></div>
+
+      <sc-if value="{{ isLanding }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;align-items:center;gap:9px;padding:13px 18px 0;position:relative">
+          <span style="font-family:var(--font-heading);font-weight:500;font-size:12.5px;letter-spacing:-.01em">which-model</span>
+          <span class="ib" style="margin-left:auto;width:20px;height:20px;flex:none" onClick="{{ onToggleAppMenu }}"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1.8 4.2h12.4M1.8 8h12.4M1.8 11.8h12.4"></path><circle cx="5.4" cy="4.2" r="1.7" fill="var(--color-bg)"></circle><circle cx="10.6" cy="11.8" r="1.7" fill="var(--color-bg)"></circle></svg></span>
+        </div>
+        <div style="padding:20px 18px 18px;position:relative">
+          <div style="font-family:var(--font-heading);font-weight:500;font-size:23px;line-height:1.15;letter-spacing:-.022em;max-width:16ch;text-wrap:pretty">The right model for the job in front of you.</div>
+          <div class="mono" style="margin-top:10px;font-size:10.5px;color:color-mix(in srgb,var(--color-text) 55%,transparent)">{{ catalogLine }}</div>
+        </div>
+        <div style="padding:0 18px 14px;position:relative">
+          <div class="input" style="min-height:34px;padding:7px 11px;display:flex;align-items:center;gap:7px">
+            <input class="wminput" placeholder="type to find a profile" value="{{ query }}" onChange="{{ onQuery }}" onFocus="{{ onSearchFocus }}" onKeyDown="{{ onSearchKey }}"></input>
+          </div>
+          <sc-if value="{{ searchOpen }}" hint-placeholder-val="{{ true }}">
+            <div style="position:absolute;left:18px;right:18px;top:44px;z-index:8;padding:5px;border-radius:9px;background:var(--color-surface);box-shadow:var(--shadow-md);display:flex;flex-direction:column;gap:1px">
+              <sc-for list="{{ matches }}" as="m" hint-placeholder-count="3">
+                <div style="display:flex;align-items:baseline;gap:9px;padding:7px 9px;border-radius:6px;cursor:pointer;background:{{ m.bg }}" onClick="{{ m.onPick }}">
+                  <span class="mono" style="font-size:12px;color:{{ m.fg }}">{{ m.name }}</span>
+                  <span class="mono" style="margin-left:auto;font-size:10px;color:color-mix(in srgb,var(--color-text) 42%,transparent)">{{ m.sub }}</span>
+                </div>
+              </sc-for>
+              <sc-if value="{{ noMatches }}" hint-placeholder-val="{{ false }}">
+                <div class="mono" style="padding:8px 9px;font-size:11px;color:color-mix(in srgb,var(--color-text) 40%,transparent)">no profile by that name</div>
+              </sc-if>
+            </div>
+          </sc-if>
+        </div>
+        <div style="padding:0 18px 6px;display:flex;align-items:baseline"><span style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 42%,transparent)">or slide</span></div>
+        <div style="padding:14px 18px 8px;position:relative">
+          <div style="position:relative;height:5px;border-radius:3px;cursor:pointer;background:linear-gradient(to right,var(--color-accent-800),var(--color-accent-500))" onPointerDown="{{ onScaleDown }}">
+            <sc-for list="{{ ticks }}" as="t" hint-placeholder-count="5">
+              <span style="position:absolute;top:-4px;width:1px;height:13px;left:{{ t.left }};background:color-mix(in srgb,var(--color-text) 20%,transparent)"></span>
+            </sc-for>
+            <span style="position:absolute;top:-5px;width:15px;height:15px;border-radius:50%;background:var(--color-bg);box-shadow:0 0 0 1.5px var(--color-accent);left:{{ handleLeft }}"></span>
+          </div>
+          <div class="mono" style="display:flex;margin-top:9px;font-size:9px;color:color-mix(in srgb,var(--color-text) 45%,transparent)"><span>simple action</span><span style="margin-left:auto">planning</span></div>
+          <div style="margin-top:15px;text-align:center"><span style="font-family:var(--font-heading);font-weight:500;font-size:15px;letter-spacing:-.01em;color:var(--color-accent-300)">{{ profileName }}</span></div>
+        </div>
+        <div style="height:10px"></div>
+      </sc-if>
+
+      <sc-if value="{{ isWeights }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:9px;padding:13px 16px 12px;position:relative">
+          <span class="ib" style="width:20px;height:20px;margin-left:-4px;flex:none" onClick="{{ onBack }}"><svg width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7.2 2.2 3.4 6l3.8 3.8"></path></svg></span>
+          <span style="font-size:13px;color:color-mix(in srgb,var(--color-text) 62%,transparent)">Weights for <span class="mono" style="color:var(--color-accent-300);box-shadow:0 1px 0 color-mix(in srgb,var(--color-accent) 55%,transparent)">{{ profileSlug }}</span></span>
+          <span class="ib" style="margin-left:auto;width:20px;height:20px;flex:none" onClick="{{ onToggleAppMenu }}"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1.8 4.2h12.4M1.8 8h12.4M1.8 11.8h12.4"></path><circle cx="5.4" cy="4.2" r="1.7" fill="var(--color-bg)"></circle><circle cx="10.6" cy="11.8" r="1.7" fill="var(--color-bg)"></circle></svg></span>
+        </div>
+        <div style="padding:0 16px"><div style="height:1px;background:linear-gradient(to right,transparent,var(--color-divider) 40px,var(--color-divider) calc(100% - 40px),transparent)"></div></div>
+        <div style="padding:13px 16px 6px;display:flex;flex-direction:column;gap:12px;background:color-mix(in srgb,var(--color-text) 3%,transparent);position:relative">
+          <div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 42%,transparent)">core benchmarks <span style="text-transform:none;letter-spacing:0">(higher = better, cheaper, faster)</span></span><span class="mono" style="margin-left:auto;font-size:10.5px;color:color-mix(in srgb,var(--color-text) 62%,transparent)">{{ corePctText }}</span></div>
+          <sc-for list="{{ coreRows }}" as="r" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;gap:10px;font-size:12.5px">
+              <span class="mono" style="width:104px;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:{{ r.fg }}">{{ r.key }}</span>
+              <span style="flex:1;position:relative;cursor:pointer;padding:5px 0" onPointerDown="{{ r.onDown }}">
+                <sc-if value="{{ r.isStep }}" hint-placeholder-val="{{ false }}">
+                  <span style="display:flex;gap:3px">
+                    <sc-for list="{{ r.steps }}" as="s" hint-placeholder-count="5">
+                      <span style="flex:1;height:6px;border-radius:2px;background:{{ s.bg }}"></span>
+                    </sc-for>
+                  </span>
+                </sc-if>
+                <sc-if value="{{ r.isBar }}" hint-placeholder-val="{{ false }}">
+                  <span style="display:block;height:6px;border-radius:3px;background:color-mix(in srgb,var(--color-text) 12%,transparent);position:relative;overflow:hidden"><b style="position:absolute;left:0;top:0;bottom:0;border-radius:3px;display:block;background:var(--color-accent-500);width:{{ r.pct }}"></b></span>
+                </sc-if>
+                <sc-if value="{{ r.isSlider }}" hint-placeholder-val="{{ true }}">
+                  <span style="display:block;height:3px;border-radius:2px;background:color-mix(in srgb,var(--color-text) 12%,transparent);position:relative">
+                    <b style="position:absolute;left:0;top:0;bottom:0;border-radius:2px;display:block;background:var(--color-accent-500);width:{{ r.pct }}"></b>
+                    <i style="position:absolute;top:-4.5px;width:12px;height:12px;border-radius:50%;background:var(--color-bg);box-shadow:0 0 0 1.5px var(--color-accent);display:block;left:{{ r.knob }}"></i>
+                  </span>
+                </sc-if>
+              </span>
+              <span class="mono" style="width:12px;text-align:right;font-size:11px;color:{{ r.fg }}">{{ r.val }}</span>
+              <span style="width:14px"></span>
+            </div>
+          </sc-for>
+          <div style="display:flex;align-items:baseline;gap:8px;margin-top:4px"><span style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 42%,transparent)">task benchmarks</span><span class="mono" style="margin-left:auto;font-size:10.5px;color:color-mix(in srgb,var(--color-text) 62%,transparent)">{{ taskPctText }}</span></div>
+          <sc-for list="{{ taskRows }}" as="r" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;gap:10px;font-size:12.5px">
+              <span class="mono" style="width:104px;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:{{ r.fg }}">{{ r.key }}</span>
+              <span style="flex:1;position:relative;cursor:pointer;padding:5px 0" onPointerDown="{{ r.onDown }}">
+                <sc-if value="{{ r.isStep }}" hint-placeholder-val="{{ false }}">
+                  <span style="display:flex;gap:3px">
+                    <sc-for list="{{ r.steps }}" as="s" hint-placeholder-count="5">
+                      <span style="flex:1;height:6px;border-radius:2px;background:{{ s.bg }}"></span>
+                    </sc-for>
+                  </span>
+                </sc-if>
+                <sc-if value="{{ r.isBar }}" hint-placeholder-val="{{ false }}">
+                  <span style="display:block;height:6px;border-radius:3px;background:color-mix(in srgb,var(--color-text) 12%,transparent);position:relative;overflow:hidden"><b style="position:absolute;left:0;top:0;bottom:0;border-radius:3px;display:block;background:var(--color-accent-500);width:{{ r.pct }}"></b></span>
+                </sc-if>
+                <sc-if value="{{ r.isSlider }}" hint-placeholder-val="{{ true }}">
+                  <span style="display:block;height:3px;border-radius:2px;background:color-mix(in srgb,var(--color-text) 12%,transparent);position:relative">
+                    <b style="position:absolute;left:0;top:0;bottom:0;border-radius:2px;display:block;background:var(--color-accent-500);width:{{ r.pct }}"></b>
+                    <i style="position:absolute;top:-4.5px;width:12px;height:12px;border-radius:50%;background:var(--color-bg);box-shadow:0 0 0 1.5px var(--color-accent);display:block;left:{{ r.knob }}"></i>
+                  </span>
+                </sc-if>
+              </span>
+              <span class="mono" style="width:12px;text-align:right;font-size:11px;color:{{ r.fg }}">{{ r.val }}</span>
+              <span class="ib" style="width:14px;height:14px;flex:none;color:color-mix(in srgb,var(--color-text) 40%,transparent)" onClick="{{ r.onRemove }}"><svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l6 6M9 3l-6 6"></path></svg></span>
+            </div>
+          </sc-for>
+          <div style="display:flex;align-items:center;gap:8px;padding:2px 0 10px;position:relative">
+            <button class="btn btn-ghost" style="font-size:11.5px;padding:2px 6px" onClick="{{ onToggleAddMetric }}">+ Add metric</button>
+            <button class="btn btn-ghost" style="margin-left:auto;font-size:11.5px;padding:2px 6px" onClick="{{ onRevert }}">Revert</button>
+            <sc-if value="{{ addMetricOpen }}" hint-placeholder-val="{{ false }}">
+              <span style="position:absolute;left:0;bottom:26px;z-index:9;width:180px;padding:5px;border-radius:8px;background:var(--color-surface);box-shadow:var(--shadow-md);display:flex;flex-direction:column;gap:1px;max-height:150px;overflow:auto">
+                <sc-for list="{{ addable }}" as="a" hint-placeholder-count="4">
+                  <span class="mono" style="padding:6px 9px;border-radius:5px;font-size:11.5px;cursor:pointer;color:color-mix(in srgb,var(--color-text) 80%,transparent)" onClick="{{ a.onAdd }}">{{ a.key }}</span>
+                </sc-for>
+              </span>
+            </sc-if>
+          </div>
+        </div>
+        <div style="padding:12px 16px 14px;background:color-mix(in srgb,var(--color-text) 3%,transparent);border-top:1px solid var(--color-divider);display:flex;flex-direction:column;gap:7px">
+          <div class="mono" style="display:flex;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 55%,transparent)"><span>core</span><span style="margin-left:auto">task</span></div>
+          <span style="display:flex;align-items:center;gap:3px;height:14px;cursor:pointer" onPointerDown="{{ onBalanceDown }}">
+            <span style="height:5px;border-radius:3px;background:var(--color-accent-500);flex:{{ coreFlex }}"></span>
+            <span style="width:14px;height:14px;border-radius:50%;background:var(--color-bg);box-shadow:0 0 0 1.5px var(--color-accent);flex:none"></span>
+            <span style="height:5px;border-radius:3px;background:var(--color-accent-800);flex:{{ taskFlex }}"></span>
+          </span>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ showCarousel }}" hint-placeholder-val="{{ true }}">
+        <div style="padding:13px 16px 14px;background:color-mix(in srgb,var(--color-accent) 8%,transparent);border-top:1px solid color-mix(in srgb,var(--color-accent) 30%,transparent);position:relative">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="ib" style="width:22px;height:22px;flex:none;color:{{ prevFg }}" onClick="{{ onPrev }}"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7.2 2.2 3.4 6l3.8 3.8"></path></svg></span>
+            <span style="flex:1;min-width:0;text-align:center">
+              <span class="mono" style="font-size:10px;color:color-mix(in srgb,var(--color-text) 55%,transparent)">{{ pickRank }}</span>
+              <span style="display:block;font-family:var(--font-heading);font-weight:500;font-size:19px;letter-spacing:-.02em;margin-top:3px">{{ pickName }}</span>
+              <span class="mono" style="display:block;font-size:10.5px;margin-top:4px;color:color-mix(in srgb,var(--color-text) 62%,transparent)">{{ pickMeta }}</span>
+            </span>
+            <span class="ib" style="width:22px;height:22px;flex:none;color:{{ nextFg }}" onClick="{{ onNext }}"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 2.2 8.6 6l-3.8 3.8"></path></svg></span>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ showList }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:11px 16px 12px;background:color-mix(in srgb,var(--color-accent) 8%,transparent);border-top:1px solid color-mix(in srgb,var(--color-accent) 30%,transparent);display:flex;flex-direction:column;gap:2px">
+          <sc-for list="{{ resultRows }}" as="r" hint-placeholder-count="5">
+            <div style="display:flex;align-items:baseline;gap:10px;padding:5px 7px;border-radius:6px;cursor:pointer;background:{{ r.bg }}" onClick="{{ r.onPick }}">
+              <span class="mono" style="width:10px;font-size:9.5px;color:color-mix(in srgb,var(--color-text) 40%,transparent)">{{ r.rank }}</span>
+              <span style="font-size:12.5px;color:{{ r.fg }}">{{ r.name }}</span>
+              <span class="mono" style="margin-left:auto;font-size:10.5px;color:{{ r.scoreFg }}">{{ r.score }}</span>
+              <span class="mono" style="font-size:9.5px;width:52px;text-align:right;color:color-mix(in srgb,var(--color-text) 40%,transparent)">{{ r.route }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <div style="position:relative;display:flex;align-items:center;gap:8px;padding:12px 16px 14px;border-top:1px solid var(--color-divider)">
+        <sc-if value="{{ isLanding }}" hint-placeholder-val="{{ true }}">
+          <button class="btn btn-ghost" style="font-size:12px;padding:5px 8px" onClick="{{ onManage }}">Manage profiles</button>
+          <span style="margin-left:auto;display:inline-flex;align-items:stretch;border:1px solid var(--color-accent);border-radius:var(--radius-md);overflow:hidden;background:{{ launchBg }}">
+            <span class="mono" style="display:inline-flex;align-items:center;padding:5px 10px;font-size:12px;color:var(--color-accent);cursor:pointer" onClick="{{ onLaunch }}">Launch in {{ harnessName }}</span>
+            <span style="display:inline-flex;align-items:center;padding:5px 7px;color:var(--color-accent);border-left:1px solid color-mix(in srgb,var(--color-accent) 45%,transparent);cursor:pointer" onClick="{{ onToggleHarnessMenu }}"><svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2.5 4.5 6 8l3.5-3.5"></path></svg></span>
+          </span>
+        </sc-if>
+        <sc-if value="{{ isWeights }}" hint-placeholder-val="{{ false }}">
+          <button class="btn btn-primary" style="font-size:12px;padding:5px 11px" onClick="{{ onCopyId }}">Copy model id</button>
+          <button class="btn btn-secondary" style="font-size:12px;padding:5px 11px" onClick="{{ onSaveProfile }}">Save as profile</button>
+        </sc-if>
+        <sc-if value="{{ harnessMenuOpen }}" hint-placeholder-val="{{ false }}">
+          <span style="position:absolute;right:16px;bottom:44px;z-index:9;width:158px;padding:5px;border-radius:8px;background:var(--color-surface);box-shadow:var(--shadow-md);display:flex;flex-direction:column;gap:1px">
+            <sc-for list="{{ harnessItems }}" as="h" hint-placeholder-count="4">
+              <span class="mono" style="padding:7px 9px;border-radius:5px;font-size:11.5px;cursor:pointer;background:{{ h.bg }};color:{{ h.fg }}" onClick="{{ h.onPick }}">{{ h.name }}</span>
+            </sc-for>
+          </span>
+        </sc-if>
+      </div>
+
+      <sc-if value="{{ appMenuOpen }}" hint-placeholder-val="{{ false }}">
+        <span style="position:absolute;right:14px;top:36px;z-index:10;width:176px;padding:5px;border-radius:8px;background:var(--color-surface);box-shadow:var(--shadow-md);display:flex;flex-direction:column;gap:1px">
+          <span style="padding:7px 9px;border-radius:5px;font-size:12px;cursor:pointer;color:color-mix(in srgb,var(--color-text) 85%,transparent)" onClick="{{ onCustomWeights }}">Custom weights…</span>
+          <span style="padding:7px 9px;border-radius:5px;font-size:12px;cursor:pointer;color:color-mix(in srgb,var(--color-text) 85%,transparent)" onClick="{{ onOpenSettings }}">Settings…</span>
+          <span style="height:1px;margin:3px 6px;background:var(--color-divider)"></span>
+          <span style="padding:7px 9px;border-radius:5px;font-size:12px;cursor:pointer;color:color-mix(in srgb,var(--color-text) 55%,transparent)" onClick="{{ onQuit }}">Quit which-model</span>
+        </span>
+      </sc-if>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ settingsOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;width:820px;border-radius:12px;overflow:hidden;background:var(--color-bg);box-shadow:var(--shadow-lg);color:var(--color-text);left:{{ winLeft }};top:{{ winTop }}" onClick="{{ onWindowClick }}">
+    <div style="display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--color-divider);cursor:grab" onPointerDown="{{ onWinDrag }}">
+      <span style="width:10px;height:10px;border-radius:50%;background:#e05c55;cursor:pointer" onClick="{{ onCloseSettings }}"></span>
+      <span style="width:10px;height:10px;border-radius:50%;background:color-mix(in srgb,var(--color-text) 18%,transparent)"></span>
+      <span style="width:10px;height:10px;border-radius:50%;background:color-mix(in srgb,var(--color-text) 18%,transparent)"></span>
+      <span style="margin:0 auto;font-family:var(--font-heading);font-weight:500;font-size:12.5px;color:color-mix(in srgb,var(--color-text) 72%,transparent)">which-model — Settings</span>
+      <span style="width:46px"></span>
+    </div>
+    <div style="display:flex;height:520px">
+      <div style="width:184px;flex:none;background:color-mix(in srgb,var(--color-text) 3%,transparent);border-right:1px solid var(--color-divider);display:flex;flex-direction:column;padding:14px 10px;gap:14px">
+        <sc-for list="{{ navGroups }}" as="gp" hint-placeholder-count="3">
+          <span style="display:flex;flex-direction:column;gap:2px">
+            <span class="mono" style="font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 34%,transparent);padding:0 9px 6px 21px">{{ gp.label }}</span>
+            <sc-for list="{{ gp.items }}" as="n" hint-placeholder-count="3">
+              <span style="display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:6px;font-size:12.5px;cursor:pointer;background:{{ n.bg }};color:{{ n.fg }};box-shadow:{{ n.ring }}" onClick="{{ n.onPick }}">
+                <span style="flex:none;width:4px;height:4px;border-radius:50%;background:{{ n.dot }}"></span>{{ n.name }}
+              </span>
+            </sc-for>
+          </span>
+        </sc-for>
+        <span style="margin-top:auto"></span>
+        <span class="mono" style="font-size:9.5px;color:color-mix(in srgb,var(--color-text) 38%,transparent);padding:8px 9px">~/.config/which-model/config.toml</span>
+      </div>
+      <div class="scroll" style="flex:1;min-width:0;display:flex;flex-direction:column">
+        <div style="display:flex;flex-direction:column;padding:15px 22px 14px">
+          <sc-if value="{{ backShown }}" hint-placeholder-val="{{ false }}">
+            <span style="align-self:flex-start;display:inline-flex;align-items:center;gap:5px;margin:0 0 8px -6px;padding:3px 7px 3px 6px;border-radius:6px;cursor:pointer;font-size:11.5px;color:color-mix(in srgb,var(--color-text) 52%,transparent)" style-hover="background:color-mix(in srgb,var(--color-text) 7%,transparent);color:var(--color-text)" title="Back" onClick="{{ onPageBack }}"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7.2 2.2 3.4 6l3.8 3.8"></path></svg>{{ backLabel }}</span>
+          </sc-if>
+          <div style="display:flex;align-items:flex-end;gap:12px">
+            <span><span style="font-family:var(--font-heading);font-weight:500;font-size:19px;letter-spacing:-.015em">{{ pageTitle }}</span><span style="display:block;margin-top:5px;font-size:12px;color:color-mix(in srgb,var(--color-text) 55%,transparent);max-width:56ch;text-wrap:pretty">{{ pageBlurb }}</span></span>
+            <sc-if value="{{ pageActionShown }}" hint-placeholder-val="{{ true }}"><span style="margin-left:auto"><button class="btn btn-primary" style="font-size:12px;padding:5px 11px;white-space:nowrap" onClick="{{ onPageAction }}">{{ pageActionLabel }}</button></span></sc-if>
+          </div>
+        </div>
+
+        <sc-if value="{{ onProfileList }}" hint-placeholder-val="{{ true }}">
+          <span class="mono" style="display:block;padding:0 22px 6px;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--color-accent)">profiles</span>
+          <div style="display:flex;gap:12px;padding:0 22px 7px">
+            <span class="mono" style="flex:1;min-width:0;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 38%,transparent)">name</span>
+            <span class="mono" style="flex:none;width:120px;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 38%,transparent)">weights</span>
+            <span class="mono" style="flex:none;width:48px;text-align:right;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 38%,transparent)">picks</span>
+            <span class="mono" style="flex:none;width:64px;text-align:right;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 38%,transparent)">used</span>
+            <span style="flex:none;width:132px"></span>
+          </div>
+          <sc-for list="{{ profileRows }}" as="p" hint-placeholder-count="5">
+            <div class="row" style="display:flex;align-items:center;gap:12px;padding:11px 22px;border-top:1px solid color-mix(in srgb,var(--color-text) 8%,transparent);cursor:pointer" onClick="{{ p.onPick }}">
+              <span class="mono" style="flex:1;min-width:0;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:{{ p.fg }}">{{ p.slug }}</span>
+              <span style="flex:none;width:120px;display:flex;align-items:flex-end;gap:5px;height:24px">
+                <span style="display:flex;align-items:flex-end;gap:2px;height:24px">
+                  <sc-for list="{{ p.coreBars }}" as="b" hint-placeholder-count="3">
+                    <span style="position:relative;width:5px;height:24px;display:flex;align-items:flex-end" onMouseEnter="{{ b.onEnter }}" onMouseLeave="{{ b.onLeave }}">
+                      <span style="width:5px;border-radius:1.5px;background:{{ b.bg }};height:{{ b.h }}"></span>
+                      <sc-if value="{{ b.tipShown }}" hint-placeholder-val="{{ false }}">
+                        <span class="mono" style="position:absolute;left:50%;bottom:30px;transform:translateX(-50%);z-index:12;padding:4px 7px;border-radius:6px;background:var(--color-surface);box-shadow:var(--shadow-md);font-size:10px;white-space:nowrap;color:color-mix(in srgb,var(--color-text) 85%,transparent)">{{ b.tip }}</span>
+                      </sc-if>
+                    </span>
+                  </sc-for>
+                </span>
+                <span style="width:1px;height:16px;background:color-mix(in srgb,var(--color-text) 16%,transparent)"></span>
+                <span style="display:flex;align-items:flex-end;gap:2px;height:24px">
+                  <sc-for list="{{ p.taskBars }}" as="b" hint-placeholder-count="8">
+                    <span style="position:relative;width:5px;height:24px;display:flex;align-items:flex-end" onMouseEnter="{{ b.onEnter }}" onMouseLeave="{{ b.onLeave }}">
+                      <span style="width:5px;border-radius:1.5px;background:{{ b.bg }};height:{{ b.h }}"></span>
+                      <sc-if value="{{ b.tipShown }}" hint-placeholder-val="{{ false }}">
+                        <span class="mono" style="position:absolute;left:50%;bottom:30px;transform:translateX(-50%);z-index:12;padding:4px 7px;border-radius:6px;background:var(--color-surface);box-shadow:var(--shadow-md);font-size:10px;white-space:nowrap;color:color-mix(in srgb,var(--color-text) 85%,transparent)">{{ b.tip }}</span>
+                      </sc-if>
+                    </span>
+                  </sc-for>
+                </span>
+              </span>
+              <span class="mono" style="flex:none;width:48px;text-align:right;font-size:11px;color:color-mix(in srgb,var(--color-text) 62%,transparent)">{{ p.picks }}</span>
+              <span class="mono" style="flex:none;width:64px;text-align:right;font-size:11px;color:color-mix(in srgb,var(--color-text) 45%,transparent)">{{ p.used }}</span>
+              <span style="flex:none;width:132px;display:flex;justify-content:flex-end;gap:6px;align-items:center">
+                <button class="btn btn-ghost" style="font-size:11px;padding:2px 6px" onClick="{{ p.onDuplicate }}">Duplicate</button>
+                <span class="{{ p.delCls }}" style="width:22px;height:22px;flex:none" title="{{ p.delTitle }}" onClick="{{ p.onDelete }}"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M2.4 4h9.2M5.6 4V2.7h2.8V4M3.7 4l.45 7.3h5.7L10.3 4M5.9 6.2v3.2M8.1 6.2v3.2"></path></svg></span>
+                <span style="display:flex;color:color-mix(in srgb,var(--color-text) 38%,transparent)"><svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.4 2.2 8.2 6l-3.8 3.8"></path></svg></span>
+              </span>
+            </div>
+          </sc-for>
+          <div style="padding:14px 22px 20px;font-size:11px;color:color-mix(in srgb,var(--color-text) 42%,transparent);max-width:56ch;text-wrap:pretty">Picks count every launch made with the profile — from the popover and from the <span class="mono">wm</span> CLI alike.</div>
+        </sc-if>
+
+        <sc-if value="{{ onProfileDetail }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:8px;padding:0 22px 16px">
+            <sc-if value="{{ pfBuiltin }}" hint-placeholder-val="{{ true }}"><span class="mono tag tag-neutral" style="font-size:8.5px;padding:0 5px">built-in · read-only</span></sc-if>
+            <span class="mono" style="font-size:11px;color:color-mix(in srgb,var(--color-text) 45%,transparent)">{{ pfSummary }}</span>
+            <span style="margin-left:auto;display:flex;gap:6px">
+              <button class="btn btn-ghost" style="font-size:11px;padding:2px 7px" onClick="{{ onPfDuplicate }}">{{ pfDupLabel }}</button>
+              <span class="{{ pfDelCls }}" style="width:24px;height:24px;flex:none" title="{{ pfDelTitle }}" onClick="{{ onPfDelete }}"><svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M2.4 4h9.2M5.6 4V2.7h2.8V4M3.7 4l.45 7.3h5.7L10.3 4M5.9 6.2v3.2M8.1 6.2v3.2"></path></svg></span>
+            </span>
+          </div>
+          <div style="padding:0 22px 8px;display:flex;align-items:baseline;gap:8px">
+            <span style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-accent);font-weight:500">core benchmarks</span>
+            <span class="mono" style="font-size:10.5px;color:color-mix(in srgb,var(--color-text) 55%,transparent)">{{ pfCorePct }} of the score</span>
+          </div>
+          <div style="padding:0 22px;display:flex;flex-direction:column;gap:11px">
+            <sc-for list="{{ pfCoreRows }}" as="r" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;gap:12px">
+                <span class="mono" style="width:150px;font-size:11.5px;color:{{ r.fg }}">{{ r.key }}</span>
+                <span style="flex:1;max-width:300px;position:relative;cursor:{{ r.cursor }};padding:5px 0" onPointerDown="{{ r.onDown }}">
+                  <sc-if value="{{ r.isStep }}" hint-placeholder-val="{{ false }}">
+                    <span style="display:flex;gap:3px">
+                      <sc-for list="{{ r.steps }}" as="s" hint-placeholder-count="5"><span style="flex:1;height:6px;border-radius:2px;background:{{ s.bg }}"></span></sc-for>
+                    </span>
+                  </sc-if>
+                  <sc-if value="{{ r.isBar }}" hint-placeholder-val="{{ false }}">
+                    <span style="display:block;height:6px;border-radius:3px;background:color-mix(in srgb,var(--color-text) 12%,transparent);position:relative;overflow:hidden"><b style="position:absolute;left:0;top:0;bottom:0;border-radius:3px;display:block;background:var(--color-accent-500);width:{{ r.pct }}"></b></span>
+                  </sc-if>
+                  <sc-if value="{{ r.isSlider }}" hint-placeholder-val="{{ true }}">
+                    <span style="display:block;height:3px;border-radius:2px;background:color-mix(in srgb,var(--color-text) 12%,transparent);position:relative">
+                      <b style="position:absolute;left:0;top:0;bottom:0;border-radius:2px;display:block;background:var(--color-accent-500);width:{{ r.pct }}"></b>
+                      <i style="position:absolute;top:-4.5px;width:12px;height:12px;border-radius:50%;background:var(--color-bg);box-shadow:0 0 0 1.5px var(--color-accent);display:block;left:{{ r.knob }}"></i>
+                    </span>
+                  </sc-if>
+                </span>
+                <span class="mono" style="width:56px;font-size:11px;color:{{ r.valFg }}">{{ r.valText }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="padding:20px 22px 8px;display:flex;align-items:baseline;gap:8px">
+            <span style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-accent);font-weight:500">task benchmarks</span>
+            <span class="mono" style="font-size:10.5px;color:color-mix(in srgb,var(--color-text) 55%,transparent)">{{ pfTaskPct }} of the score</span>
+          </div>
+          <div style="padding:0 22px;display:flex;flex-direction:column;gap:11px">
+            <sc-for list="{{ pfTaskRows }}" as="r" hint-placeholder-count="8">
+              <div style="display:flex;align-items:center;gap:12px">
+                <span class="mono" style="width:150px;font-size:11.5px;color:{{ r.fg }}">{{ r.key }}</span>
+                <span style="flex:1;max-width:300px;position:relative;cursor:{{ r.cursor }};padding:5px 0" onPointerDown="{{ r.onDown }}">
+                  <sc-if value="{{ r.isStep }}" hint-placeholder-val="{{ false }}">
+                    <span style="display:flex;gap:3px">
+                      <sc-for list="{{ r.steps }}" as="s" hint-placeholder-count="5"><span style="flex:1;height:6px;border-radius:2px;background:{{ s.bg }}"></span></sc-for>
+                    </span>
+                  </sc-if>
+                  <sc-if value="{{ r.isBar }}" hint-placeholder-val="{{ false }}">
+                    <span style="display:block;height:6px;border-radius:3px;background:color-mix(in srgb,var(--color-text) 12%,transparent);position:relative;overflow:hidden"><b style="position:absolute;left:0;top:0;bottom:0;border-radius:3px;display:block;background:var(--color-accent-500);width:{{ r.pct }}"></b></span>
+                  </sc-if>
+                  <sc-if value="{{ r.isSlider }}" hint-placeholder-val="{{ true }}">
+                    <span style="display:block;height:3px;border-radius:2px;background:color-mix(in srgb,var(--color-text) 12%,transparent);position:relative">
+                      <b style="position:absolute;left:0;top:0;bottom:0;border-radius:2px;display:block;background:var(--color-accent-500);width:{{ r.pct }}"></b>
+                      <i style="position:absolute;top:-4.5px;width:12px;height:12px;border-radius:50%;background:var(--color-bg);box-shadow:0 0 0 1.5px var(--color-accent);display:block;left:{{ r.knob }}"></i>
+                    </span>
+                  </sc-if>
+                </span>
+                <span class="mono" style="width:56px;font-size:11px;color:{{ r.valFg }}">{{ r.valText }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="padding:20px 22px 22px;display:flex;flex-direction:column;gap:8px;max-width:434px">
+            <div class="mono" style="display:flex;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 55%,transparent)"><span>core</span><span style="flex:1;text-align:center;color:var(--color-accent-300)">{{ pfRatio }}</span><span>task</span></div>
+            <span style="display:flex;align-items:center;gap:3px;height:14px;cursor:{{ pfCursor }}" onPointerDown="{{ onPfBalance }}">
+              <span style="height:5px;border-radius:3px;background:var(--color-accent-500);flex:{{ pfCoreFlex }}"></span>
+              <span style="width:14px;height:14px;border-radius:50%;background:var(--color-bg);box-shadow:0 0 0 1.5px var(--color-accent);flex:none"></span>
+              <span style="height:5px;border-radius:3px;background:var(--color-accent-800);flex:{{ pfTaskFlex }}"></span>
+            </span>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ onBenchPage }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:8px;padding:0 22px 18px;flex-wrap:wrap">
+            <span style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 42%,transparent)">in groups</span>
+            <sc-for list="{{ benchGroups }}" as="g" hint-placeholder-count="2">
+              <span class="mono tag tag-accent" style="font-size:9.5px;padding:1px 7px;cursor:pointer" onClick="{{ g.onOpen }}">{{ g.slug }}</span>
+            </sc-for>
+            <sc-if value="{{ benchNoGroups }}" hint-placeholder-val="{{ false }}">
+              <span class="mono" style="font-size:11px;color:color-mix(in srgb,var(--color-text) 42%,transparent)">not in any group — it does not affect any profile</span>
+            </sc-if>
+          </div>
+          <div style="display:flex;align-items:baseline;gap:10px;padding:0 22px 9px">
+            <span style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-accent);font-weight:500">tested models</span>
+            <span class="mono" style="font-size:10.5px;color:color-mix(in srgb,var(--color-text) 55%,transparent)">{{ benchCovText }}</span>
+          </div>
+          <div style="display:flex;gap:12px;padding:0 32px 6px">
+            <sc-for list="{{ benchSortCols }}" as="c" hint-placeholder-count="2">
+              <span class="mono" style="flex:{{ c.flex }};width:{{ c.width }};text-align:{{ c.align }};white-space:nowrap;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:{{ c.fg }}" onClick="{{ c.onSort }}">{{ c.label }}</span>
+            </sc-for>
+          </div>
+          <div class="scroll" style="margin:0 22px 22px;max-height:300px;display:flex;flex-direction:column;gap:2px">
+            <sc-for list="{{ benchRows }}" as="r" hint-placeholder-count="10">
+              <span style="display:flex;align-items:center;gap:12px;padding:7px 10px;border-radius:7px;background:{{ r.bg }}">
+                <span style="flex:1;min-width:0;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:{{ r.fg }}">{{ r.label }}</span>
+                <span class="mono" style="flex:none;width:124px;text-align:center;font-size:11.5px;color:color-mix(in srgb,var(--color-text) 72%,transparent)">{{ r.value }}</span>
+                <span class="mono" style="flex:none;width:32px;text-align:right;font-size:11.5px;color:{{ r.valFg }}">{{ r.score }}</span>
+                <span style="flex:none;width:144px;height:4px;border-radius:2px;background:color-mix(in srgb,var(--color-text) 10%,transparent);position:relative;overflow:hidden"><b style="position:absolute;left:0;top:0;bottom:0;border-radius:2px;display:block;background:var(--color-accent-500);width:{{ r.pct }}"></b></span>
+              </span>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ onGroupList }}" hint-placeholder-val="{{ false }}">
+          <span class="mono" style="display:block;padding:0 22px 6px;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--color-accent)">benchmark groups</span>
+          <div style="display:flex;gap:12px;padding:0 22px 7px">
+            <span class="mono" style="flex:1;min-width:0;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 38%,transparent)">group</span>
+            <span class="mono" style="flex:none;width:112px;text-align:right;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 38%,transparent)">benchmark count</span>
+            <span class="mono" style="flex:none;width:74px;text-align:right;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 38%,transparent)">profiles</span>
+            <span style="flex:none;width:132px"></span>
+          </div>
+          <sc-for list="{{ groupRows }}" as="g" hint-placeholder-count="6">
+            <div class="row" style="display:flex;align-items:center;gap:12px;padding:11px 22px;border-top:1px solid color-mix(in srgb,var(--color-text) 8%,transparent);cursor:pointer" onClick="{{ g.onOpen }}">
+              <span style="flex:1;min-width:0;display:flex;align-items:baseline;gap:7px">
+                <span class="mono" style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:color-mix(in srgb,var(--color-text) 88%,transparent)">{{ g.slug }}</span>
+                <sc-if value="{{ g.custom }}" hint-placeholder-val="{{ false }}"><span class="mono tag tag-neutral" style="font-size:8.5px;padding:0 5px">custom</span></sc-if>
+              </span>
+              <span class="mono" style="flex:none;width:112px;text-align:right;font-size:11px;color:color-mix(in srgb,var(--color-text) 62%,transparent)">{{ g.count }}</span>
+              <span class="mono" style="flex:none;width:74px;text-align:right;font-size:11px;color:color-mix(in srgb,var(--color-text) 45%,transparent)">{{ g.inProfiles }}</span>
+              <span style="flex:none;width:132px;display:flex;justify-content:flex-end;gap:6px;align-items:center">
+                <button class="btn btn-ghost" style="font-size:11px;padding:2px 6px" onClick="{{ g.onDuplicate }}">Duplicate</button>
+                <span class="{{ g.delCls }}" style="width:22px;height:22px;flex:none" title="{{ g.delTitle }}" onClick="{{ g.onDelete }}"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M2.4 4h9.2M5.6 4V2.7h2.8V4M3.7 4l.45 7.3h5.7L10.3 4M5.9 6.2v3.2M8.1 6.2v3.2"></path></svg></span>
+                <span style="display:flex;color:color-mix(in srgb,var(--color-text) 38%,transparent)"><svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.4 2.2 8.2 6l-3.8 3.8"></path></svg></span>
+              </span>
+            </div>
+          </sc-for>
+          <div style="padding:14px 22px 20px;font-size:11px;line-height:1.65;color:color-mix(in srgb,var(--color-text) 42%,transparent);max-width:56ch;text-wrap:pretty">Every group here is weightable in a profile. A model’s score for a group is the mean of its results on that group’s benchmarks, so changing the list changes the ranking.</div>
+        </sc-if>
+
+        <sc-if value="{{ onGroupDetail }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:8px;padding:0 22px 16px">
+            <sc-if value="{{ grBuiltin }}" hint-placeholder-val="{{ true }}"><span class="mono tag tag-neutral" style="font-size:8.5px;padding:0 5px">built-in · read-only</span></sc-if>
+            <span class="mono" style="font-size:11px;color:color-mix(in srgb,var(--color-text) 45%,transparent)">{{ grSummary }}</span>
+            <span style="margin-left:auto;display:flex;gap:6px">
+              <button class="btn btn-ghost" style="font-size:11px;padding:2px 7px" onClick="{{ onGrDuplicate }}">{{ grDupLabel }}</button>
+              <span class="{{ grDelCls }}" style="width:24px;height:24px;flex:none" title="{{ grDelTitle }}" onClick="{{ onGrDelete }}"><svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M2.4 4h9.2M5.6 4V2.7h2.8V4M3.7 4l.45 7.3h5.7L10.3 4M5.9 6.2v3.2M8.1 6.2v3.2"></path></svg></span>
+            </span>
+          </div>
+          <sc-if value="{{ grEditable }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:12px;padding:0 22px 18px">
+              <span style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 42%,transparent);width:44px">name</span>
+              <span class="input" style="width:264px;padding:6px 10px;display:flex;align-items:center"><input class="wminput" value="{{ grName }}" onChange="{{ onGrRename }}"></input></span>
+            </div>
+          </sc-if>
+          <div style="display:flex;align-items:center;gap:12px;padding:0 22px 9px">
+            <span style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-accent);font-weight:500">benchmarks</span>
+            <span class="input" style="width:200px;padding:5px 10px;display:flex;align-items:center"><input class="wminput" placeholder="filter the catalogue" value="{{ grQuery }}" onChange="{{ onGrQuery }}"></input></span>
+            <span class="mono" style="margin-left:auto;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 38%,transparent)">models covered</span>
+          </div>
+          <div class="scroll" style="margin:0 22px 20px;max-height:268px;display:flex;flex-direction:column;gap:2px">
+            <sc-for list="{{ grRows }}" as="b" hint-placeholder-count="12">
+              <span style="display:flex;align-items:center;gap:11px;padding:6px 10px;border-radius:7px;background:{{ b.bg }}">
+                <span class="sw {{ b.cls }}" style="cursor:{{ b.cursor }}" onClick="{{ b.onToggle }}"><i></i></span>
+                <span class="mono" style="flex:1;min-width:0;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;color:{{ b.fg }}" onClick="{{ b.onOpen }}">{{ b.name }}</span>
+                <span style="flex:none;width:56px;height:4px;border-radius:2px;background:color-mix(in srgb,var(--color-text) 10%,transparent);position:relative;overflow:hidden"><b style="position:absolute;left:0;top:0;bottom:0;border-radius:2px;display:block;background:var(--color-accent-600);width:{{ b.covPct }}"></b></span>
+                <span class="mono" style="flex:none;width:52px;text-align:right;font-size:10.5px;color:{{ b.covFg }}">{{ b.cov }}</span>
+              </span>
+            </sc-for>
+          </div>
+          <sc-if value="{{ grReadonly }}" hint-placeholder-val="{{ true }}">
+            <div style="padding:0 22px 22px;font-size:11px;line-height:1.65;color:color-mix(in srgb,var(--color-text) 42%,transparent);max-width:56ch;text-wrap:pretty">A model’s score for this group is the mean of its results on the benchmarks switched on here — counted over every model and reasoning level that reports the benchmark. Duplicate the group to change what it measures.</div>
+          </sc-if>
+        </sc-if>
+
+        <sc-if value="{{ onHarnessList }}" hint-placeholder-val="{{ false }}">
+          <span class="mono" style="display:block;padding:0 22px 6px;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--color-accent)">harnesses</span>
+          <div style="display:flex;gap:12px;padding:0 22px 7px">
+            <span class="mono" style="flex:none;width:120px;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 38%,transparent)">harness</span>
+            <span class="mono" style="flex:none;width:84px;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 38%,transparent)">providers</span>
+            <span class="mono" style="flex:1;min-width:0;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 38%,transparent)">launch command</span>
+            <span style="flex:none;width:44px"></span>
+          </div>
+          <sc-for list="{{ harnessRows }}" as="h" hint-placeholder-count="4">
+            <div class="row" style="display:flex;align-items:center;gap:12px;padding:11px 22px;border-top:1px solid color-mix(in srgb,var(--color-text) 8%,transparent);cursor:pointer" onClick="{{ h.onOpen }}">
+              <span style="flex:none;width:120px;display:flex;align-items:baseline;gap:7px;min-width:0">
+                <span class="mono" style="font-size:12.5px;color:color-mix(in srgb,var(--color-text) 88%,transparent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ h.name }}</span>
+                <sc-if value="{{ h.custom }}" hint-placeholder-val="{{ false }}"><span class="mono tag tag-neutral" style="flex:none;font-size:8.5px;padding:0 5px">custom</span></sc-if>
+              </span>
+              <span style="flex:none;width:84px;display:flex;align-items:center;gap:8px">
+                <span style="display:flex;gap:3px">
+                  <sc-for list="{{ h.pips }}" as="d" hint-placeholder-count="4">
+                    <span style="width:6px;height:6px;border-radius:50%;background:{{ d.bg }}"></span>
+                  </sc-for>
+                </span>
+                <span class="mono" style="font-size:10.5px;color:{{ h.provFg }}">{{ h.provCount }}</span>
+              </span>
+              <span class="mono" style="flex:1;min-width:0;font-size:10px;color:color-mix(in srgb,var(--color-text) 45%,transparent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ h.cmd }}</span>
+              <span style="flex:none;width:44px;display:flex;justify-content:flex-end;align-items:center;gap:6px">
+                <span class="ib" style="width:22px;height:22px;flex:none" title="{{ h.delTitle }}" onClick="{{ h.onRemove }}"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M2.4 4h9.2M5.6 4V2.7h2.8V4M3.7 4l.45 7.3h5.7L10.3 4M5.9 6.2v3.2M8.1 6.2v3.2"></path></svg></span>
+                <span style="display:flex;color:color-mix(in srgb,var(--color-text) 38%,transparent)"><svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.4 2.2 8.2 6l-3.8 3.8"></path></svg></span>
+              </span>
+            </div>
+          </sc-for>
+          <div style="padding:14px 22px 20px;font-size:11px;color:color-mix(in srgb,var(--color-text) 42%,transparent);max-width:56ch;text-wrap:pretty">{{ detectLine }}</div>
+        </sc-if>
+
+        <sc-if value="{{ onHarnessDetail }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:0 22px 18px">
+            <div style="display:flex;align-items:baseline;gap:8px;padding-bottom:6px">
+              <span style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-accent);font-weight:500">launch command</span>
+              <span class="mono" style="font-size:10.5px;color:color-mix(in srgb,var(--color-text) 45%,transparent)">{{ harnessTokenNote }}</span>
+            </div>
+            <div class="mono input" style="min-height:30px;padding:7px 10px;font-size:11.5px;color:color-mix(in srgb,var(--color-text) 72%,transparent);white-space:pre-wrap;word-break:break-word">{{ harnessCmd }}</div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;padding:0 22px 24px">
+            <div style="display:flex;flex-direction:column">
+              <div style="display:flex;align-items:center;gap:8px;padding-bottom:9px">
+                <span style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-accent);font-weight:500">providers</span>
+                <span class="mono" style="font-size:10.5px;color:color-mix(in srgb,var(--color-text) 45%,transparent)">{{ harnessSummary }}</span>
+                <span style="margin-left:auto;display:flex;gap:4px">
+                  <button class="btn btn-ghost" style="font-size:11px;padding:2px 7px" onClick="{{ onHarnessAllOn }}">Enable all</button>
+                  <button class="btn btn-ghost" style="font-size:11px;padding:2px 7px;color:color-mix(in srgb,var(--color-text) 55%,transparent)" onClick="{{ onHarnessAllOff }}">Disable all</button>
+                </span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <sc-for list="{{ hpRows }}" as="r" hint-placeholder-count="4">
+                  <div style="display:flex;align-items:center;gap:14px;padding:12px 13px;border-radius:8px;background:{{ r.bg }};box-shadow:{{ r.ring }}">
+                    <span class="sw {{ r.cls }}" style="flex:none" onClick="{{ r.onToggle }}"><i></i></span>
+                    <span style="flex:none;width:112px;min-width:0;display:flex;flex-direction:column;gap:4px">
+                      <span style="display:flex;align-items:baseline;gap:6px">
+                        <span class="mono" style="font-size:12.5px;color:{{ r.fg }}">{{ r.id }}</span>
+                        <sc-if value="{{ r.detected }}" hint-placeholder-val="{{ false }}"><span class="mono tag tag-neutral" style="flex:none;font-size:8px;padding:0 4px">detected</span></sc-if>
+                      </span>
+                      <span class="mono" style="font-size:10px;color:{{ r.authFg }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.authText }}</span>
+                    </span>
+                    <span style="flex:1;min-width:0;display:flex;gap:12px">
+                      <sc-for list="{{ r.meters }}" as="mt" hint-placeholder-count="3">
+                        <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:5px">
+                          <span class="mono" style="display:flex;font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 38%,transparent)">{{ mt.label }}<span style="margin-left:auto;letter-spacing:0;text-transform:none;color:{{ mt.fg }}">{{ mt.text }}</span></span>
+                          <span style="display:block;height:4px;border-radius:2px;background:color-mix(in srgb,var(--color-text) 10%,transparent);position:relative;overflow:hidden"><b style="position:absolute;left:0;top:0;bottom:0;border-radius:2px;display:block;background:{{ mt.fill }};width:{{ mt.pct }}"></b></span>
+                        </span>
+                      </sc-for>
+                    </span>
+                    <span style="flex:none;width:138px;display:flex;flex-direction:column;gap:4px;text-align:right">
+                      <span class="mono" style="font-size:10.5px;color:{{ r.creditsFg }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.credits }}</span>
+                      <span class="mono" style="font-size:10px;color:color-mix(in srgb,var(--color-text) 38%,transparent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.resets }}</span>
+                    </span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="padding-top:14px;font-size:11px;line-height:1.65;color:color-mix(in srgb,var(--color-text) 42%,transparent);max-width:56ch;text-wrap:pretty">A provider switched off here is never used when launching in this harness.</div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ onFavourites }}" hint-placeholder-val="{{ false }}">
+          <span class="mono" style="display:block;padding:0 22px 6px;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--color-accent)">pinned models</span>
+          <div style="display:flex;gap:12px;padding:0 22px 7px">
+            <span class="mono" style="width:200px;flex:none;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 38%,transparent)">model</span>
+            <span class="mono" style="flex:1;min-width:0;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 38%,transparent)">route</span>
+          </div>
+          <sc-for list="{{ favRows }}" as="f" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;gap:12px;padding:11px 22px;border-top:1px solid color-mix(in srgb,var(--color-text) 8%,transparent)">
+              <span style="width:200px;flex:none;font-size:12.5px">{{ f.name }}</span>
+              <span class="mono" style="flex:1;min-width:0;font-size:11px;color:color-mix(in srgb,var(--color-text) 55%,transparent)">{{ f.route }}</span>
+              <span class="mono tag tag-accent" style="font-size:9.5px;padding:1px 6px">pinned</span>
+              <span style="margin-left:auto"><button class="btn btn-ghost" style="font-size:11px;padding:2px 6px;color:color-mix(in srgb,var(--color-text) 55%,transparent)" onClick="{{ f.onUnpin }}">Unpin</button></span>
+            </div>
+          </sc-for>
+          <div style="padding:16px 22px;font-size:11px;color:color-mix(in srgb,var(--color-text) 42%,transparent);line-height:1.65;max-width:56ch;text-wrap:pretty">A favourite is only offered when the profile's weights still rank it in range — pinning never forces a model that does not fit the task.</div>
+        </sc-if>
+
+        <sc-if value="{{ onGeneral }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:0 22px 12px;display:flex;flex-direction:column">
+            <span class="mono" style="font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--color-accent);padding:0 0 5px">system</span>
+
+            <div style="display:flex;align-items:center;gap:16px;padding:9px 0;border-top:1px solid color-mix(in srgb,var(--color-text) 8%,transparent)">
+              <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:12.5px;color:color-mix(in srgb,var(--color-text) 82%,transparent)">Open the popover</span>
+                <span style="font-size:11px;color:color-mix(in srgb,var(--color-text) 42%,transparent)">Global shortcut, works from any app.</span>
+              </span>
+              <span class="seg mono" style="font-size:11.5px">
+                <sc-for list="{{ shortcutOpts }}" as="o" hint-placeholder-count="3">
+                  <span class="seg-opt" style="padding:4px 10px;cursor:pointer;color:{{ o.fg }};box-shadow:{{ o.ring }}" onClick="{{ o.onPick }}">{{ o.label }}</span>
+                </sc-for>
+              </span>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;column-gap:28px">
+            <sc-for list="{{ generalToggles }}" as="g" hint-placeholder-count="5">
+              <div style="display:flex;align-items:center;gap:16px;padding:9px 0;border-top:1px solid color-mix(in srgb,var(--color-text) 8%,transparent)">
+                <span style="flex:1;min-width:0;font-size:12.5px;color:{{ g.fg }}">{{ g.name }}</span>
+                <span class="sw {{ g.cls }}" onClick="{{ g.onToggle }}"><i></i></span>
+              </div>
+            </sc-for>
+
+              <div style="display:flex;align-items:center;gap:16px;padding:6px 0;border-top:1px solid color-mix(in srgb,var(--color-text) 8%,transparent);opacity:{{ freqOpacity }}">
+                <span style="flex:1;min-width:0;font-size:12.5px;color:color-mix(in srgb,var(--color-text) 82%,transparent)">Check for updates</span>
+                <select class="wmsel" value="{{ updateFreq }}" onChange="{{ onUpdateFreq }}">
+                  <option value="hourly">Hourly</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </div>
+            </div>
+
+            <span class="mono" style="font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--color-accent);padding:14px 0 5px">results display</span>
+
+            <div style="display:flex;align-items:center;gap:16px;padding:7px 0;border-top:1px solid color-mix(in srgb,var(--color-text) 8%,transparent)">
+              <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:12.5px;color:color-mix(in srgb,var(--color-text) 82%,transparent)">Ranking layout</span>
+                <span style="font-size:11px;color:color-mix(in srgb,var(--color-text) 42%,transparent)">How the popover presents the held ranks.</span>              </span>
+              <span style="display:flex;gap:12px">
+                <span style="display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer" onClick="{{ dispCarousel.onPick }}">
+                  <span style="width:82px;height:40px;border-radius:6px;background:color-mix(in srgb,var(--color-text) 5%,transparent);box-shadow:{{ dispCarousel.ring }};display:flex;align-items:center;justify-content:center;gap:5px;opacity:{{ dispCarousel.op }}">
+                    <span style="width:4px;height:7px;border-radius:1px;background:color-mix(in srgb,var(--color-text) 26%,transparent)"></span>
+                    <span style="width:44px;display:flex;flex-direction:column;gap:3px">
+                      <span style="height:6px;border-radius:2px;background:var(--color-accent)"></span>
+                      <span style="height:3px;width:70%;border-radius:2px;background:color-mix(in srgb,var(--color-text) 24%,transparent)"></span>
+                    </span>
+                    <span style="width:4px;height:7px;border-radius:1px;background:color-mix(in srgb,var(--color-text) 26%,transparent)"></span>
+                  </span>
+                  <span class="mono" style="font-size:10px;color:{{ dispCarousel.fg }}">carousel</span>
+                </span>
+                <span style="display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer" onClick="{{ dispList.onPick }}">
+                  <span style="width:82px;height:40px;border-radius:6px;background:color-mix(in srgb,var(--color-text) 5%,transparent);box-shadow:{{ dispList.ring }};display:flex;flex-direction:column;justify-content:center;gap:4px;padding:0 12px;opacity:{{ dispList.op }}">
+                    <span style="height:5px;border-radius:2px;background:var(--color-accent)"></span>
+                    <span style="height:5px;width:80%;border-radius:2px;background:color-mix(in srgb,var(--color-text) 24%,transparent)"></span>
+                    <span style="height:5px;width:62%;border-radius:2px;background:color-mix(in srgb,var(--color-text) 18%,transparent)"></span>
+                  </span>
+                  <span class="mono" style="font-size:10px;color:{{ dispList.fg }}">list</span>
+                </span>
+              </span>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:16px;padding:7px 0;border-top:1px solid color-mix(in srgb,var(--color-text) 8%,transparent)">
+              <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:12.5px;color:color-mix(in srgb,var(--color-text) 82%,transparent)">Weight control</span>
+                <span style="font-size:11px;color:color-mix(in srgb,var(--color-text) 42%,transparent)">Used for every profile weight and the scale.</span>
+              </span>
+              <span style="display:flex;gap:12px">
+                <span style="display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer" onClick="{{ slStep.onPick }}">
+                  <span style="width:66px;height:26px;border-radius:6px;background:color-mix(in srgb,var(--color-text) 5%,transparent);box-shadow:{{ slStep.ring }};display:flex;align-items:center;justify-content:center;gap:3px;opacity:{{ slStep.op }}">
+                    <span style="width:9px;height:8px;border-radius:2px;background:var(--color-accent)"></span>
+                    <span style="width:9px;height:8px;border-radius:2px;background:var(--color-accent)"></span>
+                    <span style="width:9px;height:8px;border-radius:2px;background:color-mix(in srgb,var(--color-text) 20%,transparent)"></span>
+                    <span style="width:9px;height:8px;border-radius:2px;background:color-mix(in srgb,var(--color-text) 20%,transparent)"></span>
+                  </span>
+                  <span class="mono" style="font-size:10px;color:{{ slStep.fg }}">step</span>
+                </span>
+                <span style="display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer" onClick="{{ slBar.onPick }}">
+                  <span style="width:66px;height:26px;border-radius:6px;background:color-mix(in srgb,var(--color-text) 5%,transparent);box-shadow:{{ slBar.ring }};display:flex;align-items:center;padding:0 9px;opacity:{{ slBar.op }}">
+                    <span style="flex:1;height:7px;border-radius:4px;background:color-mix(in srgb,var(--color-text) 18%,transparent);overflow:hidden"><span style="display:block;width:62%;height:100%;background:var(--color-accent)"></span></span>
+                  </span>
+                  <span class="mono" style="font-size:10px;color:{{ slBar.fg }}">bar</span>
+                </span>
+                <span style="display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer" onClick="{{ slSlider.onPick }}">
+                  <span style="width:66px;height:26px;border-radius:6px;background:color-mix(in srgb,var(--color-text) 5%,transparent);box-shadow:{{ slSlider.ring }};display:flex;align-items:center;padding:0 9px;position:relative;opacity:{{ slSlider.op }}">
+                    <span style="flex:1;height:2px;border-radius:2px;background:color-mix(in srgb,var(--color-text) 22%,transparent)"></span>
+                    <span style="position:absolute;left:58%;width:9px;height:9px;border-radius:50%;background:var(--color-accent)"></span>
+                  </span>
+                  <span class="mono" style="font-size:10px;color:{{ slSlider.fg }}">slider</span>
+                </span>
+              </span>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:16px;padding:7px 0;border-top:1px solid color-mix(in srgb,var(--color-text) 8%,transparent)">
+              <span style="flex:1;min-width:0;font-size:12.5px;color:color-mix(in srgb,var(--color-text) 82%,transparent)">Ranks held per pick</span>
+              <span class="seg mono" style="font-size:11.5px">
+                <sc-for list="{{ holdOpts }}" as="o" hint-placeholder-count="3">
+                  <span class="seg-opt" style="padding:4px 10px;cursor:pointer;color:{{ o.fg }};box-shadow:{{ o.ring }}" onClick="{{ o.onPick }}">{{ o.label }}</span>
+                </sc-for>
+              </span>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ onUsage }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:0 22px 14px;display:flex;flex-direction:column">
+            <span class="mono" style="font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--color-accent);padding:0 0 5px">detection</span>
+            <div style="display:flex;align-items:center;gap:16px;padding:9px 0;border-top:1px solid color-mix(in srgb,var(--color-text) 8%,transparent)">
+              <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:12.5px;color:color-mix(in srgb,var(--color-text) 82%,transparent)">Read usage from</span>
+                <span style="font-size:11px;color:color-mix(in srgb,var(--color-text) 42%,transparent)">Where remaining quota is measured before a pick.</span>
+              </span>
+              <span class="seg mono" style="font-size:11.5px">
+                <sc-for list="{{ usageOpts }}" as="o" hint-placeholder-count="3">
+                  <span class="seg-opt" style="padding:4px 10px;cursor:pointer;color:{{ o.fg }};box-shadow:{{ o.ring }}" onClick="{{ o.onPick }}">{{ o.label }}</span>
+                </sc-for>
+              </span>
+            </div>
+            <div style="display:flex;align-items:center;gap:16px;padding:9px 0;border-top:1px solid color-mix(in srgb,var(--color-text) 8%,transparent)">
+              <span style="flex:1;min-width:0;font-size:12.5px;color:color-mix(in srgb,var(--color-text) 82%,transparent)">Backend</span>
+              <span class="seg mono" style="font-size:11.5px">
+                <sc-for list="{{ backendOpts }}" as="o" hint-placeholder-count="3">
+                  <span class="seg-opt" style="padding:4px 10px;cursor:pointer;color:{{ o.fg }};box-shadow:{{ o.ring }}" onClick="{{ o.onPick }}">{{ o.label }}</span>
+                </sc-for>
+              </span>
+            </div>
+
+            <span class="mono" style="font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--color-accent);padding:16px 0 5px">live limits</span>
+            <sc-for list="{{ usageRows }}" as="u" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;gap:16px;padding:10px 0;border-top:1px solid color-mix(in srgb,var(--color-text) 8%,transparent)">
+                <span class="mono" style="width:82px;flex:none;font-size:12px;color:color-mix(in srgb,var(--color-text) 82%,transparent)">{{ u.id }}</span>
+                <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+                  <span class="mono" style="font-size:10.5px;color:color-mix(in srgb,var(--color-text) 55%,transparent)">{{ u.text }}</span>
+                  <span style="height:4px;border-radius:3px;background:color-mix(in srgb,var(--color-text) 10%,transparent);position:relative;overflow:hidden"><b style="position:absolute;left:0;top:0;bottom:0;border-radius:3px;display:block;background:var(--color-accent-500);width:{{ u.pct }}"></b></span>
+                </span>
+                <span class="mono" style="width:80px;flex:none;text-align:right;font-size:10.5px;color:color-mix(in srgb,var(--color-text) 42%,transparent)">{{ u.auth }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ onProviderList }}" hint-placeholder-val="{{ false }}">
+          <span class="mono" style="display:block;padding:0 22px 6px;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--color-accent)">providers · drag to set fallback order</span>
+          <div style="display:flex;gap:12px;padding:0 22px 7px">
+            <span style="flex:none;width:16px"></span>
+            <span class="mono" style="flex:none;width:14px;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 38%,transparent)">#</span>
+            <span class="mono" style="flex:none;width:132px;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 38%,transparent)">provider</span>
+            <span class="mono" style="flex:1;min-width:0;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 38%,transparent)">limits</span>
+            <span class="mono" style="flex:none;width:112px;text-align:right;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 38%,transparent)">models</span>
+            <span style="flex:none;width:10px"></span>
+          </div>
+          <sc-for list="{{ providerRows }}" as="p" hint-placeholder-count="4">
+            <div class="row" draggable="true" style="display:flex;align-items:center;gap:12px;padding:11px 22px;border-top:1px solid color-mix(in srgb,var(--color-text) 8%,transparent);cursor:pointer;background:{{ p.bg }}" onClick="{{ p.onOpen }}" onDragStart="{{ p.onDragStart }}" onDragOver="{{ p.onDragOver }}" onDrop="{{ p.onDrop }}" onDragEnd="{{ p.onDragEnd }}">
+              <span class="ib" style="width:16px;height:16px;flex:none;color:color-mix(in srgb,var(--color-text) 35%,transparent);cursor:grab"><svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor" stroke="none"><circle cx="4" cy="2.5" r="1"></circle><circle cx="8" cy="2.5" r="1"></circle><circle cx="4" cy="6" r="1"></circle><circle cx="8" cy="6" r="1"></circle><circle cx="4" cy="9.5" r="1"></circle><circle cx="8" cy="9.5" r="1"></circle></svg></span>
+              <span class="mono" style="width:14px;font-size:11px;color:color-mix(in srgb,var(--color-text) 40%,transparent)">{{ p.order }}</span>
+              <span style="width:132px;display:flex;align-items:center;gap:10px"><span class="sw {{ p.cls }}" onClick="{{ p.onToggle }}"><i></i></span><span class="mono" style="font-size:12.5px;color:{{ p.fg }}">{{ p.id }}</span></span>
+              <span class="mono" style="flex:1;font-size:11.5px;color:color-mix(in srgb,var(--color-text) 62%,transparent)">{{ p.limits }}</span>
+              <span class="mono" style="width:112px;font-size:10.5px;color:color-mix(in srgb,var(--color-text) 45%,transparent);text-align:right">{{ p.modelsText }}</span>
+              <span style="display:flex;color:color-mix(in srgb,var(--color-text) 38%,transparent)"><svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.4 2.2 8.2 6l-3.8 3.8"></path></svg></span>
+            </div>
+          </sc-for>
+        </sc-if>
+
+        <sc-if value="{{ onProviderDetail }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:8px;padding:0 22px 14px">
+            <span class="mono" style="font-size:11px;color:color-mix(in srgb,var(--color-text) 45%,transparent)">{{ provSummary }}</span>
+            <span style="margin-left:auto;display:flex;gap:6px">
+              <button class="btn btn-ghost" style="font-size:11px;padding:2px 7px" onClick="{{ onProvAllOn }}">Enable all</button>
+              <button class="btn btn-ghost" style="font-size:11px;padding:2px 7px;color:color-mix(in srgb,var(--color-text) 55%,transparent)" onClick="{{ onProvAllOff }}">Disable all</button>
+            </span>
+          </div>
+          <sc-for list="{{ provModels }}" as="m" hint-placeholder-count="3">
+            <div style="display:flex;align-items:flex-start;gap:16px;padding:13px 22px;border-top:1px solid color-mix(in srgb,var(--color-text) 8%,transparent)">
+              <span style="flex:none;width:168px">
+                <span style="font-size:12.5px;color:color-mix(in srgb,var(--color-text) 88%,transparent)">{{ m.name }}</span>
+                <span class="mono" style="display:block;margin-top:4px;font-size:10.5px;color:color-mix(in srgb,var(--color-text) 45%,transparent)">{{ m.id }}</span>
+                <button class="btn btn-ghost" style="margin-top:7px;font-size:11px;padding:2px 7px;color:color-mix(in srgb,var(--color-text) 62%,transparent)" onClick="{{ m.onAll }}">{{ m.allLabel }}</button>
+              </span>
+              <span style="flex:1;min-width:0;display:flex;flex-direction:column;max-width:420px">
+                <sc-for list="{{ m.levels }}" as="l" hint-placeholder-count="3">
+                  <span style="display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid color-mix(in srgb,var(--color-text) 8%,transparent)">
+                    <span class="sw {{ l.cls }}" onClick="{{ l.onToggle }}"><i></i></span>
+                    <span class="mono" style="font-size:11.5px;color:{{ l.fg }}">{{ l.label }}</span>
+                    <sc-if value="{{ l.top }}" hint-placeholder-val="{{ false }}"><span class="mono tag tag-neutral" style="font-size:8.5px;padding:0 5px">default</span></sc-if>
+                  </span>
+                </sc-for>
+              </span>
+            </div>
+          </sc-for>
+        </sc-if>
+
+        <sc-if value="{{ onAgent }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:0 22px 18px;display:flex;flex-direction:column">
+            <span class="mono" style="font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--color-accent);padding:0 0 5px">integrations</span>
+            <sc-for list="{{ agentRows }}" as="a" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;gap:16px;padding:9px 0;border-top:1px solid color-mix(in srgb,var(--color-text) 8%,transparent)">
+                <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+                  <span style="font-size:12.5px;color:{{ a.fg }}">{{ a.name }}</span>
+                  <span style="font-size:11px;color:color-mix(in srgb,var(--color-text) 42%,transparent);text-wrap:pretty">{{ a.note }}</span>
+                </span>
+                <span class="sw {{ a.cls }}" onClick="{{ a.onToggle }}"><i></i></span>
+              </div>
+            </sc-for>
+            <span class="mono" style="font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--color-accent);padding:16px 0 5px">shell hook</span>
+            <div class="mono" style="padding:11px 12px;border-radius:8px;background:color-mix(in srgb,var(--color-text) 6%,transparent);font-size:11px;line-height:1.7;color:color-mix(in srgb,var(--color-text) 62%,transparent)">{{ agentSnippet }}</div>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ toastShown }}" hint-placeholder-val="{{ false }}">
+    <div class="mono" style="position:absolute;left:50%;bottom:34px;transform:translateX(-50%);padding:9px 14px;border-radius:8px;background:rgba(14,15,24,.92);box-shadow:var(--shadow-md),inset 0 0 0 1px color-mix(in srgb,var(--color-accent) 35%,transparent);font-size:11.5px;color:var(--color-accent-100);animation:toastIn .16s ease-out;white-space:nowrap">{{ toast }}</div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1180,&quot;height&quot;:700},&quot;startOpen&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo&quot;}}">
+const CORE = ['intelligence', 'cost', 'speed'];
+
+const GROUP_DEFS = [
+  { slug: 'software_engineering', benchmarks: ['SWE-Bench Verified', 'SWE-Bench Pro', 'SWE-Bench Multilingual', 'SWE-Bench Multimodal', 'DeepSWE', 'Terminal-Bench', 'Terminal-Bench Hard', 'Aider Polyglot', 'SciCode', 'SWE-Atlas Codebase QnA', 'SWE-Atlas Test Writing', 'SWE-Atlas Refactoring', 'FrontierCode', 'FrontierSWE', 'NL2Repo', 'Program Bench', 'SWE Marathon', 'LiveCodeBench', 'LiveCodeBench Pro', 'MCP Atlas', 'Artificial Analysis Coding Index', 'Artificial Analysis Coding Agent Index', 'Toolathlon', 'AutomationBench'] },
+  { slug: 'reasoning', benchmarks: ['GPQA Diamond', 'FrontierMath', 'ARC-AGI-2', 'AIME', 'HMMT'] },
+  { slug: 'knowledge', benchmarks: ["Humanity's Last Exam", 'MMLU-Pro', 'MMMU Pro'] },
+  { slug: 'research', benchmarks: ['BrowseComp', 'DeepSearchQA', 'WideSearch'] },
+  { slug: 'instruction_following', benchmarks: ['IFBench', 'IFEval'] },
+  { slug: 'agentic_tools', benchmarks: ['Terminal-Bench', 'Toolathlon', 'MCP Atlas', 'OSWorld-Verified'] },
+  { slug: 'evidence_capture', benchmarks: ['OSWorld-Verified', 'Toolathlon', 'MCP Atlas', 'MMMU Pro'] },
+  { slug: 'ui_visual', benchmarks: ['MMMU Pro', 'BabyVision', 'OmniDocBench', 'OSWorld-Verified'] },
+  { slug: 'security', benchmarks: ['CyberGym', 'CTI-REALM'] },
+  { slug: 'data_ml', benchmarks: ['DSBench-FullStack', 'DSBench-Hard', 'MLE-Bench', 'SpreadsheetBench'] },
+  { slug: 'finance', benchmarks: ['Finance Agent', 'FinanceAgent', 'τ3 Banking', 'GDPval', 'GDPval-AA'] }
+];
+
+const ALL_BENCH = ['AA-Briefcase', 'AIME', 'ARC-AGI-1', 'ARC-AGI-2', 'ARC-AGI-3', "Agents' Last Exam", 'Aider Polyglot', 'Artificial Analysis Coding Agent Index', 'Artificial Analysis Coding Index', 'Artificial Analysis Intelligence Index', 'AutomationBench', 'BabyVision', 'BrowseComp', 'CTI-REALM', 'CharXiv Reasoning', 'ClawEval', 'CritPt', 'CyberGym', 'DSBench-FullStack', 'DSBench-Hard', 'DeepSWE', 'DeepSearchQA', 'FORTE', 'Finance Agent', 'FinanceAgent', 'Frontier-Bench', 'FrontierCode', 'FrontierMath', 'FrontierSWE', 'GDM-MRCR', 'GDPval', 'GDPval-AA', 'GPQA', 'GPQA Diamond', 'GeneBench', 'Graphwalks', 'HMMT', 'HealthBench Professional', "Humanity's Last Exam", 'IFBench', 'IFEval', 'IMOAnswerBench', 'JobBench', 'Kimi Claw 24/7 Bench', 'Kimi Code Bench', 'LiveCodeBench', 'LiveCodeBench Pro', 'Long Context Reasoning', 'MCP Atlas', 'MCP Mark Verified', 'MLE-Bench', 'MLS-Bench-Lite', 'MMLU', 'MMLU-Pro', 'MMMU Pro', 'MRCRv2', 'NL2Repo', 'OSWorld', 'OSWorld-Verified', 'OmniDocBench', 'OpenAI MRCR', 'PostTrainBench', 'Program Bench', 'SWE Bench Pro', 'SWE Marathon', 'SWE-Atlas Codebase QnA', 'SWE-Atlas Refactoring', 'SWE-Atlas Test Writing', 'SWE-Bench Multilingual', 'SWE-Bench Multimodal', 'SWE-Bench Pro', 'SWE-Bench Verified', 'SciCode', 'SpreadsheetBench', 'Terminal Bench 2.0', 'Terminal-Bench', 'Terminal-Bench 2.1', 'Terminal-Bench Hard', 'Tool-Decathlon', 'Toolathlon', 'Toolathlon-Verified', 'WideSearch', 'ZeroBench', 'τ3 Banking', 'τ²-Bench Telecom', 'τ³-Telecom'];
+
+const HOME = {};
+GROUP_DEFS.forEach(g => g.benchmarks.forEach(b => { if (!HOME[b]) HOME[b] = g.slug; }));
+
+function mk(name, id, reasoning, providers, core, g) {
+  const s = {};
+  CORE.forEach((k, i) => { s[k] = core[i]; });
+  return { name, id, reasoning, providers, s, g };
+}
+const MODELS = [
+  mk('GPT-5.6 Luna', 'gpt-5.6-luna', 'max', ['codex', 'copilot'], [5, 3, 3.5], { software_engineering: 4.9, reasoning: 4.6, knowledge: 4.6, research: 4.8, instruction_following: 4.4, agentic_tools: 4.7, evidence_capture: 4.4, ui_visual: 4.2, security: 4.0, data_ml: 4.5, finance: 4.3 }),
+  mk('Claude Opus 5', 'claude-opus-5', 'max', ['claude'], [4.9, 2.6, 3.2], { software_engineering: 4.8, reasoning: 4.8, knowledge: 4.5, research: 4.6, instruction_following: 4.7, agentic_tools: 4.9, evidence_capture: 4.7, ui_visual: 4.6, security: 4.5, data_ml: 4.4, finance: 4.3 }),
+  mk('GPT-5.6 Sol', 'gpt-5.6-sol', 'high', ['copilot', 'codex'], [4.4, 4.0, 4.4], { software_engineering: 4.3, reasoning: 4.0, knowledge: 4.2, research: 4.1, instruction_following: 4.2, agentic_tools: 4.0, evidence_capture: 4.0, ui_visual: 3.8, security: 3.9, data_ml: 4.0, finance: 3.9 }),
+  mk('Claude Sonnet 5.2', 'claude-sonnet-5.2', 'high', ['claude', 'copilot'], [4.2, 4.4, 4.6], { software_engineering: 4.5, reasoning: 4.1, knowledge: 4.0, research: 3.9, instruction_following: 4.6, agentic_tools: 4.4, evidence_capture: 4.3, ui_visual: 4.4, security: 4.2, data_ml: 4.0, finance: 4.0 }),
+  mk('Gemini 3.5 Ultra', 'gemini-3.5-ultra', 'max', ['cursor'], [4.7, 3.4, 3.8], { software_engineering: 4.4, reasoning: 4.5, knowledge: 4.8, research: 4.7, instruction_following: 4.0, agentic_tools: 4.2, evidence_capture: 4.2, ui_visual: 4.3, security: 4.1, data_ml: 4.4, finance: 4.1 }),
+  mk('Grok 5 Fast', 'grok-5-fast', 'medium', ['cursor', 'copilot'], [3.8, 4.7, 5.0], { software_engineering: 4.0, reasoning: 3.5, knowledge: 3.6, research: 3.4, instruction_following: 3.9, agentic_tools: 3.8, evidence_capture: 3.6, ui_visual: 3.6, security: 3.4, data_ml: 3.5, finance: 3.4 }),
+  mk('Qwen 3.5 Max', 'qwen-3.5-max', 'medium', ['cursor'], [4.0, 4.9, 4.2], { software_engineering: 4.1, reasoning: 3.8, knowledge: 4.0, research: 3.8, instruction_following: 3.7, agentic_tools: 3.6, evidence_capture: 3.6, ui_visual: 3.4, security: 3.5, data_ml: 3.7, finance: 3.5 }),
+  mk('Llama 5 405B', 'llama-5-405b', 'low', ['copilot'], [3.5, 5.0, 4.0], { software_engineering: 3.5, reasoning: 3.2, knowledge: 3.6, research: 3.2, instruction_following: 3.4, agentic_tools: 3.2, evidence_capture: 3.2, ui_visual: 3.0, security: 3.2, data_ml: 3.3, finance: 3.1 })
+];
+
+const _bcache = {};
+function benchScore(m, b) {
+  const k = m.id + '|' + b;
+  if (_bcache[k] !== undefined) return _bcache[k];
+  const base = (m.g && m.g[HOME[b]]) || 3.7;
+  let h = 0;
+  for (let i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) % 100003;
+  const v = Math.max(1, Math.min(5, base - 0.45 + (h % 91) / 100));
+  _bcache[k] = v;
+  return v;
+}
+const BENCH_NOTE = {
+  'SWE-Bench Verified': 'Human-validated slice of SWE-Bench: real GitHub issues the model must resolve as a patch that passes the repository’s own tests.',
+  'SWE-Bench Pro': 'Harder, contamination-resistant SWE-Bench variant over longer multi-file changes.',
+  'SWE-Bench Multilingual': 'SWE-Bench task format across repositories in languages other than Python.',
+  'SWE-Bench Multimodal': 'SWE-Bench tasks whose issues include screenshots and other visual context.',
+  'Terminal-Bench': 'End-to-end terminal tasks in a sandboxed shell, scored on whether the final system state is correct.',
+  'Terminal-Bench Hard': 'The long-horizon subset of Terminal-Bench, where recovery from a bad step matters more than first-try accuracy.',
+  'Aider Polyglot': 'Edit-and-repair coding exercises across several languages, run through the Aider harness.',
+  'LiveCodeBench': 'Competitive programming problems published after model training cut-offs, refreshed continuously.',
+  'SciCode': 'Research-level scientific code written from paper descriptions.',
+  'MCP Atlas': 'Tool-use tasks over Model Context Protocol servers, scored on correct tool selection and argument construction.',
+  'Toolathlon': 'Long multi-tool workflows across many connected services.',
+  'OSWorld-Verified': 'Real desktop applications driven through screenshots and input events; verified task set.',
+  'GPQA Diamond': 'Graduate-level physics, chemistry and biology questions written to be Google-proof.',
+  'FrontierMath': 'Unpublished research-level mathematics problems, held out to resist contamination.',
+  'ARC-AGI-2': 'Abstract visual reasoning puzzles designed to be easy for humans and hard for models.',
+  'AIME': 'American Invitational Mathematics Examination problems, scored on exact final answers.',
+  'HMMT': 'Harvard–MIT Mathematics Tournament problems.',
+  "Humanity's Last Exam": 'Expert-written questions across a very wide range of subjects, intended to sit at the edge of current model ability.',
+  'MMLU-Pro': 'Harder, ten-option rebuild of MMLU with reasoning-heavy items.',
+  'MMMU Pro': 'Multimodal university-level questions requiring the model to read figures, diagrams and charts.',
+  'BrowseComp': 'Hard-to-find facts that require persistent, multi-step web browsing.',
+  'DeepSearchQA': 'Questions answerable only by chaining several searches and reconciling sources.',
+  'WideSearch': 'Broad collection tasks: gather many facts across many pages into one complete answer.',
+  'IFBench': 'Constraint-following under composite, precisely specified instructions.',
+  'IFEval': 'Verifiable instruction following — formatting, length and content rules a script can check.',
+  'CyberGym': 'Offensive and defensive security tasks in isolated environments.',
+  'CTI-REALM': 'Cyber threat intelligence reasoning over real incident reports.',
+  'BabyVision': 'Low-level visual perception probes.',
+  'OmniDocBench': 'Document understanding across dense, mixed-layout pages.',
+  'MLE-Bench': 'Kaggle-style machine learning engineering tasks, scored against leaderboard medals.',
+  'DSBench-FullStack': 'End-to-end data science tasks from raw data to reported result.',
+  'DSBench-Hard': 'The hardest DSBench split, with ambiguous specifications.',
+  'SpreadsheetBench': 'Spreadsheet manipulation tasks scored on the resulting cells.',
+  'Finance Agent': 'Multi-step financial research and analysis tasks over filings and market data.',
+  'GDPval': 'Real occupational deliverables graded by professionals in the relevant field.',
+  'τ3 Banking': 'Multi-turn customer service in a banking domain with strict policy constraints.'
+};
+const _cov = {};
+function coverage(b) {
+  if (_cov[b] !== undefined) return _cov[b];
+  const rows = [];
+  MODELS.forEach(m => {
+    LADDER.forEach(l => {
+      const k = m.id + '|' + l + '|' + b;
+      let h = 0;
+      for (let i = 0; i < k.length; i++) h = (h * 33 + k.charCodeAt(i)) % 99991;
+      const tested = h % 100 < 68;
+      const drop = { low: 0.55, medium: 0.75, high: 0.92, max: 1 }[l];
+      rows.push({ model: m, level: l, tested: tested, value: tested ? Math.max(4, Math.min(99, benchScore(m, b) / 5 * 100 * drop - (h % 7))) : null });
+    });
+  });
+  _cov[b] = { n: rows.filter(r => r.tested).length, total: rows.length, rows: rows, max: Math.max.apply(null, rows.filter(r => r.tested).map(r => r.value).concat([1])) };
+  return _cov[b];
+}
+function groupScore(m, g) {
+  if (!g.benchmarks.length) return 3.5;
+  let t = 0;
+  g.benchmarks.forEach(b => { t += benchScore(m, b); });
+  return t / g.benchmarks.length;
+}
+
+const SCALE = [
+  { name: 'Simple Action', slug: 'simple_action', core: 75, w: { intelligence: 2, cost: 5, speed: 5, instruction_following: 4, agentic_tools: 3 } },
+  { name: 'Simple Implementation', slug: 'simple_implementation', core: 60, w: { intelligence: 4, cost: 4, speed: 3, software_engineering: 4, instruction_following: 3, agentic_tools: 3 } },
+  { name: 'Balanced Implementation', slug: 'balanced_implementation', core: 70, w: { intelligence: 4, cost: 3, speed: 3, software_engineering: 5, agentic_tools: 4, instruction_following: 3 } },
+  { name: 'Research', slug: 'research', core: 60, w: { intelligence: 4, cost: 4, speed: 2, research: 5, knowledge: 4, agentic_tools: 3 } },
+  { name: 'Planning', slug: 'planning', core: 60, w: { intelligence: 5, cost: 2, speed: 2, reasoning: 5, research: 4, knowledge: 3 } }
+];
+const EXTRA = [
+  { name: 'Review', slug: 'review', core: 65, w: { intelligence: 4, cost: 3, speed: 3, instruction_following: 5, security: 3 } },
+  { name: 'UI / UX', slug: 'ui_ux', core: 60, w: { intelligence: 4, cost: 3, speed: 3, ui_visual: 5, software_engineering: 4 } },
+  { name: 'Research (fast)', slug: 'research_fast', core: 60, w: { intelligence: 3, cost: 4, speed: 5, research: 5, knowledge: 3 } }
+];
+const MUTED = 'color-mix(in srgb,var(--color-text) 72%,transparent)';
+const BRIGHT = 'color-mix(in srgb,var(--color-text) 88%,transparent)';
+const DIM = 'color-mix(in srgb,var(--color-text) 45%,transparent)';
+const ACCENT_BG = 'color-mix(in srgb,var(--color-accent) 14%,transparent)';
+const NAV_GROUPS = [
+  ['app', ['General', 'Usage detection']],
+  ['ranking', ['Profiles', 'Benchmark groups', 'Favourites']],
+  ['routing', ['Providers', 'Harnesses', 'Agent integration']]
+];
+const NAV = NAV_GROUPS.reduce((a, g) => a.concat(g[1]), []);
+const LADDER = ['low', 'medium', 'high', 'max'];
+function levelsFor(m) { return LADDER.slice(0, LADDER.indexOf(m.reasoning) + 1); }
+function offKey(prov, id, lvl) { return prov + '|' + id + '|' + lvl; }
+const PAGE_META = {
+  'Profiles': ['Profiles', 'Built-in profiles are read-only; duplicate one to edit its weights.', 'New profile'],
+  'Benchmark groups': ['Benchmark groups', 'A group bundles benchmarks into one signal a profile can weight. Built-in groups are read-only — duplicate one to change what it contains.', 'New group'],
+  'Harnesses': ['Harnesses', 'Detected automatically. {model_id} and {reasoning} are filled from the pick. Open one to choose which providers it may use.', 'Add custom'],
+  'Favourites': ['Favourites', 'Pinned models are offered first when they rank in range for the profile.', 'Add model'],
+  'General': ['General', 'How which-model runs on this Mac, and how the pick is drawn in the popover.', null],
+  'Usage detection': ['Usage detection', 'Where limits are read from, and how often.', null],
+  'Providers': ['Providers', 'Drag to set priority — highest at the top. Default-deny: a provider is never read until you enable it. Open one to choose which of its models may be routed to.', null],
+  'Agent integration': ['Agent integration', 'How coding agents reach which-model without the popover.', null]
+};
+
+const DETECTED = { 'Claude Code': { claude: true, codex: true, copilot: true, cursor: false }, 'Codex CLI': { claude: false, codex: true, copilot: true, cursor: false }, 'Copilot CLI': { claude: false, codex: false, copilot: true, cursor: true }, 'Cursor': { claude: false, codex: false, copilot: false, cursor: true } };
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const p = SCALE[1];
+    this.state = {
+      open: this.props.startOpen !== false,
+      view: 'landing',
+      appMenu: false, harnessMenu: false, addMetric: false, searchOpen: false,
+      query: '', catQuery: '',
+      stop: 1, profile: p.name, slug: p.slug,
+      weights: Object.assign({}, p.w), core: p.core, baseline: { w: Object.assign({}, p.w), core: p.core },
+      resultIndex: 0,
+      harnesses: [
+        { name: 'Claude Code', cmd: 'claude --model {model_id} --reasoning {reasoning}', custom: false },
+        { name: 'Codex CLI', cmd: 'codex -m {model_id} -c reasoning={reasoning}', custom: false },
+        { name: 'Copilot CLI', cmd: 'copilot --model {model_id}', custom: false },
+        { name: 'Cursor', cmd: 'cursor --model {model_id}', custom: true }
+      ],
+      harness: 'Claude Code',
+      providers: [
+        { id: 'claude', on: true, auth: 'oauth', limits: 'session 42% · weekly 18%', pct: '42%', session: 42, weekly: 18, monthly: 54, credits: 'max 20× plan', resets: 'session in 2h 40m' },
+        { id: 'codex', on: true, auth: 'oauth', limits: 'session 12% · weekly 31% · 340 credits', pct: '31%', session: 12, weekly: 31, monthly: 44, credits: '340 credits left', resets: 'weekly on Mon' },
+        { id: 'copilot', on: true, auth: 'device flow', limits: 'monthly 1200 of 4800', pct: '25%', session: 8, weekly: 25, monthly: 25, credits: '1200 of 4800 premium', resets: 'monthly on the 1st' },
+        { id: 'cursor', on: false, auth: 'via codexbar', limits: 'not enabled', pct: '0%', session: 0, weekly: 0, monthly: 0, credits: 'no plan detected', resets: '—' }
+      ],
+      hpHarness: 'Claude Code', hPage: null,
+      hp: { 'Claude Code': { claude: true, codex: true, copilot: true, cursor: false }, 'Codex CLI': { claude: false, codex: true, copilot: true, cursor: false }, 'Copilot CLI': { claude: false, codex: false, copilot: true, cursor: true }, 'Cursor': { claude: false, codex: false, copilot: false, cursor: true } },
+      profiles: SCALE.concat(EXTRA).map((x, i) => ({ name: x.name, slug: x.slug, core: x.core, w: x.w, used: ['12m ago', '1h ago', 'yesterday', '3d ago', '—', '—', '—', '—'][i] || '—', picks: [312, 1284, 866, 174, 121, 58, 43, 19][i] || 0, builtin: true })),
+      favourites: ['gpt-5.6-luna', 'claude-opus-5'],
+      groups: GROUP_DEFS.map(g => ({ slug: g.slug, benchmarks: g.benchmarks.slice(), builtin: true })),
+      gPage: null, gQuery: '', bPage: null, bsort: { k: 'score', dir: 'desc' },
+      settings: false, page: 'Profiles', provPage: null, pfPage: null, modelOff: {}, hoverBar: '', wx: 46, wy: 78,
+      display: 'carousel', sliderStyle: 'slider', holds: 5,
+      shortcut: '⌥ Space', updateFreq: 'daily',
+      gen: { menubar: true, login: true, copycmd: false, dismiss: true, autoupdate: true },
+      usageMode: 'auto', backend: 'native',
+      agent: { mcp: true, hint: false, alias: true },
+      scored: '2h ago', toast: ''
+    };
+  }
+  componentWillUnmount() { clearTimeout(this._t); }
+  say(t) { this.setState({ toast: t }); clearTimeout(this._t); this._t = setTimeout(() => this.setState({ toast: '' }), 2600); }
+  closeMenus(extra) { this.setState(Object.assign({ appMenu: false, harnessMenu: false, addMetric: false, searchOpen: false }, extra || {})); }
+  stop(e) { if (e && e.stopPropagation) e.stopPropagation(); }
+
+  score(m) {
+    const w = this.state.weights, cs = this.state.core / 100;
+    let cn = 0, cd = 0;
+    CORE.forEach(k => { const v = w[k] || 0; if (v > 0) { cn += v * m.s[k]; cd += v * 5; } });
+    let tn = 0, td = 0;
+    this.state.groups.forEach(g => { const v = w[g.slug] || 0; if (v > 0) { tn += v * groupScore(m, g); td += v * 5; } });
+    return 100 * (cs * (cd ? cn / cd : 0.7) + (1 - cs) * (td ? tn / td : 0.7));
+  }
+  results() {
+    const order = this.state.providers.filter(p => p.on).map(p => p.id);
+    const off = this.state.modelOff;
+    const out = [];
+    MODELS.forEach(m => {
+      const route = order.find(id => m.providers.indexOf(id) >= 0 && !off[offKey(id, m.id, m.reasoning)]);
+      if (!route) return;
+      out.push({ m, route, score: this.score(m) });
+    });
+    out.sort((a, b) => b.score - a.score);
+    return out.slice(0, this.state.holds);
+  }
+  applyProfile(p, stop) {
+    this.setState({ profile: p.name, slug: p.slug, weights: Object.assign({}, p.w), core: p.core, baseline: { w: Object.assign({}, p.w), core: p.core }, resultIndex: 0, query: '', searchOpen: false, stop: typeof stop === 'number' ? stop : this.state.stop });
+  }
+  drag(e, cb) {
+    const el = e.currentTarget, r = el.getBoundingClientRect();
+    const at = ev => cb(Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)));
+    const up = () => { window.removeEventListener('pointermove', at); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', at); window.addEventListener('pointerup', up);
+    at(e); e.preventDefault(); e.stopPropagation();
+  }
+
+  renderVals() {
+    const st = this.state, self = this;
+    const TASK = st.groups.map(g => g.slug);
+    const ALLM = CORE.concat(TASK);
+    const res = this.results();
+    const idx = Math.min(st.resultIndex, Math.max(0, res.length - 1));
+    const pick = res[idx];
+    const fmt = n => n.toFixed(2);
+    const seg = on => ({ fg: on ? 'var(--color-accent)' : MUTED, ring: on ? 'inset 0 0 0 1px var(--color-accent)' : 'none' });
+    const swatch = on => ({
+      ring: on ? 'inset 0 0 0 1.5px var(--color-accent)' : 'inset 0 0 0 1px color-mix(in srgb,var(--color-text) 10%,transparent)',
+      fg: on ? 'var(--color-accent-200)' : 'color-mix(in srgb,var(--color-text) 42%,transparent)',
+      op: on ? 1 : .55
+    });
+
+    const q = st.query.trim().toLowerCase();
+    const matches = st.profiles.filter(p => !q || p.name.toLowerCase().indexOf(q) >= 0 || p.slug.indexOf(q) >= 0).slice(0, 5).map(p => ({
+      name: p.slug, sub: p.core + '/' + (100 - p.core), bg: p.name === st.profile ? ACCENT_BG : 'transparent',
+      fg: p.name === st.profile ? 'var(--color-accent-200)' : BRIGHT,
+      onPick: e => { self.stop(e); const i = SCALE.findIndex(s => s.name === p.name); self.applyProfile(p, i >= 0 ? i : st.stop); }
+    }));
+
+    const rowFor = k => ({
+      key: k, val: st.weights[k], pct: (st.weights[k] / 5 * 100) + '%', knob: 'calc(' + (st.weights[k] / 5 * 100) + '% - 6px)',
+      isStep: st.sliderStyle === 'step', isBar: st.sliderStyle === 'bar', isSlider: st.sliderStyle === 'slider',
+      steps: [1, 2, 3, 4, 5].map(i => ({ bg: i <= st.weights[k] ? 'var(--color-accent-500)' : 'color-mix(in srgb,var(--color-text) 12%,transparent)' })),
+      fg: k === 'cost' ? 'var(--color-accent-300)' : MUTED,
+      onDown: e => self.drag(e, f => { const v = Math.round(f * 5); if (v !== self.state.weights[k]) { const w = Object.assign({}, self.state.weights); w[k] = v; self.setState({ weights: w, resultIndex: 0 }); } }),
+      onRemove: e => { self.stop(e); const w = Object.assign({}, self.state.weights); delete w[k]; self.setState({ weights: w, resultIndex: 0 }); }
+    });
+    const used = k => st.weights[k] !== undefined;
+
+    const provRows = st.providers.map((p, i) => ({
+      id: p.id, order: i + 1, auth: p.auth, limits: p.on ? p.limits : 'not enabled',
+      cls: p.on ? 'on' : '', fg: p.on ? BRIGHT : DIM, bg: self._dragId === p.id ? ACCENT_BG : 'transparent',
+      modelsText: (function () {
+        const ms = MODELS.filter(m => m.providers.indexOf(p.id) >= 0);
+        let tot = 0, on = 0;
+        ms.forEach(m => levelsFor(m).forEach(l => { tot += 1; if (!st.modelOff[offKey(p.id, m.id, l)]) on += 1; }));
+        return on + ' of ' + tot + ' routes';
+      })(),
+      onOpen: e => { self.stop(e); self.setState({ provPage: p.id }); },
+      onToggle: e => { self.stop(e); const ps = st.providers.map(x => x.id === p.id ? Object.assign({}, x, { on: !x.on }) : x); self.setState({ providers: ps, resultIndex: 0 }); },
+      onDragStart: e => { self._dragId = p.id; },
+      onDragOver: e => { e.preventDefault(); },
+      onDrop: e => {
+        e.preventDefault();
+        const from = st.providers.findIndex(x => x.id === self._dragId);
+        if (from < 0 || from === i) return;
+        const ps = st.providers.slice(), moved = ps.splice(from, 1)[0];
+        ps.splice(i, 0, moved);
+        self._dragId = null;
+        self.setState({ providers: ps, resultIndex: 0 });
+        self.say('provider priority: ' + ps.map(x => x.id).join(' → '));
+      },
+      onDragEnd: e => { self._dragId = null; self.forceUpdate(); }
+    }));
+
+    const hd = st.hPage ? st.harnesses.find(h => h.name === st.hPage) : null;
+    const hpMap = (hd ? st.hp[hd.name] : st.hp[st.hpHarness]) || {};
+    let n = 0;
+    const hpRows = st.providers.map(p => {
+      const on = !!hpMap[p.id];
+      if (on) n += 1;
+      const det = hd && DETECTED[hd.name] ? !!DETECTED[hd.name][p.id] : false;
+      return {
+        id: p.id, order: on ? n : '—', cls: on ? 'on' : '', fg: on ? BRIGHT : DIM, detected: det,
+        authText: p.on ? p.auth : 'off globally',
+        authFg: p.on ? 'color-mix(in srgb,var(--color-text) 50%,transparent)' : 'color-mix(in srgb,var(--color-text) 34%,transparent)',
+        credits: p.credits, resets: p.resets,
+        creditsFg: p.on ? 'color-mix(in srgb,var(--color-text) 72%,transparent)' : DIM,
+        meters: ['session', 'weekly', 'monthly'].map(k => ({
+          label: k,
+          pct: (p.on ? p[k] : 0) + '%',
+          text: p.on ? p[k] + '%' : '—',
+          fg: on && p.on ? 'color-mix(in srgb,var(--color-text) 62%,transparent)' : 'color-mix(in srgb,var(--color-text) 34%,transparent)',
+          fill: on && p.on ? (p[k] >= 70 ? 'var(--color-accent-300)' : 'var(--color-accent-500)') : 'color-mix(in srgb,var(--color-text) 20%,transparent)'
+        })),
+        ring: on ? 'inset 0 0 0 1px color-mix(in srgb,var(--color-accent) 22%,transparent)' : 'inset 0 0 0 1px color-mix(in srgb,var(--color-text) 7%,transparent)',
+        note: p.on ? '' : 'off globally',
+        bg: on ? 'color-mix(in srgb,var(--color-text) 4%,transparent)' : 'transparent',
+        onToggle: e => { self.stop(e); const key = hd ? hd.name : st.hpHarness; const hp = Object.assign({}, st.hp); const m = Object.assign({}, hp[key]); m[p.id] = !m[p.id]; hp[key] = m; self.setState({ hp: hp }); }
+      };
+    });
+    const hdOn = hd ? st.providers.filter(p => hpMap[p.id]).length : 0;
+
+    const pf = st.pfPage ? st.profiles.find(p => p.slug === st.pfPage) : null;
+    const pfWrite = (w, core) => {
+      const patch = { profiles: st.profiles.map(p => p.slug === pf.slug ? Object.assign({}, p, { w: w || p.w, core: core === undefined ? p.core : core }) : p) };
+      if (pf.name === st.profile) { if (w) patch.weights = w; if (core !== undefined) patch.core = core; patch.resultIndex = 0; }
+      self.setState(patch);
+    };
+    const pfRow = k => {
+      const v = pf.w[k] || 0, ro = pf.builtin;
+      return {
+        key: k, pct: (v / 5 * 100) + '%', knob: 'calc(' + (v / 5 * 100) + '% - 6px)',
+        isStep: st.sliderStyle === 'step', isBar: st.sliderStyle === 'bar', isSlider: st.sliderStyle === 'slider',
+        steps: [1, 2, 3, 4, 5].map(i => ({ bg: i <= v ? 'var(--color-accent-500)' : 'color-mix(in srgb,var(--color-text) 12%,transparent)' })),
+        fg: v ? MUTED : DIM, valText: v ? v + ' / 5' : 'ignored', valFg: v ? 'var(--color-accent-300)' : DIM,
+        cursor: ro ? 'default' : 'pointer',
+        onDown: ro ? null : e => self.drag(e, f => {
+          const nv = Math.round(f * 5), cur = self.state.profiles.find(p => p.slug === pf.slug);
+          if (nv === (cur.w[k] || 0)) return;
+          const w = Object.assign({}, cur.w); if (nv) w[k] = nv; else delete w[k];
+          pfWrite(w);
+        })
+      };
+    };
+
+    const order = st.providers.filter(p => p.on).map(p => p.id);
+
+    const pd = st.provPage ? st.providers.find(p => p.id === st.provPage) : null;
+    const pdModels = pd ? MODELS.filter(m => m.providers.indexOf(pd.id) >= 0) : [];
+    const provModels = pdModels.map(m => {
+      const mKeys = levelsFor(m).map(l => offKey(pd.id, m.id, l));
+      const anyOn = mKeys.some(k => !st.modelOff[k]);
+      return {
+      name: m.name, id: m.id,
+      allLabel: anyOn ? 'Disable all' : 'Enable all',
+      onAll: e => {
+        self.stop(e);
+        const o = Object.assign({}, st.modelOff);
+        mKeys.forEach(k => { if (anyOn) o[k] = true; else delete o[k]; });
+        self.setState({ modelOff: o, resultIndex: 0 });
+      },
+      levels: levelsFor(m).map(l => {
+        const k = offKey(pd.id, m.id, l);
+        const on = !st.modelOff[k];
+        return {
+          label: 'reasoning ' + l, top: l === m.reasoning,
+          cls: on ? 'on' : '', fg: on ? BRIGHT : DIM,
+          bg: on ? 'color-mix(in srgb,var(--color-text) 4%,transparent)' : 'transparent',
+          onToggle: e => {
+            self.stop(e);
+            const o = Object.assign({}, st.modelOff);
+            if (on) o[k] = true; else delete o[k];
+            self.setState({ modelOff: o, resultIndex: 0 });
+          }
+        };
+      })
+    };
+    });
+    const pdKeys = [];
+    pdModels.forEach(m => levelsFor(m).forEach(l => pdKeys.push(offKey(pd ? pd.id : '', m.id, l))));
+    const pdOn = pdKeys.filter(k => !st.modelOff[k]).length;
+
+    const gr = st.gPage ? st.groups.find(g => g.slug === st.gPage) : null;
+    const grWrite = benchmarks => self.setState({ groups: st.groups.map(g => g.slug === gr.slug ? Object.assign({}, g, { benchmarks: benchmarks }) : g), resultIndex: 0 });
+    const gq = st.gQuery.trim().toLowerCase();
+
+    const bench = st.bPage;
+    const benchCov = bench ? coverage(bench) : null;
+
+    const meta = bench ? [bench, BENCH_NOTE[bench] || 'Carried in the model data export. No description recorded for this benchmark yet.', null]
+      : gr ? [gr.slug, gr.builtin ? 'A built-in group — its benchmark list is read-only. Duplicate it to make a version you can change.' : 'Add or remove benchmarks. A model’s score for this group is the mean of its results on the benchmarks listed here.', null]
+      : pd ? [pd.id, 'Models ' + pd.id + ' can serve. Each reasoning level routes separately — switch off the ones the picker should not consider.', null]
+      : hd ? [hd.name, 'Providers this harness may use, detected from its own configuration. Switch one off to keep it out of every launch here.', null]
+      : pf ? [pf.slug, pf.builtin ? 'A built-in profile — its weights are read-only. Duplicate it to make a version you can change.' : 'Drag a weight to change how much this profile cares about each benchmark. Zero means the benchmark is ignored.', null]
+      : (PAGE_META[st.page] || ['', '', null]);
+    const pageAction = () => {
+      if (st.page === 'Profiles') { const nm = 'profile ' + (st.profiles.length + 1), slug = nm.replace(/\s/g, '_'); self.setState({ profiles: st.profiles.concat([{ name: nm, slug: slug, core: 60, w: { intelligence: 3, cost: 3, speed: 3 }, used: 'just now', picks: 0, builtin: false }]), pfPage: slug }); self.say('new profile created'); }
+      else if (st.page === 'Benchmark groups') {
+        let i = 1, slug = 'new_group';
+        while (st.groups.some(g => g.slug === slug)) { i += 1; slug = 'new_group_' + i; }
+        self.setState({ groups: st.groups.concat([{ slug: slug, benchmarks: [], builtin: false }]), gPage: slug, gQuery: '' });
+        self.say('created ' + slug);
+      }
+      else if (st.page === 'Harnesses') {
+        const nm = 'Custom ' + (st.harnesses.filter(h => h.custom).length + 1);
+        const hp = Object.assign({}, st.hp), m = {};
+        st.providers.forEach(p => { if (p.on) m[p.id] = true; });
+        hp[nm] = m;
+        self.setState({ harnesses: st.harnesses.concat([{ name: nm, cmd: 'my-agent --model {model_id}', custom: true }]), hp: hp });
+        self.say(nm + ' added');
+      }
+      else if (st.page === 'Favourites') {
+        const next = res.map(r => r.m.id).find(id => st.favourites.indexOf(id) < 0);
+        if (!next) return self.say('every ranked model is already pinned');
+        self.setState({ favourites: st.favourites.concat([next]) });
+        self.say('pinned ' + next);
+      }
+    };
+
+    return {
+      popoverOpen: st.open,
+      isLanding: st.open && st.view === 'landing',
+      isWeights: st.open && st.view === 'weights',
+      iconBg: st.open ? 'color-mix(in srgb,var(--color-accent) 30%,transparent)' : 'color-mix(in srgb,var(--color-accent) 18%,transparent)',
+      iconRing: 'inset 0 0 0 1px color-mix(in srgb,var(--color-accent) 45%,transparent)',
+      pickScoreShort: pick ? Math.round(pick.score) : '—',
+      catalogLine: '412 models · ' + order.length + ' providers on · ' + st.harnesses.length + ' harnesses',
+      onDesktop: () => self.closeMenus({ open: false, settings: false }),
+      onPopoverClick: e => { e.stopPropagation(); self.closeMenus(); },
+      onWindowClick: e => { e.stopPropagation(); },
+      onTogglePopover: e => { e.stopPropagation(); self.closeMenus({ open: !st.open }); },
+      onToggleAppMenu: e => { e.stopPropagation(); self.setState({ appMenu: !st.appMenu, harnessMenu: false, searchOpen: false }); },
+      appMenuOpen: st.appMenu,
+      onCustomWeights: e => { self.stop(e); self.setState({ view: 'weights', appMenu: false }); },
+      onOpenSettings: e => { self.stop(e); self.setState({ settings: true, page: 'Profiles', pfPage: null, appMenu: false }); },
+      onQuit: e => { self.stop(e); self.setState({ open: false, appMenu: false, settings: false }); self.say('which-model quit — click the glyph to bring it back'); },
+
+      query: st.query, searchOpen: st.searchOpen, matches: matches, noMatches: st.searchOpen && matches.length === 0,
+      onQuery: e => self.setState({ query: e.target.value, searchOpen: true }),
+      onSearchFocus: e => { e.stopPropagation(); self.setState({ searchOpen: true, appMenu: false, harnessMenu: false }); },
+      onSearchKey: e => { if (e.key === 'Enter' && matches[0]) matches[0].onPick(); if (e.key === 'Escape') self.setState({ searchOpen: false }); },
+
+      ticks: [0, 1, 2, 3, 4].map(i => ({ left: (i * 25) + '%' })),
+      handleLeft: 'calc(' + (st.stop * 25) + '% - 7px)',
+      profileName: st.profile, profileSlug: st.slug,
+      onScaleDown: e => self.drag(e, f => {
+        const s = Math.round(f * 4);
+        if (s !== self.state.stop || self.state.profile !== SCALE[s].name) self.applyProfile(SCALE[s], s);
+      }),
+
+      showCarousel: st.display === 'carousel' || st.view === 'weights',
+      showList: st.display === 'list' && st.view === 'landing',
+      pickRank: pick ? 'rank ' + (idx + 1) + ' of ' + res.length : 'no route',
+      pickName: pick ? pick.m.name : 'Enable a provider',
+      pickMeta: pick ? pick.route + ' · ' + pick.m.reasoning + ' · ' + fmt(pick.score) : 'every provider is switched off',
+      prevFg: idx > 0 ? 'color-mix(in srgb,var(--color-text) 62%,transparent)' : 'color-mix(in srgb,var(--color-text) 22%,transparent)',
+      nextFg: idx < res.length - 1 ? 'color-mix(in srgb,var(--color-text) 62%,transparent)' : 'color-mix(in srgb,var(--color-text) 22%,transparent)',
+      onPrev: e => { self.stop(e); if (idx > 0) self.setState({ resultIndex: idx - 1 }); },
+      onNext: e => { self.stop(e); if (idx < res.length - 1) self.setState({ resultIndex: idx + 1 }); },
+      resultRows: res.map((r, i) => ({
+        rank: i + 1, name: r.m.name, score: fmt(r.score), route: r.route,
+        bg: i === idx ? 'color-mix(in srgb,var(--color-accent) 12%,transparent)' : 'transparent',
+        fg: i === idx ? 'var(--color-text)' : MUTED,
+        scoreFg: i === idx ? 'var(--color-accent-300)' : DIM,
+        onPick: e => { self.stop(e); self.setState({ resultIndex: i }); }
+      })),
+
+      corePctText: st.core + '%', taskPctText: (100 - st.core) + '%',
+      coreFlex: st.core, taskFlex: 100 - st.core,
+      coreRows: CORE.filter(used).map(rowFor), taskRows: TASK.filter(used).map(rowFor),
+      addMetricOpen: st.addMetric,
+      addable: ALLM.filter(k => !used(k)).map(k => ({ key: k, onAdd: e => { self.stop(e); const w = Object.assign({}, st.weights); w[k] = 3; self.setState({ weights: w, addMetric: false, resultIndex: 0 }); } })),
+      onToggleAddMetric: e => { self.stop(e); self.setState({ addMetric: !st.addMetric }); },
+      onRevert: e => { self.stop(e); self.setState({ weights: Object.assign({}, st.baseline.w), core: st.baseline.core, resultIndex: 0 }); self.say('weights reverted to ' + st.slug); },
+      onBalanceDown: e => self.drag(e, f => { const v = Math.max(10, Math.min(90, Math.round(f * 20) * 5)); if (v !== self.state.core) self.setState({ core: v, resultIndex: 0 }); }),
+      onBack: e => { self.stop(e); self.setState({ view: 'landing' }); },
+      onCopyId: e => { self.stop(e); self.say(pick ? 'copied  ' + pick.m.id : 'nothing to copy'); },
+      onSaveProfile: e => {
+        self.stop(e);
+        const nm = st.slug + ' (custom)';
+        self.setState({ profiles: st.profiles.concat([{ name: nm, slug: nm.replace(/[\s()]+/g, '_').replace(/_$/, ''), core: st.core, w: Object.assign({}, st.weights), used: 'just now', builtin: false }]), profile: nm, slug: nm, view: 'landing' });
+        self.say('saved as ' + nm);
+      },
+
+      onManage: e => { self.stop(e); self.setState({ settings: true, page: 'Profiles', pfPage: null }); },
+      harnessName: st.harness, harnessMenuOpen: st.harnessMenu,
+      launchBg: st.harnessMenu ? ACCENT_BG : 'transparent',
+      onToggleHarnessMenu: e => { e.stopPropagation(); self.setState({ harnessMenu: !st.harnessMenu, appMenu: false, searchOpen: false }); },
+      harnessItems: st.harnesses.map(h => ({
+        name: h.name, bg: h.name === st.harness ? ACCENT_BG : 'transparent', fg: h.name === st.harness ? 'var(--color-accent-200)' : 'color-mix(in srgb,var(--color-text) 80%,transparent)',
+        onPick: e => { self.stop(e); self.setState({ harness: h.name, harnessMenu: false }); }
+      })),
+      onLaunch: e => {
+        self.stop(e);
+        if (!pick) return self.say('no model to launch — enable a provider');
+        const h = st.harnesses.find(x => x.name === st.harness);
+        self.setState({ profiles: st.profiles.map(p => p.name === st.profile ? Object.assign({}, p, { picks: (p.picks || 0) + 1, used: 'just now' }) : p) });
+        self.say(h.cmd.replace('{model_id}', pick.m.id).replace('{reasoning}', pick.m.reasoning));
+      },
+
+      settingsOpen: st.settings, winLeft: st.wx + 'px', winTop: st.wy + 'px',
+      onCloseSettings: e => { e.stopPropagation(); self.setState({ settings: false }); },
+      onWinDrag: e => {
+        e.stopPropagation();
+        const sx = e.clientX, sy = e.clientY, ox = st.wx, oy = st.wy;
+        const mv = ev => self.setState({ wx: Math.max(-160, Math.min(700, ox + ev.clientX - sx)), wy: Math.max(30, Math.min(140, oy + ev.clientY - sy)) });
+        const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
+        window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+      },
+      navGroups: NAV_GROUPS.map(gp => ({
+        label: gp[0],
+        items: gp[1].map(name => {
+          const on = name === st.page;
+          return {
+            name: name,
+            bg: on ? 'color-mix(in srgb,var(--color-text) 10%,transparent)' : 'transparent',
+            fg: on ? 'var(--color-text)' : MUTED,
+            ring: on ? '0 1px 2px rgba(0,0,0,.35), inset 0 0 0 1px color-mix(in srgb,var(--color-text) 13%,transparent)' : 'none',
+            dot: on ? 'var(--color-accent)' : 'transparent',
+            onPick: e => { e.stopPropagation(); self.setState({ page: name, provPage: null, hPage: null, pfPage: null, gPage: null, bPage: null }); }
+          };
+        })
+      })),
+      backShown: !!(bench || gr || pf || pd || hd),
+      backLabel: st.page,
+      onPageBack: e => { self.stop(e); if (bench) self.setState({ bPage: null }); else self.setState({ gPage: null, pfPage: null, provPage: null, hPage: null }); },
+
+      onBenchPage: !!bench,
+      benchGroups: bench ? st.groups.filter(g => g.benchmarks.indexOf(bench) >= 0).map(g => ({
+        slug: g.slug, onOpen: e => { self.stop(e); self.setState({ bPage: null, gPage: g.slug, page: 'Benchmark groups' }); }
+      })) : [],
+      benchNoGroups: !!(bench && !st.groups.some(g => g.benchmarks.indexOf(bench) >= 0)),
+      benchCovText: bench ? benchCov.n + ' of ' + benchCov.total : '',
+      benchSortCols: [
+        { k: 'model', label: 'model (reasoning)', w: 'auto', align: 'left' },
+        { k: 'value', label: 'benchmark result', w: '124px', align: 'center' },
+        { k: 'score', label: 'normalised score', w: '188px', align: 'center' }
+      ].map(c => ({
+        label: c.label + (st.bsort.k === c.k ? (st.bsort.dir === 'desc' ? '  ↓' : '  ↑') : ''),
+        flex: c.k === 'model' ? '1' : 'none', width: c.w, align: c.align,
+        fg: st.bsort.k === c.k ? 'var(--color-accent-300)' : 'color-mix(in srgb,var(--color-text) 42%,transparent)',
+        onSort: e => { self.stop(e); self.setState({ bsort: { k: c.k, dir: st.bsort.k === c.k && st.bsort.dir === 'desc' ? 'asc' : 'desc' } }); }
+      })),
+      benchRows: bench ? benchCov.rows.filter(r => r.tested).sort((a, b) => {
+        const s = st.bsort, sign = s.dir === 'desc' ? -1 : 1;
+        if (s.k === 'model') return sign * ((a.model.name + a.level).localeCompare(b.model.name + b.level));
+        return sign * (a.value - b.value);
+      }).map(r => ({
+        label: r.model.name + '  (' + r.level + ')',
+        value: r.value.toFixed(1),
+        score: Math.round(r.value / (benchCov.max || 1) * 100),
+        pct: Math.round(r.value / (benchCov.max || 1) * 100) + '%',
+        fg: 'color-mix(in srgb,var(--color-text) 88%,transparent)',
+        valFg: 'var(--color-accent-300)',
+        bg: 'color-mix(in srgb,var(--color-text) 4%,transparent)'
+      })) : [],
+      pageTitle: meta[0], pageBlurb: meta[1], pageActionShown: !!meta[2], pageActionLabel: meta[2] || '', onPageAction: e => { self.stop(e); pageAction(); },
+      onProfiles: st.page === 'Profiles', onHarnesses: st.page === 'Harnesses', onFavourites: st.page === 'Favourites',
+      onProfileList: st.page === 'Profiles' && !pf, onProfileDetail: st.page === 'Profiles' && !!pf,
+      pfBuiltin: !!(pf && pf.builtin), pfDeletable: !!(pf && !pf.builtin), pfDupLabel: pf && pf.builtin ? 'Duplicate & edit' : 'Duplicate',
+      pfDelCls: pf && pf.builtin ? 'ib off' : 'ib',
+      pfDelTitle: pf && pf.builtin ? 'Built-in profile — cannot be deleted' : 'Delete this profile',
+      pfSummary: pf ? Object.keys(pf.w).length + ' of ' + ALLM.length + ' benchmarks weighted · ' + (pf.picks || 0).toLocaleString() + ' picks' : '',
+      pfCorePct: pf ? pf.core + '%' : '', pfTaskPct: pf ? (100 - pf.core) + '%' : '',
+      pfRatio: pf ? pf.core + ' / ' + (100 - pf.core) : '',
+      pfCoreFlex: pf ? pf.core : 60, pfTaskFlex: pf ? 100 - pf.core : 40,
+      pfCursor: pf && pf.builtin ? 'default' : 'pointer',
+      pfCoreRows: pf ? CORE.map(pfRow) : [], pfTaskRows: pf ? TASK.map(pfRow) : [],
+      onProfileBack: e => { self.stop(e); self.setState({ pfPage: null }); },
+      onPfBalance: pf && pf.builtin ? null : e => self.drag(e, f => {
+        const v = Math.max(10, Math.min(90, Math.round(f * 20) * 5));
+        if (v !== self.state.profiles.find(p => p.slug === pf.slug).core) pfWrite(null, v);
+      }),
+      onPfDuplicate: e => {
+        self.stop(e);
+        const slug = pf.slug + '_copy';
+        self.setState({ profiles: st.profiles.concat([{ name: pf.name + ' copy', slug: slug, core: pf.core, w: Object.assign({}, pf.w), used: '—', picks: 0, builtin: false }]), pfPage: slug });
+        self.say('editing ' + slug);
+      },
+      onPfDelete: e => { self.stop(e); if (!pf || pf.builtin) return; self.setState({ profiles: st.profiles.filter(p => p.slug !== pf.slug), pfPage: null }); self.say('deleted ' + pf.slug); },
+      onHarnessList: st.page === 'Harnesses' && !hd, onHarnessDetail: st.page === 'Harnesses' && !!hd,
+      harnessCmd: hd ? hd.cmd : '', harnessSummary: hd ? hdOn + ' of ' + st.providers.length + ' enabled' : '',
+      harnessTokenNote: 'substituted at launch from the pick',
+      onHarnessBack: e => { self.stop(e); self.setState({ hPage: null }); },
+      onHarnessAllOn: e => { self.stop(e); const hp = Object.assign({}, st.hp); const m = {}; st.providers.forEach(p => { m[p.id] = true; }); hp[hd.name] = m; self.setState({ hp: hp }); },
+      onHarnessAllOff: e => { self.stop(e); const hp = Object.assign({}, st.hp); hp[hd.name] = {}; self.setState({ hp: hp }); },
+      detectLine: 'harnesses and their providers are read from each harness’ own config on launch',
+      onGroupList: st.page === 'Benchmark groups' && !gr && !bench,
+      onGroupDetail: st.page === 'Benchmark groups' && !!gr && !bench,
+      groupRows: st.groups.map(g => ({
+        slug: g.slug, custom: !g.builtin, count: g.benchmarks.length,
+        delCls: g.builtin ? 'ib off' : 'ib',
+        delTitle: g.builtin ? 'Built-in group — cannot be deleted' : 'Delete ' + g.slug,
+        onDelete: g.builtin ? (e => self.stop(e)) : (e => {
+          self.stop(e);
+          self.setState({ groups: st.groups.filter(x => x.slug !== g.slug), resultIndex: 0 });
+          self.say('deleted ' + g.slug);
+        }),
+        inProfiles: st.profiles.filter(p => (p.w[g.slug] || 0) > 0).length,
+        onOpen: e => { self.stop(e); self.setState({ gPage: g.slug, gQuery: '' }); },
+        onDuplicate: e => {
+          self.stop(e);
+          let slug = g.slug + '_copy', i = 1;
+          while (st.groups.some(x => x.slug === slug)) { i += 1; slug = g.slug + '_copy_' + i; }
+          self.setState({ groups: st.groups.concat([{ slug: slug, benchmarks: g.benchmarks.slice(), builtin: false }]), gPage: slug, gQuery: '' });
+          self.say('editing ' + slug);
+        }
+      })),
+      grBuiltin: !!(gr && gr.builtin), grEditable: !!(gr && !gr.builtin), grReadonly: !!(gr && gr.builtin),
+      grDeletable: !!(gr && !gr.builtin), grDupLabel: gr && gr.builtin ? 'Duplicate & edit' : 'Duplicate',
+      grDelCls: gr && gr.builtin ? 'ib off' : 'ib',
+      grDelTitle: gr && gr.builtin ? 'Built-in group — cannot be deleted' : 'Delete this group',
+      grSummary: gr ? gr.benchmarks.length + ' of ' + ALL_BENCH.length + ' benchmarks · weighted by ' + st.profiles.filter(p => (p.w[gr.slug] || 0) > 0).length + ' profiles' : '',
+      grName: gr ? gr.slug : '',
+      grEmpty: !!(gr && !gr.benchmarks.length),
+      grQuery: st.gQuery,
+      onGrQuery: e => self.setState({ gQuery: e.target.value }),
+      grRows: gr ? ALL_BENCH
+        .filter(b => !gq || b.toLowerCase().indexOf(gq) >= 0)
+        .map(b => ({ b: b, on: gr.benchmarks.indexOf(b) >= 0 }))
+        .sort((x, y) => (y.on ? 1 : 0) - (x.on ? 1 : 0) || x.b.localeCompare(y.b))
+        .map(r => {
+          const c = coverage(r.b);
+          return {
+            name: r.b,
+            cls: (r.on ? 'on' : '') + (gr.builtin ? ' off' : ''),
+            fg: r.on ? 'color-mix(in srgb,var(--color-text) 88%,transparent)' : 'color-mix(in srgb,var(--color-text) 52%,transparent)',
+            bg: r.on ? 'color-mix(in srgb,var(--color-accent) 9%,transparent)' : 'transparent',
+            cursor: gr.builtin ? 'default' : 'pointer',
+            cov: c.n + ' / ' + c.total,
+            covPct: Math.round(c.n / c.total * 100) + '%',
+            covFg: r.on ? 'color-mix(in srgb,var(--color-text) 62%,transparent)' : 'color-mix(in srgb,var(--color-text) 38%,transparent)',
+            onToggle: gr.builtin ? null : e => {
+              self.stop(e);
+              grWrite(r.on ? gr.benchmarks.filter(x => x !== r.b) : gr.benchmarks.concat([r.b]));
+            },
+            onOpen: e => { self.stop(e); self.setState({ bPage: r.b }); }
+          };
+        }) : [],
+      onGroupBack: e => { self.stop(e); self.setState({ gPage: null }); },
+      onGrRename: e => {
+        const raw = e.target.value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+/, '');
+        const slug = raw || gr.slug;
+        if (slug !== gr.slug && st.groups.some(g => g.slug === slug)) return;
+        self.setState({
+          groups: st.groups.map(g => g.slug === gr.slug ? Object.assign({}, g, { slug: slug }) : g),
+          profiles: st.profiles.map(p => {
+            if (!(gr.slug in p.w)) return p;
+            const w = Object.assign({}, p.w); w[slug] = w[gr.slug]; delete w[gr.slug];
+            return Object.assign({}, p, { w: w });
+          }),
+          gPage: slug
+        });
+      },
+      onGrDuplicate: e => {
+        self.stop(e);
+        let slug = gr.slug + '_copy', i = 1;
+        while (st.groups.some(x => x.slug === slug)) { i += 1; slug = gr.slug + '_copy_' + i; }
+        self.setState({ groups: st.groups.concat([{ slug: slug, benchmarks: gr.benchmarks.slice(), builtin: false }]), gPage: slug, gQuery: '' });
+        self.say('editing ' + slug);
+      },
+      onGrDelete: e => {
+        self.stop(e);
+        if (!gr || gr.builtin) return;
+        self.setState({ groups: st.groups.filter(g => g.slug !== gr.slug), gPage: null, resultIndex: 0 });
+        self.say('deleted ' + gr.slug);
+      },
+
+      onGeneral: st.page === 'General', onUsage: st.page === 'Usage detection', onProviders: st.page === 'Providers',
+      onProviderList: st.page === 'Providers' && !pd, onProviderDetail: st.page === 'Providers' && !!pd,
+      provModels: provModels, provSummary: pd ? pdOn + ' of ' + pdKeys.length + ' routes enabled' : '',
+      onProvBack: e => { self.stop(e); self.setState({ provPage: null }); },
+      onProvAllOn: e => { self.stop(e); const o = Object.assign({}, st.modelOff); pdKeys.forEach(k => { delete o[k]; }); self.setState({ modelOff: o, resultIndex: 0 }); },
+      onProvAllOff: e => { self.stop(e); const o = Object.assign({}, st.modelOff); pdKeys.forEach(k => { o[k] = true; }); self.setState({ modelOff: o, resultIndex: 0 }); },
+      onAgent: st.page === 'Agent integration',
+
+      profileRows: st.profiles.map(p => {
+        const bar = k => {
+          const v = p.w[k] || 0, id = p.slug + '|' + k;
+          return {
+            h: Math.round(4 + v / 5 * 20) + 'px',
+            bg: CORE.indexOf(k) >= 0 ? 'var(--color-accent-400)' : 'var(--color-accent-700)',
+            tip: k + '  ' + v + ' / 5',
+            tipShown: st.hoverBar === id,
+            onEnter: e => self.setState({ hoverBar: id }),
+            onLeave: e => { if (self.state.hoverBar === id) self.setState({ hoverBar: '' }); }
+          };
+        };
+        const weighted = k => (p.w[k] || 0) > 0;
+        return {
+        slug: p.slug, used: p.used, picks: (p.picks || 0).toLocaleString(),
+        coreBars: CORE.filter(weighted).map(bar), taskBars: TASK.filter(weighted).map(bar),
+        fg: BRIGHT,
+        onPick: e => { self.stop(e); self.setState({ pfPage: p.slug }); },
+        delCls: p.builtin ? 'ib off' : 'ib',
+        delTitle: p.builtin ? 'Built-in profile — cannot be deleted' : 'Delete ' + p.slug,
+        onDelete: p.builtin ? (e => self.stop(e)) : (e => {
+          self.stop(e);
+          self.setState({ profiles: st.profiles.filter(x => x.slug !== p.slug), resultIndex: 0 });
+          self.say('deleted ' + p.slug);
+        }),
+        onDuplicate: e => { self.stop(e); const nm = p.name + ' copy'; self.setState({ profiles: st.profiles.concat([{ name: nm, slug: p.slug + '_copy', core: p.core, w: Object.assign({}, p.w), used: '—', picks: 0, builtin: false }]) }); self.say('duplicated ' + p.slug); }
+        };
+      }),
+
+      harnessRows: st.harnesses.map(h => {
+        const m = st.hp[h.name] || {};
+        const on = st.providers.filter(p => m[p.id]).map(p => p.id);
+        return {
+          name: h.name, cmd: h.cmd, custom: h.custom,
+          pips: st.providers.map(p => ({ bg: m[p.id] ? 'var(--color-accent-400)' : 'color-mix(in srgb,var(--color-text) 14%,transparent)' })),
+          provCount: on.length ? on.length + ' of ' + st.providers.length : 'none',
+          provFg: on.length ? 'color-mix(in srgb,var(--color-text) 62%,transparent)' : DIM,
+          onOpen: e => { self.stop(e); self.setState({ hPage: h.name }); },
+          delTitle: 'Remove ' + h.name,
+          onRemove: e => { self.stop(e); const hs = st.harnesses.filter(x => x.name !== h.name); self.setState({ harnesses: hs, harness: st.harness === h.name && hs[0] ? hs[0].name : st.harness }); }
+        };
+      }),
+
+      favRows: st.favourites.map(id => {
+        const m = MODELS.find(x => x.id === id) || { name: id, reasoning: '' };
+        const route = order.find(p => m.providers && m.providers.indexOf(p) >= 0);
+        return { name: m.name, route: (route || 'no provider') + ' · ' + m.reasoning, onUnpin: e => { self.stop(e); self.setState({ favourites: st.favourites.filter(x => x !== id) }); } };
+      }),
+
+      dispCarousel: Object.assign({ onPick: e => { self.stop(e); self.setState({ display: 'carousel', resultIndex: 0 }); } }, swatch(st.display === 'carousel')),
+      dispList: Object.assign({ onPick: e => { self.stop(e); self.setState({ display: 'list', resultIndex: 0 }); } }, swatch(st.display === 'list')),
+      slStep: Object.assign({ onPick: e => { self.stop(e); self.setState({ sliderStyle: 'step' }); } }, swatch(st.sliderStyle === 'step')),
+      slBar: Object.assign({ onPick: e => { self.stop(e); self.setState({ sliderStyle: 'bar' }); } }, swatch(st.sliderStyle === 'bar')),
+      slSlider: Object.assign({ onPick: e => { self.stop(e); self.setState({ sliderStyle: 'slider' }); } }, swatch(st.sliderStyle === 'slider')),
+      holdOpts: [3, 5, 10].map(v => Object.assign({ label: String(v), onPick: e => { self.stop(e); self.setState({ holds: v, resultIndex: 0 }); } }, seg(st.holds === v))),
+      shortcutOpts: ['⌥ Space', '⌃ Space', '⇧⌘ M'].map(v => Object.assign({ label: v, onPick: e => { self.stop(e); self.setState({ shortcut: v }); } }, seg(st.shortcut === v))),
+      updateFreq: st.updateFreq,
+      freqOpacity: st.gen.autoupdate ? 1 : .38,
+      onUpdateFreq: e => { self.setState({ updateFreq: e.target.value }); },
+      generalToggles: [
+        { k: 'menubar', name: 'Show menu bar icon', note: '' },
+        { k: 'login', name: 'Launch at startup', note: '' },
+        { k: 'copycmd', name: 'Copy launch command instead', note: '' },
+        { k: 'dismiss', name: 'Close popover after launching', note: '' },
+        { k: 'autoupdate', name: 'Install updates automatically', note: '' }
+      ].map(g => {
+        const on = !!st.gen[g.k];
+        return {
+          name: g.name, note: g.note, cls: on ? 'on' : '',
+          fg: on ? BRIGHT : MUTED,
+          onToggle: e => { self.stop(e); const g2 = Object.assign({}, st.gen); g2[g.k] = !on; self.setState({ gen: g2 }); }
+        };
+      }),
+
+      usageOpts: ['auto', 'on', 'off'].map(v => Object.assign({ label: v, onPick: e => { self.stop(e); self.setState({ usageMode: v }); } }, seg(st.usageMode === v))),
+      backendOpts: ['off', 'native', 'codexbar'].map(v => Object.assign({ label: v, onPick: e => { self.stop(e); self.setState({ backend: v }); } }, seg(st.backend === v))),
+      usageRows: st.providers.filter(p => p.on).map(p => ({ id: p.id, text: p.limits, pct: p.pct, auth: p.auth })),
+
+      providerRows: provRows, hpRows: hpRows,
+
+      agentRows: [
+        { k: 'mcp', name: 'Expose as an MCP server', note: 'Agents can ask which-model for a pick mid-session instead of being told one up front.' },
+        { k: 'hint', name: 'Write a CLAUDE.md hint', note: 'Adds a short note to new repositories describing the available profiles.' },
+        { k: 'alias', name: 'Shell alias wm', note: 'wm research launches the top pick for a profile without the popover.' }
+      ].map(a => ({ name: a.name, note: a.note, cls: st.agent[a.k] ? 'on' : '', fg: st.agent[a.k] ? BRIGHT : MUTED, onToggle: e => { self.stop(e); const g = Object.assign({}, st.agent); g[a.k] = !g[a.k]; self.setState({ agent: g }); } })),
+      agentSnippet: '$ wm ' + st.slug + '  →  ' + (pick ? pick.m.id + '  (' + pick.route + ')' : 'no route'),
+
+      toastShown: !!st.toast, toast: st.toast
+    };
+  }
+}
+
+</script>
+</body>
+</html>
+

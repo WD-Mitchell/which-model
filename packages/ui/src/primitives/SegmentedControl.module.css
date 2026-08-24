@@ -1,0 +1,20 @@
+/* U02 SPEC §2.7 — nocturne's `.seg` / `.seg-opt` carry the frame and the
+   checked ring; this file only re-scales to the mockup's settings metrics
+   (demo.dc.html 600–602, 688–716: mono, font-size 11.5px, padding 4px 10px).
+   `:global(.seg-opt).opt` (0-2-0) beats `.seg-opt`'s own 7px 12px / 13px
+   whatever the stylesheet order — but stays below
+   `.seg-opt:has(input:checked)` (0-2-1), so the checked accent still wins. */
+:global(.seg-opt).opt {
+  padding: 4px 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+}
+
+/* The mockup's seg() helper (demo.dc.html 1044) paints unselected options
+   MUTED and selected ones var(--color-accent); nocturne only states the
+   selected half, so the muted half is stated here. Scoped by :not(:has())
+   rather than left to the cascade so the checked colour can never lose. */
+.opt:not(:has(input:checked)) {
+  color: color-mix(in srgb, var(--color-text) 72%, transparent);
+}

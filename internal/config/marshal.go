@@ -66,6 +66,21 @@ func (c *Config) MarshalTOML() ([]byte, error) {
 		if provider.TrustedFallbackOrigin != "" {
 			values["trusted_fallback_origin"] = provider.TrustedFallbackOrigin
 		}
+		if len(provider.Accounts) > 0 {
+			// []map[string]any, not []any: renderSection dispatches on that
+			// exact type to emit [[providers.<id>.accounts]]. As []any it fell
+			// through to the scalar branch and rendered a top-level
+			// [[accounts]] table, which would corrupt the file on round-trip.
+			accounts := make([]map[string]any, 0, len(provider.Accounts))
+			for _, account := range provider.Accounts {
+				entry := map[string]any{"name": account.Name, "kind": account.Kind}
+				if account.Ref != "" {
+					entry["ref"] = account.Ref
+				}
+				accounts = append(accounts, entry)
+			}
+			values["accounts"] = accounts
+		}
 		providers[id] = values
 	}
 	if len(providers) > 0 {
@@ -88,13 +103,33 @@ func (c *Config) MarshalTOML() ([]byte, error) {
 		setKey(doc, key, inferEnvValue(c.env[key]))
 	}
 
+	// B01 SPEC §2.6: fixed render list, then any remaining top-level raw
+	// tables in ascending name order (unknown sections must not be dropped).
+	fixed := []string{"usage", "scoring", "strategy", "bands", "catalog", "output", "gui", "profiles", "groups", "harnesses", "favourites", "routes", "providers"}
+	rendered := make(map[string]bool, len(fixed))
 	var builder strings.Builder
-	for _, name := range []string{"usage", "scoring", "strategy", "bands", "catalog", "output", "providers"} {
+	for _, name := range fixed {
+		rendered[name] = true
 		section, ok := doc[name].(map[string]any)
 		if !ok {
 			continue
 		}
 		if err := renderSection(&builder, name, section); err != nil {
+			return nil, err
+		}
+	}
+	remainder := make([]string, 0, len(doc))
+	for name, value := range doc {
+		if rendered[name] {
+			continue
+		}
+		if _, ok := value.(map[string]any); ok {
+			remainder = append(remainder, name)
+		}
+	}
+	sort.Strings(remainder)
+	for _, name := range remainder {
+		if err := renderSection(&builder, name, doc[name].(map[string]any)); err != nil {
 			return nil, err
 		}
 	}

@@ -1,0 +1,37 @@
+/* U05 §2.9 footer — mockup line 209: divider-topped row, ghost "Manage
+   profiles" left, launch split-button right. */
+.pf-footer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px 14px;
+  border-top: 1px solid var(--color-divider);
+  flex: none;
+}
+
+/* nocturne's .btn (14px, --space-2 padding) is imported after the component
+   stylesheets, so the mockup's compact footer metrics are restated at a
+   higher specificity: 12px / 5px 11px for the weights buttons (mockup line
+   217), 12px / 5px 8px for the settings button (mockup line 211, labelled
+   "Manage profiles" there — it opens the settings window, so it says so). */
+.pf-footer .btn {
+  font-size: 12px;
+  padding: 5px 11px;
+}
+
+.pf-footer .pf-manage {
+  padding: 5px 8px;
+}
+
+.pf-launchWrap {
+  margin-left: auto;
+  display: inline-flex;
+}
+
+/* Copy model id — a ghost button beside Settings, at the same scale. Present on
+   both tabs: it acts on the pick in the results band, which both tabs share. */
+.pf-copy {
+  font-size: 12px;
+  padding: 5px 8px;
+}

@@ -4,6 +4,10 @@ package whichmodel
 
 import "github.com/WD-Mitchell/which-model/internal/usage"
 
+// The builtin provider ids, kinds, and window specs for route production.
+// The id → models.dev slug mapping lives in internal/routing
+// (routing.CatalogueSlugFor) — the single source both this package and the
+// desktop's provider service consume.
 var knownProviders = []routeProviderInfo{
 	{ID: "claude", Kind: usage.KindSubscription, Windows: []usage.WindowSpec{
 		{ID: "5h", Label: "5-hour session", Unit: usage.UnitPercent},

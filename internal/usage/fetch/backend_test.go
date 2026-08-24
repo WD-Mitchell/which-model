@@ -36,6 +36,7 @@ func TestFetchAllCodexBarBackendSelected(t *testing.T) {
 	got, warnings, err := FetchAll(context.Background(), []string{"codex"}, Options{
 		Backend:      config.UsageBackendCodexBar,
 		Enabled:      map[string]bool{"codex": true},
+		CacheDir:     t.TempDir(),
 		ShowIdentity: false,
 	})
 	if err != nil || warnings != nil || len(got) != 1 {

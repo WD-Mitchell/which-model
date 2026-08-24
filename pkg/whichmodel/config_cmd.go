@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -108,7 +107,7 @@ func newConfigSetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := atomicWrite(path, out); err != nil {
+			if err := config.AtomicWriteFile(path, out); err != nil {
 				return err
 			}
 			fmt.Fprintf(Stdout, "wrote %s\n", path)
@@ -250,39 +249,4 @@ func parseTOMLValue(v string) any {
 		return b
 	}
 	return v
-}
-
-// atomicWrite replaces path with content via temp file + rename, creating
-// parent directories as needed.
-func atomicWrite(path string, content []byte) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".")
-	if err != nil {
-		return err
-	}
-	tmpName := tmp.Name()
-	renamed := false
-	defer func() {
-		if !renamed {
-			os.Remove(tmpName)
-		}
-	}()
-	if _, err := tmp.Write(content); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Sync(); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	if err := os.Rename(tmpName, path); err != nil {
-		return err
-	}
-	renamed = true
-	return nil
 }

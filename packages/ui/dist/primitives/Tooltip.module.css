@@ -1,0 +1,21 @@
+.wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.surface {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 4px);
+  transform: translateX(-50%);
+  z-index: 12;
+  padding: 4px 7px;
+  border-radius: 6px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  font-size: 10px;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--color-text) 85%, transparent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}

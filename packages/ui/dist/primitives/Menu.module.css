@@ -1,0 +1,38 @@
+.surface {
+  padding: 5px;
+  border-radius: 8px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.item {
+  padding: 7px 9px;
+  border-radius: 5px;
+  font-size: 12px;
+  cursor: pointer;
+  color: color-mix(in srgb, var(--color-text) 85%, transparent);
+}
+
+.dim {
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+}
+
+.selected {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  color: var(--color-accent-200);
+}
+
+.separator {
+  height: 1px;
+  margin: 3px 6px;
+  background: var(--color-divider);
+}

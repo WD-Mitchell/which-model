@@ -1,0 +1,48 @@
+/* which-model Desktop popover app-level styles. The html/body rules belong to
+   the app entries (U00 SPEC §2.3); component chrome lives in co-located CSS. */
+:root {
+  /* The mockup's mono stack (helmet .mono rule). packages/ui writes
+     `font-family: var(--font-mono)` from a few inline styles (BalanceSlider,
+     ComplexityScale, WeightEditor) but the nocturne token set does not define
+     it, and an undefined custom property makes the whole declaration invalid
+     — those labels silently fell back to Inter. Defined here so the popover
+     renders them mono; nocturne may define it later without conflict. */
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-weight: 400;
+  line-height: 1.55;
+  /* No -webkit-font-smoothing override: the design mockup sets none, and
+     forcing `antialiased` thins glyphs on this dark ground — the app read
+     visibly lighter than the Claude Design canvas until it was removed. */
+  /* The popover is a frameless window, not a document: the panel owns its own
+     scroll region and chrome text is not selectable (mockup root, line 46). */
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input,
+textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+#root {
+  height: 100%;
+}
+
+a {
+  color: var(--color-accent);
+  text-underline-offset: 3px;
+}

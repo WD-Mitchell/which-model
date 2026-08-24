@@ -1,0 +1,17 @@
+/* U02 SPEC §2.11 — the mockup's two inline tag scales. nocturne's own `.tag`
+   (11px / 3px 10px) is the standalone scale and is left untouched by
+   `size="md"`. As in Button.module.css the overrides are written
+   `:global(.tag).x` so they outrank `.tag`'s own declarations whatever the
+   emitted stylesheet order. */
+
+/* Inline badges — demo.dc.html 327, 443, 459, 504, 776. */
+:global(.tag).badge {
+  font-size: 8.5px;
+  padding: 0 5px;
+}
+
+/* Standalone chips — demo.dc.html 404 ("{{ g.slug }}"), 584 ("pinned"). */
+:global(.tag).chip {
+  font-size: 9.5px;
+  padding: 1px 7px;
+}

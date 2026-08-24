@@ -1,0 +1,4 @@
+<!-- menu-bar mark: viewBox inset 14% per side; see PROVENANCE.md -->
+<svg viewBox="-14 -14 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path fill-rule="evenodd" clip-rule="evenodd" d="M80 88H20V12H80V88ZM35 27H65V72H35V27Z" fill="#211E1E"/>
+</svg>

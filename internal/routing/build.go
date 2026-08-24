@@ -99,6 +99,21 @@ func joinModel(entry ModelEntry, rows []identity.Identity) (levels []joinedLevel
 			unmatched = append(unmatched, level)
 		}
 	}
+	// An entry that declares NO effort levels binds a single catalog identity
+	// under that identity's own reasoning: with one candidate and no claim from
+	// the source, there is nothing to disambiguate. Without this, a models.dev
+	// record with no declared efforts (treated as "default" → collapsed "high")
+	// could not bind a model whose only catalog row is e.g. xhigh, and that one
+	// model failed the WHOLE provider's refresh via AmbiguityError (measured
+	// live: copilot/gpt-5.4-nano vs the sole identity (GPT-5.4 nano, xhigh)).
+	// Entries that DID declare levels keep the strict behaviour (a declared
+	// level absent from the catalog stays unmatched), and the fail-loud
+	// AmbiguityError is unchanged for its designed case — multiple candidates
+	// the declared levels cannot tell apart (F18 golden: three Opus rows).
+	if len(entry.Reasoning) == 0 && len(levels) == 0 && len(candidates) == 1 {
+		levels = append(levels, joinedLevel{level: candidates[0].Reasoning, row: candidates[0]})
+		unmatched = nil
+	}
 	return levels, candidates, unmatched
 }
 
