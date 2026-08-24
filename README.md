@@ -11,6 +11,24 @@
 > [!NOTE]
 > The project is currently pre-release. Commands and configuration may evolve before the first stable release.
 
+## The desktop app
+
+A menu bar companion to the CLI: the glyph carries the current pick's score, the popover picks a profile and launches a harness, and Settings edits the same configuration the CLI reads.
+
+<p align="center">
+  <img src="docs/screenshots/popover.png" alt="which-model popover: profile slider, ranked pick, and launch button" width="380">
+</p>
+
+Pick a profile by name or slide between simple action and planning; arrows walk the ranking, and the footer launches the chosen model in your harness.
+
+![Settings — General](docs/screenshots/settings-general.png)
+
+General covers how the app runs on the machine — global shortcut, menu bar icon, launch at startup, update policy — and how the pick is drawn in the popover.
+
+![Settings — Profiles](docs/screenshots/settings-profiles.png)
+
+Profiles, benchmark groups, harnesses, favourites, and providers are all editable from the same window; built-in profiles are read-only until duplicated.
+
 ## Why which-model?
 
 Model choice changes with the job. A fast, inexpensive model may be ideal for a small edit, while research, planning, review, or orchestration may need a different balance. Provider limits can change the answer again.
