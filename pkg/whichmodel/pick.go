@@ -490,16 +490,25 @@ func multiplyRound2(vals ...float64) float64 {
 
 // classifyNoPick maps a zero-survivor run to the SPEC §2.5 exit class
 // (precedence high → low; Decision D-15): any auth_required → 5, else any
-// band_gated/provider_error → 4, else 3.
+// band_gated/provider_error → 4, else 3. Messages are the SPEC §3.16
+// strings (issue #50: the auth message used to hardcode a CodexBar
+// credential check that is wrong for native-backend users; provider_error
+// kept the shared exit-4 class per D-15 but now reports its own message so
+// provider failures are not described as gating).
 func classifyNoPick(ex []ExcludedCandidate) *CodedError {
 	for _, x := range ex {
 		if x.ReasonCode == "auth_required" {
-			return &CodedError{Code: "auth_required", Message: "auth required; check CodexBar credentials"}
+			return &CodedError{Code: "auth_required", Message: "auth required; run which-model auth status"}
 		}
 	}
 	for _, x := range ex {
-		if x.ReasonCode == "band_gated" || x.ReasonCode == "provider_error" {
+		if x.ReasonCode == "band_gated" {
 			return &CodedError{Code: "usage_gated", Message: "usage gating excluded every candidate"}
+		}
+	}
+	for _, x := range ex {
+		if x.ReasonCode == "provider_error" {
+			return &CodedError{Code: "usage_gated", Message: "one or more candidates failed with a provider error"}
 		}
 	}
 	return &CodedError{Code: "no_pick", Message: "no candidate matched the request"}

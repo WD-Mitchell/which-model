@@ -58,8 +58,8 @@ func TestPickExitAuthWins(t *testing.T) {
 	if ce.Code != "auth_required" {
 		t.Errorf("code = %q, want auth_required", ce.Code)
 	}
-	if ce.Message != "auth required; check CodexBar credentials" {
-		t.Errorf("message = %q, want %q", ce.Message, "auth required; check CodexBar credentials")
+	if ce.Message != "auth required; run which-model auth status" {
+		t.Errorf("message = %q, want %q", ce.Message, "auth required; run which-model auth status")
 	}
 	if ExitCodeFor(err) != 5 {
 		t.Errorf("exit = %d, want 5", ExitCodeFor(err))
@@ -151,8 +151,8 @@ func TestPickExitProviderErrorClass(t *testing.T) {
 	if ce.Code != "usage_gated" {
 		t.Errorf("code = %q, want usage_gated", ce.Code)
 	}
-	if ce.Message != "usage gating excluded every candidate" {
-		t.Errorf("message = %q, want %q", ce.Message, "usage gating excluded every candidate")
+	if ce.Message != "one or more candidates failed with a provider error" {
+		t.Errorf("message = %q, want %q", ce.Message, "one or more candidates failed with a provider error")
 	}
 	if ExitCodeFor(err) != 4 {
 		t.Errorf("exit = %d, want 4", ExitCodeFor(err))
