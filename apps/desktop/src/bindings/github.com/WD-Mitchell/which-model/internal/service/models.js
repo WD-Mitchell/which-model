@@ -56,6 +56,7 @@
  * @property {boolean} shell_alias
  * @property {boolean} use_keychain - [auth], true prefers OS keychain
  * @property {string} config_path - read-only, display only
+ * @property {string} version - read-only, display only
  */
 
 /**
@@ -210,6 +211,13 @@
  * @property {string} alias
  * @property {string} claude_md
  * @property {string} preview - "$ wm <slug>  →  <model_id>  (<provider>)" line
+ */
+
+/**
+ * SignInStart is the Start result: what the user must see to approve.
+ * @typedef {Object} SignInStart
+ * @property {string} verification_uri - exact https URL to open
+ * @property {string} user_code - code to enter, display-only
  */
 
 /**

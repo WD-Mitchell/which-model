@@ -176,6 +176,8 @@ export interface GUISettings {
   /** Prefer the OS keychain for credentials created by which-model. */
   use_keychain: boolean
   config_path: string
+  /** Running build identity, e.g. "which-model 2.0.0 (commit ab12cd3, built 2026-09-01)". */
+  version: string
 }
 
 export interface ShellSnippets {

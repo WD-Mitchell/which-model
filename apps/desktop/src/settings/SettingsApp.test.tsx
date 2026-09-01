@@ -38,6 +38,13 @@ describe('SettingsApp', () => {
     expect(await screen.findByText('How which-model runs on this Mac, and how the pick is drawn in the popover.')).toBeDefined()
   })
 
+  // Issue: the user could not tell which build was running. The sidebar
+  // footer shows the engine's version line next to the config path.
+  it('shows the build version in the sidebar footer', async () => {
+    renderApp(host)
+    expect(await screen.findByText(/which-model dev \(commit unknown, built unknown\)/)).toBeDefined()
+  })
+
   it('persists the system-keychain preference as one settings delta', async () => {
     const initial = await host.settings.get()
     const spy = vi.spyOn(host.settings, 'set')

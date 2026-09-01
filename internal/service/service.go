@@ -43,6 +43,9 @@ type Services struct {
 	// (B07 SPEC §2.10). Wired to B04's RecordPick by New; Launch logs (never
 	// returns) a failure. Tests may override it.
 	recordPick func(ctx context.Context, profileSlug, routeKey string) error
+	// version is the read-only build identity reported through
+	// GUISettings.Version ("" = unknown). Set by the host via WithVersion.
+	version string
 }
 
 // catalogConfig mirrors the F23-owned [catalog] config section so
@@ -128,6 +131,17 @@ func NewEmpty(paths config.Paths, cfg *config.Config, emit EmitFunc) *Services {
 	s.recordPick = s.RecordPick
 	return s
 }
+
+// TestOption and host-option seam: WithVersion sets the read-only build
+// identity surfaced through GUISettings.Version. Empty means unknown.
+func WithVersion(v string) func(*Services) {
+	return func(s *Services) { s.version = v }
+}
+
+// SetVersion applies an option to a live Services value. The desktop host
+// builds its Services first and learns its ldflags version alongside, so an
+// apply-after-build keeps the constructor signatures unchanged.
+func (s *Services) SetVersion(v string) { s.version = v }
 
 // Warnings returns non-fatal construction warnings (currently only the
 // missing-routes-table warning, CONTRACTS §7), copied, in occurrence order.

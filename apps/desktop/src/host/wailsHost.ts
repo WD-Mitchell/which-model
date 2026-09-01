@@ -12,6 +12,7 @@ import {
   ProfilesAPI,
   ProvidersAPI,
   SettingsAPI,
+  SignInAPI,
   UsageAPI,
   WindowService,
 } from '../bindings/github.com/WD-Mitchell/which-model/cmd/which-model-desktop/index.js'
@@ -106,6 +107,12 @@ export function createWailsHost(): EngineHost {
       get: () => call(SettingsAPI.Get() as Cancellable<unknown>, (r) => r as never),
       set: (s) => call(SettingsAPI.Set(s) as Cancellable<void>, () => {}),
       shellSnippets: () => call(SettingsAPI.ShellSnippets() as Cancellable<unknown>, (r) => r as never),
+    },
+    signin: {
+      start: (provider: string) =>
+        call(SignInAPI.Start(provider) as Cancellable<unknown>, (r) => r as { verification_uri: string; user_code: string }),
+      confirm: (provider: string) => call(SignInAPI.Confirm(provider) as Cancellable<void>, () => {}),
+      cancel: (provider: string) => call(SignInAPI.Cancel(provider) as Cancellable<void>, () => {}),
     },
     window: {
       openSettings: () => call(WindowService.OpenSettings() as Cancellable<void>, () => {}),

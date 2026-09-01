@@ -88,6 +88,16 @@ export interface EngineHost {
     set(s: GUISettings): Promise<void>
     shellSnippets(): Promise<ShellSnippets>
   }
+  signin: {
+    /** Begin the OAuth device flow: returns the verification URL + code to
+     *  show the user. Currently only copilot ships a device flow. */
+    start(provider: string): Promise<{ verification_uri: string; user_code: string }>
+    /** Poll until approved/expired/denied and save the credential. Long-
+     *  running: call off the render path. Rejects with ErrorDTO. */
+    confirm(provider: string): Promise<void>
+    /** Abandon an active flow (safe to call anytime). */
+    cancel(provider: string): Promise<void>
+  }
   window: {
     openSettings(): Promise<void>
     closeSettings(): Promise<void>

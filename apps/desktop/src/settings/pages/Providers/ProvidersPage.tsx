@@ -27,6 +27,7 @@ import {
   Menu,
   ProviderUsageRow,
   SegmentedControl,
+  SettingsModal,
   Tag,
   Toggle,
   cx,
@@ -318,6 +319,7 @@ function ProvidersListView({ openDetail }: { openDetail(d: Detail): void }) {
           node: (
             <span
               className={styles.card}
+              onClick={() => openDetail({ kind: 'provider', id: p.id })}
               onContextMenu={(e) => {
                 e.preventDefault()
                 setMenu({ id: p.id, x: e.clientX, y: e.clientY })
@@ -331,11 +333,7 @@ function ProvidersListView({ openDetail }: { openDetail(d: Detail): void }) {
                 offLabel="not enabled"
                 leading={<span className={cx('mono', styles.order)}>{i + 1}</span>}
                 trailing={
-                  <span
-                    className={styles.openCell}
-                    title={`${p.routes_on} of ${p.routes_total} routes enabled`}
-                    onClick={() => openDetail({ kind: 'provider', id: p.id })}
-                  >
+                  <span className={styles.openCell} title={`${p.routes_on} of ${p.routes_total} routes enabled`}>
                     <span className={styles.chevron}>
                       <ChevronIcon />
                     </span>
@@ -560,6 +558,13 @@ function AccountsSection({
 }) {
   const [draft, setDraft] = useState<ProviderAccount[] | null>(null)
   const rows = draft ?? accounts
+  const [signIn, setSignIn] = useState<null | {
+    provider: string
+    account: string
+    phase: 'code' | 'waiting'
+    uri?: string
+    code?: string
+  }>(null)
 
   const commit = useCallback(
     (next: ProviderAccount[]) => {
@@ -578,15 +583,40 @@ function AccountsSection({
   const update = (i: number, patch: Partial<ProviderAccount>) =>
     commit(rows.map((a, n) => (n === i ? { ...a, ...patch } : a)))
 
-  // OAuth sign-in is not implemented host-side yet: there is no per-account
-  // auth flow, and the usage adapters still resolve credentials through their
-  // own descriptor chain. Rather than render a button that silently does
-  // nothing, say so and point at the file the credential is read from.
+  // OAuth sign-in drives the same device flow the CLI's `auth login` drives
+  // (internal/service SignInService): show the code, let the user approve in
+  // the browser, then save the credential to the managed store. Confirm is
+  // awaited off the interaction path (it blocks until GitHub is satisfied);
+  // its only feedback is the modal's state + the final refetch.
   const onSignIn = (i: number) => {
-    onError(
-      `sign-in for ${rows[i]?.name ?? 'this account'} is not wired up yet — point it at an existing credential file for now`,
-    )
+    getHost()
+      .signin.start(id)
+      .then((s) => setSignIn({ provider: id, account: rows[i]?.name ?? 'account', phase: 'code', uri: s.verification_uri, code: s.user_code }))
+      .catch((e) => {
+        setSignIn(null)
+        onError(errText(e, 'could not start sign-in'))
+      })
   }
+
+  const onConfirmSignIn = useCallback(() => {
+    if (!signIn) return
+    setSignIn({ ...signIn, phase: 'waiting' })
+    getHost()
+      .signin.confirm(signIn.provider)
+      .then(() => {
+        setSignIn(null)
+        setDraft(null)
+      })
+      .catch((e) => {
+        setSignIn(null)
+        onError(errText(e, 'sign-in failed'))
+      })
+  }, [signIn, onError])
+
+  const onCancelSignIn = useCallback(() => {
+    if (signIn) void getHost().signin.cancel(signIn.provider)
+    setSignIn(null)
+  }, [signIn])
 
   return (
     <section className={styles.accounts}>
@@ -680,6 +710,51 @@ function AccountsSection({
         Accounts record where a credential lives — an environment variable, file path or keychain
         service — never the secret itself.
       </div>
+
+      {signIn && (
+        <SettingsModal
+          open
+          title={`Sign in to ${signIn.account}`}
+          description={
+            signIn.phase === 'code'
+              ? 'Enter this code at github.com/login/device to authorise which-model.'
+              : 'Waiting for you to finish in the browser — this closes when GitHub confirms the device login.'
+          }
+          onClose={onCancelSignIn}
+          closeOnBackdrop={signIn.phase !== 'waiting'}
+          actions={
+            signIn.phase === 'code' ? (
+              <>
+                <Button
+                  variant="primary"
+                  size="xs"
+                  onClick={() => {
+                    if (signIn.uri) void getHost().window.copyToClipboard(signIn.uri)
+                  }}
+                >
+                  Copy link
+                </Button>
+                <Button variant="primary" size="xs" onClick={onConfirmSignIn}>
+                  I entered the code
+                </Button>
+                <Button variant="secondary" size="xs" onClick={onCancelSignIn}>
+                  Cancel
+                </Button>
+              </>
+            ) : (
+              <Button variant="secondary" size="xs" onClick={onCancelSignIn}>
+                Cancel
+              </Button>
+            )
+          }
+        >
+          {signIn.code ? (
+            <div className={cx('mono', styles.deviceCode)} onClick={() => signIn.code && void getHost().window.copyToClipboard(signIn.code)}>
+              {signIn.code}
+            </div>
+          ) : null}
+        </SettingsModal>
+      )}
     </section>
   )
 }

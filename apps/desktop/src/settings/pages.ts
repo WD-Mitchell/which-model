@@ -42,6 +42,7 @@ export interface SettingsShellProps {
   page: SettingsPageName
   onPage(page: SettingsPageName): void // SettingsApp clears detail here
   configPath: string // '' while unknown
+  version: string // '' while unknown
   onClose(): void // wired to host.window.closeSettings()
   children: React.ReactNode // the mounted page component
 }
