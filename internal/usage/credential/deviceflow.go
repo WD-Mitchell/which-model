@@ -120,6 +120,7 @@ func (f *DeviceFlow) pollOnce(ctx context.Context, code DeviceCode) (string, err
 		return "", usage.NewFailureError("network", "The provider request failed.")
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
 
 	resp, err := f.HTTPClient.Do(req)
 	if err != nil {
@@ -198,6 +199,7 @@ func (f *DeviceFlow) Start(ctx context.Context) (DeviceCode, error) {
 		return DeviceCode{}, usage.NewFailureError("network", "The provider request failed.")
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
 
 	resp, err := f.HTTPClient.Do(req)
 	if err != nil {

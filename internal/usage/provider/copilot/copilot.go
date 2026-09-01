@@ -61,7 +61,7 @@ func init() {
 			{Kind: usage.AuthCLIShellOut, Shell: &usage.ShellSpec{Command: "git", Args: []string{"config", "--system", "--get", "github.copilot.oauthToken"}, Timeout: 3 * time.Second}, Validate: validateIdentityHook},
 			{Kind: usage.AuthCLIShellOut, Shell: &usage.ShellSpec{Command: "gh", Args: []string{"auth", "token", "--hostname", "github.com"}, Timeout: 3 * time.Second}, Validate: validateIdentityHook},
 			// 5. --login path only (F25); F12 MUST delegate to StartDeviceFlow/PollDeviceFlow
-			{Kind: usage.AuthOAuthDeviceFlow, OAuth: &usage.OAuthSpec{ClientID: CopilotClientID, DeviceCodeURL: GitHubDeviceCodeURL, TokenURL: GitHubDeviceTokenURL, Scope: "read:user"}, Validate: validateIdentityHook},
+			{Kind: usage.AuthOAuthDeviceFlow, OAuth: &usage.OAuthSpec{ClientID: CopilotClientID, DeviceCodeURL: GitHubDeviceCodeURL, TokenURL: GitHubDeviceTokenURL, Scope: "read:user", VerificationURI: deviceVerificationURI}, Validate: validateIdentityHook},
 		},
 		Windows: []usage.WindowSpec{
 			{ID: "premium", Label: "premium interactions", Unit: usage.UnitRequests, Optional: true},

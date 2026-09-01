@@ -8,8 +8,8 @@ package main
 import (
 	"log"
 
-	"golang.design/x/hotkey"
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"golang.design/x/hotkey"
 )
 
 // parseShortcut maps GUISettings.Shortcut → hotkey registration inputs.
