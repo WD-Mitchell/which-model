@@ -16,8 +16,8 @@ jobs:
           go-version-file: go.mod
           cache: true
       # The Wails desktop app (cmd/which-model-desktop) needs GTK/webkitgtk
-      # to compile on Linux. The CLI and its libraries are verified here;
-      # desktop Linux build is verified on macOS or in a dedicated job.
+      # to compile on Linux, so it is NOT built here; the desktop-backend job
+      # below builds it on macOS. The CLI and its libraries are verified here.
       - run: go build ./cmd/which-model ./internal/... ./pkg/...
       - run: go vet ./cmd/which-model ./internal/... ./pkg/...
       - run: go test ./cmd/which-model ./internal/... ./pkg/...
@@ -39,3 +39,34 @@ jobs:
           node-version: 22
       - name: Smoke-test npm packaging
         run: bash scripts/smoke-npm.sh npm
+
+  desktop-backend:
+    # The Wails desktop backend needs CGO + the GTK/webkitgtk toolchain on
+    # Linux; macOS carries those natively, so the compile check runs there
+    # (the promise the test job's comment used to make without a job).
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go build ./cmd/which-model-desktop
+
+  desktop-frontend:
+    # The web frontends (packages/*, apps/desktop) had zero CI: vitest and
+    # tsc regressions were only caught locally. Run typecheck + tests here.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+      - run: npm install -g pnpm@latest
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @which-model/core build
+      - run: pnpm --filter @which-model/ui build
+      - run: pnpm -r typecheck
+      - run: pnpm -r test
