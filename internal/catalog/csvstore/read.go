@@ -131,13 +131,17 @@ func Read(path string) (rows []Row, provenance *Provenance, err error) {
 			key, value := kv[0], kv[1]
 			switch key {
 			case "raw_sha256":
-				if len(value) != 64 {
+				// F06 CONTRACTS: 64 LOWERCASE hex — the same rule the
+				// writer enforces (issue #46: Read used to accept and
+				// silently lowercase uppercase hex that WriteAtomic then
+				// rejected, so a readable CSV was unwritable).
+				if len(value) != 64 || value != strings.ToLower(value) {
 					return nil, nil, fmt.Errorf("%w: bad raw_sha256 in %s", ErrMalformedCSV, path)
 				}
 				if _, err := hex.DecodeString(value); err != nil {
 					return nil, nil, fmt.Errorf("%w: bad raw_sha256 in %s", ErrMalformedCSV, path)
 				}
-				prov.RawSHA256 = strings.ToLower(value)
+				prov.RawSHA256 = value
 			case "normalizer":
 				prov.Normalizer = value
 			case "aggregator":
