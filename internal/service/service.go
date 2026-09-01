@@ -223,12 +223,14 @@ func (s *Services) catalogBenchmarkPath() string {
 	return cc.BenchmarkConfigPath
 }
 
-// loadRoutes loads the routes table from <CacheDir>/catalog/routes.json,
-// falling back to the legacy <CacheDir>/routes.json only when the primary is
-// absent. A missing table (both paths) is non-fatal: empty table + warning.
-// A present-but-corrupt table is fatal (B02 SPEC §2.5).
+// loadRoutes loads the routes table from the canonical <CacheDir>/routes.json
+// (F18 SPEC §2.11 — the same location the CLI writes), falling back to the
+// desktop's legacy <CacheDir>/catalog/routes.json when the canonical file is
+// absent. A legacy table is migrated to the canonical path on load; a failed
+// migration degrades to a warning. A missing table (both paths) is non-fatal:
+// empty table + warning. A present-but-corrupt table is fatal (B02 SPEC §2.5).
 func (s *Services) loadRoutes() (routing.Table, []string, error) {
-	primary := filepath.Join(s.paths.CacheDir, "catalog", "routes.json")
+	primary := filepath.Join(s.paths.CacheDir, "routes.json")
 	table, err := routing.LoadTable(primary)
 	if err == nil {
 		return table, nil, nil
@@ -237,25 +239,29 @@ func (s *Services) loadRoutes() (routing.Table, []string, error) {
 		return routing.Table{}, nil, err
 	}
 
-	legacy := filepath.Join(s.paths.CacheDir, "routes.json")
+	legacy := filepath.Join(s.paths.CacheDir, "catalog", "routes.json")
 	table, err = routing.LoadTable(legacy)
-	if err == nil {
-		return table, nil, nil
-	}
-	if !errors.Is(err, fs.ErrNotExist) {
-		return routing.Table{}, nil, err
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			return routing.Table{}, nil, err
+		}
+		warning := fmt.Sprintf("routes table not found at %s; availability is empty until: which-model routes refresh", primary)
+		return routing.Table{}, []string{warning}, nil
 	}
 
-	warning := fmt.Sprintf("routes table not found at %s; availability is empty until: which-model routes refresh", primary)
-	return routing.Table{}, []string{warning}, nil
+	warnings := []string(nil)
+	if migrateErr := routing.SaveTable(primary, table); migrateErr != nil {
+		warnings = append(warnings, fmt.Sprintf("routes table migration from %s to %s failed: %v", legacy, primary, migrateErr))
+	}
+	return table, warnings, nil
 }
 
-// saveRoutesLocked persists the in-memory route table to the primary routes
-// path. Callers hold s.mu for writing. Used when deleting a provider, whose
-// routes must go with it — the provider universe is unioned FROM the route
-// table, so leaving them would resurrect the row.
+// saveRoutesLocked persists the in-memory route table to the canonical
+// routes path. Callers hold s.mu for writing. Used when deleting a provider,
+// whose routes must go with it — the provider universe is unioned FROM the
+// route table, so leaving them would resurrect the row.
 func (s *Services) saveRoutesLocked() error {
-	path := filepath.Join(s.paths.CacheDir, "catalog", "routes.json")
+	path := filepath.Join(s.paths.CacheDir, "routes.json")
 	return routing.SaveTable(path, s.routes)
 }
 

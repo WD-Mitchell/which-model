@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -74,8 +75,8 @@ func TestNew_MissingScoresCSV(t *testing.T) {
 
 func TestNew_MissingRoutesTable(t *testing.T) {
 	paths, cfg := materializeFixture(t)
-	// Remove the routes table (both primary and legacy) -> non-fatal.
-	os.Remove(filepath.Join(paths.CacheDir, "catalog", "routes.json"))
+	// Remove the canonical routes table -> non-fatal.
+	os.Remove(filepath.Join(paths.CacheDir, "routes.json"))
 
 	rec := &emitRecorder{}
 	svc, err := New(paths, cfg, rec.emit)
@@ -85,7 +86,7 @@ func TestNew_MissingRoutesTable(t *testing.T) {
 	if len(svc.routes.Routes) != 0 {
 		t.Errorf("routes.Routes = %d, want empty", len(svc.routes.Routes))
 	}
-	want := "routes table not found at " + filepath.Join(paths.CacheDir, "catalog", "routes.json") + "; availability is empty until: which-model routes refresh"
+	want := "routes table not found at " + filepath.Join(paths.CacheDir, "routes.json") + "; availability is empty until: which-model routes refresh"
 	w := svc.Warnings()
 	if len(w) != 1 {
 		t.Fatalf("Warnings() = %v, want exactly one entry", w)
@@ -95,6 +96,79 @@ func TestNew_MissingRoutesTable(t *testing.T) {
 	}
 	if len(svc.scores) != 3 {
 		t.Errorf("scores = %d rows, want 3 (load continues past missing routes)", len(svc.scores))
+	}
+}
+
+// A table at the desktop's old <cache>/catalog/routes.json location is
+// migrated to the canonical <cache>/routes.json path on first load.
+func TestNew_RoutesLegacyMigration(t *testing.T) {
+	paths, cfg := materializeFixture(t)
+	if err := os.Remove(filepath.Join(paths.CacheDir, "routes.json")); err != nil {
+		t.Fatal(err)
+	}
+	legacy := defaultRoutes()
+	legacy.Routes = legacy.Routes[:1]
+	if err := routing.SaveTable(filepath.Join(paths.CacheDir, "catalog", "routes.json"), legacy); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := &emitRecorder{}
+	svc, err := New(paths, cfg, rec.emit)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if len(svc.routes.Routes) != 1 || svc.routes.Routes[0].ModelID != legacy.Routes[0].ModelID {
+		t.Errorf("routes = %d entries, want the legacy table's single route", len(svc.routes.Routes))
+	}
+	if w := svc.Warnings(); len(w) != 0 {
+		t.Errorf("Warnings() = %v, want empty after migration", w)
+	}
+	migrated, err := routing.LoadTable(filepath.Join(paths.CacheDir, "routes.json"))
+	if err != nil {
+		t.Fatalf("canonical table after migration: %v", err)
+	}
+	if len(migrated.Routes) != 1 || migrated.Routes[0].ModelID != legacy.Routes[0].ModelID {
+		t.Errorf("migrated table = %d entries, want the legacy table's single route", len(migrated.Routes))
+	}
+}
+
+// When both locations exist, the canonical <cache>/routes.json wins and the
+// legacy copy is left alone.
+func TestNew_RoutesCanonicalPreferred(t *testing.T) {
+	paths, cfg := materializeFixture(t)
+	legacy := defaultRoutes()
+	legacy.Routes = legacy.Routes[:1]
+	if err := routing.SaveTable(filepath.Join(paths.CacheDir, "catalog", "routes.json"), legacy); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := &emitRecorder{}
+	svc, err := New(paths, cfg, rec.emit)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if len(svc.routes.Routes) != len(defaultRoutes().Routes) {
+		t.Errorf("routes = %d entries, want the canonical table's %d", len(svc.routes.Routes), len(defaultRoutes().Routes))
+	}
+	if w := svc.Warnings(); len(w) != 0 {
+		t.Errorf("Warnings() = %v, want empty", w)
+	}
+}
+
+// saveRoutesLocked persists to the canonical path only.
+func TestSaveRoutesWritesCanonical(t *testing.T) {
+	svc, _ := newTestServices(t)
+	svc.mu.Lock()
+	err := svc.saveRoutesLocked()
+	svc.mu.Unlock()
+	if err != nil {
+		t.Fatalf("saveRoutesLocked() error = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(svc.paths.CacheDir, "routes.json")); err != nil {
+		t.Errorf("canonical routes file: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(svc.paths.CacheDir, "catalog", "routes.json")); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("legacy catalog/routes.json stat = %v, want not exist", err)
 	}
 }
 
@@ -127,7 +201,7 @@ func TestNew_CorruptBenchmarks(t *testing.T) {
 
 func TestNew_CorruptRoutesTable(t *testing.T) {
 	paths, cfg := materializeFixture(t)
-	if err := os.WriteFile(filepath.Join(paths.CacheDir, "catalog", "routes.json"), []byte("{not json"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(paths.CacheDir, "routes.json"), []byte("{not json"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	rec := &emitRecorder{}
@@ -139,7 +213,7 @@ func TestNew_CorruptRoutesTable(t *testing.T) {
 	if dto.Code != "io_error" {
 		t.Errorf("toErrorDTO code = %q, want io_error", dto.Code)
 	}
-	if !strings.Contains(err.Error(), filepath.Join(paths.CacheDir, "catalog", "routes.json")) {
+	if !strings.Contains(err.Error(), filepath.Join(paths.CacheDir, "routes.json")) {
 		t.Errorf("error message = %q, want to name the corrupt path", err.Error())
 	}
 }
@@ -268,7 +342,6 @@ func TestWeightConversion(t *testing.T) {
 		t.Errorf("round2(2.499) = %v, want 2.5", got)
 	}
 }
-
 
 func TestToErrorDTO(t *testing.T) {
 	t.Run("nil", func(t *testing.T) {

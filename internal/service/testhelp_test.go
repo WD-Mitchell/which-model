@@ -163,7 +163,7 @@ func writeFixtureTree(fix *testFixture) error {
 	if fix.routes != nil {
 		table = *fix.routes
 	}
-	return routing.SaveTable(filepath.Join(fix.paths.CacheDir, "catalog", "routes.json"), table)
+	return routing.SaveTable(filepath.Join(fix.paths.CacheDir, "routes.json"), table)
 }
 
 // defaultRoutes builds the CONTRACTS §9 synthetic routes table: providers

@@ -23,7 +23,7 @@ Inherits: `specs/global/*`, `specs/desktop/global/*` (D00), `specs/desktop/backe
 
 4. **Benchmarks config.** Read from `catalog.benchmark_config_path` when that config key is set, else `<CacheDir>/catalog/benchmarks.toml`, parsed with `score.ParseBenchmarkConfig`. Missing or invalid → fail fast, `io_error`, message names the resolved path. (The GUI cannot walk cwd like the CLI does — Deviations below.)
 
-5. **Routes table.** Loaded via `routing.LoadTable` from `<CacheDir>/catalog/routes.json`; when that file does not exist, the legacy CLI location `<CacheDir>/routes.json` is tried before giving up. A missing table (both paths) is NOT fatal: `Services` starts with an empty `routing.Table`, availability (B00 CONTRACTS §6.3) is empty, and the warning string in CONTRACTS §7 is recorded and returned by `Warnings()`. A present-but-corrupt table IS fatal (`io_error` naming the path) — silent data loss is worse than a missing cache.
+5. **Routes table.** Loaded via `routing.LoadTable` from the canonical `<CacheDir>/routes.json` (F18 SPEC §2.11 — the same file the CLI writes); when that file does not exist, the desktop's legacy `<CacheDir>/catalog/routes.json` is tried, and a table found there is migrated to the canonical path on load (a failed migration degrades to a `Warnings()` entry, never an error). A missing table (both paths) is NOT fatal: `Services` starts with an empty `routing.Table`, availability (B00 CONTRACTS §6.3) is empty, and the warning string in CONTRACTS §7 is recorded and returned by `Warnings()`. A present-but-corrupt table IS fatal (`io_error` naming the path) — silent data loss is worse than a missing cache.
 
 6. **Locking.** One `sync.RWMutex` guards config document, catalog caches, and routes table. Read methods take `RLock` for the whole read. Every mutating method follows exactly: (a) validate inputs BEFORE locking (validation failures take no lock, write nothing, emit nothing); (b) `Lock`; (c) deep-copy the raw config document and mutate the copy; (d) `config.MarshalTOML` on the copy; (e) `config.AtomicWriteFile(paths.UserConfigFile, data)`; (f) swap the copy into memory; (g) `Unlock`; (h) emit exactly one event. Any failure at (c)–(e) unlocks and returns with in-memory state untouched and no event emitted. Emit happens after unlock so a re-entrant read from an event handler cannot deadlock.
 
@@ -50,7 +50,7 @@ Inherits: `specs/global/*`, `specs/desktop/global/*` (D00), `specs/desktop/backe
 | Decision | Value | Rationale |
 |---|---|---|
 | Missing routes table | Non-fatal: empty availability + `Warnings()` entry | Ranking degrades visibly; scores CSV absence is the true "no catalog" case |
-| Routes path | `<CacheDir>/catalog/routes.json`, fallback `<CacheDir>/routes.json` | Desktop groups catalog artefacts under `catalog/`; fallback keeps CLI-produced tables usable |
+| Routes path | Canonical `<CacheDir>/routes.json` (F18 SPEC §2.11), legacy fallback `<CacheDir>/catalog/routes.json` with one-time migration on load | One shared file keeps CLI `routes` mutations and desktop reads on the same state; migration retires the desktop's old location without losing its table |
 | Benchmarks path | config key `catalog.benchmark_config_path`, else `<CacheDir>/catalog/benchmarks.toml` | GUI has no meaningful cwd for the CLI's walk-up |
 | Emit after unlock | Step (h) outside the critical section | Event handlers may call read methods; emitting under lock risks deadlock |
 | Validate before lock | Step (a) precedes `Lock` | Cheap rejection, no writer starvation, "zero events on failure" trivially holds |
