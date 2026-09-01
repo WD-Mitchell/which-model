@@ -51,7 +51,17 @@ def load_benchmark_config(
     # tolerated-but-ignored here rather than a hard error (issue #48):
     # rejecting it would break the daily job the moment anyone uses the
     # documented Go alias mechanism.
-    allowed = {"benchmark_selection", "benchmark_groups", "benchmark_aliases"}
+    # Both required tables must be present (missing either previously fell
+    # through to a raw KeyError); benchmark_aliases is optional and ignored
+    # (issue #48); anything else is rejected.
+    required = {"benchmark_selection", "benchmark_groups"}
+    allowed = required | {"benchmark_aliases"}
+    missing = required - set(document)
+    if missing:
+        raise UpdateError(
+            "benchmark config must contain benchmark_selection and benchmark_groups"
+            " (missing: " + ", ".join(sorted(missing)) + ")"
+        )
     if not set(document) <= allowed:
         raise UpdateError(
             "benchmark config must contain only benchmark_selection, benchmark_groups"
