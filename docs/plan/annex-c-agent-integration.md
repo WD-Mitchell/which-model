@@ -205,10 +205,10 @@ Two ecosystems are covered: Claude Code hooks (`.claude/settings.json`) and a ge
 | | |
 |---|---|
 | Trigger | Agent session/conversation start |
-| Command | `which-model usage refresh --json --quiet --timeout 5s` (bounded refresh of all configured providers into cache; `serve --warm` is the daemon-mode equivalent when `which-model serve` is already running) |
+| Command | `which-model usage --all --json --quiet --refresh-usage --timeout 5s` (bounded refresh of all configured providers into cache; `serve --warm` is the daemon-mode equivalent when `which-model serve` is already running) |
 | Timeout | 5s hard cap (hook-level timeout in addition to the command's own `--timeout`) |
 | Failure posture | Fail-open: hook exit code is ignored by the harness; a failed/timed-out warm leaves the cache as it was (possibly cold), and the first `which-model pick` simply pays the live-fetch cost itself rather than the session paying it upfront. |
-| Injects | Nothing into the transcript directly; this hook exists purely to reduce first-`pick` latency by pre-populating `internal/usage/cache.go`. |
+| Injects | Nothing into the transcript directly; this hook exists purely to reduce first-`pick` latency by pre-populating `internal/usage/cache/cache.go`. |
 
 **Claude Code (`.claude/settings.json`):**
 
@@ -221,7 +221,7 @@ Two ecosystems are covered: Claude Code hooks (`.claude/settings.json`) and a ge
         "hooks": [
           {
             "type": "command",
-            "command": "which-model usage refresh --json --quiet --timeout 5s",
+            "command": "which-model usage --all --json --quiet --refresh-usage --timeout 5s",
             "timeout": 5
           }
         ]
@@ -236,7 +236,7 @@ Two ecosystems are covered: Claude Code hooks (`.claude/settings.json`) and a ge
 ```toml
 [[hooks]]
 event = "session_start"
-command = "which-model usage refresh --json --quiet --timeout 5s"
+command = "which-model usage --all --json --quiet --refresh-usage --timeout 5s"
 timeout_ms = 5000
 on_failure = "ignore"   # fail-open: never blocks session start
 ```
@@ -329,7 +329,7 @@ on_failure = "ignore"
 | | |
 |---|---|
 | Trigger | Session start, and/or periodically before pre-dispatch (harness-scheduled; `which-model` itself never self-schedules per §2.2) |
-| Command | `which-model usage list --json --band-at-or-above critical` |
+| Command | `which-model usage --all --json --band-at-or-above critical --quiet` |
 | Timeout | 5s |
 | Failure posture | Fail-open: no output or a failure means no warning is shown; this hook only ever adds an advisory, it never blocks a subsequent `pick` (the actual gate is `pick`'s own `band_gated` exclusion, §2.3). |
 | Injects | A short text/JSON advisory listing any provider currently at or above the `critical` band threshold, so the agent can proactively choose `priority`/`least-used` strategy or warn the user, before `pick` silently excludes that provider. |
@@ -345,7 +345,7 @@ on_failure = "ignore"
         "hooks": [
           {
             "type": "command",
-            "command": "which-model usage list --json --band-at-or-above critical --quiet",
+            "command": "which-model usage --all --json --band-at-or-above critical --quiet",
             "timeout": 5
           }
         ]
@@ -360,7 +360,7 @@ on_failure = "ignore"
 ```toml
 [[hooks]]
 event = "session_start"
-command = "which-model usage list --json --band-at-or-above critical --quiet"
+command = "which-model usage --all --json --band-at-or-above critical --quiet"
 timeout_ms = 5000
 on_failure = "ignore"
 inject_as = "context.which_model_quota_guard"

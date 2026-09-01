@@ -29,6 +29,10 @@ func TestUsageCommandShape(t *testing.T) {
 	if source == nil || source.Value.Type() != "string" || source.DefValue != "" {
 		t.Fatalf("--source flag = %#v, want string empty", source)
 	}
+	bandAtOrAbove := cmd.Flags().Lookup("band-at-or-above")
+	if bandAtOrAbove == nil || bandAtOrAbove.Value.Type() != "string" || bandAtOrAbove.DefValue != "" {
+		t.Fatalf("--band-at-or-above flag = %#v, want string empty", bandAtOrAbove)
+	}
 }
 
 func TestUsageRunENoProviders(t *testing.T) {

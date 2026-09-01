@@ -21,6 +21,7 @@ func NewUsageCmd() *cobra.Command {
 	}
 	cmd.Flags().Bool("all", false, "report every enabled provider")
 	cmd.Flags().String("source", "", "force a usage source")
+	cmd.Flags().String("band-at-or-above", "", "report snapshots at or above a configured usage band")
 	return cmd
 }
 
@@ -33,17 +34,22 @@ func runUsageE(c *cobra.Command, args []string) error {
 	if err != nil {
 		return &UsageError{Message: err.Error()}
 	}
+	bandAtOrAbove, err := c.Flags().GetString("band-at-or-above")
+	if err != nil {
+		return &UsageError{Message: err.Error()}
+	}
 	return RunUsage(UsageArgs{
-		Providers:    args,
-		All:          all,
-		Source:       usage.Source(source),
-		MaxAge:       Global.MaxAge,
-		ForceRefresh: Global.RefreshUsage,
-		Timeout:      Global.Timeout,
-		Offline:      Global.Offline,
-		ShowIdentity: Global.ShowIdentity,
-		JSON:         Global.JSON,
-		ConfigPath:   Global.ConfigPath,
-		NoUsage:      Global.NoUsage,
+		Providers:     args,
+		All:           all,
+		Source:        usage.Source(source),
+		BandAtOrAbove: bandAtOrAbove,
+		MaxAge:        Global.MaxAge,
+		ForceRefresh:  Global.RefreshUsage,
+		Timeout:       Global.Timeout,
+		Offline:       Global.Offline,
+		ShowIdentity:  Global.ShowIdentity,
+		JSON:          Global.JSON,
+		ConfigPath:    Global.ConfigPath,
+		NoUsage:       Global.NoUsage,
 	}, c.OutOrStdout(), c.ErrOrStderr())
 }

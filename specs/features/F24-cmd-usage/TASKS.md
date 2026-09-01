@@ -33,14 +33,14 @@ graph TD
 **Instructions:**
 1. Write `usage_cmd_test.go` first (package `whichmodel`, white-box): it must fail to compile until `NewUsageCmd` exists. Tests that need globals set `whichmodel.Global` fields directly (e.g. `Global.JSON = true`) and restore them with `t.Cleanup(func() { Global = GlobalFlags{} })`.
 2. Test 1: `registeredCommands()` contains a command whose `Name() == "usage"`.
-3. Test 2: `NewUsageCmd()` has a bool flag `--all` defaulting to `false`, a string flag `--source` defaulting to `""`, and `Use == "usage [provider...]"`.
+3. Test 2: `NewUsageCmd()` has a bool flag `--all` defaulting to `false`, string flags `--source` and `--band-at-or-above` defaulting to `""`, and `Use == "usage [provider...]"`.
 4. Test 3: calling `RunE` via `cmd.SetArgs(nil)` + `cmd.Execute()` with no args and no `--all` returns an error for which `ExitCodeFor(err) == 2` and whose message contains `no providers requested`.
 5. Test 4: `--all` together with positional `claude` → `ExitCodeFor(err) == 2`, message contains `mutually exclusive`.
 6. Test 5: positional `not-a-provider` → exit 2, message contains `unknown provider` and `valid providers:`.
 7. Now create `usage_cmd.go` (package `whichmodel`, first line `//go:build !nousage`):
    - `func init() { register(NewUsageCmd) }` — no other registration calls.
-   - `func NewUsageCmd() *cobra.Command` with `Use: "usage [provider...]"`, `Short: "Report provider usage allowances"`, local flags `--all` (bool) and `--source` (string), `RunE: runUsageE`. Do NOT call `AddCommand` or bind root flags (F22 owns both).
-   - `func runUsageE(c *cobra.Command, args []string) error`: assemble `UsageArgs` — `Providers: args`, `All`/`Source` from `c.Flags()`, and the rest from `Global`: `MaxAge: Global.MaxAge`, `ForceRefresh: Global.RefreshUsage`, `Timeout: Global.Timeout`, `Offline: Global.Offline`, `ShowIdentity: Global.ShowIdentity`, `JSON: Global.JSON`, `ConfigPath: Global.ConfigPath` — then `return RunUsage(a, c.OutOrStdout(), c.ErrOrStderr())`.
+   - `func NewUsageCmd() *cobra.Command` with `Use: "usage [provider...]"`, `Short: "Report provider usage allowances"`, local flags `--all` (bool), `--source` (string), and `--band-at-or-above` (string), `RunE: runUsageE`. Do NOT call `AddCommand` or bind root flags (F22 owns both).
+   - `func runUsageE(c *cobra.Command, args []string) error`: assemble `UsageArgs` — `Providers: args`, `All`/`Source`/`BandAtOrAbove` from `c.Flags()`, and the rest from `Global`: `MaxAge: Global.MaxAge`, `ForceRefresh: Global.RefreshUsage`, `Timeout: Global.Timeout`, `Offline: Global.Offline`, `ShowIdentity: Global.ShowIdentity`, `JSON: Global.JSON`, `ConfigPath: Global.ConfigPath` — then `return RunUsage(a, c.OutOrStdout(), c.ErrOrStderr())`.
    - `func RunUsage(args UsageArgs, stdout, stderr io.Writer) error` (temporary home; moves to `usage.go` in T2) with the full argument-validation body per SPEC §2.6/§3:
      - `len(args.Providers) > 0 && args.All` → `&UsageError{Message: "--all and provider arguments are mutually exclusive"}`.
      - `len(args.Providers) == 0 && !args.All` → `&UsageError{Message: "no providers requested; name providers or pass --all"}`.
@@ -55,7 +55,7 @@ graph TD
 | # | input | want |
 |---|---|---|
 | 1 | `registeredCommands()` | contains command named `usage` |
-| 2 | `NewUsageCmd()` flags | `--all` bool default false, `--source` string default `""`, `Use == "usage [provider...]"` |
+| 2 | `NewUsageCmd()` flags | `--all` bool default false, `--source` and `--band-at-or-above` strings default `""`, `Use == "usage [provider...]"` |
 | 3 | `RunE` no args, no `--all` | exit 2 (`ExitCodeFor`), message contains `no providers requested` |
 | 4 | `RunE` `--all` + `claude` | exit 2, message contains `mutually exclusive` |
 | 5 | `RunE` `not-a-provider` | exit 2, message contains `unknown provider` and `valid providers:` |
@@ -259,7 +259,7 @@ graph TD
 - create `pkg/whichmodel/usage_json_test.go`
 - edit `pkg/whichmodel/usage.go`
 
-**Spec references:** `specs/features/F24-cmd-usage/SPEC.md §2.10`, `specs/features/F24-cmd-usage/CONTRACTS.md §6`, `specs/global/CONTRACTS.md §6`
+**Spec references:** `specs/features/F24-cmd-usage/SPEC.md §2.10, §2.14`, `specs/features/F24-cmd-usage/CONTRACTS.md §6`, `specs/global/CONTRACTS.md §6`
 
 **Instructions:**
 1. Write `usage_json_test.go` first.
@@ -276,8 +276,10 @@ graph TD
 3. Test 2 (omitted when empty): fake returns `LastVerified: nil` → unmarshalled root has NO `last_verified` key (omitempty).
 4. Test 3: unmarshalled root `schema_version == "2.0"`, `usage_enabled == true`, and NO `usage_disabled_reason` key.
 5. Test 4: snapshot field fidelity — the emitted claude snapshot round-trips: `provider`, `windows[0].id`, `used_percent`, `resets_at`, `usage_known` match the canonical `usage.Snapshot` JSON tags (global CONTRACTS §1.5).
-6. Implement: nothing new in `usage.go` beyond confirming `UsageReport` struct tags are exactly F24 CONTRACTS §6 (`last_verified` with `omitempty`) and that `reportFromResult` copies `res.LastVerified` (wired in T3). Fix any tag mismatch found by the tests.
-7. Run `go test ./pkg/whichmodel/...`; then `go build ./pkg/whichmodel/...`.
+6. Test 5 (band filter): two successful snapshots with maximum known pressure 80% and 75%, default bands, `BandAtOrAbove: "critical"` → JSON retains only the 80% provider and removes the other provider from `last_verified`.
+7. Test 6 (unknown band): `BandAtOrAbove: "missing"` → exit 2 before `fetchAllFunc`, message `invalid --band-at-or-above "missing"; valid: low, standard, elevated, critical`.
+8. Implement the JSON envelope tags as above, then resolve `BandAtOrAbove` through F19 `band.FromTOML`, compute each successful snapshot's maximum known pressure across all windows using `band.WindowPercent`, and filter the snapshots in place after exit classification. Hard-gated pressure matches every threshold; unknown pressure does not. Keep `last_verified` aligned with the filtered snapshots.
+9. Run `go test ./pkg/whichmodel/...`; then `go build ./pkg/whichmodel/...`.
 
 **Test cases (write these first):**
 
@@ -287,6 +289,8 @@ graph TD
 | 2 | fake with `LastVerified: nil` | no `last_verified` key |
 | 3 | any success run | `schema_version == "2.0"`, `usage_enabled == true`, no `usage_disabled_reason` |
 | 4 | claude snapshot round-trip | `provider`, `windows[0].id`, `used_percent`, `resets_at`, `usage_known` match canonical tags |
+| 5 | snapshots at 80% and 75%, threshold `critical` | only the 80% provider remains |
+| 6 | threshold `missing` | exit 2 before fetch; ordered valid-tier message |
 
 **Acceptance criteria:**
 - [ ] `go build ./pkg/whichmodel/...` succeeds

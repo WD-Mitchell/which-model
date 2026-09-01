@@ -177,9 +177,9 @@ which-model hooks run <hook> [args...]
 ## 5. Cross-feature references (pinned)
 
 - F22 `pkg/whichmodel/registry.go`: `register(func() *cobra.Command)`, `commandOrder` (already includes `hooks`); F22 `pkg/whichmodel.ExecuteCommand(args []string, stdout, stderr io.Writer) int` — the `Runner` default.
-- F21 `internal/usage/toggle.go`: `func Enabled(cfg *config.Config) (config.UsageEnabled, string)` — variant detection at install time (CLI layer only).
+- F21 `internal/usage/toggle` package: `func Enabled(cfg *config.Config) (config.UsageEnabled, string)` — variant detection at install time (CLI layer only).
 - F26 `pkg/whichmodel/pick_cmd.go` + `explain_cmd.go` — underlying `pick`/`explain`; `explain --json` root carries `schema_version`, `candidate` (with `route`), `evidence` per `docs/plan/annex-c-agent-integration.md §4.3`; `pick` exit 4 = all band-gated.
-- F24 `pkg/whichmodel/usage_cmd.go` — underlying `usage refresh --json --quiet --timeout 5s` and `usage list --json --band-at-or-above critical --quiet` (annex-c §3.1/§3.4).
+- F24 `pkg/whichmodel/usage_cmd.go` — underlying `usage --all --json --quiet --refresh-usage --timeout 5s` and `usage --all --json --band-at-or-above critical --quiet` (annex-c §3.1/§3.4).
 - F28 `internal/skills.RepoRoot()` — repo-root resolution (`--repo` override honored).
 - Compiles under `-tags nousage`: `internal/hooks` imports stdlib + `internal/skills` only; `pkg/whichmodel/hooks_cmd.go` guards `usage.Enabled` behind the F21 stub contract.
 

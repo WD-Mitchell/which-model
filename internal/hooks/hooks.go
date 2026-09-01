@@ -27,13 +27,13 @@ var All = []Hook{
 	{
 		ID: "usage-refresh", Event: "SessionStart", Matcher: "*", Timeout: 5,
 		Underlying: func(p []string, _ map[string]string) []string {
-			return append([]string{"usage", "refresh", "--json", "--quiet", "--timeout", "5s"}, p...)
+			return append([]string{"usage", "--all", "--json", "--quiet", "--refresh-usage", "--timeout", "5s"}, p...)
 		},
 	},
 	{
 		ID: "quota-guard", Event: "SessionStart", Matcher: "*", Timeout: 5,
 		Underlying: func(p []string, _ map[string]string) []string {
-			return append([]string{"usage", "list", "--json", "--band-at-or-above", "critical", "--quiet"}, p...)
+			return append([]string{"usage", "--all", "--json", "--band-at-or-above", "critical", "--quiet"}, p...)
 		},
 	},
 	{

@@ -4,12 +4,15 @@ package whichmodel
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/WD-Mitchell/which-model/internal/hooks"
 	"github.com/WD-Mitchell/which-model/internal/skills"
+	"github.com/WD-Mitchell/which-model/internal/usage"
 )
 
 // hooksRepo makes a repo-shaped temp dir and resets the skills repo-dir
@@ -234,4 +237,48 @@ func TestExecuteCommandInProcess(t *testing.T) {
 	}
 	// Streams are restored afterwards.
 	_ = code
+}
+
+// The two SessionStart hooks execute end to end against the actual command
+// tree. This catches registry argv that only looks plausible but parses as an
+// unknown provider, subcommand, or flag.
+func TestSessionStartHooksExecuteUsageCommand(t *testing.T) {
+	oldFetch := fetchAllFunc
+	t.Cleanup(func() {
+		fetchAllFunc = oldFetch
+		Global = GlobalFlags{}
+	})
+	used := 80.0
+	fetchAllFunc = func(context.Context, FetchAllOptions) (*FetchResult, error) {
+		return &FetchResult{Snapshots: []usage.Snapshot{{
+			Provider: "claude",
+			Windows: []usage.Window{{
+				ID:          "5h",
+				UsedPercent: &used,
+				UsageKnown:  true,
+			}},
+			UsageKnown: true,
+		}}}, nil
+	}
+	cfg := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(cfg, []byte("[usage]\nbackend = \"native\"\n[providers.claude]\nenabled = true\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	wantOutput := map[string]string{
+		"usage-refresh": `"reason":"usage cache refreshed"`,
+		"quota-guard":   `"critical_providers":["claude"]`,
+	}
+	for id, want := range wantOutput {
+		t.Run(id, func(t *testing.T) {
+			Global = GlobalFlags{}
+			resetRegistryBuildCache()
+			out, err := hooks.Run(id, []string{"--config", cfg}, hooks.Options{Runner: ExecuteCommand})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(out), want) {
+				t.Fatalf("%s output = %q, want %s", id, out, want)
+			}
+		})
+	}
 }

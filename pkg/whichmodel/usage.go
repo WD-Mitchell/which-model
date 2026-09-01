@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/WD-Mitchell/which-model/internal/config"
+	"github.com/WD-Mitchell/which-model/internal/pick/band"
 	"github.com/WD-Mitchell/which-model/internal/usage"
 	"github.com/WD-Mitchell/which-model/internal/usage/fetch"
 	"github.com/WD-Mitchell/which-model/internal/usage/provider/codexbar"
@@ -19,17 +20,18 @@ import (
 
 // UsageArgs is the fully-parsed, validated command input.
 type UsageArgs struct {
-	Providers    []string
-	All          bool
-	Source       usage.Source
-	MaxAge       time.Duration
-	ForceRefresh bool
-	Timeout      time.Duration
-	Offline      bool
-	ShowIdentity bool
-	JSON         bool
-	ConfigPath   string
-	NoUsage      bool
+	Providers     []string
+	All           bool
+	Source        usage.Source
+	BandAtOrAbove string
+	MaxAge        time.Duration
+	ForceRefresh  bool
+	Timeout       time.Duration
+	Offline       bool
+	ShowIdentity  bool
+	JSON          bool
+	ConfigPath    string
+	NoUsage       bool
 }
 
 // FetchAllOptions is the command-to-fetch boundary.
@@ -90,6 +92,10 @@ func RunUsage(args UsageArgs, stdout, stderr io.Writer) error {
 		return &UsageError{Message: err.Error()}
 	}
 	auth, err := cfg.LoadAuth()
+	if err != nil {
+		return &UsageError{Message: err.Error()}
+	}
+	bandThreshold, err := newUsageBandThreshold(cfg, args.BandAtOrAbove)
 	if err != nil {
 		return &UsageError{Message: err.Error()}
 	}
@@ -157,6 +163,21 @@ func RunUsage(args UsageArgs, stdout, stderr io.Writer) error {
 		}
 		return classified
 	}
+	if bandThreshold != nil {
+		res.Snapshots = filterUsageSnapshots(res.Snapshots, bandThreshold)
+		for provider := range res.LastVerified {
+			found := false
+			for i := range res.Snapshots {
+				if res.Snapshots[i].Provider == provider {
+					found = true
+					break
+				}
+			}
+			if !found {
+				delete(res.LastVerified, provider)
+			}
+		}
+	}
 	report := reportFromResult(res)
 	if args.JSON {
 		return emitJSON(report, stdout)
@@ -166,6 +187,73 @@ func RunUsage(args UsageArgs, stdout, stderr io.Writer) error {
 		return err
 	}
 	return nil
+}
+
+type usageBandThreshold struct {
+	config  band.Config
+	minimum int
+}
+
+func newUsageBandThreshold(cfg *config.Config, name string) (*usageBandThreshold, error) {
+	if name == "" {
+		return nil, nil
+	}
+	var raw band.TOMLConfig
+	if err := cfg.UnmarshalKey("bands", &raw); err != nil {
+		return nil, err
+	}
+	bandConfig, err := band.FromTOML(raw)
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, len(bandConfig.Tiers))
+	for i := range bandConfig.Tiers {
+		names[i] = bandConfig.Tiers[i].Name
+		if names[i] == name {
+			return &usageBandThreshold{config: bandConfig, minimum: i}, nil
+		}
+	}
+	return nil, fmt.Errorf("invalid --band-at-or-above %q; valid: %s", name, strings.Join(names, ", "))
+}
+
+func filterUsageSnapshots(snapshots []usage.Snapshot, threshold *usageBandThreshold) []usage.Snapshot {
+	kept := snapshots[:0]
+	for i := range snapshots {
+		if threshold.matches(snapshots[i]) {
+			kept = append(kept, snapshots[i])
+		}
+	}
+	return kept
+}
+
+func (threshold *usageBandThreshold) matches(snapshot usage.Snapshot) bool {
+	if snapshot.Failure != nil {
+		return false
+	}
+	pressure := band.Pressure{}
+	for i := range snapshot.Windows {
+		percent, ok := band.WindowPercent(snapshot.Windows[i])
+		if !ok {
+			continue
+		}
+		if !pressure.Known || percent.GreaterThan(pressure.Percent) {
+			pressure.Known = true
+			pressure.Percent = percent
+		}
+	}
+	if !pressure.Known {
+		return false
+	}
+	result := band.EvaluateBand(pressure, threshold.config)
+	if result.Gated {
+		return true
+	}
+	for i := range threshold.config.Tiers {
+		if threshold.config.Tiers[i].Name == result.Name {
+			return i >= threshold.minimum
+		}
+	}
+	return false
 }
 
 func reportFromResult(res *FetchResult) *UsageReport {
