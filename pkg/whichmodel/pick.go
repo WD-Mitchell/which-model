@@ -1000,7 +1000,11 @@ func RunPick(args PickArgs, stdout, stderr io.Writer) error {
 			}
 		}
 		appendHistory(stderr, st, profile, args.Strategy, nil, excluded)
-		return classifyNoPick(excluded)
+		noPickErr := classifyNoPick(excluded)
+		if args.JSON {
+			return &ReportedError{Err: noPickErr}
+		}
+		return noPickErr
 	}
 
 	survivors, err := strategyApplyFunc(args.Strategy, cands, strategyOptions{})

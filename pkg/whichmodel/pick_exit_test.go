@@ -6,9 +6,11 @@ package whichmodel
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/shopspring/decimal"
@@ -198,5 +200,72 @@ func TestPickExitSurvivorWins(t *testing.T) {
 	}
 	if !have["provider_error"] || !have["no_score_row"] {
 		t.Errorf("excluded reason codes = %v, want provider_error and no_score_row", codes)
+	}
+}
+
+// A JSON no-pick run that already emitted its PickResult must not let the
+// root renderer append a second JSON error document.
+func TestPickJSONNoPickEmitsOneDocument(t *testing.T) {
+	cfg, _ := pickPipelineSetup(t, pickTwoRoutes(), pickTwoScores(), nil, nil,
+		func(_ *usage.Snapshot, _ string, _ *config.Config) (bandResult, error) {
+			return bandResult{Name: "five hour", UsedPercent: 95, Gated: true}, nil
+		})
+
+	code, stdout, stderr := captureExecute(t, []string{
+		"--config", cfg,
+		"--json",
+		"pick",
+		"--profile", "complex_implementation",
+		"--strategy", "priority",
+	})
+	if code != 4 {
+		t.Errorf("exit = %d, want 4", code)
+	}
+	if !json.Valid([]byte(stdout)) {
+		t.Fatalf("stdout is not one valid JSON document: %q", stdout)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal([]byte(stdout), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := doc["error"]; ok {
+		t.Fatalf("stdout = %v, want the emitted PickResult", doc)
+	}
+	if got := len(doc["candidates"].([]any)); got != 0 {
+		t.Errorf("candidates = %d, want 0", got)
+	}
+	if !strings.Contains(stderr, "which-model pick: [usage_gated] usage gating excluded every candidate") {
+		t.Errorf("stderr = %q, want usage_gated failure line", stderr)
+	}
+}
+
+// A no-pick run that ends before emitting a PickResult leaves the root
+// renderer responsible for exactly one JSON error document.
+func TestPickJSONPreUsageNoPickEmitsOneErrorDocument(t *testing.T) {
+	cfg, _ := pickPipelineSetup(t, pickTwoRoutes(), nil, nil, nil, nil)
+
+	code, stdout, stderr := captureExecute(t, []string{
+		"--config", cfg,
+		"--json",
+		"pick",
+		"--profile", "complex_implementation",
+		"--strategy", "priority",
+	})
+	if code != 3 {
+		t.Errorf("exit = %d, want 3", code)
+	}
+	if !json.Valid([]byte(stdout)) {
+		t.Fatalf("stdout is not one valid JSON document: %q", stdout)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal([]byte(stdout), &doc); err != nil {
+		t.Fatal(err)
+	}
+	failure, ok := doc["error"].(map[string]any)
+	if !ok || failure["code"] != "no_pick" {
+		t.Fatalf("error = %v, want code no_pick", doc["error"])
+	}
+	if !strings.Contains(stderr, "which-model pick: [no_pick] no candidate matched the request") {
+		t.Errorf("stderr = %q, want no_pick failure line", stderr)
 	}
 }
