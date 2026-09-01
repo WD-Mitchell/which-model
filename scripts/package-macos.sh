@@ -32,8 +32,21 @@ BUILDDATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 LDFLAGS="-X ${MODULE}/pkg/whichmodel.Version=${VERSION} -X ${MODULE}/pkg/whichmodel.Commit=${COMMIT} -X ${MODULE}/pkg/whichmodel.BuildDate=${BUILDDATE}"
 (cd "$ROOT" && go build -trimpath -ldflags "$LDFLAGS" -o "$MACOS/which-model-desktop" ./cmd/which-model-desktop)
 
+# Derive the bundle version from the same source as the binary's ldflags:
+# the git tag (v-prefixed stripped), falling back to the raw describe output
+# (dev/dirty builds) so the plist never contradicts the binary it wraps.
+if [[ "$VERSION" == v* ]]; then
+  BUNDLE_VERSION="${VERSION#v}"
+else
+  BUNDLE_VERSION="$VERSION"
+fi
+echo "==> Bundle version: $BUNDLE_VERSION"
+
 # Info.plist — LSUIElement=true keeps the app out of the Dock (menu-bar only).
-cat > "$CONTENTS/Info.plist" <<'PLIST'
+# CFBundleVersion/ShortVersionString are interpolated from BUNDLE_VERSION
+# (issue #43): the plist must match the binary's stamped version, never a
+# hardcoded literal.
+cat > "$CONTENTS/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -49,9 +62,9 @@ cat > "$CONTENTS/Info.plist" <<'PLIST'
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleVersion</key>
-    <string>2.0.0</string>
+    <string>${BUNDLE_VERSION}</string>
     <key>CFBundleShortVersionString</key>
-    <string>2.0.0</string>
+    <string>${BUNDLE_VERSION}</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
     <key>LSUIElement</key>
@@ -61,7 +74,6 @@ cat > "$CONTENTS/Info.plist" <<'PLIST'
     <key>NSSupportsAutomaticGraphicsSwitching</key>
     <true/>
 </dict>
-</plist>
 PLIST
 
 # Copy tray icon as a resource.
