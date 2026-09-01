@@ -173,7 +173,7 @@ func (r *emitRecorder) Events() []recordedEvent // copy, mutex-guarded
 **Default fixture tree** (under the temp dir):
 - `cache/catalog/available_model_scores.csv` — byte-copy of `internal/catalog/score/testdata/scores_golden.csv` (go:embed or read at test time via relative path).
 - `cache/catalog/benchmarks.toml`, `config/providers.toml` — copies of `available-model-data-export/benchmarks.toml` and `available-model-data-export/providers.toml`.
-- `cache/catalog/routes.json` — synthetic `routing.Table{SchemaVersion: routing.TableSchemaVersion}` covering providers `claude`,`codex` × ≥2 fixture models × ≥2 reasoning levels, written via `routing.SaveTable`.
+- `cache/routes.json` (canonical, F18 SPEC §2.11) — synthetic `routing.Table{SchemaVersion: routing.TableSchemaVersion}` covering providers `claude`,`codex` × ≥2 fixture models × ≥2 reasoning levels, written via `routing.SaveTable`.
 - `config/config.toml` — empty file.
 
 **Required tests** (`service_test.go`):
@@ -186,6 +186,9 @@ func (r *emitRecorder) Events() []recordedEvent // copy, mutex-guarded
 | `TestRouteKey_RoundTrip` | for every fixture route: `FormatRouteKey` → `ParseRouteKey` round-trips; each §6 error case yields `validation_failed` with the exact message |
 | `TestWeightConversion` | golden cases: `{a:3,b:0}` → engine drops `b`; `{a:6}` → `errValidation` (exact §4 message); decimal `2.5` → dto `3`; decimal `0.4` → dropped (0-drop); `round2(decimal("1.005"))` documented result asserted |
 | `TestWriteDiscipline_FailureLeavesStateAndNoEvent` | a mutation forced to fail at AtomicWriteFile (read-only dir) leaves config bytes + in-memory state unchanged and the recorder empty |
+| `TestNew_RoutesLegacyMigration` | table only at the legacy `cache/catalog/routes.json` ⇒ `New` loads it, writes the canonical `cache/routes.json`, `Warnings()` empty |
+| `TestNew_RoutesCanonicalPreferred` | tables at both paths ⇒ canonical content wins, legacy copy untouched |
+| `TestSaveRoutesWritesCanonical` | `saveRoutesLocked` writes `cache/routes.json` only; `cache/catalog/routes.json` stays absent |
 
 ## 10. External symbols referenced
 

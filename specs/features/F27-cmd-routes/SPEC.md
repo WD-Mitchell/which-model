@@ -13,7 +13,7 @@ project: which-model
 
 ## 2. Behaviour
 
-1. **Command shape.** `which-model routes list|add|remove|refresh|verify` as five subcommands of one self-registered command (F22 wiring; `pkg/whichmodel/routes_cmd.go`). Route state lives at `<state_dir>/routes.json` (F18-owned format; F27 consumes `routing.LoadRoutes`/`SaveRoutes`/`ProduceRoutes`/`RoutesPath`). (Source: annex-d §2.6; Decisions D-1.)
+1. **Command shape.** `which-model routes list|add|remove|refresh|verify` as five subcommands of one self-registered command (F22 wiring; `pkg/whichmodel/routes_cmd.go`). Route state lives at `<cache_dir>/routes.json` (F18-owned format, F18 SPEC §2.11; F27 consumes `routing.LoadRoutes`/`SaveRoutes`/`ProduceRoutes`/`RoutesPath`). (Source: annex-d §2.6; Decisions D-1.)
 
 2. **add.** `routes add --provider <id> --model-id <model_id> --model <scored-model> [--reasoning default] [--window <id>...]`. Validation: `--provider` must be a registry id (unknown → exit 2, `valid providers:` list); `--model-id` and `--model` non-empty (exit 2); `--reasoning` defaults to `default`; duplicate route (same provider + model-id) → exit 2 with `route <provider>:<model-id> already exists` (use `remove` first). The added route is written with `Provenance = "user_declared"` (global Provenance enum) and replaces no other route. Success → nothing on stdout, exit 0 (the change is visible in `list`). (Source: annex-d §2.6; Decisions D-2.)
 
