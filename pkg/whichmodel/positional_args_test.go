@@ -24,6 +24,8 @@ func TestZeroPositionalCommandsRejectStrayArgs(t *testing.T) {
 		{"catalog scores", []string{"catalog", "scores", "junk"}},
 		{"hooks install", []string{"hooks", "install", "junk"}},
 		{"hooks remove", []string{"hooks", "remove", "junk"}},
+		{"catalog workflow", []string{"catalog", "workflow", "junk"}},
+		{"skills list", []string{"skills", "list", "junk"}},
 		{"serve", []string{"serve", "junk"}},
 	}
 	for _, tc := range cases {

@@ -321,6 +321,7 @@ func newWorkflowCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "workflow",
 		Short: "Generate or check the refresh-model-data GitHub Action",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if write && check {
 				return &UsageError{Message: "catalog workflow: --write and --check are mutually exclusive"}
