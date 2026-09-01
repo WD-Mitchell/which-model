@@ -32,6 +32,7 @@ func TestPickCommandShape(t *testing.T) {
 		t.Error("removed --seed flag is still registered")
 	}
 	routesCheckFlag(t, cmd, "available", "stringSlice", "[]")
+	routesCheckFlag(t, cmd, "dry-run", "bool", "false")
 }
 
 // F26-T1 row 3: exit-code registrations — no_pick → 3, usage_gated → 4,
