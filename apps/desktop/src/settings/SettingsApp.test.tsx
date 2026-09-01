@@ -98,6 +98,27 @@ describe('SettingsShell close', () => {
     expect(spy).toHaveBeenCalledTimes(1)
   })
 
+  // Issue #31: Escape inside an open Combobox belongs to the Combobox (it
+  // stopPropagation()s), so the window must NOT close. Fires from the input
+  // — the same surface the shell's window listener would see — without any
+  // dialog mounted.
+  it('keeps the window open when Escape is pressed inside a Combobox', async () => {
+    const spy = vi.spyOn(host.window, 'closeSettings').mockResolvedValue(undefined)
+    renderApp(host)
+    await screen.findByText('which-model — Settings')
+    // Open the Providers page and its add-provider Combobox (U07 §5 action
+    // label), then press Escape from the search input. The Combobox owns
+    // Escape; the window must stay open.
+    const navProviders = await screen.findAllByText('Providers')
+    const navBtn = navProviders.find((el) => el.tagName === 'BUTTON')
+    act(() => navBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+    fireEvent.click(await screen.findByRole('button', { name: 'Add provider' }))
+    const input = await screen.findByPlaceholderText('search the model catalogue…')
+    fireEvent.input(input, { target: { value: 'zzz' } })
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(spy).not.toHaveBeenCalled()
+  })
+
   it('draws no window buttons of its own — AppKit owns them', async () => {
     renderApp(host)
     await screen.findByText('which-model — Settings')

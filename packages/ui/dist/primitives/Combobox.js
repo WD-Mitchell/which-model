@@ -22,7 +22,14 @@ export function Combobox({ items, query, onQuery, open, onOpenChange, onPick, em
             if (items.length > 0)
                 onPick(items[0].key);
         }
-        else if (e.key === 'Escape') {
+        else if (e.key === 'Escape' && open) {
+            // The Combobox owns Escape ONLY while its list is open: close the list
+            // and stop the event from reaching window-level dismiss listeners (the
+            // settings shell closes the whole window otherwise — Menu.tsx does the
+            // same). With the list closed, Escape bubbles so the shell can still
+            // close the window (issue #65 review).
+            e.stopPropagation();
+            e.preventDefault();
             onOpenChange(false);
         }
     }
