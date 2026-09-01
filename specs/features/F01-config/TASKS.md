@@ -191,7 +191,7 @@ graph TD
    - Typed decode of `[providers]`: same pattern with `rawLookup(layer, "providers")` decoding into `c.Providers` (decode into the EXISTING map so layers merge per provider id and per key). Undecoded key `k` → `KindInvalidValue`, `Key: "providers." + k`.
    - Return nil.
 4. Implement `func (c *Config) UnmarshalKey(key string, out any) error`:
-   - `node := rawLookup(c.raw, key)`; nil (or `c.raw` nil) → return nil (missing key = zero value, out untouched).
+   - `node := rawLookup(c.raw, key)`; when present, require a table and decode it as below. When absent, skip file decoding but continue to the environment overlay; only a missing key with no matching environment override returns with `out` untouched.
    - `table, ok := node.(map[string]any)`; if not → `&ConfigError{Kind: KindInvalidValue, Key: key, Err: errors.New("not a table")}`.
    - `text, err := toml.Marshal(table)`; error → `KindInvalidValue` (unreachable in practice).
    - `md, err := toml.Decode(text, out)`; error → `&ConfigError{Kind: KindInvalidValue, Key: key, Err: err}` (malformed values inside the subtree). First `md.Undecoded()` key `k` → `&ConfigError{Kind: KindInvalidValue, Key: key + "." + k}` (unknown key inside the subtree).
@@ -229,10 +229,11 @@ graph TD
 | 10 | `cfg.env = {"catalog.cache_ttl": "banana"}`; `UnmarshalKey("catalog", &c)` | error, `Key == "catalog.cache_ttl"` |
 | 11 | `cfg.env = {"catalog.cache_tl": "1h"}` (typo); `UnmarshalKey("catalog", &c)` | error, `Key == "catalog.cache_tl"` (unmatched override under the subtree) |
 | 12 | `out := testScoring{Normalizer: "keep-me"}`; file `[scoring]` sets only `aggregator`; `UnmarshalKey("scoring", &out)` | no error; `out.Normalizer == "keep-me"` (caller defaults preserved) |
+| 13 | `cfg.env = {"catalog.cache_ttl": "1h"}`; no `[catalog]` table in any file; `UnmarshalKey("catalog", &c)` | no error; `c.CacheTTL == time.Hour` (environment-only sections are effective) |
 
 **Acceptance criteria:**
 - [ ] `go build ./internal/config/...` succeeds
-- [ ] `go test ./internal/config/...` passes with the 12 cases above
+- [ ] `go test ./internal/config/...` passes with the 13 cases above
 - [ ] no file outside the Files list modified
 
 **Run:** `go test ./internal/config/...`

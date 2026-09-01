@@ -81,10 +81,9 @@ graph TD
 3. Test 2 (category mapping, 7 rows): `(implementation, simple) → simple_implementation`; `(implementation, medium) → balanced_implementation`; `(implementation, complex) → complex_implementation`; `(action_execution, simple) → simple_action_execution`; `(action_execution, medium) → balanced_implementation`; `(action_execution, complex) → complex_action_execution`; `(ui_ux, "") → ui_ux`, `(financial_work, "") → financial_work`, `(research, "") → research`, `(planning, "") → planning`, `(orchestration, "") → orchestration`, `(review, "") → review`.
 4. Test 3 (rejections): `(ui_ux, "simple")` → error `--complexity is not valid for task category "ui_ux"`; `(implementation, "hard")` → error `unknown complexity "hard"`; `(coding, "simple")` → error `unknown task category "coding"`.
 5. Test 4 (strategy validation): canonical F20 names are accepted; removed names and unknown names return the valid five-name list.
-6. Test 5: an omitted strategy resolves after usage detection: `closest-to-reset` when enabled,
-   `priority` when disabled.
+6. Test 5: strategy resolution precedence is explicit flag, then non-empty `[strategy].default`, then `closest-to-reset` when usage is enabled or `priority` when disabled. File and environment config decode all four canonical F20 strategy keys.
 7. Create `pick.go` (package `whichmodel`, NO build tag):
-   - Move `RunPick` here from `pick_cmd.go`; extend it with selector validation, profile resolution, canonical strategy validation/defaulting after usage detection, and then the pipeline.
+   - Move `RunPick` here from `pick_cmd.go`; extend it with selector validation, profile resolution, one full shared `strategy.Config` decode, canonical strategy validation, explicit/configured/dynamic default precedence after usage detection, and then the pipeline.
    - `var validProfiles = []string{...}` — the exact 11 names in annex-c §2.1 order (verbatim).
    - `func resolveProfile(args PickArgs) (string, error)` per the table; category validation against `validCategories = []string{"implementation", "action_execution", "ui_ux", "financial_work", "research", "planning", "orchestration", "review"}`; 1:1 categories reject non-empty complexity.
    - Seam `var strategyNamesFunc = func() []string { return strategy.Names() }` (F20; tests inject).
@@ -99,7 +98,7 @@ graph TD
 | 2 | 7 category-map rows (table-driven) | mapped profile ids |
 | 3 | `(ui_ux, "simple")`, `(implementation, "hard")`, `(coding, "simple")` | the three rejection messages |
 | 4 | `validateStrategy("bogus", [...])` | `unknown strategy "bogus"; valid: <injected names>` |
-| 5 | empty strategy | defaults to `closest-to-reset` with usage enabled and `priority` otherwise |
+| 5 | empty strategy with configured default / no configured default | configured canonical name; otherwise `closest-to-reset` with usage enabled or `priority` otherwise |
 | 6 | removed strategy name | unknown-strategy error listing the five canonical names |
 
 **Acceptance criteria:**
@@ -248,21 +247,24 @@ graph TD
 
 **Instructions:**
 1. Write `pick_strategy_test.go` first. Seam: `strategyApplyFunc`, receiving the canonical strategy name, candidates, and assembled strategy state.
-2. Test 1 (dynamic default): fake Apply receives `closest-to-reset` when usage is enabled and `priority` when usage is disabled, no strategy-specific options, and returns the ranked candidates unchanged.
-3. Test 2 (usage state): fake Apply receives provider priority, pressure, and reset metadata assembled by F26.
-4. Test 3 (Apply error): fake Apply returns `errors.New("boom")` → `*CodedError{Code: "runtime"}`, message contains `boom`.
-5. Test 4 (Apply empty): fake Apply returns `[]Candidate{}` → exit per T7's classification — for THIS task assert `*CodedError{Code: "no_pick"}`.
-6. Implement in `pick.go`: call the F20 strategy seam with the canonical name and assembled state; error → runtime; empty → classify; otherwise choose the first survivor.
-7. Run `go test ./pkg/whichmodel/...`; then `go build ./pkg/whichmodel/...`.
+2. Test 1 (dynamic fallback): with no explicit or configured strategy, fake Apply receives `closest-to-reset` when usage is enabled and `priority` when usage is disabled, no strategy-specific options, and returns the ranked candidates unchanged.
+3. Test 2 (configured default): a full `[strategy]` table and `WHICH_MODEL_STRATEGY_DEFAULT` each select the configured name; an explicit flag overrides it; canonical sibling keys do not fail strict decoding.
+4. Test 3 (usage state): fake Apply receives provider priority, the once-decoded complete `strategy.Config`, pressure, and reset metadata assembled by F26.
+5. Test 4 (Apply error): fake Apply returns `errors.New("boom")` → `*CodedError{Code: "runtime"}`, message contains `boom`.
+6. Test 5 (Apply empty): fake Apply returns `[]Candidate{}` → exit per T7's classification — for THIS task assert `*CodedError{Code: "no_pick"}`.
+7. Implement in `pick.go`: decode the shared F20 config once, resolve explicit/configured/dynamic precedence, and call the F20 strategy seam with the canonical name and assembled state; error → runtime; empty → classify; otherwise choose the first survivor.
+8. Run `go test ./pkg/whichmodel/...`; then `go build ./pkg/whichmodel/...`.
 
 **Test cases (write these first):**
 
 | # | input | want |
 |---|---|---|
-| 1 | omitted strategy | `closest-to-reset` with usage enabled; `priority` with usage disabled |
-| 2 | usage snapshots | pressure and earliest reset maps received by the strategy |
-| 3 | Apply error | exit 1 `runtime`, message `boom` |
-| 4 | Apply returns empty | `CodedError{Code: "no_pick"}` (refined in T7) |
+| 1 | omitted strategy, no configured default | `closest-to-reset` with usage enabled; `priority` with usage disabled |
+| 2 | full `[strategy]` table or environment default | configured strategy; all canonical siblings decode |
+| 3 | explicit strategy plus configured default | explicit strategy |
+| 4 | usage snapshots | complete config, pressure, and earliest reset maps received by the strategy |
+| 5 | Apply error | exit 1 `runtime`, message `boom` |
+| 6 | Apply returns empty | `CodedError{Code: "no_pick"}` (refined in T7) |
 
 **Acceptance criteria:**
 - [ ] `go build ./pkg/whichmodel/...` succeeds

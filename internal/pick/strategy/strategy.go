@@ -27,9 +27,12 @@ type State struct {
 	DryRun              bool
 }
 
-// Config is the strategy-owned subset of which-model.toml's [pick] table.
+// Config is the canonical schema for which-model.toml's [strategy] table.
 type Config struct {
-	Default string `toml:"default"`
+	Default        string `toml:"default"`
+	DefaultProfile string `toml:"default_profile"`
+	Tier1Share     int    `toml:"tier1_share"`
+	Tier2Share     int    `toml:"tier2_share"`
 }
 
 // Strategy selects one candidate from a slice, returning the pick and the

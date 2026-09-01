@@ -67,7 +67,7 @@ Before delegating work, run `wm <profile>` to print the best model id for that t
 | Rank returned ≥1 candidate | `$ wm <slug>  →  <model_id>  (<provider>)` |
 | Rank error or 0 candidates | `$ wm <slug>  →  no route` |
 
-`<slug>` = `[strategy].default_profile` or `balanced_implementation`; `<model_id>`/`<provider>` from `Rank(ctx, RankRequest{ProfileSlug: slug, Holds: 3})` candidate 1 (B04).
+`<slug>` = `[strategy].default_profile` or `balanced_implementation`; the section is decoded through the complete shared F20 `strategy.Config`, and a strict decode error returns `validation_failed`. `<model_id>`/`<provider>` come from `Rank(ctx, RankRequest{ProfileSlug: slug, Holds: 3})` candidate 1 (B04).
 
 ## 4. Validation error strings (exact, checked in this order; all → `validation_failed`)
 

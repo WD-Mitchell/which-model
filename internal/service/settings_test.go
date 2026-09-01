@@ -110,6 +110,35 @@ func TestSettingsSnippetsPinned(t *testing.T) {
 	_ = svc
 }
 
+func TestSettingsShellSnippetsFullStrategyConfig(t *testing.T) {
+	svc, _ := newTestServices(t, WithConfigTOML(`[strategy]
+default = "priority"
+default_profile = "review"
+tier1_share = 80
+tier2_share = 20
+`))
+
+	got, err := svc.Settings().ShellSnippets(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(got.Preview, "$ wm review  →") {
+		t.Errorf("preview = %q, want configured review profile", got.Preview)
+	}
+}
+
+func TestSettingsShellSnippetsRejectsUnknownStrategyKey(t *testing.T) {
+	svc, _ := newTestServices(t, WithConfigTOML("[strategy]\nunknown = true\n"))
+
+	_, err := svc.Settings().ShellSnippets(context.Background())
+	if err == nil {
+		t.Fatal("ShellSnippets error = nil, want strict strategy config error")
+	}
+	if dto := toErrorDTO(err); dto.Code != "validation_failed" {
+		t.Errorf("error code = %q, want validation_failed", dto.Code)
+	}
+}
+
 // default_tab postdates the GUISettings DTO, so a client written before it (or
 // a config saved by one) sends "". That means "unset" and must normalise to the
 // shipped default, not fail validation — while a genuinely wrong value still

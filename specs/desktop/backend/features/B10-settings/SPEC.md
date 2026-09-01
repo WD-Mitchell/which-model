@@ -23,7 +23,7 @@ Depends on: B02 (Services core), B01 (`[gui]`/`[auth]` schema + defaults). The s
 
 4. **ShellSnippets.** Returns the three strings of D00's `ShellSnippets`, pinned verbatim in CONTRACTS §3: `Alias` (the `wm` shell alias the "Shell alias wm" toggle installs), `ClaudeMD` (the 3-line markdown hint the "Write a CLAUDE.md hint" toggle writes), and `Preview` — the mockup's `agentSnippet` line computed live: `$ wm <slug>  →  <model_id>  (<provider>)` where `<slug>` is the default profile (§2.5) and model/provider come from the top candidate of a `Rank` call with `RankRequest{ProfileSlug: <slug>, Holds: 3}`. When Rank errors or returns zero candidates, `Preview` is `$ wm <slug>  →  no route`; `ShellSnippets` itself never fails for ranking reasons.
 
-5. **Default profile slug.** `[strategy].default_profile`, falling back to `balanced_implementation` when unset — the same key/default the CLI uses (`docs/plan/annex-d-cli-reference.md` `[strategy]`).
+5. **Default profile slug.** Decode the complete shared F20 `[strategy]` config; use `default_profile`, falling back to `balanced_implementation` when unset. Canonical sibling keys cannot invalidate the preview, while unknown or malformed keys return `validation_failed` rather than being swallowed.
 
 6. **Toggles are persistence-only here.** `MCPServer`, `ClaudeMDHint`, `ShellAlias`, `LaunchAtLogin`, `ShowMenuBarIcon`, `AutoUpdate*` are stored and emitted; acting on them (hotkey registration, LaunchAgent, tray visibility) is S05's job, and the real MCP server is out of scope (plan §8).
 

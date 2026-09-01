@@ -6,6 +6,7 @@ package whichmodel
 import (
 	"context"
 	"errors"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -59,6 +60,79 @@ func TestPickStrategyDefaultWithoutUsage(t *testing.T) {
 	}
 	if got := pickJSON(t, out.String())["strategy"]; got != "priority" {
 		t.Errorf("strategy = %v, want priority", got)
+	}
+}
+
+func TestPickStrategyConfiguredDefaultWithFullSection(t *testing.T) {
+	var gotName string
+	cfg, _ := pickPipelineSetup(t, pickTwoRoutes(), pickTwoScores(), nil, nil, nil)
+	body := `[strategy]
+default = "priority"
+default_profile = "review"
+tier1_share = 80
+tier2_share = 20
+`
+	if err := os.WriteFile(cfg, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	setStrategyApply(t, func(name string, cands []Candidate, _ strategyOptions) ([]Candidate, error) {
+		gotName = name
+		return cands, nil
+	})
+
+	err, out, _ := runPick(t, PickArgs{Profile: "complex_implementation", ConfigPath: cfg})
+	if err != nil {
+		t.Fatalf("err = %v", err)
+	}
+	if gotName != "priority" {
+		t.Errorf("strategy seam received name %q, want configured priority", gotName)
+	}
+	if got := pickJSON(t, out.String())["strategy"]; got != "priority" {
+		t.Errorf("strategy = %v, want configured priority", got)
+	}
+}
+
+func TestPickStrategyEnvironmentDefault(t *testing.T) {
+	t.Setenv("WHICH_MODEL_STRATEGY_DEFAULT", "priority")
+	var gotName string
+	cfg, _ := pickPipelineSetup(t, pickTwoRoutes(), pickTwoScores(), nil, nil, nil)
+	setStrategyApply(t, func(name string, cands []Candidate, _ strategyOptions) ([]Candidate, error) {
+		gotName = name
+		return cands, nil
+	})
+
+	err, _, _ := runPick(t, PickArgs{Profile: "complex_implementation", ConfigPath: cfg})
+	if err != nil {
+		t.Fatalf("err = %v", err)
+	}
+	if gotName != "priority" {
+		t.Errorf("strategy seam received name %q, want environment priority", gotName)
+	}
+}
+
+func TestPickStrategyExplicitFlagOverridesConfiguredDefault(t *testing.T) {
+	var gotName string
+	cfg, _ := pickPipelineSetup(t, pickTwoRoutes(), pickTwoScores(), nil, nil, nil)
+	body := `[strategy]
+default = "round-robin"
+default_profile = "review"
+tier1_share = 80
+tier2_share = 20
+`
+	if err := os.WriteFile(cfg, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	setStrategyApply(t, func(name string, cands []Candidate, _ strategyOptions) ([]Candidate, error) {
+		gotName = name
+		return cands, nil
+	})
+
+	err, _, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "priority", ConfigPath: cfg})
+	if err != nil {
+		t.Fatalf("err = %v", err)
+	}
+	if gotName != "priority" {
+		t.Errorf("strategy seam received name %q, want explicit priority", gotName)
 	}
 }
 
