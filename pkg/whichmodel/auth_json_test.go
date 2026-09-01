@@ -15,7 +15,12 @@ import (
 
 func TestAuthStatusJSONGolden(t *testing.T) {
 	oldResolver := resolveFirstFunc
-	t.Cleanup(func() { resolveFirstFunc = oldResolver })
+	oldNow := nowFunc
+	t.Cleanup(func() {
+		resolveFirstFunc = oldResolver
+		nowFunc = oldNow
+	})
+	nowFunc = func() time.Time { return time.Date(2026, 8, 8, 0, 0, 0, 0, time.UTC) }
 	future := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
 	resolveFirstFunc = func(id string) (AuthResolved, error) {
 		if id == "claude" {
