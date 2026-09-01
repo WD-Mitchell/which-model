@@ -205,14 +205,16 @@ Expected file: `internal/usage/fetch/fetchall.go`. F24 passes its `FetchAllOptio
 ```go
 type Descriptor struct {
     ID          string        // e.g. "claude"
-    Name        string        // display name, e.g. "Claude"
+    DisplayName string        // display name, e.g. "Claude"
     Kind        Kind
-    AuthSources []Source      // ordered fallback chain; valid --source values for this provider
+    Auth        []AuthSource  // ordered credential-resolution chain
 }
 
-func All() []Descriptor            // registry order
-func Get(id string) (Descriptor, bool)
+func (d Descriptor) AuthSources() []Source // ordered canonical Sources the chain can produce; the valid forced --source values
+func All() []Descriptor                    // registry order
+func Get(id string) (Descriptor, error)    // *UnknownProviderError when unknown
 ```
+
 
 Expected file: `internal/usage/registry.go`. Used for arg validation (SPEC §2.6) and text header display names (Decision D-9).
 

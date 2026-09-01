@@ -245,9 +245,50 @@ func resolveProviders(args UsageArgs, cfg *config.Config) ([]string, error) {
 
 func displayName(id string) string { return id }
 
-func validateSource(source usage.Source) error { return nil }
+// validSources is the closed --source vocabulary (F24 SPEC §2.4, D-1). The
+// empty value is the auto fallback chain and is validated separately.
+var validSources = []usage.Source{usage.SourceOAuth, usage.SourceAPI, usage.SourceCLI, usage.SourceWeb, usage.SourceLocal, usage.SourceCache}
 
-func validateProviderSource(providerID string, source usage.Source) error { return nil }
+func joinSources(sources []usage.Source) string {
+	parts := make([]string, len(sources))
+	for i, s := range sources {
+		parts[i] = string(s)
+	}
+	return strings.Join(parts, ", ")
+}
+
+func validateSource(source usage.Source) error {
+	if source == "" {
+		return nil
+	}
+	for _, valid := range validSources {
+		if source == valid {
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid --source %q; valid: %s", source, joinSources(validSources))
+}
+
+// validateProviderSource rejects a forced source the provider's credential
+// chain cannot produce. The empty value is the auto chain and cache is a
+// universal view (every provider reports from cache, D-7), so both skip the
+// membership check.
+func validateProviderSource(providerID string, source usage.Source) error {
+	if source == "" || source == usage.SourceCache {
+		return nil
+	}
+	desc, err := usage.Get(providerID)
+	if err != nil {
+		return fmt.Errorf("unknown provider %q", providerID)
+	}
+	declared := desc.AuthSources()
+	for _, valid := range declared {
+		if source == valid {
+			return nil
+		}
+	}
+	return fmt.Errorf("provider %q has no %s source; valid sources: %s", providerID, source, joinSources(declared))
+}
 
 var usageExitFiveCodes = map[string]bool{
 	"unauthorized":       true,
