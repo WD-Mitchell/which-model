@@ -261,7 +261,7 @@ func (s *deriveState) record(row *rawRow, coreColumns []string, normalizer Norma
 	record := make([]string, 0, len(header))
 	record = append(record, row.model, row.reasoning)
 
-	categories := CategoryScores(scoreRow, s.cfg)
+	categories := CategoryScores(scoreRow, s.cfg, s.aggregator)
 	planning := PlanningCapabilityScore(categories)
 
 	for i, name := range coreColumns {
