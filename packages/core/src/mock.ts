@@ -311,18 +311,16 @@ function scoreModel(data: MockData, m: MockModel, p: ProfileDetail): number {
 // Mock host
 // ---------------------------------------------------------------------------
 
-// Per-provider accounts for browser mode; the real store is config.toml.
-const mockAccounts: Record<string, ProviderAccount[]> = {
-  claude: [{ name: 'Work', kind: 'oauth', ref: '~/.claude/.credentials.json' }],
-  // copilot needs a signed-out oauth row so the browser mock can exercise
-  // the device-flow sign-in modal (empty ref renders the "Sign in…" button).
-  copilot: [{ name: 'GitHub', kind: 'oauth', ref: '' }],
-}
-
 export function createMockEngineHost(
   overrides?: Partial<MockData>,
 ): EngineHost & { data: MockData } {
   const data: MockData = { ...seedData(), ...(overrides ? clone(overrides) : {}) }
+
+  // Per-host accounts so tests cannot leak signed-in state into later cases.
+  const mockAccounts: Record<string, ProviderAccount[]> = {
+    claude: [{ name: 'Work', kind: 'oauth', ref: '~/.claude/.credentials.json' }],
+    copilot: [{ name: 'GitHub', kind: 'oauth', ref: '' }],
+  }
 
   let usageMode = 'auto'
   let usageBackend = 'native'
@@ -842,7 +840,15 @@ export function createMockEngineHost(
         }
         return { verification_uri: 'https://github.com/login/device', user_code: 'WDML-MOCK' }
       },
-      async confirm() {},
+      async confirm(provider) {
+        const accounts = mockAccounts[provider]
+        if (!accounts) return
+        mockAccounts[provider] = accounts.map((a) =>
+          a.kind === 'oauth' && !a.ref.trim() ? { ...a, ref: 'which-model' } : a,
+        )
+        emit('config:changed', { section: 'providers' })
+        emit('usage:updated', {})
+      },
       async cancel() {},
     },
 

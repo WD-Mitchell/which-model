@@ -6,12 +6,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
+	"github.com/WD-Mitchell/which-model/internal/config"
 	"github.com/WD-Mitchell/which-model/internal/usage"
 	"github.com/WD-Mitchell/which-model/internal/usage/credential"
 	"github.com/WD-Mitchell/which-model/internal/usage/toggle"
 )
+
+// managedOAuthRef is the account.ref written after a successful device login.
+// It names the which-model keychain service (never the token). The settings
+// UI treats a non-empty oauth ref as signed in.
+const managedOAuthRef = "which-model"
 
 // SignInService is the interactive device-flow sign-in facet (U-signin).
 // It drives the same primitive the CLI's `auth login` drives
@@ -36,9 +43,13 @@ type SignInStart struct {
 }
 
 // signInFlow carries one active flow between Start and Confirm.
+// ctx/cancel let Cancel abort an in-flight Poll (the frontend starts
+// polling as soon as the code is shown, so Cancel must reach the waiter).
 type signInFlow struct {
-	flow *credential.DeviceFlow
-	code credential.DeviceCode
+	flow   *credential.DeviceFlow
+	code   credential.DeviceCode
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // signInMu guards the active-flows map only. Config access inside
@@ -78,8 +89,12 @@ func (g *SignInService) Start(ctx context.Context, provider string) (SignInStart
 	if err != nil {
 		return SignInStart{}, toErrorDTO(err)
 	}
+	pollCtx, cancel := context.WithCancel(context.Background())
 	signInMu.Lock()
-	signInFlows[provider] = signInFlow{flow: flow, code: code}
+	if prev, ok := signInFlows[provider]; ok && prev.cancel != nil {
+		prev.cancel()
+	}
+	signInFlows[provider] = signInFlow{flow: flow, code: code, ctx: pollCtx, cancel: cancel}
 	signInMu.Unlock()
 	return SignInStart{VerificationURI: code.VerificationURI, UserCode: code.UserCode}, nil
 }
@@ -94,14 +109,23 @@ func (g *SignInService) Confirm(ctx context.Context, provider string) error {
 	}
 	signInMu.Lock()
 	active, ok := signInFlows[provider]
-	if ok {
-		delete(signInFlows, provider)
-	}
 	signInMu.Unlock()
 	if !ok {
 		return toErrorDTO(fmt.Errorf("%w: no sign-in in progress for %s; press Sign in first", errValidation, provider))
 	}
-	token, err := active.flow.Poll(ctx, active.code)
+	pollCtx := active.ctx
+	if pollCtx == nil {
+		pollCtx = ctx
+	}
+	token, err := active.flow.Poll(pollCtx, active.code)
+	signInMu.Lock()
+	if cur, still := signInFlows[provider]; still && cur.flow == active.flow {
+		if cur.cancel != nil {
+			cur.cancel()
+		}
+		delete(signInFlows, provider)
+	}
+	signInMu.Unlock()
 	if err != nil {
 		return toErrorDTO(flowErr(err))
 	}
@@ -112,16 +136,64 @@ func (g *SignInService) Confirm(ctx context.Context, provider string) error {
 	if err := store.Save(provider, token); err != nil {
 		return toErrorDTO(err)
 	}
+	// Best-effort: empty oauth account rows become "signed in" in Settings.
+	// The token is already saved; a config write failure must not undo login.
+	_ = g.markManagedOAuth(provider)
+	g.s.emit(EventConfigChanged, map[string]string{"section": "providers"})
+	g.s.emit(EventUsageUpdated, struct{}{})
 	return nil
 }
 
 // Cancel abandons an active flow (window closed, user navigated away).
-// Removing a non-existent flow is success.
+// Removing a non-existent flow is success. An in-flight Confirm's Poll is
+// cancelled via the flow context so it does not later save a token.
 func (g *SignInService) Cancel(provider string) error {
 	signInMu.Lock()
-	delete(signInFlows, provider)
+	if active, ok := signInFlows[provider]; ok {
+		if active.cancel != nil {
+			active.cancel()
+		}
+		delete(signInFlows, provider)
+	}
 	signInMu.Unlock()
 	return nil
+}
+
+func (g *SignInService) markManagedOAuth(provider string) error {
+	g.s.mu.Lock()
+	defer g.s.mu.Unlock()
+	if g.s.cfg == nil {
+		return nil
+	}
+	copyCfg, cleanup, err := cloneConfigForProviders(g.s.cfg)
+	if cleanup != nil {
+		defer cleanup()
+	}
+	if err != nil {
+		return err
+	}
+	if copyCfg.Providers == nil {
+		return nil
+	}
+	providerCfg, ok := copyCfg.Providers[provider]
+	if !ok {
+		return nil
+	}
+	changed := false
+	accounts := make([]config.ProviderAccount, len(providerCfg.Accounts))
+	copy(accounts, providerCfg.Accounts)
+	for i := range accounts {
+		if accounts[i].Kind == AccountKindOAuth && strings.TrimSpace(accounts[i].Ref) == "" {
+			accounts[i].Ref = managedOAuthRef
+			changed = true
+		}
+	}
+	if !changed {
+		return nil
+	}
+	providerCfg.Accounts = accounts
+	copyCfg.Providers[provider] = providerCfg
+	return g.s.Providers().persistConfigLocked(copyCfg)
 }
 
 // managedStoreFor builds the ManagedStore from the live config, mirroring

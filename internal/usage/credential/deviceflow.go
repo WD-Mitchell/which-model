@@ -136,23 +136,23 @@ func (f *DeviceFlow) pollOnce(ctx context.Context, code DeviceCode) (string, err
 	if err != nil {
 		return "", usage.NewFailureError("network", "The provider request failed.")
 	}
-	if resp.StatusCode == http.StatusBadRequest {
-		switch parseDeviceError(body) {
-		case "authorization_pending":
-			return "", errDevicePending
-		case "slow_down":
-			return "", errDeviceSlowDown
-		case "access_denied":
-			return "", usage.NewFailureError("access_denied", "The user denied the device login request.")
-		case "expired_token":
-			return "", usage.NewFailureError("device_expired", "The device code expired before the user approved.")
-		case "":
-			return "", usage.NewFailureError("provider_status",
-				fmt.Sprintf("The device login endpoint is unavailable (HTTP %d).", resp.StatusCode))
-		default:
-			// Unknown RFC 8628 error strings are never passed through.
-			return "", unsupportedResponse()
-		}
+	// GitHub Apps return HTTP 200 with error=authorization_pending (F12-T9:
+	// "On 200: authorization_pending sleeps/retries"). RFC 8628 uses 400 for
+	// the same codes. Branch on the error field first, regardless of status.
+	switch parseDeviceError(body) {
+	case "authorization_pending":
+		return "", errDevicePending
+	case "slow_down":
+		return "", errDeviceSlowDown
+	case "access_denied":
+		return "", usage.NewFailureError("access_denied", "The user denied the device login request.")
+	case "expired_token":
+		return "", usage.NewFailureError("device_expired", "The device code expired before the user approved.")
+	case "":
+		// Fall through: success body, or a non-JSON / missing-error failure.
+	default:
+		// Unknown RFC 8628 error strings are never passed through.
+		return "", unsupportedResponse()
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return "", usage.NewFailureError("provider_status",
@@ -173,7 +173,8 @@ func (f *DeviceFlow) pollOnce(ctx context.Context, code DeviceCode) (string, err
 	return token, nil
 }
 
-// parseDeviceError extracts the RFC 8628 `error` field from a 400 body.
+// parseDeviceError extracts the RFC 8628 `error` field from a token-endpoint
+// body. GitHub may send that field on HTTP 200 or 400.
 func parseDeviceError(data []byte) string {
 	var obj map[string]json.RawMessage
 	if err := json.Unmarshal(data, &obj); err != nil {

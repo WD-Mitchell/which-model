@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/WD-Mitchell/which-model/internal/usage"
 	"github.com/WD-Mitchell/which-model/internal/usage/credential"
@@ -117,7 +118,7 @@ func TestSignInStartHappyPath(t *testing.T) {
 
 func TestSignInConfirmSavesCredential(t *testing.T) {
 	registerTestDeviceFlowProvider(t)
-	svc, _ := newTestServices(t, WithConfigTOML("[usage]\nbackend = \"native\"\n\n[auth]\nuse_keychain = false\n\n[providers."+testFlowProviderID+"]\nenabled = true\n"))
+	svc, rec := newTestServices(t, WithConfigTOML("[usage]\nbackend = \"native\"\n\n[auth]\nuse_keychain = false\n\n[providers."+testFlowProviderID+"]\nenabled = true\n\n[[providers."+testFlowProviderID+".accounts]]\nname = \"GitHub\"\nkind = \"oauth\"\nref = \"\"\n"))
 	tokenBodies := make(chan string, 8)
 	newFlowTestTargets(t, `{"device_code":"abc123","user_code":"WDML-TEST","verification_uri":"https://github.com/login/device","expires_in":900}`, tokenBodies)
 	tokenBodies <- `{"access_token":"tok-confirm-1","token_type":"bearer"}`
@@ -138,6 +139,25 @@ func TestSignInConfirmSavesCredential(t *testing.T) {
 	}
 	if cred.Token != "tok-confirm-1" {
 		t.Fatalf("stored token = %q, want the issued token", redactConst(cred.Token))
+	}
+	detail, err := svc.Providers().Detail(context.Background(), testFlowProviderID)
+	if err != nil {
+		t.Fatalf("Detail after Confirm: %v", err)
+	}
+	if len(detail.Accounts) != 1 || detail.Accounts[0].Ref != managedOAuthRef {
+		t.Fatalf("accounts after Confirm = %+v, want oauth ref %q", detail.Accounts, managedOAuthRef)
+	}
+	var sawConfig, sawUsage bool
+	for _, ev := range rec.Events() {
+		if ev.Event == EventConfigChanged {
+			sawConfig = true
+		}
+		if ev.Event == EventUsageUpdated {
+			sawUsage = true
+		}
+	}
+	if !sawConfig || !sawUsage {
+		t.Fatalf("events after Confirm = %+v, want config:changed and usage:updated", rec.Events())
 	}
 	// Flow is consumed: a second Confirm has nothing to poll.
 	if err := svc.SignIn().Confirm(context.Background(), testFlowProviderID); err == nil {
@@ -223,6 +243,42 @@ func TestSignInCancelClearsFlow(t *testing.T) {
 	// Cancelling again is success.
 	if err := svc.SignIn().Cancel(testFlowProviderID); err != nil {
 		t.Fatalf("double Cancel error = %v", err)
+	}
+}
+
+func TestSignInCancelAbortsConfirm(t *testing.T) {
+	registerTestDeviceFlowProvider(t)
+	tokenBodies := make(chan string)
+	t.Cleanup(func() { close(tokenBodies) })
+	newFlowTestTargets(t, `{"device_code":"abc123","user_code":"WDML-TEST","verification_uri":"https://github.com/login/device","expires_in":900}`, tokenBodies)
+
+	svc, _ := newTestServices(t, WithConfigTOML("[usage]\nbackend = \"native\"\n\n[providers."+testFlowProviderID+"]\nenabled = true\n"))
+	if _, err := svc.SignIn().Start(context.Background(), testFlowProviderID); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		done <- svc.SignIn().Confirm(context.Background(), testFlowProviderID)
+	}()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		signInMu.Lock()
+		_, active := signInFlows[testFlowProviderID]
+		signInMu.Unlock()
+		if active {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("flow never became active")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if err := svc.SignIn().Cancel(testFlowProviderID); err != nil {
+		t.Fatalf("Cancel() error = %v", err)
+	}
+	err := <-done
+	if err == nil {
+		t.Fatal("Confirm after Cancel error = nil, want cancellation")
 	}
 }
 

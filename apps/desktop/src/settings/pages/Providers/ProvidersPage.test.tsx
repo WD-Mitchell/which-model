@@ -1,7 +1,6 @@
-// Copilot OAuth sign-in in the Providers page: the Sign in… button must run
-// the device flow through the host (show the code, confirm on demand,
-// cancel safely) instead of the old "not wired up yet" stub. Drives the real
-// page through SettingsApp so the host wiring is the production one.
+// Copilot OAuth sign-in in the Providers page: Sign in… copies the code,
+// opens GitHub, and starts polling immediately. Cancel aborts. Success
+// marks the account signed in. Drives the real page through SettingsApp.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { screen, render, act, fireEvent, cleanup, waitFor } from '@testing-library/react'
 
@@ -11,10 +10,16 @@ import type { EngineHost } from '@which-model/core'
 import { ToastProvider } from '@which-model/ui'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { resetHost } from '../../../lib/host'
+import { useEngineEvents } from '../../../lib/invalidate'
 import { SettingsApp } from '../../SettingsApp'
 
 function makeClient() {
   return new QueryClient({ defaultOptions: { queries: { retry: false } } })
+}
+
+function Root({ host }: { host: EngineHost }) {
+  useEngineEvents()
+  return <SettingsApp host={host} />
 }
 
 function renderApp(host: EngineHost) {
@@ -22,7 +27,7 @@ function renderApp(host: EngineHost) {
   render(
     <QueryClientProvider client={client}>
       <ToastProvider>
-        <SettingsApp host={host} />
+        <Root host={host} />
       </ToastProvider>
     </QueryClientProvider>,
   )
@@ -34,12 +39,20 @@ async function openCopilotDetail(host: EngineHost) {
   const nav = await screen.findAllByText('Providers')
   const navBtn = nav.find((el) => el.tagName === 'BUTTON')
   act(() => navBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true })))
-  // The list renders provider cards showing provider.id — the fixture's
-  // copilot card is the element containing exactly that id text.
   const card = await screen.findByText((_, el) => el?.tagName === 'SPAN' && el.textContent === 'copilot' && el.className.includes('id'))
   act(() => card.dispatchEvent(new MouseEvent('click', { bubbles: true })))
-  // Detail loaded when the accounts header is visible.
   await screen.findByText('accounts')
+}
+
+function deferConfirm(host: EngineHost) {
+  let resolve!: () => void
+  let reject!: (e: unknown) => void
+  const pending = new Promise<void>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  const confirmSpy = vi.spyOn(host.signin, 'confirm').mockReturnValue(pending)
+  return { confirmSpy, resolve, reject }
 }
 
 describe('Providers page copilot sign-in', () => {
@@ -49,47 +62,59 @@ describe('Providers page copilot sign-in', () => {
     resetHost(host)
   })
 
-  it('starts the device flow, auto-copies the code, and shows it', async () => {
+  it('starts the device flow, auto-copies the code, auto-opens GitHub, and polls', async () => {
+    const { confirmSpy } = deferConfirm(host)
     const startSpy = vi.spyOn(host.signin, 'start')
     const copySpy = vi.spyOn(host.window, 'copyToClipboard').mockResolvedValue(undefined)
-    await openCopilotDetail(host)
-    const signIn = await screen.findByText('Sign in…')
-    fireEvent.click(signIn)
-    expect(await screen.findByText('WDML-MOCK')).toBeDefined()
-    // The start call went to the host for copilot and the user code was
-    // auto-copied so the flow is open-website → paste → approve.
-    await waitFor(() => expect(startSpy).toHaveBeenCalledTimes(1))
-    await waitFor(() => expect(copySpy).toHaveBeenCalledWith('WDML-MOCK'))
-  })
-
-  it('confirm closes the modal after the flow resolves', async () => {
-    const confirmSpy = vi.spyOn(host.signin, 'confirm').mockResolvedValue(undefined)
-    await openCopilotDetail(host)
-    fireEvent.click(await screen.findByText('Sign in…'))
-    await screen.findByText('WDML-MOCK')
-    fireEvent.click(screen.getByText('I entered the code'))
-    await waitFor(() => expect(confirmSpy).toHaveBeenCalledWith('copilot'))
-    await waitFor(() => expect(screen.queryByText('WDML-MOCK')).toBeNull())
-  })
-
-  it('confirm failure surfaces the message as a toast', async () => {
-    vi.spyOn(host.signin, 'confirm').mockRejectedValue({ code: 'runtime', message: 'GitHub device login expired.' })
-    await openCopilotDetail(host)
-    fireEvent.click(await screen.findByText('Sign in…'))
-    await screen.findByText('WDML-MOCK')
-    fireEvent.click(screen.getByText('I entered the code'))
-    expect(await screen.findByText('GitHub device login expired.')).toBeDefined()
-  })
-
-  it('open-website button hands the verification URI to the host', async () => {
     const openSpy = vi.spyOn(host.window, 'openURL').mockResolvedValue(undefined)
     await openCopilotDetail(host)
     fireEvent.click(await screen.findByText('Sign in…'))
-    fireEvent.click(await screen.findByText('Open github.com/login/device'))
-    await waitFor(() => expect(openSpy).toHaveBeenCalledWith('https://github.com/login/device'))
+    expect(await screen.findByText('WDML-MOCK')).toBeDefined()
+    await waitFor(() => expect(startSpy).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(copySpy).toHaveBeenCalledWith('WDML-MOCK'))
+    await waitFor(() =>
+      expect(openSpy).toHaveBeenCalledWith('https://github.com/login/device?user_code=WDML-MOCK'),
+    )
+    await waitFor(() => expect(confirmSpy).toHaveBeenCalledWith('copilot'))
+    expect(screen.queryByText('I entered the code')).toBeNull()
   })
 
-  it('cancel abandons the flow without confirming', async () => {
+  it('confirm resolves the modal and shows signed in', async () => {
+    const { confirmSpy, resolve } = deferConfirm(host)
+    await openCopilotDetail(host)
+    fireEvent.click(await screen.findByText('Sign in…'))
+    await screen.findByText('WDML-MOCK')
+    await waitFor(() => expect(confirmSpy).toHaveBeenCalledWith('copilot'))
+    resolve()
+    await waitFor(() => expect(screen.queryByText('WDML-MOCK')).toBeNull())
+    expect(await screen.findByText('signed in')).toBeDefined()
+    expect(screen.getByText('Re-authenticate')).toBeDefined()
+  })
+
+  it('confirm failure surfaces the message as a toast', async () => {
+    const { reject } = deferConfirm(host)
+    await openCopilotDetail(host)
+    fireEvent.click(await screen.findByText('Sign in…'))
+    await screen.findByText('WDML-MOCK')
+    reject({ code: 'runtime', message: 'GitHub device login expired.' })
+    expect(await screen.findByText('GitHub device login expired.')).toBeDefined()
+  })
+
+  it('open-website button hands the verification URI with the user code', async () => {
+    deferConfirm(host)
+    const openSpy = vi.spyOn(host.window, 'openURL').mockResolvedValue(undefined)
+    await openCopilotDetail(host)
+    fireEvent.click(await screen.findByText('Sign in…'))
+    await screen.findByText('WDML-MOCK')
+    openSpy.mockClear()
+    fireEvent.click(await screen.findByText('Open github.com/login/device'))
+    await waitFor(() =>
+      expect(openSpy).toHaveBeenCalledWith('https://github.com/login/device?user_code=WDML-MOCK'),
+    )
+  })
+
+  it('cancel abandons the flow without treating it as success', async () => {
+    deferConfirm(host)
     const cancelSpy = vi.spyOn(host.signin, 'cancel').mockResolvedValue(undefined)
     await openCopilotDetail(host)
     fireEvent.click(await screen.findByText('Sign in…'))
@@ -97,5 +122,6 @@ describe('Providers page copilot sign-in', () => {
     fireEvent.click(screen.getByText('Cancel'))
     await waitFor(() => expect(cancelSpy).toHaveBeenCalledWith('copilot'))
     await waitFor(() => expect(screen.queryByText('WDML-MOCK')).toBeNull())
+    expect(screen.getByText('not signed in')).toBeDefined()
   })
 })

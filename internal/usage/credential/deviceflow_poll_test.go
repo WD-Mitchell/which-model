@@ -19,8 +19,11 @@ type fakeDeviceClock struct {
 	slept []time.Duration
 }
 
-func (c *fakeDeviceClock) nowFn() time.Time        { return c.now }
-func (c *fakeDeviceClock) sleepFn(d time.Duration) { c.slept = append(c.slept, d); c.now = c.now.Add(d) }
+func (c *fakeDeviceClock) nowFn() time.Time { return c.now }
+func (c *fakeDeviceClock) sleepFn(d time.Duration) {
+	c.slept = append(c.slept, d)
+	c.now = c.now.Add(d)
+}
 
 func TestDeviceFlowPoll(t *testing.T) {
 	const canary = "canary-9f3a2b1c4d5e6f78"
@@ -112,6 +115,67 @@ func TestDeviceFlowPoll(t *testing.T) {
 		}
 		if len(clock.slept) != 1 || clock.slept[0] != 5*time.Second {
 			t.Fatalf("Poll() slept %v, want [5s]", clock.slept)
+		}
+	})
+
+	t.Run("github 200 pending then success", func(t *testing.T) {
+		// GitHub Apps (and some OAuth app responses) return HTTP 200 with
+		// error=authorization_pending instead of RFC 8628's 400. Treating
+		// that as a token-body failure aborts the flow the moment the user
+		// is asked to confirm — before GitHub has issued a token.
+		var form string
+		srv := newServer(t, []struct {
+			status int
+			body   string
+		}{{200, `{"error":"authorization_pending"}`}, {200, `{"access_token":"gho_ok"}`}}, &form)
+		defer srv.Close()
+		clock := &fakeDeviceClock{now: start}
+		flow := newFlow(t, srv.URL, clock)
+		token, err := flow.Poll(context.Background(), code)
+		if err != nil {
+			t.Fatalf("Poll() error = %v, want nil", err)
+		}
+		if token != "gho_ok" {
+			t.Fatalf("Poll() = %q, want gho_ok", token)
+		}
+		if len(clock.slept) != 1 || clock.slept[0] != 5*time.Second {
+			t.Fatalf("Poll() slept %v, want [5s]", clock.slept)
+		}
+	})
+
+	t.Run("github 200 slow_down then success", func(t *testing.T) {
+		var form string
+		srv := newServer(t, []struct {
+			status int
+			body   string
+		}{{200, `{"error":"slow_down"}`}, {200, `{"access_token":"gho_slow"}`}}, &form)
+		defer srv.Close()
+		clock := &fakeDeviceClock{now: start}
+		flow := newFlow(t, srv.URL, clock)
+		token, err := flow.Poll(context.Background(), code)
+		if err != nil {
+			t.Fatalf("Poll() error = %v, want nil", err)
+		}
+		if token != "gho_slow" {
+			t.Fatalf("Poll() = %q, want gho_slow", token)
+		}
+		if len(clock.slept) != 1 || clock.slept[0] != 10*time.Second {
+			t.Fatalf("Poll() slept %v, want [10s]", clock.slept)
+		}
+	})
+
+	t.Run("github 200 access_denied", func(t *testing.T) {
+		var form string
+		srv := newServer(t, []struct {
+			status int
+			body   string
+		}{{200, `{"error":"access_denied"}`}}, &form)
+		defer srv.Close()
+		clock := &fakeDeviceClock{now: start}
+		flow := newFlow(t, srv.URL, clock)
+		_, err := flow.Poll(context.Background(), code)
+		if code := failureCode(t, err); code != "access_denied" {
+			t.Fatalf("Poll() error code = %q, want access_denied", code)
 		}
 	})
 

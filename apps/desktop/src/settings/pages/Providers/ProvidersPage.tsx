@@ -17,7 +17,7 @@
 // Layout contract (U07): <main> has no horizontal padding, so every block here
 // carries its own 22px gutter — including the drag rows, which get theirs via
 // DragList's `rowClassName` so the grab handle sits inside the gutter.
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Button,
   Combobox,
@@ -47,6 +47,25 @@ const LIST_KICKER = 'providers · drag to set fallback order'
 
 function errText(e: unknown, fallback: string): string {
   return (e as { message?: string }).message ?? fallback
+}
+
+const MANAGED_OAUTH_REF = 'which-model'
+
+/** GitHub's device page accepts ?user_code= so the pasted/copied code is pre-filled. */
+function deviceLoginURL(uri: string, userCode: string): string {
+  try {
+    const parsed = new URL(uri)
+    if (userCode && !parsed.searchParams.has('user_code')) {
+      parsed.searchParams.set('user_code', userCode)
+    }
+    return parsed.toString()
+  } catch {
+    return uri
+  }
+}
+
+function isCancelledSignIn(e: unknown): boolean {
+  return errText(e, '').toLowerCase().includes('cancel')
 }
 
 /** Trash glyph (same path as U09's, mockup L455/L463) — 13px in the detail. */
@@ -561,10 +580,10 @@ function AccountsSection({
   const [signIn, setSignIn] = useState<null | {
     provider: string
     account: string
-    phase: 'code' | 'waiting'
     uri?: string
     code?: string
   }>(null)
+  const signInLock = useRef<{ cancelled: boolean } | null>(null)
 
   const commit = useCallback(
     (next: ProviderAccount[]) => {
@@ -584,44 +603,51 @@ function AccountsSection({
     commit(rows.map((a, n) => (n === i ? { ...a, ...patch } : a)))
 
   // OAuth sign-in drives the same device flow the CLI's `auth login` drives
-  // (internal/service SignInService): show the code, let the user approve in
-  // the browser, then save the credential to the managed store. Confirm is
-  // awaited off the interaction path (it blocks until GitHub is satisfied);
-  // its only feedback is the modal's state + the final refetch.
+  // (internal/service SignInService): copy the code, open GitHub, and poll
+  // until GitHub confirms. Confirm is long-running; Cancel aborts it.
   const onSignIn = (i: number) => {
-    getHost()
-      .signin.start(id)
-      .then((s) => {
-        // Auto-copy the user code: GitHub's device page reads it straight
-        // from the clipboard, so the flow is open-website → paste → approve.
+    const snapshot = rows
+    const accountName = snapshot[i]?.name ?? 'account'
+    const lock = { cancelled: false }
+    signInLock.current = lock
+    void (async () => {
+      try {
+        const s = await getHost().signin.start(id)
+        if (lock.cancelled) return
         void getHost().window.copyToClipboard(s.user_code)
-        setSignIn({ provider: id, account: rows[i]?.name ?? 'account', phase: 'code', uri: s.verification_uri, code: s.user_code })
-      })
-      .catch((e) => {
+        void getHost().window.openURL(deviceLoginURL(s.verification_uri, s.user_code))
+        setSignIn({
+          provider: id,
+          account: accountName,
+          uri: s.verification_uri,
+          code: s.user_code,
+        })
+        await getHost().signin.confirm(id)
+        if (lock.cancelled || signInLock.current !== lock) return
+        commit(
+          snapshot.map((a) =>
+            a.name === accountName && a.kind === 'oauth'
+              ? { ...a, ref: a.ref || MANAGED_OAUTH_REF }
+              : a,
+          ),
+        )
         setSignIn(null)
-        onError(errText(e, 'could not start sign-in'))
-      })
-  }
-
-  const onConfirmSignIn = useCallback(() => {
-    if (!signIn) return
-    setSignIn({ ...signIn, phase: 'waiting' })
-    getHost()
-      .signin.confirm(signIn.provider)
-      .then(() => {
-        setSignIn(null)
-        setDraft(null)
-      })
-      .catch((e) => {
+      } catch (e) {
+        if (lock.cancelled || signInLock.current !== lock || isCancelledSignIn(e)) {
+          if (signInLock.current === lock) setSignIn(null)
+          return
+        }
         setSignIn(null)
         onError(errText(e, 'sign-in failed'))
-      })
-  }, [signIn, onError])
+      }
+    })()
+  }
 
   const onCancelSignIn = useCallback(() => {
-    if (signIn) void getHost().signin.cancel(signIn.provider)
+    if (signInLock.current) signInLock.current.cancelled = true
+    void getHost().signin.cancel(id).catch(() => {})
     setSignIn(null)
-  }, [signIn])
+  }, [id])
 
   return (
     <section className={styles.accounts}>
@@ -673,7 +699,7 @@ function AccountsSection({
                   {account.ref ? 'Re-authenticate' : 'Sign in…'}
                 </Button>
                 <span className={cx('mono', styles.oauthRef)}>
-                  {account.ref || 'not signed in'}
+                  {account.ref ? 'signed in' : 'not signed in'}
                 </span>
               </span>
             ) : (
@@ -720,35 +746,24 @@ function AccountsSection({
         <SettingsModal
           open
           title={`Sign in to ${signIn.account}`}
-          description={
-            signIn.phase === 'code'
-              ? 'Your code is copied to the clipboard — open the website and paste it to authorise which-model.'
-              : 'Waiting for you to finish in the browser — this closes when GitHub confirms the device login.'
-          }
+          description="Your code is copied and GitHub should open in your browser. This closes when GitHub confirms the device login."
+          onClose={onCancelSignIn}
+          closeOnBackdrop={false}
           actions={
-            signIn.phase === 'code' ? (
-              <>
-                <Button
-                  variant="primary"
-                  size="xs"
-                  onClick={() => {
-                    if (signIn.uri) void getHost().window.openURL(signIn.uri)
-                  }}
-                >
-                  Open github.com/login/device
-                </Button>
-                <Button variant="primary" size="xs" onClick={onConfirmSignIn}>
-                  I entered the code
-                </Button>
-                <Button variant="secondary" size="xs" onClick={onCancelSignIn}>
-                  Cancel
-                </Button>
-              </>
-            ) : (
+            <>
+              <Button
+                variant="secondary"
+                size="xs"
+                onClick={() => {
+                  if (signIn.uri) void getHost().window.openURL(deviceLoginURL(signIn.uri, signIn.code ?? ''))
+                }}
+              >
+                Open github.com/login/device
+              </Button>
               <Button variant="secondary" size="xs" onClick={onCancelSignIn}>
                 Cancel
               </Button>
-            )
+            </>
           }
         >
           {signIn.code ? (
