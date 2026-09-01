@@ -55,6 +55,36 @@ func TestDeriveGolden(t *testing.T) {
 	}
 }
 
+// namedNormalizer/aggregator are test doubles that carry their own name so
+// the provenance line can be checked against the ACTUAL components used
+// (issue #45: Derive previously hardcoded the default names and ignored the
+// aggregator entirely).
+type namedNormalizer struct{ MinMaxLinear }
+
+func (namedNormalizer) Name() string { return "test-normalizer" }
+
+type namedAggregator struct{ WeightedArithmeticMean }
+
+func (namedAggregator) Name() string { return "test-aggregator" }
+
+// Derive must render the provenance line from the passed components' names,
+// not the defaults (F09 SPEC §2.12: "the names are the resolved
+// normalizer/aggregator names").
+func TestDeriveProvenanceUsesComponentNames(t *testing.T) {
+	raw := readFixture(t, "raw_golden.csv")
+	bench := readFixture(t, "benchmarks_golden.toml")
+	out, err := Derive(raw, bench, namedNormalizer{}, namedAggregator{})
+	if err != nil {
+		t.Fatalf("Derive: %v", err)
+	}
+	first, _, _ := strings.Cut(string(out), "\n")
+	want := "# which-model-scores-provenance raw_sha256=" + rawGoldenSHA256 +
+		" normalizer=test-normalizer aggregator=test-aggregator"
+	if first != want {
+		t.Errorf("provenance = %q, want %q", first, want)
+	}
+}
+
 func TestDeriveDeterminism(t *testing.T) {
 	rawGolden := readFixture(t, "raw_golden.csv")
 	benchmarksGolden := readFixture(t, "benchmarks_golden.toml")

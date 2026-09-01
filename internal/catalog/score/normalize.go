@@ -16,6 +16,9 @@ var hundred = sdecimal.NewFromInt(100)
 // (generate_scores.py normalized_score).
 type MinMaxLinear struct{}
 
+// Name returns the component's canonical name for provenance rendering.
+func (MinMaxLinear) Name() string { return NormalizerNameMinMaxLinear }
+
 // Normalize computes the min-max linear score with ROUND_HALF_UP at 0 places.
 func (MinMaxLinear) Normalize(raw, min, max sdecimal.Decimal) sdecimal.Decimal {
 	return wdecimal.RoundHalfUp(raw.Sub(min).Div(max.Sub(min)).Mul(hundred), 0)
