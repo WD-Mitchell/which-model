@@ -23,6 +23,12 @@ export function Combobox({ items, query, onQuery, open, onOpenChange, onPick, em
                 onPick(items[0].key);
         }
         else if (e.key === 'Escape') {
+            // The Combobox owns Escape while its list is open: close the list and
+            // stop the event from reaching window-level dismiss listeners (the
+            // settings shell closes the whole window otherwise — Menu.tsx does the
+            // same). preventDefault so React marks it consumed for native menus.
+            e.stopPropagation();
+            e.preventDefault();
             onOpenChange(false);
         }
     }

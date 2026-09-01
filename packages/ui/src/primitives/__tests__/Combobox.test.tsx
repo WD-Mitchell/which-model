@@ -72,6 +72,23 @@ describe('Combobox', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
+  // Issue #31: the Combobox owns Escape — the event must not reach the
+  // window-level dismiss listener (the settings shell closes the whole
+  // window), matching Menu.tsx's stopPropagation convention.
+  it('stops Escape from reaching window-level dismiss listeners', () => {
+    const { container, onOpenChange } = setup()
+    const input = container.querySelector('input')!
+    const windowListener = vi.fn()
+    window.addEventListener('keydown', windowListener)
+    try {
+      fireEvent.keyDown(input, { key: 'Escape' })
+      expect(onOpenChange).toHaveBeenCalledWith(false)
+      expect(windowListener).not.toHaveBeenCalled()
+    } finally {
+      window.removeEventListener('keydown', windowListener)
+    }
+  })
+
   it('shows emptyText when open with no items', () => {
     setup({ open: true, items: [] })
     expect(screen.getByText('no profile by that name')).not.toBeNull()
