@@ -124,4 +124,26 @@ describe('Providers page copilot sign-in', () => {
     await waitFor(() => expect(screen.queryByText('WDML-MOCK')).toBeNull())
     expect(screen.getByText('not signed in')).toBeDefined()
   })
+
+  it('does not tell signed-out users to run the CLI', async () => {
+    host = createMockEngineHost({ models: [] }) as EngineHost & { data: never }
+    resetHost(host)
+    await openCopilotDetail(host)
+    expect(screen.getByText('No models for this provider yet. Sign in, then refresh models.')).toBeDefined()
+    expect(screen.queryByText(/which-model routes refresh/)).toBeNull()
+  })
+
+  it('shows Refresh models after sign-in and the button rebuilds routes', async () => {
+    const { confirmSpy, resolve } = deferConfirm(host)
+    const refreshSpy = vi.spyOn(host.providers, 'refreshRoutes').mockResolvedValue(undefined)
+    await openCopilotDetail(host)
+    expect(screen.queryByText('Refresh models')).toBeNull()
+    fireEvent.click(await screen.findByText('Sign in…'))
+    await screen.findByText('WDML-MOCK')
+    await waitFor(() => expect(confirmSpy).toHaveBeenCalledWith('copilot'))
+    resolve()
+    await waitFor(() => expect(screen.queryByText('WDML-MOCK')).toBeNull())
+    fireEvent.click(await screen.findByText('Refresh models'))
+    await waitFor(() => expect(refreshSpy).toHaveBeenCalledTimes(1))
+  })
 })

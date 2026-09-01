@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/WD-Mitchell/which-model/internal/catalog/fetch/modelsdev"
 	"github.com/WD-Mitchell/which-model/internal/usage"
 	"github.com/WD-Mitchell/which-model/internal/usage/credential"
 )
@@ -118,6 +119,12 @@ func TestSignInStartHappyPath(t *testing.T) {
 
 func TestSignInConfirmSavesCredential(t *testing.T) {
 	registerTestDeviceFlowProvider(t)
+	stubModelsDevFetch(t, []modelsdev.ProviderModel{{
+		Provider:     testFlowProviderID,
+		ModelID:      "claude-opus-5",
+		Name:         "Claude Opus 5",
+		EffortLevels: []string{"max"},
+	}})
 	svc, rec := newTestServices(t, WithConfigTOML("[usage]\nbackend = \"native\"\n\n[auth]\nuse_keychain = false\n\n[providers."+testFlowProviderID+"]\nenabled = true\n\n[[providers."+testFlowProviderID+".accounts]]\nname = \"GitHub\"\nkind = \"oauth\"\nref = \"\"\n"))
 	tokenBodies := make(chan string, 8)
 	newFlowTestTargets(t, `{"device_code":"abc123","user_code":"WDML-TEST","verification_uri":"https://github.com/login/device","expires_in":900}`, tokenBodies)
@@ -146,6 +153,9 @@ func TestSignInConfirmSavesCredential(t *testing.T) {
 	}
 	if len(detail.Accounts) != 1 || detail.Accounts[0].Ref != managedOAuthRef {
 		t.Fatalf("accounts after Confirm = %+v, want oauth ref %q", detail.Accounts, managedOAuthRef)
+	}
+	if len(detail.Models) == 0 {
+		t.Fatal("Detail.Models is empty after Confirm, want auto-refreshed catalogue routes")
 	}
 	var sawConfig, sawUsage bool
 	for _, ev := range rec.Events() {

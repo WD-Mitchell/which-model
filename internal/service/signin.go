@@ -139,6 +139,10 @@ func (g *SignInService) Confirm(ctx context.Context, provider string) error {
 	// Best-effort: empty oauth account rows become "signed in" in Settings.
 	// The token is already saved; a config write failure must not undo login.
 	_ = g.markManagedOAuth(provider)
+	// Same as `which-model routes refresh`: a newly-authenticated provider
+	// has no routes until the catalogue is joined. Failure here must not
+	// undo login — the UI's Refresh models button retries.
+	_ = g.s.Providers().RefreshRoutes(ctx)
 	g.s.emit(EventConfigChanged, map[string]string{"section": "providers"})
 	g.s.emit(EventUsageUpdated, struct{}{})
 	return nil

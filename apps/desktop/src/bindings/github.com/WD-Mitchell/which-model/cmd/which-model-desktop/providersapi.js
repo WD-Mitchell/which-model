@@ -106,3 +106,11 @@ export function SetEnabled(id, on) {
 export function SetRouteEnabled(id, modelId, reasoning, on) {
     return $Call.ByName("main.ProvidersAPI.SetRouteEnabled", id, modelId, reasoning, on);
 }
+
+/**
+ * @returns {$CancellablePromise<void>}
+ */
+export function RefreshRoutes() {
+    return $Call.ByName("main.ProvidersAPI.RefreshRoutes");
+}
+

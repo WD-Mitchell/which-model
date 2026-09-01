@@ -83,6 +83,7 @@ export function createWailsHost(): EngineHost {
       setRouteEnabled: (id: string, modelId: string, reasoning: string, enabled: boolean) =>
         call(ProvidersAPI.SetRouteEnabled(id, modelId, reasoning, enabled) as Cancellable<void>, () => {}),
       setAllRoutes: (id: string, enabled: boolean) => call(ProvidersAPI.SetAllRoutes(id, enabled) as Cancellable<void>, () => {}),
+      refreshRoutes: () => call(ProvidersAPI.RefreshRoutes() as Cancellable<void>, () => {}),
     },
     harnesses: {
       list: () => call(HarnessesAPI.List() as Cancellable<unknown>, (r) => r as never),

@@ -406,9 +406,14 @@ function countRoutes(detail: ProviderDetail): { on: number; total: number } {
   return { on, total }
 }
 
+function isSignedIn(accounts: readonly ProviderAccount[] | undefined): boolean {
+  return (accounts ?? []).some((a) => a.ref.trim().length > 0)
+}
+
 function ProviderDetailView({ id, onBack }: { id: string; onBack(): void }) {
   const toast = useToast()
   const { data: detail } = useProviderDetail(id)
+  const [refreshing, setRefreshing] = useState(false)
 
   const handleRoute = useCallback(
     (modelId: string, reasoning: string, on: boolean) => {
@@ -428,6 +433,14 @@ function ProviderDetailView({ id, onBack }: { id: string; onBack(): void }) {
     },
     [id, toast],
   )
+
+  const handleRefreshModels = useCallback(() => {
+    setRefreshing(true)
+    void getHost()
+      .providers.refreshRoutes()
+      .catch((e) => toast.show(errText(e, 'could not refresh models')))
+      .finally(() => setRefreshing(false))
+  }, [toast])
 
   // Per-model switch (L771) — no host call covers one model, so its levels are
   // written one at a time; the first failure reports and the rest still run.
@@ -456,6 +469,11 @@ function ProviderDetailView({ id, onBack }: { id: string; onBack(): void }) {
       <div className={styles.summary}>
         <span className={cx('mono', styles.summaryText)}>{`${on} of ${total} routes enabled`}</span>
         <span className={styles.summaryActions}>
+          {isSignedIn(detail.accounts) ? (
+            <Button variant="ghost" size="xs" disabled={refreshing} onClick={handleRefreshModels}>
+              {refreshing ? 'Refreshing…' : 'Refresh models'}
+            </Button>
+          ) : null}
           <Button variant="ghost" size="xs" onClick={() => handleAll(true)}>
             Enable all
           </Button>
@@ -494,7 +512,13 @@ function ProviderDetailView({ id, onBack }: { id: string; onBack(): void }) {
 
       {detail.models.length === 0 ? (
         <div className={styles.empty}>
-          <EmptyState text="No routes for this provider yet. Run `which-model routes refresh` to build them from the model catalogue." />
+          <EmptyState
+            text={
+              isSignedIn(detail.accounts)
+                ? 'No models yet. Refresh models to build them from the catalogue.'
+                : 'No models for this provider yet. Sign in, then refresh models.'
+            }
+          />
         </div>
       ) : null}
 

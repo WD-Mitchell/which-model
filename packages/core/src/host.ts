@@ -63,6 +63,9 @@ export interface EngineHost {
     detail(id: string): Promise<ProviderDetail>
     setRouteEnabled(id: string, modelId: string, reasoning: string, on: boolean): Promise<void>
     setAllRoutes(id: string, on: boolean): Promise<void>
+    /** Rebuild the route table from the model catalogue (same as
+     *  `which-model routes refresh`). Call after sign-in and from Refresh models. */
+    refreshRoutes(): Promise<void>
   }
   harnesses: {
     list(): Promise<HarnessInfo[]>

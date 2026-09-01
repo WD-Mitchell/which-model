@@ -115,6 +115,9 @@ func (a *ProvidersAPI) SetRouteEnabled(id, modelId, reasoning string, on bool) e
 func (a *ProvidersAPI) SetAllRoutes(id string, on bool) error {
 	return a.svc.Providers().SetAllRoutes(ctx, id, on)
 }
+func (a *ProvidersAPI) RefreshRoutes() error {
+	return a.svc.Providers().RefreshRoutes(ctx)
+}
 
 // HarnessesAPI — EngineHost.harnesses.
 type HarnessesAPI struct{ svc *service.Services }

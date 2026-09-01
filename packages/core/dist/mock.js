@@ -559,6 +559,9 @@ export function createMockEngineHost(overrides) {
                 }
                 emit('config:changed', { section: 'providers' });
             },
+            async refreshRoutes() {
+                emit('config:changed', { section: 'routes' });
+            },
         },
         harnesses: {
             async list() {
