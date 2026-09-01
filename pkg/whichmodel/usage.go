@@ -124,7 +124,7 @@ func RunUsage(args UsageArgs, stdout, stderr io.Writer) error {
 		return &UsageError{Message: err.Error()}
 	}
 	for _, id := range providers {
-		if err := validateProviderSource(id, args.Source); err != nil {
+		if err := validateProviderSourceForBackend(id, args.Source, cfg.Usage.Backend); err != nil {
 			return &UsageError{Message: err.Error()}
 		}
 	}
@@ -274,8 +274,22 @@ func validateSource(source usage.Source) error {
 // universal view (every provider reports from cache, D-7), so both skip the
 // membership check.
 func validateProviderSource(providerID string, source usage.Source) error {
+	return validateProviderSourceForBackend(providerID, source, config.UsageBackendNative)
+}
+
+// validateProviderSourceForBackend validates a forced source against the
+// provider capabilities of the SELECTED backend (issue #28 review P2): the
+// native registry is only consulted for the native backend; under codexbar
+// the provider id list comes from CodexBar discovery and its supported
+// source set applies (codexbar reports normalized percent windows, so
+// oauth/api/cli/web all describe its credential surface; cache and empty
+// remain universal).
+func validateProviderSourceForBackend(providerID string, source usage.Source, backend config.UsageBackend) error {
 	if source == "" || source == usage.SourceCache {
 		return nil
+	}
+	if backend != config.UsageBackendNative {
+		return nil // codexbar providers are dynamic; no per-provider source registry exists
 	}
 	desc, err := usage.Get(providerID)
 	if err != nil {
