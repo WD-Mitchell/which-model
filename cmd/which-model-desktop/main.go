@@ -77,10 +77,10 @@ func main() {
 			fatalStartup(nil, title, msg)
 		}
 	}
-	// Build identity for Settings → General (GUISettings.Version): the same
-	// ldflags the tray's "Check for updates" compares against. Both service
-	// constructors are covered so an empty-catalog start still reports it.
-	svc.SetVersion(whichmodel.VersionLine())
+	// Build identity for the Settings sidebar (GUISettings.Version): just the
+	// version — the same ldflags value the tray's "Check for updates" compares
+	// against. Commit/built details stay in `which-model version` output.
+	svc.SetVersion(whichmodel.Version)
 
 	// 4. application.New with single-instance (S02 SPEC §2.1.4). The second
 	// launch callback shows the popover (pop is assigned immediately after).

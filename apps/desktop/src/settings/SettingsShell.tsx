@@ -70,20 +70,19 @@ export function SettingsShell({ page, onPage, configPath, version, onClose, chil
               ))}
             </div>
           ))}
-          {/* Build identity + config path live at the foot of the SIDEBAR in
-              the mockup, after a margin-top:auto spacer — not in the content
-              column. The version line is what "Check for updates" compares
-              against; config_path wraps rather than truncating. */}
+          {/* Version + config path share the sidebar's foot; when a version
+              is known it REPLACES the config-path line (same .configPath
+              style — the version is what "Check for updates" compares
+              against). Unknown version → config path. */}
           {version ? (
-            <div className={styles.configPath} title={version}>
+            <div className={'mono ' + styles.configPath} title={version}>
               {version}
             </div>
-          ) : null}
-          {configPath ? (
+          ) : (
             <div className={'mono ' + styles.configPath} title={configPath}>
               {configPath}
             </div>
-          ) : null}
+          )}
         </nav>
         {/* No horizontal padding: every page child supplies its own 22px inline
             padding so row rules and hover tints bleed edge to edge. */}

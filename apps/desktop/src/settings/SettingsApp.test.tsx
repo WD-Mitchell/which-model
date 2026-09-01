@@ -39,10 +39,11 @@ describe('SettingsApp', () => {
   })
 
   // Issue: the user could not tell which build was running. The sidebar
-  // footer shows the engine's version line next to the config path.
-  it('shows the build version in the sidebar footer', async () => {
+  // footer shows the bare version, REPLACING the config-path line.
+  it('shows the bare version in the sidebar footer, replacing the config path', async () => {
     renderApp(host)
-    expect(await screen.findByText(/which-model dev \(commit unknown, built unknown\)/)).toBeDefined()
+    expect(await screen.findByText('which-model dev (commit unknown, built unknown)')).toBeDefined()
+    expect(screen.queryByText('~/Library/Application Support/which-model/config.toml')).toBeNull()
   })
 
   it('persists the system-keychain preference as one settings delta', async () => {

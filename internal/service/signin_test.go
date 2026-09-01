@@ -228,12 +228,12 @@ func TestSignInCancelClearsFlow(t *testing.T) {
 
 func TestSignInVersionRoundTrip(t *testing.T) {
 	svc, _ := newTestServices(t)
-	svc.SetVersion("which-model 9.9.9 (commit feedbac, built 2026-09-01)")
+	svc.SetVersion("2.1.0")
 	got, err := svc.Settings().Get(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Version != "which-model 9.9.9 (commit feedbac, built 2026-09-01)" {
+	if got.Version != "2.1.0" {
 		t.Fatalf("Get().Version = %q", got.Version)
 	}
 	// Set ignores it (read-only) and the emitted payload still carries it.
