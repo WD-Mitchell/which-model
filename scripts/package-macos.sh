@@ -12,6 +12,17 @@ CONTENTS="$APP/Contents"
 MACOS="$CONTENTS/MacOS"
 RESOURCES="$CONTENTS/Resources"
 
+echo "==> Resolving build identity…"
+# Stamp the bare release tag (vX.Y.Z or the tag's numeric X.Y.Z): the version
+# string feeds both "Check for updates" (which compares against a tag) and the
+# Settings sidebar. Commit/built metadata stays in `which-model version`.
+# Queried BEFORE the rm -rf below, which deletes a tracked placeholder file
+# and would otherwise brand every build "-dirty".
+MODULE="github.com/WD-Mitchell/which-model"
+VERSION="$(git -C "$ROOT" describe --tags --abbrev=0 2>/dev/null || echo dev)"
+COMMIT="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+BUILDDATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
 echo "==> Copying frontend dist for embedding…"
 rm -rf "$ROOT/cmd/which-model-desktop/frontend"
 mkdir -p "$ROOT/cmd/which-model-desktop/frontend"
@@ -22,15 +33,8 @@ rm -rf "$APP"
 mkdir -p "$MACOS" "$RESOURCES"
 
 echo "==> Building desktop binary…"
-# Stamp the release identity, exactly as scripts/build-release.sh does for the
-# CLI. Without it whichmodel.Version stays "dev" and the tray's "Check for
-# updates" has nothing to compare against.
-MODULE="github.com/WD-Mitchell/which-model"
-VERSION="$(git -C "$ROOT" describe --tags --always --dirty 2>/dev/null || echo dev)"
-COMMIT="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
-BUILDDATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 LDFLAGS="-X ${MODULE}/pkg/whichmodel.Version=${VERSION} -X ${MODULE}/pkg/whichmodel.Commit=${COMMIT} -X ${MODULE}/pkg/whichmodel.BuildDate=${BUILDDATE}"
-(cd "$ROOT" && go build -trimpath -ldflags "$LDFLAGS" -o "$MACOS/which-model-desktop" ./cmd/which-model-desktop)
+go build -trimpath -ldflags "$LDFLAGS" -o "$MACOS/which-model-desktop" ./cmd/which-model-desktop
 
 # Derive the bundle version from the same source as the binary's ldflags.
 # CFBundleShortVersionString must be a numeric X.Y.Z marketing version and
