@@ -45,12 +45,22 @@ func SourceScores(row catalog.ScoreRow) map[string]sdecimal.Decimal {
 }
 
 // CategoryScores computes the 11 grouped category composites for one row
-// (generate_scores.py _category_score): per-group unweighted mean
-// (sum/len, ROUND_HALF_UP) of populated evidence in benchmarks.toml group
-// list order, deduped by BenchmarkKey (D3 layer b); blank when the number of
-// populated evidences is below CategoryMinimumEvidence[group]. Returns a map
-// keyed by group id with absent keys for blanks.
-func CategoryScores(row catalog.ScoreRow, cfg *BenchmarkConfig) map[string]sdecimal.Decimal {
+// (generate_scores.py _category_score): per-group aggregate of populated
+// evidence in benchmarks.toml group list order, deduped by BenchmarkKey
+// (D3 layer b); blank when the number of populated evidences is below
+// CategoryMinimumEvidence[group]. The aggregator combines the collected
+// evidence: WeightedArithmeticMean with equal weights reproduces the
+// Python unweighted mean (sum/len, ROUND_HALF_UP) — the golden default —
+// while a custom aggregator is genuinely used (issue #45 review: the
+// parameter was previously ignored). Returns a map keyed by group id with
+// absent keys for blanks.
+func CategoryScores(row catalog.ScoreRow, cfg *BenchmarkConfig, aggregator Aggregator) map[string]sdecimal.Decimal {
+	if cfg == nil {
+		return nil
+	}
+	if aggregator == nil {
+		aggregator = DefaultAggregator()
+	}
 	if cfg == nil {
 		return nil
 	}
@@ -73,12 +83,15 @@ func CategoryScores(row catalog.ScoreRow, cfg *BenchmarkConfig) map[string]sdeci
 		if len(values) == 0 || len(values) < minimum {
 			continue
 		}
-		sum := sdecimal.Zero
-		for _, value := range values {
-			sum = sum.Add(value)
+		weights := make([]sdecimal.Decimal, len(values))
+		for i := range weights {
+			weights[i] = sdecimal.NewFromInt(1)
 		}
-		result[group.Category] = wdecimal.RoundHalfUp(
-			sum.Div(sdecimal.NewFromInt(int64(len(values)))), 0)
+		aggregate, ok := aggregator.Aggregate(values, weights)
+		if !ok {
+			continue
+		}
+		result[group.Category] = aggregate
 	}
 	return result
 }

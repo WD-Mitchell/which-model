@@ -71,10 +71,11 @@ func Derive(rawCSV []byte, benchmarksTOML []byte, normalizer Normalizer, aggrega
 	}
 
 	state := deriveState{
-		dynamic: dynamic,
-		ranges:  ranges,
-		flags:   flags,
-		cfg:     cfg,
+		dynamic:    dynamic,
+		ranges:     ranges,
+		flags:      flags,
+		cfg:        cfg,
+		aggregator: aggregator,
 	}
 	coreColumns := csvstore.RawCoreColumns[2:]
 
@@ -93,17 +94,36 @@ func Derive(rawCSV []byte, benchmarksTOML []byte, normalizer Normalizer, aggrega
 	}
 
 	provenance := fmt.Sprintf("%s raw_sha256=%s normalizer=%s aggregator=%s",
-		csvstore.ProvenancePrefix, rawHash, NormalizerNameMinMaxLinear, AggregatorNameWeightedArithmeticMean)
+		csvstore.ProvenancePrefix, rawHash, normalizerName(normalizer), aggregatorName(aggregator))
 	return append([]byte(provenance+"\n"), out.Bytes()...), nil
 }
 
 // deriveState carries the per-call column layout so row rendering stays
 // deterministic (no map iteration).
 type deriveState struct {
-	dynamic []string
-	ranges  map[string]*[2]sdecimal.Decimal
-	flags   map[string]bool
-	cfg     *BenchmarkConfig
+	dynamic    []string
+	ranges     map[string]*[2]sdecimal.Decimal
+	flags      map[string]bool
+	cfg        *BenchmarkConfig
+	aggregator Aggregator
+}
+
+// normalizerName/aggregatorName extract a component's canonical name for
+// provenance rendering (issue #45): components report their own name via
+// Name() so the header reflects the ACTUAL components used, with the
+// canonical constants as fallback for nameless custom implementations.
+func normalizerName(n Normalizer) string {
+	if named, ok := n.(interface{ Name() string }); ok {
+		return named.Name()
+	}
+	return NormalizerNameMinMaxLinear
+}
+
+func aggregatorName(a Aggregator) string {
+	if named, ok := a.(interface{ Name() string }); ok {
+		return named.Name()
+	}
+	return AggregatorNameWeightedArithmeticMean
 }
 
 // eligibleRows returns the merged rows with all three mandatory Tier-1
@@ -241,7 +261,7 @@ func (s *deriveState) record(row *rawRow, coreColumns []string, normalizer Norma
 	record := make([]string, 0, len(header))
 	record = append(record, row.model, row.reasoning)
 
-	categories := CategoryScores(scoreRow, s.cfg)
+	categories := CategoryScores(scoreRow, s.cfg, s.aggregator)
 	planning := PlanningCapabilityScore(categories)
 
 	for i, name := range coreColumns {

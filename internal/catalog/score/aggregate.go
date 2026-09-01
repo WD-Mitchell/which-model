@@ -9,6 +9,9 @@ import (
 // (renormalized by construction); returns false when len(values) == 0.
 type WeightedArithmeticMean struct{}
 
+// Name returns the component's canonical name for provenance rendering.
+func (WeightedArithmeticMean) Name() string { return AggregatorNameWeightedArithmeticMean }
+
 // Aggregate computes the weighted arithmetic mean via internal/decimal
 // WeightedMean (F02 pin) and rounds ROUND_HALF_UP to an integer.
 func (WeightedArithmeticMean) Aggregate(values, weights []sdecimal.Decimal) (sdecimal.Decimal, bool) {

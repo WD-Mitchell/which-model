@@ -491,7 +491,7 @@ func TestCategoryScoresGolden(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			row := scoreRowFromMap(t, tt.name, "max", nil, nil)
 			row.Benchmarks = parseMap(t, tt.benchmarks)
-			got := CategoryScores(row, cfg)
+			got := CategoryScores(row, cfg, DefaultAggregator())
 			if wants[i] == "" {
 				if _, ok := got["software_engineering"]; ok {
 					t.Errorf("software_engineering present, want absent")
@@ -525,7 +525,7 @@ benchmarks = ["SWE-Bench Pro"]
 		"DeepSWE":       "50",
 		"SWE-Bench Pro": "50",
 	})
-	got := CategoryScores(row, cfg)
+	got := CategoryScores(row, cfg, DefaultAggregator())
 	if v, ok := got["security"]; !ok || v.String() != "50" {
 		t.Errorf("security = %v, want 50 (minimum evidence 1)", v)
 	}
