@@ -78,7 +78,7 @@ graph LR
    - Read bounded: `security.ReadBoundedFile(path, security.MaxCredentialBytes)`; ENOENT/not-found → try the next path, and if none found return `(FileCredential{}, nil)` (caller falls back to the chain credential); other read errors → `Error{Code: "credential_file", Message: "Claude credentials were not found; sign in with Claude Code first."}`.
    - Decode JSON object; non-object/unparseable → `Error{Code: "credential_json", Message: "The credential file is not valid JSON."}` (mirrors `readCredentialJson`, `core.mjs:62-70`).
    - `oauth := value.claudeAiOauth ?? value.oauth ?? value`; token `oauth.accessToken ?? oauth.access_token`; missing or failing `security.ValidateOpaqueToken` → `Error{Code: "unsafe_credential", Message: "The Claude access token is missing or unsafe."}`.
-   - Expiry: `expiresAt := oauth.expiresAt ?? oauth.expires_at`; if present: number, or `time.Parse` on the string; number `> 10_000_000_000` is milliseconds, else seconds; unparseable or `<= now` → `Error{Code: "expired_credential", Message: "The Claude access token is expired."}` (the `.mjs` treats both unparseable and past as expired — `claude.mjs:24-28`; the `.mjs`'s `Date.parse` failure is the Go unparseable case).
+   - Expiry: `expiresAt := oauth.expiresAt ?? oauth.expires_at`; if present: a literal JSON `null` is unknown expiry (`ExpiresAt == nil`, accepted — the `.mjs`'s nullish fall-through treats null like absent, issue #36); a number, or `time.Parse` on the string; number `> 10_000_000_000` is milliseconds, else seconds; unparseable or `<= now` → `Error{Code: "expired_credential", Message: "The Claude access token is expired."}` (the `.mjs` treats both unparseable and past as expired — `claude.mjs:24-28`; the `.mjs`'s `Date.parse` failure is the Go unparseable case).
    - `BroadPermissions = security.HasBroadPermissions(mode)` from the winning file's mode.
 3. Messages are the fixed strings from CONTRACTS §6; never interpolate file contents.
 
@@ -95,7 +95,8 @@ graph LR
 | 7 | file `{}` | `unsafe_credential` |
 | 8 | `expiresAt: 1` with `now: 10_000` | `expired_credential` |
 | 9 | `expiresAt: now-1000` (ms) | `expired_credential` |
-| 10 | file mode `0o644` | `BroadPermissions == true`; mode `0o600` → `false` |
+| 10 | `expiresAt: null` | accepted; `ExpiresAt == nil` (unknown expiry, issue #36) |
+| 11 | file mode `0o644` | `BroadPermissions == true`; mode `0o600` → `false` |
 
 **Acceptance criteria:**
 - [ ] `go test ./internal/usage/provider/claude/...` passes with the test cases above

@@ -134,6 +134,21 @@ func TestLoadFileCredential(t *testing.T) {
 		assertErrorCode(t, err, "expired_credential", "The Claude access token is expired.", "expired_credential")
 	})
 
+	// Issue #36: a literal JSON null expiry is unknown expiry (prototype
+	// nullish fall-through), not expired — same as an absent key.
+	t.Run("null expiry accepted as unknown", func(t *testing.T) {
+		dir := t.TempDir()
+		dot := writeCred(t, dir, ".claude/.credentials.json", 0o600,
+			`{"claudeAiOauth":{"accessToken":"`+canaryToken+`","expiresAt":null}}`)
+		fc, err := LoadFileCredential(dot, filepath.Join(dir, ".claude/credentials.json"), now)
+		if err != nil {
+			t.Fatalf("LoadFileCredential: %v", err)
+		}
+		if fc.ExpiresAt != nil {
+			t.Errorf("ExpiresAt = %v, want nil (unknown expiry)", fc.ExpiresAt)
+		}
+	})
+
 	t.Run("broad permissions", func(t *testing.T) {
 		dir := t.TempDir()
 		dot := writeCred(t, dir, ".claude/.credentials.json", 0o644,

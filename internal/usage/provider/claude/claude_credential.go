@@ -107,7 +107,11 @@ func parseCredentialFile(data []byte, mode fs.FileMode, now time.Time) (FileCred
 
 // parseExpiry ports the .mjs expiry heuristic (claude.mjs:24-28): a number is
 // milliseconds when > 10_000_000_000 else seconds; a string is parsed as
-// ISO-8601; unparseable or <= now → expired_credential.
+// ISO-8601; unparseable or <= now → expired_credential. A literal JSON null
+// is unknown expiry (nil, no error): the prototype's `??` chain only falls
+// through on nullish values, and a null here means "no expiry recorded",
+// the same as an absent key (issue #36). true/false and other non-numbers
+// remain expired_credential.
 func parseExpiry(raw json.RawMessage, now time.Time) (*time.Time, error) {
 	trimmed := strings.TrimSpace(string(raw))
 	var ms int64
@@ -122,7 +126,9 @@ func parseExpiry(raw json.RawMessage, now time.Time) (*time.Time, error) {
 			return nil, expiredErr()
 		}
 		ms = t.UnixMilli()
-	case trimmed == "null" || trimmed == "true" || trimmed == "false":
+	case trimmed == "null":
+		return nil, nil
+	case trimmed == "true" || trimmed == "false":
 		return nil, expiredErr()
 	default:
 		var n float64
