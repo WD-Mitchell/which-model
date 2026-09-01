@@ -23,8 +23,8 @@ Wire `which-model` into AI-agent dispatch lifecycles (Claude Code and the generi
 
    | id | annex-c | claude event / matcher | timeout (s) | underlying command (built by `hooks run`) |
    |---|---|---|---|---|
-   | `usage-refresh` | §3.1 session-start cache warm | `SessionStart` / `*` | 5 | `which-model usage refresh --json --quiet --timeout 5s` |
-   | `quota-guard` | §3.4 quota-guard advisory | `SessionStart` / `*` | 5 | `which-model usage list --json --band-at-or-above critical --quiet` |
+   | `usage-refresh` | §3.1 session-start cache warm | `SessionStart` / `*` | 5 | `which-model usage --all --json --quiet --refresh-usage --timeout 5s` |
+   | `quota-guard` | §3.4 quota-guard advisory | `SessionStart` / `*` | 5 | `which-model usage --all --json --band-at-or-above critical --quiet` |
    | `spawn-gate` | §3.2 pre-dispatch model resolution | `PreToolUse` / `Task` | 8 | `which-model pick --profile "${WHICH_MODEL_TASK_PROFILE:-balanced_implementation}" --strategy priority --json` |
    | `model-audit` | §3.3 post-dispatch evidence recording | `PostToolUse` / `Task` | 5 | `which-model explain "$WHICH_MODEL_CANDIDATE_ID" --json`, falling back to `which-model explain --last --json` when the env var is unset |
 
@@ -52,8 +52,8 @@ Wire `which-model` into AI-agent dispatch lifecycles (Claude Code and the generi
    - An envelope is NEVER emitted for the underlying `4` path except the documented block envelope (behaviour 7).
 
 7. **Per-hook payloads**:
-   - `usage-refresh` (annex-c §3.1): underlying success → `{"decision":"approve","reason":"usage cache refreshed","hookSpecificOutput":{}}`. Injects nothing; it exists purely to warm `internal/usage/cache.go`.
-   - `quota-guard` (annex-c §3.4 + assignment deviation recorded in Decisions): underlying success → parse the `usage list --json --band-at-or-above critical --quiet` output; if it lists at least one provider:
+   - `usage-refresh` (annex-c §3.1): underlying success → `{"decision":"approve","reason":"usage cache refreshed","hookSpecificOutput":{}}`. Injects nothing; it exists purely to warm `internal/usage/cache/cache.go`.
+   - `quota-guard` (annex-c §3.4 + assignment deviation recorded in Decisions): underlying success → parse the `usage --all --json --band-at-or-above critical --quiet` output; if it lists at least one provider:
      ```json
      {"decision":"block","reason":"quota guard: 2 provider(s) at or above critical band","hookSpecificOutput":{"critical_providers":["claude","codex"]}}
      ```
@@ -63,7 +63,7 @@ Wire `which-model` into AI-agent dispatch lifecycles (Claude Code and the generi
 
 8. **Evidence files** — both files live under `<repoRoot>/.which-model/` (repo root resolved exactly as F28's `internal/skills.RepoRoot()`, incl. `--repo` override). Appends never rewrite existing content; a malformed explain output is treated as underlying failure (fail-open, no append). Evidence lines are sanitized per annex-c §5: only the documented JSON fields, never credential material (canary rule, behaviour 12).
 
-9. **Variant selection at install time** (annex-c §3.5): the installer detects the effective usage state ONCE, via F21's `usage.Enabled(cfg *config.Config) (config.UsageEnabled, string)` (from `internal/usage/toggle.go`), unless `--usage`/`--no-usage` forces it (`--usage`+`--no-usage` together → exit 2). Usage-ENABLED variant installs all four hooks; usage-DISABLED variant installs only `spawn-gate` and `model-audit` — never installed-and-failing (annex-c §3.5):
+9. **Variant selection at install time** (annex-c §3.5): the installer detects the effective usage state ONCE, via F21's `usage.Enabled(cfg *config.Config) (config.UsageEnabled, string)` (from the `internal/usage/toggle` package), unless `--usage`/`--no-usage` forces it (`--usage`+`--no-usage` together → exit 2). Usage-ENABLED variant installs all four hooks; usage-DISABLED variant installs only `spawn-gate` and `model-audit` — never installed-and-failing (annex-c §3.5):
    - variant A: `usage-refresh` SessionStart/* 5s, `quota-guard` SessionStart/* 5s, `spawn-gate` PreToolUse/Task 8s, `model-audit` PostToolUse/Task 5s.
    - variant B: `spawn-gate` on `UserPromptSubmit`/* with timeout 10 and command `which-model hooks run spawn-gate --no-usage --profile balanced_implementation --quiet`; `model-audit` on PostToolUse/Task 5s with command `which-model hooks run model-audit --last` (both per annex-c §3.5's usage-disabled snippets).
 

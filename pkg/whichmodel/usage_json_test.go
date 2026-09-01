@@ -66,3 +66,57 @@ func TestUsageJSONSnapshotFidelity(t *testing.T) {
 		t.Fatalf("window = %v", window)
 	}
 }
+
+func TestUsageJSONBandAtOrAboveFiltersSnapshots(t *testing.T) {
+	old := fetchAllFunc
+	t.Cleanup(func() { fetchAllFunc = old })
+	criticalUsed, elevatedUsed := 80.0, 75.0
+	critical, elevated := claudeGoldenSnapshot(), claudeGoldenSnapshot()
+	critical.Provider = "claude"
+	critical.Windows[0].UsedPercent = &criticalUsed
+	elevated.Provider = "codex"
+	elevated.Windows[0].UsedPercent = &elevatedUsed
+	fetchAllFunc = func(context.Context, FetchAllOptions) (*FetchResult, error) {
+		return &FetchResult{Snapshots: []usage.Snapshot{critical, elevated}}, nil
+	}
+
+	var out, errOut strings.Builder
+	err := RunUsage(UsageArgs{
+		Providers:     []string{"claude", "codex"},
+		BandAtOrAbove: "critical",
+		JSON:          true,
+	}, &out, &errOut)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var root map[string]any
+	if err := json.Unmarshal([]byte(out.String()), &root); err != nil {
+		t.Fatal(err)
+	}
+	snapshots := root["snapshots"].([]any)
+	if len(snapshots) != 1 || snapshots[0].(map[string]any)["provider"] != "claude" {
+		t.Fatalf("snapshots = %v, want only critical claude snapshot", snapshots)
+	}
+}
+
+func TestUsageBandAtOrAboveRejectsUnknownBandBeforeFetch(t *testing.T) {
+	old := fetchAllFunc
+	t.Cleanup(func() { fetchAllFunc = old })
+	called := false
+	fetchAllFunc = func(context.Context, FetchAllOptions) (*FetchResult, error) {
+		called = true
+		return &FetchResult{}, nil
+	}
+
+	err := RunUsage(UsageArgs{
+		Providers:     []string{"claude"},
+		BandAtOrAbove: "missing",
+		JSON:          true,
+	}, nil, nil)
+	if ExitCodeFor(err) != 2 || !strings.Contains(err.Error(), `invalid --band-at-or-above "missing"`) {
+		t.Fatalf("err = %v, exit = %d", err, ExitCodeFor(err))
+	}
+	if called {
+		t.Fatal("fetch called for invalid band")
+	}
+}

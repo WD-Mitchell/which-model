@@ -24,6 +24,7 @@ type UsageArgs struct {
     Providers    []string      // registry IDs, request order; empty when All
     All          bool          // --all
     Source       usage.Source  // "" = auto fallback chain; else one of oauth|api|cli|web|local|cache
+    BandAtOrAbove string        // --band-at-or-above; "" = no band filter
     MaxAge       time.Duration // 0 = descriptor/config TTL
     ForceRefresh bool          // --refresh-usage
     Timeout      time.Duration // 0 = DefaultTimeoutSec
@@ -68,6 +69,7 @@ type FetchAllOptions struct {
 |---|---|---|---|
 | `--all` | bool | `false` | Report every enabled provider instead of requiring positional names; mutually exclusive with positionals (exit 2) |
 | `--source` | string | `""` | One of `oauth\|api\|cli\|web\|local\|cache`; `""` = auto fallback chain; explicit `"auto"` rejected (exit 2, SPEC §2.4). Command-local flag (F22's root flag set has no `--source`; annex-d §1.2's global `--source` is superseded) |
+| `--band-at-or-above` | string | `""` | Keep only snapshots whose maximum known window pressure is in this configured band or a later one; hard-gated snapshots count as above every band; unknown band names are exit 2 |
 
 Global flags (F22-owned, consumed by wiring `Global` into `UsageArgs`): `--json`, `--max-age` (`Global.MaxAge`), `--refresh-usage` (`Global.RefreshUsage`), `--show-identity` (`Global.ShowIdentity`), `--offline` (`Global.Offline`), `--no-usage` (`Global.NoUsage`), `--timeout` (`Global.Timeout`), `--config` (`Global.ConfigPath`).
 
@@ -77,6 +79,7 @@ Global flags (F22-owned, consumed by wiring `Global` into `UsageArgs`): `--json`
 |---|---|---|
 | `usage.enabled` | `cfg.UnmarshalKey("usage.enabled", &v)` | L1 disabled refusal (SPEC §2.12) |
 | `providers.<id>.enabled` | `cfg.UnmarshalKey("providers.<id>.enabled", &v)` | `--all` expansion (SPEC §2.3) |
+| `bands` | `cfg.UnmarshalKey("bands", &raw)` + F19 `band.FromTOML` | Resolve and validate `--band-at-or-above` against the configured ordered tier ladder |
 
 ## 5. Error codes and exit codes
 
@@ -97,13 +100,13 @@ F24 RunE returns: `whichmodel.UsageError{Message}` for argument errors; `whichmo
 {
   "schema_version": "2.0",
   "usage_enabled": true,
-  "snapshots": [ /* canonical usage.Snapshot, global CONTRACTS §1.5, request order */ ],
+  "snapshots": [],
   "last_verified": { "claude": "2026-08-07T17:03:11Z" }
 }
 ```
 
-- `snapshots`: one entry per requested provider; a failed provider carries `error: {"code": "...", "message": "..."}` (canonical `Failure`).
-- `last_verified`: present only when F14 returned at least one provider verification timestamp; keys are provider ids, values RFC3339.
+- `snapshots`: one entry per requested provider in normal mode; with `--band-at-or-above`, only providers whose maximum known window pressure is in the requested configured tier or a later tier remain. A hard-gated provider always remains; unknown pressure does not. A failed provider carries `error: {"code": "...", "message": "..."}` (canonical `Failure`) and still participates in normal all-failed exit classification before filtering.
+- `last_verified`: present only when F14 returned at least one included provider verification timestamp; keys are provider ids, values RFC3339.
 - `schema_version` is `"2.0"` per global CONTRACTS §6; `usage_disabled_reason` never appears (usage refuses with exit 2 when disabled).
 - On nonzero exit in text mode, stdout is empty (SPEC §2.13); in `--json` mode, stdout carries F22's error document `{"schema_version": "2.0", "error": {"code": ..., "message": ...}}` (rendered by F22, never by F24) instead of the report.
 
@@ -198,7 +201,7 @@ type FetchResult struct {
 func FetchAll(ctx context.Context, opts FetchAllOptions) (*FetchResult, error)
 ```
 
-Expected file: `internal/usage/fetch/fetchall.go`. F24 passes its `FetchAllOptions` verbatim (F24 CONTRACTS §2) and renders `FetchResult`; F14 owns cache-TTL, fan-out, and partial-failure semantics.
+Expected file: `internal/usage/fetch/fetch.go`. F24 passes its `FetchAllOptions` verbatim (F24 CONTRACTS §2) and renders `FetchResult`; F14 owns cache-TTL, fan-out, and partial-failure semantics.
 
 ### 8.3 F11 `internal/usage` registry (canonical owner: `specs/features/F11-usage-types/CONTRACTS.md`)
 

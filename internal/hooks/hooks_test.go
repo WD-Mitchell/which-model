@@ -83,12 +83,12 @@ func TestRegistryUnderlying(t *testing.T) {
 		{
 			name: "usage-refresh",
 			hook: "usage-refresh",
-			want: []string{"usage", "refresh", "--json", "--quiet", "--timeout", "5s"},
+			want: []string{"usage", "--all", "--json", "--quiet", "--refresh-usage", "--timeout", "5s"},
 		},
 		{
 			name: "quota-guard",
 			hook: "quota-guard",
-			want: []string{"usage", "list", "--json", "--band-at-or-above", "critical", "--quiet"},
+			want: []string{"usage", "--all", "--json", "--band-at-or-above", "critical", "--quiet"},
 		},
 		{
 			name: "spawn-gate profile env",

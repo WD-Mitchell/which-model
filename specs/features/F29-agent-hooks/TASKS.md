@@ -56,13 +56,13 @@ graph TD
        {
            ID: "usage-refresh", Event: "SessionStart", Matcher: "*", Timeout: 5,
            Underlying: func(p []string, _ map[string]string) []string {
-               return append([]string{"usage", "refresh", "--json", "--quiet", "--timeout", "5s"}, p...)
+               return append([]string{"usage", "--all", "--json", "--quiet", "--refresh-usage", "--timeout", "5s"}, p...)
            },
        },
        {
            ID: "quota-guard", Event: "SessionStart", Matcher: "*", Timeout: 5,
            Underlying: func(p []string, _ map[string]string) []string {
-               return append([]string{"usage", "list", "--json", "--band-at-or-above", "critical", "--quiet"}, p...)
+               return append([]string{"usage", "--all", "--json", "--band-at-or-above", "critical", "--quiet"}, p...)
            },
        },
        {
@@ -791,6 +791,7 @@ graph TD
    - `hooks run usage-refresh` with stdin piped from a fixture file (run via the root's Execute with `SetIn` if the F22 harness supports it, else invoke `hooks.Run` directly through the command's RunE with `cmd.SetIn`) → stdout is exactly the approve envelope; exit 0.
    - `hooks run nonsense` → exit 2, stderr contains `unknown hook`.
    - `hooks run usage-refresh` with stdin `not json` → exit 2, stderr contains `not valid JSON`.
+   - Execute both SessionStart hooks with `hooks.Run(..., hooks.Options{Runner: ExecuteCommand})`, a fake F24 fetch result, and a real temp config. `usage-refresh` must emit its approve envelope and `quota-guard` must emit `critical_providers`; this test must exercise the real Cobra command tree so nonexistent subcommands/providers/flags fail.
 
 **Test cases (write these first):**
 
@@ -808,6 +809,7 @@ graph TD
 | 10 | CLI install without repo root | exit 1 |
 | 11 | CLI `hooks remove --repo` after install | exit 0; no trace |
 | 12 | CLI `hooks run` fixture / `nonsense` / bad stdin | envelope exit 0; exit 2 twice |
+| 13 | SessionStart hooks through real `ExecuteCommand` | usage-refresh approves; quota-guard identifies the critical provider; both underlying commands parse and exit 0 |
 
 **Acceptance criteria:**
 - [ ] `go build ./pkg/whichmodel/...` succeeds
