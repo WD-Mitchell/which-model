@@ -37,3 +37,4 @@ cmd/which-model-desktop/frontend/
 # The packaging script overwrites frontend/dist/ with the real vite output;
 # the placeholder index.html is committed so `go build ./...` always works.
 !cmd/which-model-desktop/frontend/dist/index.html
+// which-model desktop build output
