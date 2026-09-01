@@ -54,6 +54,38 @@ func All() []Descriptor {
 	return out
 }
 
+// AuthSources returns the ordered, deduplicated canonical Source values the
+// provider's credential chain can produce (F24 CONTRACTS §8) — the set of
+// valid forced --source values for the provider. The kind→Source mapping
+// mirrors fetch.SourceFor's canonical table; SourceCache is never included
+// because it is stamped by the cache layer, not a chain origin. A
+// KindLocalTool descriptor additionally declares SourceLocal.
+func (d Descriptor) AuthSources() []Source {
+	seen := make(map[Source]bool, len(d.Auth))
+	out := make([]Source, 0, len(d.Auth))
+	for _, link := range d.Auth {
+		var s Source
+		switch link.Kind {
+		case AuthOAuthDeviceFlow, AuthOAuthRefreshGrant:
+			s = SourceOAuth
+		case AuthCLIShellOut, AuthSubprocessRPC:
+			s = SourceCLI
+		case AuthBrowserCookie:
+			s = SourceWeb
+		default:
+			s = SourceAPI
+		}
+		if !seen[s] {
+			seen[s] = true
+			out = append(out, s)
+		}
+	}
+	if d.Kind == KindLocalTool && !seen[SourceLocal] {
+		out = append(out, SourceLocal)
+	}
+	return out
+}
+
 // IDs returns every registered provider ID, sorted lexicographically.
 func IDs() []string {
 	ids := make([]string, 0, len(defaultRegistry.descs))

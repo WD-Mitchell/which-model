@@ -199,6 +199,20 @@ func fetchNativeAll(ctx context.Context, providers []string, opts Options) ([]us
 func runProvider(gctx context.Context, store *cache.Store, client *http.Client, id string, desc usage.Descriptor, opts Options) (usage.Snapshot, []credential.Warning) {
 	var warns []credential.Warning
 
+	// Forced `--source cache` (issue #28 review P1): cache-only read, no
+	// credentials and no live fetch — mirrors Offline, but never falls
+	// back to a fetch. A miss stays a failure snapshot (D-7 semantics).
+	if cacheOnlySource(opts.Source) {
+		ttl := cache.EffectiveTTL(desc.CacheTTL, opts.MaxAge)
+		snap := store.OfflineRead(id, ttl)
+		if snap.Failure != nil && snap.Failure.Code != "" {
+			return snap, warns
+		}
+		snap.Source = usage.SourceCache
+		snap.Confidence = "cached"
+		return snap, warns
+	}
+
 	// Offline mode (SPEC §7): read-only — no credentials, no fetch, no
 	// writes. Refresh is ignored (offline wins, SPEC D5).
 	if opts.Offline {
@@ -240,12 +254,14 @@ func runProvider(gctx context.Context, store *cache.Store, client *http.Client, 
 	defer cancel()
 
 	// Credential resolution (SPEC §4b): an empty Auth chain means the
-	// provider needs no credential (local-tool/presence providers).
+	// provider needs no credential (local-tool/presence providers). A
+	// forced canonical source filters the chain first (issue #28 review
+	// P1): only links that can produce the requested source are walked.
 	var cred usage.Credential
 	if len(desc.Auth) > 0 {
 		var rerr error
 		var rwarns []credential.Warning
-		cred, rwarns, rerr = credential.ResolveProvider(pctx, id, desc.Auth, client, credential.ManagedStore{
+		cred, rwarns, rerr = credential.ResolveProvider(pctx, id, filterChainForSource(desc.Auth, opts.Source), client, credential.ManagedStore{
 			StateDir:    opts.StateDir,
 			Keychain:    credential.DefaultKeychain(),
 			UseKeychain: !opts.DisableManagedKeychain,

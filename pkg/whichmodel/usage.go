@@ -130,7 +130,7 @@ func RunUsage(args UsageArgs, stdout, stderr io.Writer) error {
 		return &UsageError{Message: err.Error()}
 	}
 	for _, id := range providers {
-		if err := validateProviderSource(id, args.Source); err != nil {
+		if err := validateProviderSourceForBackend(id, args.Source, cfg.Usage.Backend); err != nil {
 			return &UsageError{Message: err.Error()}
 		}
 	}
@@ -333,9 +333,64 @@ func resolveProviders(args UsageArgs, cfg *config.Config) ([]string, error) {
 
 func displayName(id string) string { return id }
 
-func validateSource(source usage.Source) error { return nil }
+// validSources is the closed --source vocabulary (F24 SPEC §2.4, D-1). The
+// empty value is the auto fallback chain and is validated separately.
+var validSources = []usage.Source{usage.SourceOAuth, usage.SourceAPI, usage.SourceCLI, usage.SourceWeb, usage.SourceLocal, usage.SourceCache}
 
-func validateProviderSource(providerID string, source usage.Source) error { return nil }
+func joinSources(sources []usage.Source) string {
+	parts := make([]string, len(sources))
+	for i, s := range sources {
+		parts[i] = string(s)
+	}
+	return strings.Join(parts, ", ")
+}
+
+func validateSource(source usage.Source) error {
+	if source == "" {
+		return nil
+	}
+	for _, valid := range validSources {
+		if source == valid {
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid --source %q; valid: %s", source, joinSources(validSources))
+}
+
+// validateProviderSource rejects a forced source the provider's credential
+// chain cannot produce. The empty value is the auto chain and cache is a
+// universal view (every provider reports from cache, D-7), so both skip the
+// membership check.
+func validateProviderSource(providerID string, source usage.Source) error {
+	return validateProviderSourceForBackend(providerID, source, config.UsageBackendNative)
+}
+
+// validateProviderSourceForBackend validates a forced source against the
+// provider capabilities of the SELECTED backend (issue #28 review P2): the
+// native registry is only consulted for the native backend; under codexbar
+// the provider id list comes from CodexBar discovery and its supported
+// source set applies (codexbar reports normalized percent windows, so
+// oauth/api/cli/web all describe its credential surface; cache and empty
+// remain universal).
+func validateProviderSourceForBackend(providerID string, source usage.Source, backend config.UsageBackend) error {
+	if source == "" || source == usage.SourceCache {
+		return nil
+	}
+	if backend != config.UsageBackendNative {
+		return nil // codexbar providers are dynamic; no per-provider source registry exists
+	}
+	desc, err := usage.Get(providerID)
+	if err != nil {
+		return fmt.Errorf("unknown provider %q", providerID)
+	}
+	declared := desc.AuthSources()
+	for _, valid := range declared {
+		if source == valid {
+			return nil
+		}
+	}
+	return fmt.Errorf("provider %q has no %s source; valid sources: %s", providerID, source, joinSources(declared))
+}
 
 var usageExitFiveCodes = map[string]bool{
 	"unauthorized":       true,
