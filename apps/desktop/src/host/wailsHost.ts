@@ -34,90 +34,88 @@ function offable<T>(p: Cancellable<T>): Promise<T> {
   return p.then((v) => v, (e) => Promise.reject(e))
 }
 
+// call wraps one binding invocation: rejections are normalised through
+// toEngineError so every error reaching UI code is ErrorDTO-shaped
+// (S04 CONTRACTS §4 — documented but unwired; issue #32). `then` maps the
+// resolved value so callers keep the EngineHost's typed surface.
+function call<T, R>(p: Cancellable<T>, then: (v: T) => R): Promise<R> {
+  return offable(p).then(then, (e: unknown) => {
+    throw toEngineError(e)
+  })
+}
+
 export function createWailsHost(): EngineHost {
   return {
     profiles: {
-      list: () => offable(ProfilesAPI.List() as Cancellable<unknown>).then((r) => r as never),
-      get: (slug: string) => offable(ProfilesAPI.Get(slug) as Cancellable<unknown>).then((r) => r as never),
-      save: (p) => offable(ProfilesAPI.Save(p) as Cancellable<void>).then(() => {}),
-      duplicate: (slug: string) => offable(ProfilesAPI.Duplicate(slug) as Cancellable<unknown>).then((r) => r as never),
-      delete: (slug: string) => offable(ProfilesAPI.Delete(slug) as Cancellable<void>).then(() => {}),
-      complexityScale: () => offable(ProfilesAPI.ComplexityScale() as Cancellable<unknown>).then((r) => r as never),
+      list: () => call(ProfilesAPI.List() as Cancellable<unknown>, (r) => r as never),
+      get: (slug: string) => call(ProfilesAPI.Get(slug) as Cancellable<unknown>, (r) => r as never),
+      save: (p) => call(ProfilesAPI.Save(p) as Cancellable<void>, () => {}),
+      duplicate: (slug: string) => call(ProfilesAPI.Duplicate(slug) as Cancellable<unknown>, (r) => r as never),
+      delete: (slug: string) => call(ProfilesAPI.Delete(slug) as Cancellable<void>, () => {}),
+      complexityScale: () => call(ProfilesAPI.ComplexityScale() as Cancellable<unknown>, (r) => r as never),
     },
     pick: {
-      rank: (req) => offable(PickAPI.Rank(req) as Cancellable<unknown>).then((r) => r as never),
-      recordPick: (profileSlug: string, routeKey: string) =>
-        offable(PickAPI.RecordPick(profileSlug, routeKey) as Cancellable<void>).then(() => {}),
-      catalogLine: () => offable(PickAPI.CatalogLine() as Cancellable<unknown>).then((r) => r as never),
+      rank: (req) => call(PickAPI.Rank(req) as Cancellable<unknown>, (r) => r as never),
+      recordPick: (profileSlug: string, routeKey: string) => call(PickAPI.RecordPick(profileSlug, routeKey) as Cancellable<void>, () => {}),
+      catalogLine: () => call(PickAPI.CatalogLine() as Cancellable<unknown>, (r) => r as never),
     },
     catalog: {
-      benchmarks: () => offable(CatalogAPI.Benchmarks() as Cancellable<unknown>).then((r) => r as never),
-      benchmarkDetail: (name: string) => offable(CatalogAPI.BenchmarkDetail(name) as Cancellable<unknown>).then((r) => r as never),
-      groups: () => offable(CatalogAPI.Groups() as Cancellable<unknown>).then((r) => r as never),
-      groupDetail: (slug: string) => offable(CatalogAPI.GroupDetail(slug) as Cancellable<unknown>).then((r) => r as never),
+      benchmarks: () => call(CatalogAPI.Benchmarks() as Cancellable<unknown>, (r) => r as never),
+      benchmarkDetail: (name: string) => call(CatalogAPI.BenchmarkDetail(name) as Cancellable<unknown>, (r) => r as never),
+      groups: () => call(CatalogAPI.Groups() as Cancellable<unknown>, (r) => r as never),
+      groupDetail: (slug: string) => call(CatalogAPI.GroupDetail(slug) as Cancellable<unknown>, (r) => r as never),
       saveGroup: (slug: string, benchmarks: string[], renameTo?: string) =>
-        offable(CatalogAPI.SaveGroup(slug, benchmarks, renameTo ?? '') as Cancellable<void>).then(() => {}),
-      duplicateGroup: (slug: string) => offable(CatalogAPI.DuplicateGroup(slug) as Cancellable<unknown>).then((r) => r as never),
-      deleteGroup: (slug: string) => offable(CatalogAPI.DeleteGroup(slug) as Cancellable<void>).then(() => {}),
+        call(CatalogAPI.SaveGroup(slug, benchmarks, renameTo ?? '') as Cancellable<void>, () => {}),
+      duplicateGroup: (slug: string) => call(CatalogAPI.DuplicateGroup(slug) as Cancellable<unknown>, (r) => r as never),
+      deleteGroup: (slug: string) => call(CatalogAPI.DeleteGroup(slug) as Cancellable<void>, () => {}),
     },
     providers: {
-      add: (id: string) => offable(ProvidersAPI.Add(id) as Cancellable<void>).then(() => {}),
-      addable: () => offable(ProvidersAPI.Addable() as Cancellable<unknown>).then((r) => r as never),
-      delete: (id: string) => offable(ProvidersAPI.Delete(id) as Cancellable<void>).then(() => {}),
-      duplicate: (id: string) =>
-        offable(ProvidersAPI.Duplicate(id) as Cancellable<unknown>).then((r) => r as never),
-      setAccounts: (id, accounts) =>
-        offable(ProvidersAPI.SetAccounts(id, accounts) as Cancellable<void>).then(() => {}),
-      list: () => offable(ProvidersAPI.List() as Cancellable<unknown>).then((r) => r as never),
-      setEnabled: (id: string, on: boolean) => offable(ProvidersAPI.SetEnabled(id, on) as Cancellable<void>).then(() => {}),
-      reorder: (orderedIds: string[]) => offable(ProvidersAPI.Reorder(orderedIds) as Cancellable<void>).then(() => {}),
-      detail: (id: string) => offable(ProvidersAPI.Detail(id) as Cancellable<unknown>).then((r) => r as never),
+      add: (id: string) => call(ProvidersAPI.Add(id) as Cancellable<void>, () => {}),
+      addable: () => call(ProvidersAPI.Addable() as Cancellable<unknown>, (r) => r as never),
+      delete: (id: string) => call(ProvidersAPI.Delete(id) as Cancellable<void>, () => {}),
+      duplicate: (id: string) => call(ProvidersAPI.Duplicate(id) as Cancellable<unknown>, (r) => r as never),
+      setAccounts: (id, accounts) => call(ProvidersAPI.SetAccounts(id, accounts) as Cancellable<void>, () => {}),
+      list: () => call(ProvidersAPI.List() as Cancellable<unknown>, (r) => r as never),
+      setEnabled: (id: string, on: boolean) => call(ProvidersAPI.SetEnabled(id, on) as Cancellable<void>, () => {}),
+      reorder: (orderedIds: string[]) => call(ProvidersAPI.Reorder(orderedIds) as Cancellable<void>, () => {}),
+      detail: (id: string) => call(ProvidersAPI.Detail(id) as Cancellable<unknown>, (r) => r as never),
       setRouteEnabled: (id: string, modelId: string, reasoning: string, enabled: boolean) =>
-        offable(ProvidersAPI.SetRouteEnabled(id, modelId, reasoning, enabled) as Cancellable<void>).then(() => {}),
-      setAllRoutes: (id: string, enabled: boolean) =>
-        offable(ProvidersAPI.SetAllRoutes(id, enabled) as Cancellable<void>).then(() => {}),
+        call(ProvidersAPI.SetRouteEnabled(id, modelId, reasoning, enabled) as Cancellable<void>, () => {}),
+      setAllRoutes: (id: string, enabled: boolean) => call(ProvidersAPI.SetAllRoutes(id, enabled) as Cancellable<void>, () => {}),
     },
     harnesses: {
-      list: () => offable(HarnessesAPI.List() as Cancellable<unknown>).then((r) => r as never),
-      save: (h) => offable(HarnessesAPI.Save(h) as Cancellable<void>).then(() => {}),
-      delete: (slug: string) => offable(HarnessesAPI.Delete(slug) as Cancellable<void>).then(() => {}),
-      setProvider: (slug: string, provider: string, on: boolean) =>
-        offable(HarnessesAPI.SetProvider(slug, provider, on) as Cancellable<void>).then(() => {}),
-      setAllProviders: (slug: string, on: boolean) =>
-        offable(HarnessesAPI.SetAllProviders(slug, on) as Cancellable<void>).then(() => {}),
-      launch: (slug: string, routeKey: string, profileSlug: string) =>
-        offable(HarnessesAPI.Launch(slug, routeKey, profileSlug) as Cancellable<unknown>).then((r) => r as never),
+      list: () => call(HarnessesAPI.List() as Cancellable<unknown>, (r) => r as never),
+      save: (h) => call(HarnessesAPI.Save(h) as Cancellable<void>, () => {}),
+      delete: (slug: string) => call(HarnessesAPI.Delete(slug) as Cancellable<void>, () => {}),
+      setProvider: (slug: string, provider: string, on: boolean) => call(HarnessesAPI.SetProvider(slug, provider, on) as Cancellable<void>, () => {}),
+      setAllProviders: (slug: string, on: boolean) => call(HarnessesAPI.SetAllProviders(slug, on) as Cancellable<void>, () => {}),
+      launch: (slug: string, routeKey: string, profileSlug: string) => call(HarnessesAPI.Launch(slug, routeKey, profileSlug) as Cancellable<unknown>, (r) => r as never),
     },
     usage: {
-      snapshots: (force: boolean) => offable(UsageAPI.Snapshots(force) as Cancellable<unknown>).then((r) => r as never),
-      setMode: (mode: 'auto' | 'on' | 'off') => offable(UsageAPI.SetMode(mode) as Cancellable<void>).then(() => {}),
-      setBackend: (backend: 'off' | 'native' | 'codexbar') =>
-        offable(UsageAPI.SetBackend(backend) as Cancellable<void>).then(() => {}),
-      mode: () => offable(UsageAPI.Mode() as Cancellable<unknown>).then((r) => r as never),
+      snapshots: (force: boolean) => call(UsageAPI.Snapshots(force) as Cancellable<unknown>, (r) => r as never),
+      setMode: (mode: 'auto' | 'on' | 'off') => call(UsageAPI.SetMode(mode) as Cancellable<void>, () => {}),
+      setBackend: (backend: 'off' | 'native' | 'codexbar') => call(UsageAPI.SetBackend(backend) as Cancellable<void>, () => {}),
+      mode: () => call(UsageAPI.Mode() as Cancellable<unknown>, (r) => r as never),
     },
     favourites: {
-      list: () => offable(FavouritesAPI.List() as Cancellable<unknown>).then((r) => r as never),
-      pin: (routeKey: string) => offable(FavouritesAPI.Pin(routeKey) as Cancellable<void>).then(() => {}),
-      unpin: (routeKey: string) => offable(FavouritesAPI.Unpin(routeKey) as Cancellable<void>).then(() => {}),
+      list: () => call(FavouritesAPI.List() as Cancellable<unknown>, (r) => r as never),
+      pin: (routeKey: string) => call(FavouritesAPI.Pin(routeKey) as Cancellable<void>, () => {}),
+      unpin: (routeKey: string) => call(FavouritesAPI.Unpin(routeKey) as Cancellable<void>, () => {}),
     },
     settings: {
-      get: () => offable(SettingsAPI.Get() as Cancellable<unknown>).then((r) => r as never),
-      set: (s) => offable(SettingsAPI.Set(s) as Cancellable<void>).then(() => {}),
-      shellSnippets: () => offable(SettingsAPI.ShellSnippets() as Cancellable<unknown>).then((r) => r as never),
+      get: () => call(SettingsAPI.Get() as Cancellable<unknown>, (r) => r as never),
+      set: (s) => call(SettingsAPI.Set(s) as Cancellable<void>, () => {}),
+      shellSnippets: () => call(SettingsAPI.ShellSnippets() as Cancellable<unknown>, (r) => r as never),
     },
     window: {
-      openSettings: () => offable(WindowService.OpenSettings() as Cancellable<void>).then(() => {}),
-      closeSettings: () => offable(WindowService.CloseSettings() as Cancellable<void>).then(() => {}),
-      hidePopover: () => offable(WindowService.HidePopover() as Cancellable<void>).then(() => {}),
-      quit: () => offable(WindowService.Quit() as Cancellable<void>).then(() => {}),
-      copyToClipboard: (text: string) =>
-        offable(WindowService.CopyToClipboard(text) as Cancellable<void>).then(() => {}),
-      setPopoverHeight: (height: number) =>
-        offable(WindowService.SetPopoverHeight(height) as Cancellable<void>).then(() => {}),
+      openSettings: () => call(WindowService.OpenSettings() as Cancellable<void>, () => {}),
+      closeSettings: () => call(WindowService.CloseSettings() as Cancellable<void>, () => {}),
+      hidePopover: () => call(WindowService.HidePopover() as Cancellable<void>, () => {}),
+      quit: () => call(WindowService.Quit() as Cancellable<void>, () => {}),
+      copyToClipboard: (text: string) => call(WindowService.CopyToClipboard(text) as Cancellable<void>, () => {}),
+      setPopoverHeight: (height: number) => call(WindowService.SetPopoverHeight(height) as Cancellable<void>, () => {}),
       setTrayPick: (profileName: string, modelName: string, reasoning: string, provider: string) =>
-        offable(
-          WindowService.SetTrayPick(profileName, modelName, reasoning, provider) as Cancellable<void>,
-        ).then(() => {}),
+        call(WindowService.SetTrayPick(profileName, modelName, reasoning, provider) as Cancellable<void>, () => {}),
     },
     on(event: EngineEvent, cb: (payload: unknown) => void): () => void {
       // Subscribe to the Wails runtime event; angular/promise-of the payload
