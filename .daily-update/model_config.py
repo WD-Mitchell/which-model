@@ -44,9 +44,18 @@ def load_benchmark_config(
     path: Path = DEFAULT_BENCHMARK_CONFIG_PATH,
 ) -> BenchmarkConfiguration:
     document = _load_toml(path, label="benchmark")
-    if set(document) != {"benchmark_selection", "benchmark_groups"}:
+    # The Go parser (score.ParseBenchmarkConfig) accepts an optional
+    # [benchmark_aliases] table in this SAME shared config/benchmarks.toml
+    # (alias -> canonical name). The daily refresh never consumes aliases —
+    # it reads the canonical names the AA API publishes — so the table is
+    # tolerated-but-ignored here rather than a hard error (issue #48):
+    # rejecting it would break the daily job the moment anyone uses the
+    # documented Go alias mechanism.
+    allowed = {"benchmark_selection", "benchmark_groups", "benchmark_aliases"}
+    if not set(document) <= allowed:
         raise UpdateError(
-            "benchmark config must contain exactly benchmark_selection and benchmark_groups"
+            "benchmark config must contain only benchmark_selection, benchmark_groups"
+            " (and optionally benchmark_aliases)"
         )
     selection, groups = document["benchmark_selection"], document["benchmark_groups"]
     if not isinstance(selection, dict) or set(selection) != {"groups", "benchmarks"}:
