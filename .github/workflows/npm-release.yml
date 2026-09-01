@@ -24,6 +24,12 @@ jobs:
       - run: go build ./cmd/which-model ./internal/... ./pkg/...
       - run: go vet ./cmd/which-model ./internal/... ./pkg/...
       - run: go test ./cmd/which-model ./internal/... ./pkg/...
+      # The release gate is the last line of defense for F21 SPEC §2.2/§5 R5
+      # (both build variants verified before anything ships) — mirror ci.yml's
+      # nousage audit: nousage build + strings scan + compiled-out tests.
+      - name: nousage audit (build matrix + strings scan)
+        if: hashFiles('scripts/audit-nousage.sh') != ''
+        run: bash scripts/audit-nousage.sh
 
   build:
     needs: test
