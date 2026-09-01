@@ -28,6 +28,7 @@ func NewPickCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "pick",
 		Short: "Pick a model for a task profile",
+		Args:  cobra.NoArgs,
 		RunE:  runPickE,
 	}
 	cmd.Flags().String("profile", "", "profile id (one of the eleven annex-c §2.1 names)")

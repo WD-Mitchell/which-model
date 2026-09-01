@@ -47,6 +47,7 @@ func newConfigShowCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show",
 		Short: "print the fully resolved configuration",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := loadConfig()
 			if err != nil {
@@ -120,6 +121,7 @@ func newConfigPathCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "path",
 		Short: "print the resolved user config file path",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path, err := targetConfigPath()
 			if err != nil {
@@ -135,6 +137,7 @@ func newConfigValidateCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "validate",
 		Short: "validate the configuration",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := loadConfig()
 			if err != nil {

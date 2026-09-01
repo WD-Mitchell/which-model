@@ -73,7 +73,8 @@ func catalogPreamble(f *catalogFlags) (*config.Config, ResolvedCatalog, error) {
 func newRefreshCmd() *cobra.Command {
 	f := &catalogFlags{}
 	cmd := &cobra.Command{
-		Use: "refresh",
+		Use:  "refresh",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runRefresh(f, cmd)
 		},
@@ -186,7 +187,8 @@ func renderStageReport(cmd *cobra.Command, report stageReport) error {
 func newBenchmarksCmd() *cobra.Command {
 	f := &catalogFlags{}
 	cmd := &cobra.Command{
-		Use: "benchmarks",
+		Use:  "benchmarks",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runBenchmarks(f, cmd)
 		},
@@ -255,7 +257,8 @@ func runBenchmarks(f *catalogFlags, cmd *cobra.Command) error {
 func newScoresCmd() *cobra.Command {
 	f := &catalogFlags{}
 	cmd := &cobra.Command{
-		Use: "scores",
+		Use:  "scores",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runScores(f, cmd)
 		},
