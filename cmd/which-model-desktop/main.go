@@ -25,6 +25,7 @@ import (
 	_ "github.com/WD-Mitchell/which-model/internal/usage/provider/claude"
 	_ "github.com/WD-Mitchell/which-model/internal/usage/provider/codex"
 	_ "github.com/WD-Mitchell/which-model/internal/usage/provider/copilot"
+	"github.com/WD-Mitchell/which-model/pkg/whichmodel"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -76,6 +77,10 @@ func main() {
 			fatalStartup(nil, title, msg)
 		}
 	}
+	// Build identity for Settings → General (GUISettings.Version): the same
+	// ldflags the tray's "Check for updates" compares against. Both service
+	// constructors are covered so an empty-catalog start still reports it.
+	svc.SetVersion(whichmodel.VersionLine())
 
 	// 4. application.New with single-instance (S02 SPEC §2.1.4). The second
 	// launch callback shows the popover (pop is assigned immediately after).

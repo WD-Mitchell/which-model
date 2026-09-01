@@ -30,6 +30,7 @@ const GROUP_MODULE = {
   usage: 'UsageAPI',
   favourites: 'FavouritesAPI',
   settings: 'SettingsAPI',
+  signin: 'SignInAPI',
   window: 'WindowService',
 }
 

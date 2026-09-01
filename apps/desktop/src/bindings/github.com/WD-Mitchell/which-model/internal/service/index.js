@@ -115,6 +115,11 @@ import * as $models from "./models.js";
  */
 
 /**
+ * SignInStart is the Start result: what the user must see to approve.
+ * @typedef {$models.SignInStart} SignInStart
+ */
+
+/**
  * UsageDTO is a provider's usage snapshot.
  * @typedef {$models.UsageDTO} UsageDTO
  */

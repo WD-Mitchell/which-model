@@ -43,6 +43,7 @@ export function SettingsApp({ host }: SettingsAppProps) {
   const detail = top(stack)
   const settingsQuery = useSettings()
   const configPath = settingsQuery.data?.config_path ?? ''
+  const version = settingsQuery.data?.version ?? ''
 
   const openDetail = useCallback((d: Detail) => {
     setStack((s) => push(s, d))
@@ -70,7 +71,7 @@ export function SettingsApp({ host }: SettingsAppProps) {
 
   return (
     <HostContext.Provider value={host}>
-      <SettingsShell page={page} onPage={onPage} configPath={configPath} onClose={onClose}>
+      <SettingsShell page={page} onPage={onPage} configPath={configPath} version={version} onClose={onClose}>
         <Suspense fallback={<div className="settings-suspend">loading…</div>}>
           <PageComponent {...pageProps} />
         </Suspense>

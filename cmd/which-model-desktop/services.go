@@ -180,6 +180,21 @@ func (a *SettingsAPI) ShellSnippets() (service.ShellSnippets, error) {
 	return a.svc.Settings().ShellSnippets(ctx)
 }
 
+// SignInAPI — EngineHost.signin. The interactive device-flow sign-in
+// (copilot OAuth): Start returns the verification URL + user code, Confirm
+// polls until approved and saves the credential, Cancel abandons.
+type SignInAPI struct{ svc *service.Services }
+
+func (a *SignInAPI) Start(provider string) (service.SignInStart, error) {
+	return a.svc.SignIn().Start(ctx, provider)
+}
+func (a *SignInAPI) Confirm(provider string) error {
+	return a.svc.SignIn().Confirm(ctx, provider)
+}
+func (a *SignInAPI) Cancel(provider string) error {
+	return a.svc.SignIn().Cancel(provider)
+}
+
 // registerServices builds the application.Service entries for every engine
 // facet. The host WindowService is registered separately (via
 // app.RegisterService) once the popover window exists (S04 SPEC §2.2).
@@ -191,6 +206,7 @@ func registerServices(svc *service.Services) []application.Service {
 		application.NewService(&ProvidersAPI{svc: svc}),
 		application.NewService(&HarnessesAPI{svc: svc}),
 		application.NewService(&UsageAPI{svc: svc}),
+		application.NewService(&SignInAPI{svc: svc}),
 		application.NewService(&FavouritesAPI{svc: svc}),
 		application.NewService(&SettingsAPI{svc: svc}),
 	}

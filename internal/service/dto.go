@@ -238,6 +238,7 @@ type GUISettings struct {
 	ShellAlias              bool   `json:"shell_alias"`
 	UseKeychain             bool   `json:"use_keychain"` // [auth], true prefers OS keychain
 	ConfigPath              string `json:"config_path"`  // read-only, display only
+	Version                 string `json:"version"`      // read-only, display only
 }
 
 // ShellSnippets are the copyable setup snippets.

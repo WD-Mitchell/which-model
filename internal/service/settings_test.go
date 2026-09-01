@@ -18,7 +18,7 @@ func TestSettingsDefaultsAndRoundTrip(t *testing.T) {
 	}
 	def := config.DefaultGUIConfig()
 	authDef := config.DefaultAuthConfig()
-	want := guiDTO(def, authDef, svc.paths.UserConfigFile)
+	want := guiDTO(def, authDef, svc.paths.UserConfigFile, "")
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("defaults = %#v, want %#v", got, want)
 	}

@@ -9,6 +9,7 @@ import * as PickAPI from "./pickapi.js";
 import * as ProfilesAPI from "./profilesapi.js";
 import * as ProvidersAPI from "./providersapi.js";
 import * as SettingsAPI from "./settingsapi.js";
+import * as SignInAPI from "./signinapi.js";
 import * as UsageAPI from "./usageapi.js";
 import * as WindowService from "./windowservice.js";
 export {
@@ -19,6 +20,7 @@ export {
     ProfilesAPI,
     ProvidersAPI,
     SettingsAPI,
+    SignInAPI,
     UsageAPI,
     WindowService
 };

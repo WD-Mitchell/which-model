@@ -30,7 +30,7 @@ func (g *SettingsService) Get(ctx context.Context) (GUISettings, error) {
 	if err != nil {
 		return GUISettings{}, toErrorDTO(err)
 	}
-	return guiDTO(gui, auth, g.s.paths.UserConfigFile), nil
+	return guiDTO(gui, auth, g.s.paths.UserConfigFile, g.s.version), nil
 }
 
 // Set validates and atomically replaces the complete GUI section.
@@ -72,6 +72,7 @@ func (g *SettingsService) Set(ctx context.Context, in GUISettings) error {
 
 	payload := in
 	payload.ConfigPath = g.s.paths.UserConfigFile
+	payload.Version = g.s.version
 	g.s.emit(EventSettingsChanged, payload)
 	return nil
 }
@@ -104,8 +105,8 @@ func (g *SettingsService) ShellSnippets(ctx context.Context) (ShellSnippets, err
 	return out, nil
 }
 
-func guiDTO(g config.GUIConfig, auth config.AuthConfig, path string) GUISettings {
-	return GUISettings{Layout: g.Layout, DefaultTab: g.DefaultTab, WeightControl: g.WeightControl, Holds: g.Holds, Shortcut: g.Shortcut, ShowMenuBarIcon: g.ShowMenuBarIcon, LaunchAtLogin: g.LaunchAtLogin, CopyCommandInstead: g.CopyCommandInstead, ClosePopoverAfterLaunch: g.ClosePopoverAfterLaunch, AutoUpdate: g.AutoUpdate, AutoUpdateFrequency: g.AutoUpdateFrequency, MCPServer: g.MCPServer, ClaudeMDHint: g.ClaudeMDHint, ShellAlias: g.ShellAlias, UseKeychain: auth.UseKeychain, ConfigPath: path}
+func guiDTO(g config.GUIConfig, auth config.AuthConfig, path, version string) GUISettings {
+	return GUISettings{Layout: g.Layout, DefaultTab: g.DefaultTab, WeightControl: g.WeightControl, Holds: g.Holds, Shortcut: g.Shortcut, ShowMenuBarIcon: g.ShowMenuBarIcon, LaunchAtLogin: g.LaunchAtLogin, CopyCommandInstead: g.CopyCommandInstead, ClosePopoverAfterLaunch: g.ClosePopoverAfterLaunch, AutoUpdate: g.AutoUpdate, AutoUpdateFrequency: g.AutoUpdateFrequency, MCPServer: g.MCPServer, ClaudeMDHint: g.ClaudeMDHint, ShellAlias: g.ShellAlias, UseKeychain: auth.UseKeychain, ConfigPath: path, Version: version}
 }
 
 func guiConfig(g GUISettings) config.GUIConfig {

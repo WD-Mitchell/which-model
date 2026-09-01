@@ -134,6 +134,7 @@ function seedSettings() {
         shell_alias: false,
         use_keychain: true,
         config_path: '~/Library/Application Support/which-model/config.toml',
+        version: 'which-model dev (commit unknown, built unknown)',
     };
 }
 function seedData() {
@@ -208,6 +209,9 @@ function scoreModel(data, m, p) {
 // Per-provider accounts for browser mode; the real store is config.toml.
 const mockAccounts = {
     claude: [{ name: 'Work', kind: 'oauth', ref: '~/.claude/.credentials.json' }],
+    // copilot needs a signed-out oauth row so the browser mock can exercise
+    // the device-flow sign-in modal (empty ref renders the "Sign in…" button).
+    copilot: [{ name: 'GitHub', kind: 'oauth', ref: '' }],
 };
 export function createMockEngineHost(overrides) {
     const data = { ...seedData(), ...(overrides ? clone(overrides) : {}) };
@@ -714,6 +718,16 @@ export function createMockEngineHost(overrides) {
                     preview,
                 };
             },
+        },
+        signin: {
+            async start(provider) {
+                if (provider !== 'copilot') {
+                    throw new EngineError('validation_failed', `sign-in for ${provider} is not supported`);
+                }
+                return { verification_uri: 'https://github.com/login/device', user_code: 'WDML-MOCK' };
+            },
+            async confirm() { },
+            async cancel() { },
         },
         window: {
             async openSettings() { },

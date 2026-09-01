@@ -13,11 +13,12 @@ export interface SettingsShellProps {
   page: SettingsPageName
   onPage(page: SettingsPageName): void
   configPath: string
+  version: string
   onClose(): void
   children: ReactNode
 }
 
-export function SettingsShell({ page, onPage, configPath, onClose, children }: SettingsShellProps) {
+export function SettingsShell({ page, onPage, configPath, version, onClose, children }: SettingsShellProps) {
   // Close = hide (S00 §4) belongs to the native red traffic light, which routes
   // through the WindowClosing hook in cmd/which-model-desktop/settings.go.
   // Escape is the web-side equivalent and keeps the onClose plumbing (U07
@@ -69,8 +70,15 @@ export function SettingsShell({ page, onPage, configPath, onClose, children }: S
               ))}
             </div>
           ))}
-          {/* Config path lives at the foot of the SIDEBAR in the mockup, after a
-              margin-top:auto spacer — not in the content column. */}
+          {/* Build identity + config path live at the foot of the SIDEBAR in
+              the mockup, after a margin-top:auto spacer — not in the content
+              column. The version line is what "Check for updates" compares
+              against; config_path wraps rather than truncating. */}
+          {version ? (
+            <div className={styles.configPath} title={version}>
+              {version}
+            </div>
+          ) : null}
           {configPath ? (
             <div className={'mono ' + styles.configPath} title={configPath}>
               {configPath}
