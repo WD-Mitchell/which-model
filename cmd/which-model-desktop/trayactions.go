@@ -71,12 +71,8 @@ func (m *trayMenu) refreshBenchmarks() {
 			refreshRunning.Unlock()
 		}()
 
-		catalogMu.Lock()
-		code := whichmodel.ExecuteArgs([]string{"catalog", "refresh"})
-		catalogMu.Unlock()
-
-		if code != 0 {
-			log.Printf("tray: catalog refresh exited %d", code)
+		if err := refreshCatalogCLI(); err != nil {
+			log.Printf("tray: %v", err)
 			notice(m.app, "benchmark refresh failed — see the log")
 			return
 		}
@@ -98,6 +94,17 @@ func (m *trayMenu) refreshBenchmarks() {
 		}
 		notice(m.app, "benchmarks refreshed")
 	}()
+}
+
+// refreshCatalogCLI runs `which-model catalog refresh` under catalogMu so
+// the tray item and Settings Refresh models cannot race on whichmodel.Global.
+func refreshCatalogCLI() error {
+	catalogMu.Lock()
+	defer catalogMu.Unlock()
+	if code := whichmodel.ExecuteArgs([]string{"catalog", "refresh"}); code != 0 {
+		return fmt.Errorf("catalog refresh exited %d", code)
+	}
+	return nil
 }
 
 // checkForUpdates compares the running build against the newest GitHub

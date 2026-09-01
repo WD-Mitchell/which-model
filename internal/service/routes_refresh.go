@@ -36,9 +36,21 @@ func modelsDevCachePath(cacheDir string) string {
 // refresh` does: models.dev catalogue (cache, else fetch) joined to the
 // scores CSV, preserving user-declared routes. Settings calls this after a
 // successful sign-in and from the signed-in "Refresh models" button.
+//
+// When catalogRefresh is set (desktop host), scores are rebuilt first so
+// newly-authenticated providers can join the latest benchmarks — not just
+// the last catalogue cache.
 func (p *ProviderService) RefreshRoutes(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return toErrorDTO(err)
+	}
+	if p.s.catalogRefresh != nil {
+		if err := p.s.catalogRefresh(ctx); err != nil {
+			return toErrorDTO(fmt.Errorf("refresh benchmarks: %w", err))
+		}
+		if err := p.s.ReloadCatalog(); err != nil {
+			return toErrorDTO(fmt.Errorf("reload catalogue: %w", err))
+		}
 	}
 	catalogue, err := p.loadOrFetchModelsDev()
 	if err != nil {

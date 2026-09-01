@@ -167,27 +167,27 @@ func (s ManagedStore) Remove(provider string) error {
 }
 
 // ResolveProvider preserves provider-declared source precedence, then tries a
-// credential created by the provider's interactive device flow.
+// credential saved by interactive Settings/CLI login (ManagedStore). Device-flow
+// providers may still Validate that token; file-only providers (Claude, Codex)
+// use the store as a last source after declared files/env miss.
 func ResolveProvider(ctx context.Context, provider string, sources []usage.AuthSource, client *http.Client, store ManagedStore) (usage.Credential, []Warning, error) {
 	credential, warnings, err := ResolveChain(ctx, sources, client)
 	if err == nil || !errors.Is(err, ErrNotFound) {
 		return credential, warnings, err
 	}
+	credential, managedWarnings, managedErr := store.Resolve(ctx, provider)
+	warnings = append(warnings, managedWarnings...)
+	if managedErr != nil {
+		return Credential{}, warnings, managedErr
+	}
 	for _, source := range sources {
-		if source.Kind != usage.AuthOAuthDeviceFlow {
+		if source.Kind != usage.AuthOAuthDeviceFlow || source.Validate == nil {
 			continue
 		}
-		credential, managedWarnings, managedErr := store.Resolve(ctx, provider)
-		warnings = append(warnings, managedWarnings...)
-		if managedErr != nil {
-			return Credential{}, warnings, managedErr
+		if err := source.Validate(ctx, credential, client); err != nil {
+			return Credential{}, warnings, ErrNotFound
 		}
-		if source.Validate != nil {
-			if err := source.Validate(ctx, credential, client); err != nil {
-				return Credential{}, warnings, ErrNotFound
-			}
-		}
-		return credential, warnings, nil
+		break
 	}
-	return Credential{}, warnings, ErrNotFound
+	return credential, warnings, nil
 }

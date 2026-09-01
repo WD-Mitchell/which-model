@@ -11,6 +11,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"log"
@@ -81,6 +82,12 @@ func main() {
 	// version — the same ldflags value the tray's "Check for updates" compares
 	// against. Commit/built details stay in `which-model version` output.
 	svc.SetVersion(whichmodel.Version)
+	svc.SetCatalogRefresh(func(ctx context.Context) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		return refreshCatalogCLI()
+	})
 
 	// 4. application.New with single-instance (S02 SPEC §2.1.4). The second
 	// launch callback shows the popover (pop is assigned immediately after).

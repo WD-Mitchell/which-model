@@ -46,6 +46,21 @@ type Services struct {
 	// version is the read-only build identity reported through
 	// GUISettings.Version ("" = unknown). Set by the host via WithVersion.
 	version string
+	// catalogRefresh, when set, rebuilds the scores CSV (models.dev +
+	// Artificial Analysis) before RefreshRoutes joins it. The desktop host
+	// wires this to `which-model catalog refresh`; tests leave it nil.
+	catalogRefresh CatalogRefreshFunc
+}
+
+// CatalogRefreshFunc rebuilds the on-disk catalogue (raw CSV + derived
+// scores). It must not hold Services.mu; the caller reloads caches after it
+// returns. Failure is returned to Refresh models; sign-in ignores it.
+type CatalogRefreshFunc func(ctx context.Context) error
+
+// SetCatalogRefresh installs the host's catalogue rebuild hook. Call once
+// after New/NewEmpty; not concurrent with RefreshRoutes.
+func (s *Services) SetCatalogRefresh(fn CatalogRefreshFunc) {
+	s.catalogRefresh = fn
 }
 
 // catalogConfig mirrors the F23-owned [catalog] config section so

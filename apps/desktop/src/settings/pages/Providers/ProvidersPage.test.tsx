@@ -147,3 +147,54 @@ describe('Providers page copilot sign-in', () => {
     await waitFor(() => expect(refreshSpy).toHaveBeenCalledTimes(1))
   })
 })
+
+async function openProviderDetail(host: EngineHost, id: string) {
+  renderApp(host)
+  await screen.findByText('which-model — Settings')
+  const nav = await screen.findAllByText('Providers')
+  const navBtn = nav.find((el) => el.tagName === 'BUTTON')
+  act(() => navBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+  const card = await screen.findByText((_, el) => el?.tagName === 'SPAN' && el.textContent === id && el.className.includes('id'))
+  act(() => card.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+  await screen.findByText('accounts')
+}
+
+describe('Providers page claude and codex sign-in', () => {
+  let host: EngineHost
+  beforeEach(() => {
+    host = createMockEngineHost()
+    resetHost(host)
+  })
+
+  it('codex uses the device-code modal and opens auth.openai.com', async () => {
+    const { confirmSpy } = deferConfirm(host)
+    const openSpy = vi.spyOn(host.window, 'openURL').mockResolvedValue(undefined)
+    const copySpy = vi.spyOn(host.window, 'copyToClipboard').mockResolvedValue(undefined)
+    await openProviderDetail(host, 'codex')
+    fireEvent.click(await screen.findByText('Sign in…'))
+    expect(await screen.findByText('WDML-MOCK')).toBeDefined()
+    await waitFor(() => expect(copySpy).toHaveBeenCalledWith('WDML-MOCK'))
+    await waitFor(() =>
+      expect(openSpy).toHaveBeenCalledWith('https://auth.openai.com/codex/device?user_code=WDML-MOCK'),
+    )
+    await waitFor(() => expect(confirmSpy).toHaveBeenCalledWith('codex'))
+    expect(screen.getByText('Open auth.openai.com')).toBeDefined()
+  })
+
+  it('claude opens the authorize URL, shows paste, and submitCode continues', async () => {
+    const { confirmSpy } = deferConfirm(host)
+    const openSpy = vi.spyOn(host.window, 'openURL').mockResolvedValue(undefined)
+    const copySpy = vi.spyOn(host.window, 'copyToClipboard').mockResolvedValue(undefined)
+    const submitSpy = vi.spyOn(host.signin, 'submitCode').mockResolvedValue(undefined)
+    await openProviderDetail(host, 'claude')
+    fireEvent.click(await screen.findByText('Re-authenticate'))
+    await waitFor(() => expect(openSpy).toHaveBeenCalledWith('https://claude.ai/oauth/authorize'))
+    expect(copySpy).not.toHaveBeenCalled()
+    expect(screen.queryByText('WDML-MOCK')).toBeNull()
+    await waitFor(() => expect(confirmSpy).toHaveBeenCalledWith('claude'))
+    const paste = screen.getByPlaceholderText('paste the code from the page')
+    fireEvent.change(paste, { target: { value: 'abc#state' } })
+    fireEvent.click(await screen.findByText('Continue'))
+    await waitFor(() => expect(submitSpy).toHaveBeenCalledWith('claude', 'abc#state'))
+  })
+})

@@ -13,6 +13,8 @@ import (
 	"github.com/WD-Mitchell/which-model/internal/catalog/fetch/modelsdev"
 	"github.com/WD-Mitchell/which-model/internal/usage"
 	"github.com/WD-Mitchell/which-model/internal/usage/credential"
+	"github.com/WD-Mitchell/which-model/internal/usage/provider/claude"
+	"github.com/WD-Mitchell/which-model/internal/usage/provider/codex"
 )
 
 // registerTestDeviceFlowProvider registers a descriptor with a device-flow
@@ -204,8 +206,8 @@ func TestSignInStartUnknownProvider(t *testing.T) {
 	}
 }
 
-// noFlowProviderID is a registered provider WITHOUT a device-flow source —
-// the analog of "claude" in the real binary (env/file auth only).
+// noFlowProviderID is a registered provider WITHOUT a device-flow source and
+// without a Claude/Codex login path — Start still refuses it.
 const noFlowProviderID = "wm-test-noflow"
 
 func TestSignInStartNoDeviceFlowSource(t *testing.T) {
@@ -300,9 +302,8 @@ func TestSignInVersionRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got.Version != "2.1.0" {
-		t.Fatalf("Get().Version = %q", got.Version)
+		t.Fatalf("Version = %q, want 2.1.0", got.Version)
 	}
-	// Set ignores it (read-only) and the emitted payload still carries it.
 	if err := svc.Settings().Set(context.Background(), got); err != nil {
 		t.Fatal(err)
 	}
@@ -315,7 +316,6 @@ func TestSignInVersionRoundTrip(t *testing.T) {
 	}
 }
 
-// deviceFlowSpecNilCheck guards the extraction helper against silent drift.
 func TestSignInDeviceFlowSpecExtraction(t *testing.T) {
 	registerTestDeviceFlowProvider(t)
 	desc, err := usage.Get(testFlowProviderID)
@@ -325,5 +325,122 @@ func TestSignInDeviceFlowSpecExtraction(t *testing.T) {
 	spec, ok := deviceFlowSpec(desc)
 	if !ok || spec.ClientID != "test-client" {
 		t.Fatalf("deviceFlowSpec() = %+v, ok=%v", spec, ok)
+	}
+}
+
+func TestSignInClaudeSubmitCodeThenConfirm(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	stubModelsDevFetch(t, []modelsdev.ProviderModel{})
+	persistClaudeLogin = func(claude.Tokens) error { return nil }
+	t.Cleanup(func() { persistClaudeLogin = claude.PersistLogin })
+
+	var login *claude.BrowserLogin
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_token":"claude-gui-token","refresh_token":"r","expires_in":60}`))
+	}))
+	t.Cleanup(srv.Close)
+	startClaudeLogin = func() (*claude.BrowserLogin, error) {
+		var err error
+		login, err = claude.StartBrowserLogin()
+		if err != nil {
+			return nil, err
+		}
+		login.TokenURL = srv.URL
+		login.HTTP = srv.Client()
+		return login, nil
+	}
+	t.Cleanup(func() { startClaudeLogin = func() (*claude.BrowserLogin, error) { return claude.StartBrowserLogin() } })
+
+	svc, _ := newTestServices(t, WithConfigTOML("[usage]\nbackend = \"native\"\n\n[auth]\nuse_keychain = false\n\n[providers.claude]\nenabled = true\n"))
+	started, err := svc.SignIn().Start(context.Background(), "claude")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if started.UserCode != "" || !strings.Contains(started.VerificationURI, "oauth/authorize") {
+		t.Fatalf("Start = %+v, want authorize URL and empty user_code", started)
+	}
+	done := make(chan error, 1)
+	go func() { done <- svc.SignIn().Confirm(context.Background(), "claude") }()
+	if login == nil {
+		t.Fatal("claude login was not started")
+	}
+	if err := svc.SignIn().SubmitCode("claude", "the-code#"+login.State); err != nil {
+		t.Fatalf("SubmitCode: %v", err)
+	}
+	if err := <-done; err != nil {
+		t.Fatalf("Confirm: %v", err)
+	}
+	store, err := svc.managedStoreFor("claude")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cred, _, err := store.Resolve(context.Background(), "claude")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cred.Token != "claude-gui-token" {
+		t.Fatalf("stored token = %q", redactConst(cred.Token))
+	}
+}
+
+func TestSignInCodexDeviceSavesCredential(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	stubModelsDevFetch(t, []modelsdev.ProviderModel{})
+	persistCodexLogin = func(codex.Tokens) error { return nil }
+	t.Cleanup(func() { persistCodexLogin = codex.PersistLogin })
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/deviceauth/usercode"):
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"device_auth_id":"dev-1","user_code":"WDML-CDX","interval":"1"}`))
+		case strings.HasSuffix(r.URL.Path, "/deviceauth/token"):
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"authorization_code":"ac","code_challenge":"ch","code_verifier":"ver"}`))
+		case strings.HasSuffix(r.URL.Path, "/oauth/token"):
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"access_token":"codex-gui-token","refresh_token":"rr"}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	startCodexLogin = func(ctx context.Context) (*codex.DeviceLogin, error) {
+		login, err := codex.StartDeviceLogin(ctx, srv.URL, "test-client", srv.Client())
+		if err != nil {
+			return nil, err
+		}
+		login.Sleep = func(time.Duration) {}
+		login.Interval = time.Millisecond
+		return login, nil
+	}
+	t.Cleanup(func() {
+		startCodexLogin = func(ctx context.Context) (*codex.DeviceLogin, error) {
+			return codex.StartDeviceLogin(ctx, codex.Issuer, codex.ClientID, nil)
+		}
+	})
+
+	svc, _ := newTestServices(t, WithConfigTOML("[usage]\nbackend = \"native\"\n\n[auth]\nuse_keychain = false\n\n[providers.codex]\nenabled = true\n"))
+	started, err := svc.SignIn().Start(context.Background(), "codex")
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	if started.UserCode != "WDML-CDX" || !strings.Contains(started.VerificationURI, "/codex/device") {
+		t.Fatalf("Start = %+v", started)
+	}
+	if err := svc.SignIn().Confirm(context.Background(), "codex"); err != nil {
+		t.Fatalf("Confirm: %v", err)
+	}
+	store, err := svc.managedStoreFor("codex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cred, _, err := store.Resolve(context.Background(), "codex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cred.Token != "codex-gui-token" {
+		t.Fatalf("stored token = %q", redactConst(cred.Token))
 	}
 }

@@ -319,6 +319,13 @@ func (p *ProviderService) Detail(ctx context.Context, id string) (ProviderDetail
 	for _, account := range p.s.cfg.Providers[id].Accounts {
 		accounts = append(accounts, ProviderAccountDTO{Name: account.Name, Kind: account.Kind, Ref: account.Ref})
 	}
+	if len(accounts) == 0 && providerBuiltin(id) {
+		name := id
+		if desc, err := usage.Get(id); err == nil && desc.DisplayName != "" {
+			name = desc.DisplayName
+		}
+		accounts = []ProviderAccountDTO{{Name: name, Kind: AccountKindOAuth, Ref: ""}}
+	}
 	disabled := p.s.disabledRouteSetLocked(id)
 	type modelData struct {
 		name   string
@@ -1005,4 +1012,3 @@ func cloneConfigForProviders(src *config.Config) (*config.Config, func(), error)
 	}
 	return copyCfg, cleanup, nil
 }
-

@@ -12,6 +12,8 @@ import (
 	"github.com/WD-Mitchell/which-model/internal/config"
 	"github.com/WD-Mitchell/which-model/internal/usage"
 	"github.com/WD-Mitchell/which-model/internal/usage/credential"
+	"github.com/WD-Mitchell/which-model/internal/usage/provider/claude"
+	"github.com/WD-Mitchell/which-model/internal/usage/provider/codex"
 	"github.com/WD-Mitchell/which-model/internal/usage/toggle"
 )
 
@@ -20,17 +22,14 @@ import (
 // UI treats a non-empty oauth ref as signed in.
 const managedOAuthRef = "which-model"
 
-// SignInService is the interactive device-flow sign-in facet (U-signin).
-// It drives the same primitive the CLI's `auth login` drives
-// (pkg/whichmodel/auth.go RunAuthLogin → credential.DeviceFlow) so the GUI
-// and the CLI produce identical credentials: a ManagedStore entry under
-// StateDir (keychain when [auth].use_keychain, else the private state file).
+// SignInService is the interactive OAuth sign-in facet (U-signin).
+// Copilot uses RFC 8628 device flow; Codex uses OpenAI's device-auth
+// endpoints; Claude uses PKCE + a pasted code. All three save a ManagedStore
+// entry and, for Claude/Codex, the provider CLI credential file so usage
+// fetch keeps working.
 //
-// The flow is split in two bound calls so the webview never blocks a render:
-// Start returns the verification URL + user code immediately; Confirm does
-// the polling (called by the frontend from an effect/worker). At most one
-// flow per provider is active at a time; a second Start for the same
-// provider restarts it (the previous poll is abandoned).
+// Start returns immediately with the URL (and user code when there is one).
+// Confirm blocks until approved. Claude Confirm waits for SubmitCode.
 type SignInService struct{ s *Services }
 
 // SignIn returns the sign-in facet.
@@ -39,36 +38,49 @@ func (s *Services) SignIn() *SignInService { return &SignInService{s: s} }
 // SignInStart is the Start result: what the user must see to approve.
 type SignInStart struct {
 	VerificationURI string `json:"verification_uri"` // exact https URL to open
-	UserCode        string `json:"user_code"`        // code to enter, display-only
+	UserCode        string `json:"user_code"`        // code to enter; empty for paste flows
 }
 
+type signInKind int
+
+const (
+	signInRFC8628 signInKind = iota
+	signInCodex
+	signInClaude
+)
+
 // signInFlow carries one active flow between Start and Confirm.
-// ctx/cancel let Cancel abort an in-flight Poll (the frontend starts
-// polling as soon as the code is shown, so Cancel must reach the waiter).
 type signInFlow struct {
+	kind   signInKind
 	flow   *credential.DeviceFlow
 	code   credential.DeviceCode
+	codex  *codex.DeviceLogin
+	claude *claude.BrowserLogin
+	pasted chan string
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
-// signInMu guards the active-flows map only. Config access inside
-// Start/Confirm follows the same lock discipline as every other method.
 var signInMu sync.Mutex
-
-// signInFlows holds the active device flow per provider id.
 var signInFlows = map[string]signInFlow{}
 
-// newDeviceFlow builds the flow for one spec. Test seam: signin_test.go
-// replaces it (mirroring pkg/whichmodel's startDeviceFlowFunc seam) because
-// security.ValidateExactHTTPS requires https and tests run http servers.
+// newDeviceFlow builds the RFC 8628 flow. Test seam: signin_test.go replaces it.
 var newDeviceFlow = credential.NewDeviceFlow
 
-// Start begins the device flow for provider (currently only "copilot" ships
-// one; others return the CLI's own "not supported" text). Usage must be
-// enabled — the credential is useless otherwise — mirroring the CLI's gate
-// (auth.go authUsageDisabled). The desktop binary never builds nousage
-// (S02 SPEC §2.1), so no compiled-out variant of this file is required.
+var startCodexLogin = func(ctx context.Context) (*codex.DeviceLogin, error) {
+	return codex.StartDeviceLogin(ctx, codex.Issuer, codex.ClientID, nil)
+}
+
+var startClaudeLogin = func() (*claude.BrowserLogin, error) {
+	return claude.StartBrowserLogin()
+}
+
+// persistClaudeLogin / persistCodexLogin write the provider CLI files.
+// Tests may replace them to avoid touching $HOME.
+var persistClaudeLogin = claude.PersistLogin
+var persistCodexLogin = codex.PersistLogin
+
+// Start begins sign-in for provider. Usage must be enabled.
 func (g *SignInService) Start(ctx context.Context, provider string) (SignInStart, error) {
 	if err := ctx.Err(); err != nil {
 		return SignInStart{}, toErrorDTO(err)
@@ -80,29 +92,57 @@ func (g *SignInService) Start(ctx context.Context, provider string) (SignInStart
 	if err != nil {
 		return SignInStart{}, toErrorDTO(fmt.Errorf("%w: unknown provider %q", errValidation, provider))
 	}
-	spec, ok := deviceFlowSpec(desc)
-	if !ok {
+
+	pollCtx, cancel := context.WithCancel(context.Background())
+	var active signInFlow
+	var out SignInStart
+
+	if spec, ok := deviceFlowSpec(desc); ok {
+		flow := newDeviceFlow(spec)
+		code, err := flow.Start(ctx)
+		if err != nil {
+			cancel()
+			return SignInStart{}, toErrorDTO(err)
+		}
+		active = signInFlow{kind: signInRFC8628, flow: flow, code: code, ctx: pollCtx, cancel: cancel}
+		out = SignInStart{VerificationURI: code.VerificationURI, UserCode: code.UserCode}
+	} else if provider == "codex" {
+		login, err := startCodexLogin(ctx)
+		if err != nil {
+			cancel()
+			return SignInStart{}, toErrorDTO(err)
+		}
+		active = signInFlow{kind: signInCodex, codex: login, ctx: pollCtx, cancel: cancel}
+		out = SignInStart{VerificationURI: login.VerificationURL, UserCode: login.UserCode}
+	} else if provider == "claude" {
+		login, err := startClaudeLogin()
+		if err != nil {
+			cancel()
+			return SignInStart{}, toErrorDTO(err)
+		}
+		active = signInFlow{
+			kind:   signInClaude,
+			claude: login,
+			pasted: make(chan string, 1),
+			ctx:    pollCtx,
+			cancel: cancel,
+		}
+		out = SignInStart{VerificationURI: login.AuthorizeURL, UserCode: ""}
+	} else {
+		cancel()
 		return SignInStart{}, toErrorDTO(fmt.Errorf("%w: sign-in for %s is not supported; sign in with the provider's own client, then restart which-model", errValidation, provider))
 	}
-	flow := newDeviceFlow(spec)
-	code, err := flow.Start(ctx)
-	if err != nil {
-		return SignInStart{}, toErrorDTO(err)
-	}
-	pollCtx, cancel := context.WithCancel(context.Background())
+
 	signInMu.Lock()
 	if prev, ok := signInFlows[provider]; ok && prev.cancel != nil {
 		prev.cancel()
 	}
-	signInFlows[provider] = signInFlow{flow: flow, code: code, ctx: pollCtx, cancel: cancel}
+	signInFlows[provider] = active
 	signInMu.Unlock()
-	return SignInStart{VerificationURI: code.VerificationURI, UserCode: code.UserCode}, nil
+	return out, nil
 }
 
-// Confirm polls the active flow for provider until it is approved, expired,
-// denied, or ctx is done; on success the token is saved to the managed
-// store. It is expected to take tens of seconds (human approval) and is
-// therefore called from the frontend off the render path.
+// Confirm waits for the active flow to complete and saves the credential.
 func (g *SignInService) Confirm(ctx context.Context, provider string) error {
 	if err := ctx.Err(); err != nil {
 		return toErrorDTO(err)
@@ -117,9 +157,34 @@ func (g *SignInService) Confirm(ctx context.Context, provider string) error {
 	if pollCtx == nil {
 		pollCtx = ctx
 	}
-	token, err := active.flow.Poll(pollCtx, active.code)
+
+	var (
+		token   string
+		claudeT claude.Tokens
+		codexT  codex.Tokens
+		err     error
+	)
+	switch active.kind {
+	case signInRFC8628:
+		token, err = active.flow.Poll(pollCtx, active.code)
+	case signInCodex:
+		codexT, err = active.codex.Wait(pollCtx)
+		token = codexT.AccessToken
+	case signInClaude:
+		var pasted string
+		select {
+		case pasted = <-active.pasted:
+			claudeT, err = active.claude.Exchange(pollCtx, pasted)
+			token = claudeT.AccessToken
+		case <-pollCtx.Done():
+			err = pollCtx.Err()
+		}
+	default:
+		err = fmt.Errorf("%w: unknown sign-in kind", errValidation)
+	}
+
 	signInMu.Lock()
-	if cur, still := signInFlows[provider]; still && cur.flow == active.flow {
+	if cur, still := signInFlows[provider]; still && sameFlow(cur, active) {
 		if cur.cancel != nil {
 			cur.cancel()
 		}
@@ -129,6 +194,7 @@ func (g *SignInService) Confirm(ctx context.Context, provider string) error {
 	if err != nil {
 		return toErrorDTO(flowErr(err))
 	}
+
 	store, err := g.s.managedStoreFor(provider)
 	if err != nil {
 		return toErrorDTO(err)
@@ -136,21 +202,56 @@ func (g *SignInService) Confirm(ctx context.Context, provider string) error {
 	if err := store.Save(provider, token); err != nil {
 		return toErrorDTO(err)
 	}
-	// Best-effort: empty oauth account rows become "signed in" in Settings.
-	// The token is already saved; a config write failure must not undo login.
+	switch provider {
+	case "claude":
+		_ = persistClaudeLogin(claudeT)
+	case "codex":
+		_ = persistCodexLogin(codexT)
+	}
 	_ = g.markManagedOAuth(provider)
-	// Same as `which-model routes refresh`: a newly-authenticated provider
-	// has no routes until the catalogue is joined. Failure here must not
-	// undo login — the UI's Refresh models button retries.
 	_ = g.s.Providers().RefreshRoutes(ctx)
 	g.s.emit(EventConfigChanged, map[string]string{"section": "providers"})
 	g.s.emit(EventUsageUpdated, struct{}{})
 	return nil
 }
 
-// Cancel abandons an active flow (window closed, user navigated away).
-// Removing a non-existent flow is success. An in-flight Confirm's Poll is
-// cancelled via the flow context so it does not later save a token.
+func sameFlow(a, b signInFlow) bool {
+	if a.kind != b.kind {
+		return false
+	}
+	switch a.kind {
+	case signInRFC8628:
+		return a.flow == b.flow
+	case signInCodex:
+		return a.codex == b.codex
+	case signInClaude:
+		return a.claude == b.claude
+	default:
+		return false
+	}
+}
+
+// SubmitCode delivers the pasted Claude authentication code to Confirm.
+func (g *SignInService) SubmitCode(provider, code string) error {
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return toErrorDTO(fmt.Errorf("%w: paste the code from the login page", errValidation))
+	}
+	signInMu.Lock()
+	active, ok := signInFlows[provider]
+	signInMu.Unlock()
+	if !ok || active.kind != signInClaude || active.pasted == nil {
+		return toErrorDTO(fmt.Errorf("%w: no paste sign-in in progress for %s", errValidation, provider))
+	}
+	select {
+	case active.pasted <- code:
+		return nil
+	default:
+		return toErrorDTO(fmt.Errorf("%w: the code was already submitted", errValidation))
+	}
+}
+
+// Cancel abandons an active flow.
 func (g *SignInService) Cancel(provider string) error {
 	signInMu.Lock()
 	if active, ok := signInFlows[provider]; ok {
@@ -177,32 +278,33 @@ func (g *SignInService) markManagedOAuth(provider string) error {
 		return err
 	}
 	if copyCfg.Providers == nil {
-		return nil
+		copyCfg.Providers = map[string]config.ProviderConfig{}
 	}
-	providerCfg, ok := copyCfg.Providers[provider]
-	if !ok {
-		return nil
-	}
-	changed := false
+	providerCfg := copyCfg.Providers[provider]
 	accounts := make([]config.ProviderAccount, len(providerCfg.Accounts))
 	copy(accounts, providerCfg.Accounts)
+	changed := false
 	for i := range accounts {
-		if accounts[i].Kind == AccountKindOAuth && strings.TrimSpace(accounts[i].Ref) == "" {
+		if accounts[i].Kind == AccountKindOAuth {
 			accounts[i].Ref = managedOAuthRef
 			changed = true
 		}
 	}
 	if !changed {
-		return nil
+		name := provider
+		if desc, err := usage.Get(provider); err == nil && desc.DisplayName != "" {
+			name = desc.DisplayName
+		}
+		accounts = append(accounts, config.ProviderAccount{Name: name, Kind: AccountKindOAuth, Ref: managedOAuthRef})
+	}
+	if _, existed := copyCfg.Providers[provider]; !existed {
+		providerCfg.Enabled = true
 	}
 	providerCfg.Accounts = accounts
 	copyCfg.Providers[provider] = providerCfg
 	return g.s.Providers().persistConfigLocked(copyCfg)
 }
 
-// managedStoreFor builds the ManagedStore from the live config, mirroring
-// pkg/whichmodel/auth.go managedCredentialStore but with service-injected
-// paths (B00 §2.8: no os.UserHomeDir here).
 func (s *Services) managedStoreFor(_ string) (credential.ManagedStore, error) {
 	s.mu.RLock()
 	auth, err := s.cfg.LoadAuth()
@@ -218,9 +320,6 @@ func (s *Services) managedStoreFor(_ string) (credential.ManagedStore, error) {
 	}, nil
 }
 
-// signInGate mirrors the CLI's usage-enabled gate for the native backend:
-// sign-in writes a managed credential, which only the native backend reads.
-// CodexBar keeps [auth] untouched by design (auth.go authUsageDisabled).
 func (g *SignInService) signInGate(provider string) error {
 	known := false
 	for _, id := range usage.IDs() {
@@ -242,7 +341,6 @@ func (g *SignInService) signInGate(provider string) error {
 	return fmt.Errorf("%w: usage is disabled (%s); enable usage before signing in", errUsageUnavailable, reason)
 }
 
-// deviceFlowSpec extracts the provider's OAuth device-flow spec.
 func deviceFlowSpec(desc usage.Descriptor) (usage.OAuthSpec, bool) {
 	for _, source := range desc.Auth {
 		if source.Kind == usage.AuthOAuthDeviceFlow && source.OAuth != nil {
@@ -252,10 +350,6 @@ func deviceFlowSpec(desc usage.Descriptor) (usage.OAuthSpec, bool) {
 	return usage.OAuthSpec{}, false
 }
 
-// flowErr converts a device-flow error to a sentinel-wrapped error so
-// toErrorDTO maps it to a stable code. Messages from the credential layer
-// are already sanitised (deviceflow.go constructs them from RFC 8628 error
-// codes only, never from response bodies that could carry secrets).
 func flowErr(err error) error {
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return fmt.Errorf("%w: sign-in cancelled", errValidation)

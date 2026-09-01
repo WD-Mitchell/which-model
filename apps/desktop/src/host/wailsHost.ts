@@ -113,6 +113,8 @@ export function createWailsHost(): EngineHost {
       start: (provider: string) =>
         call(SignInAPI.Start(provider) as Cancellable<unknown>, (r) => r as { verification_uri: string; user_code: string }),
       confirm: (provider: string) => call(SignInAPI.Confirm(provider) as Cancellable<void>, () => {}),
+      submitCode: (provider: string, code: string) =>
+        call(SignInAPI.SubmitCode(provider, code) as Cancellable<void>, () => {}),
       cancel: (provider: string) => call(SignInAPI.Cancel(provider) as Cancellable<void>, () => {}),
     },
     window: {

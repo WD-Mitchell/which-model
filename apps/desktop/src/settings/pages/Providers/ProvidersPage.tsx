@@ -51,7 +51,7 @@ function errText(e: unknown, fallback: string): string {
 
 const MANAGED_OAUTH_REF = 'which-model'
 
-/** GitHub's device page accepts ?user_code= so the pasted/copied code is pre-filled. */
+/** Device pages (GitHub) accept ?user_code= so the copied code is pre-filled. */
 function deviceLoginURL(uri: string, userCode: string): string {
   try {
     const parsed = new URL(uri)
@@ -61,6 +61,19 @@ function deviceLoginURL(uri: string, userCode: string): string {
     return parsed.toString()
   } catch {
     return uri
+  }
+}
+
+function openLoginLabel(uri: string): string {
+  try {
+    const parsed = new URL(uri)
+    const host = parsed.hostname.replace(/^www\./, '')
+    if (host === 'github.com' && parsed.pathname.startsWith('/login/device')) {
+      return 'Open github.com/login/device'
+    }
+    return host ? `Open ${host}` : 'Open login page'
+  } catch {
+    return 'Open login page'
   }
 }
 
@@ -607,6 +620,7 @@ function AccountsSection({
     uri?: string
     code?: string
   }>(null)
+  const [pastedCode, setPastedCode] = useState('')
   const signInLock = useRef<{ cancelled: boolean } | null>(null)
 
   const commit = useCallback(
@@ -626,20 +640,24 @@ function AccountsSection({
   const update = (i: number, patch: Partial<ProviderAccount>) =>
     commit(rows.map((a, n) => (n === i ? { ...a, ...patch } : a)))
 
-  // OAuth sign-in drives the same device flow the CLI's `auth login` drives
-  // (internal/service SignInService): copy the code, open GitHub, and poll
-  // until GitHub confirms. Confirm is long-running; Cancel aborts it.
+  // OAuth sign-in: device-code providers copy the code and poll; Claude
+  // opens the authorize URL and waits for a pasted code via submitCode.
   const onSignIn = (i: number) => {
     const snapshot = rows
     const accountName = snapshot[i]?.name ?? 'account'
     const lock = { cancelled: false }
     signInLock.current = lock
+    setPastedCode('')
     void (async () => {
       try {
         const s = await getHost().signin.start(id)
         if (lock.cancelled) return
-        void getHost().window.copyToClipboard(s.user_code)
-        void getHost().window.openURL(deviceLoginURL(s.verification_uri, s.user_code))
+        if (s.user_code) {
+          void getHost().window.copyToClipboard(s.user_code)
+          void getHost().window.openURL(deviceLoginURL(s.verification_uri, s.user_code))
+        } else {
+          void getHost().window.openURL(s.verification_uri)
+        }
         setSignIn({
           provider: id,
           account: accountName,
@@ -770,7 +788,11 @@ function AccountsSection({
         <SettingsModal
           open
           title={`Sign in to ${signIn.account}`}
-          description="Your code is copied and GitHub should open in your browser. This closes when GitHub confirms the device login."
+          description={
+            signIn.code
+              ? 'Your code is copied and the login page should open in your browser. This closes when the provider confirms.'
+              : 'A browser window opened. After you authorize, paste the code from the page and continue.'
+          }
           onClose={onCancelSignIn}
           closeOnBackdrop={false}
           actions={
@@ -782,8 +804,22 @@ function AccountsSection({
                   if (signIn.uri) void getHost().window.openURL(deviceLoginURL(signIn.uri, signIn.code ?? ''))
                 }}
               >
-                Open github.com/login/device
+                {openLoginLabel(signIn.uri ?? '')}
               </Button>
+              {!signIn.code ? (
+                <Button
+                  variant="primary"
+                  size="xs"
+                  disabled={!pastedCode.trim()}
+                  onClick={() => {
+                    void getHost().signin.submitCode(id, pastedCode.trim()).catch((e) => {
+                      onError(errText(e, 'could not submit code'))
+                    })
+                  }}
+                >
+                  Continue
+                </Button>
+              ) : null}
               <Button variant="secondary" size="xs" onClick={onCancelSignIn}>
                 Cancel
               </Button>
@@ -798,7 +834,21 @@ function AccountsSection({
             >
               {signIn.code}
             </div>
-          ) : null}
+          ) : (
+            <Input
+              value={pastedCode}
+              mono
+              placeholder="paste the code from the page"
+              onChange={setPastedCode}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && pastedCode.trim()) {
+                  void getHost().signin.submitCode(id, pastedCode.trim()).catch((err) => {
+                    onError(errText(err, 'could not submit code'))
+                  })
+                }
+              }}
+            />
+          )}
         </SettingsModal>
       )}
     </section>

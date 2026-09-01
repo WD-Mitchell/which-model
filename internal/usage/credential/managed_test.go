@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -171,6 +172,23 @@ func TestResolveProviderPreservesDeclaredSourcePrecedence(t *testing.T) {
 	}
 	if keychain.getCalls != 0 {
 		t.Fatalf("managed keychain read before higher-precedence source: %d calls", keychain.getCalls)
+	}
+}
+
+func TestResolveProviderUsesManagedStoreWithoutDeviceFlow(t *testing.T) {
+	store := ManagedStore{StateDir: t.TempDir(), Keychain: &fakeManagedKeychain{}, UseKeychain: false}
+	if err := store.Save("claude", "managed-claude-token"); err != nil {
+		t.Fatal(err)
+	}
+	sources := []usage.AuthSource{
+		{Kind: usage.AuthFile, FilePaths: []string{filepath.Join(t.TempDir(), "missing.json")}, JSONPath: "accessToken"},
+	}
+	credential, _, err := ResolveProvider(context.Background(), "claude", sources, &http.Client{}, store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if credential.Token != "managed-claude-token" {
+		t.Fatalf("ResolveProvider token = %q, want managed store", "<redacted>")
 	}
 }
 

@@ -91,6 +91,71 @@ enabled = true
 	}
 }
 
+func TestRefreshRoutesInvokesCatalogHook(t *testing.T) {
+	svc, rec := newTestServices(t, WithConfigTOML(`
+[usage]
+backend = "native"
+
+[providers.claude]
+enabled = true
+`))
+	stubModelsDevFetch(t, []modelsdev.ProviderModel{{
+		Provider:     "anthropic",
+		ModelID:      "claude-opus-5",
+		Name:         "Claude Opus 5",
+		EffortLevels: []string{"max"},
+	}})
+	called := 0
+	svc.SetCatalogRefresh(func(ctx context.Context) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		called++
+		return nil
+	})
+	if err := svc.Providers().RefreshRoutes(context.Background()); err != nil {
+		t.Fatalf("RefreshRoutes() error = %v", err)
+	}
+	if called != 1 {
+		t.Fatalf("catalog hook calls = %d, want 1", called)
+	}
+	sawCatalog := false
+	for _, ev := range rec.Events() {
+		if ev.Event == EventCatalogChanged {
+			sawCatalog = true
+		}
+	}
+	if !sawCatalog {
+		t.Fatalf("events after RefreshRoutes = %+v, want catalog:changed", rec.Events())
+	}
+}
+
+func TestRefreshRoutesCatalogHookErrorStopsJoin(t *testing.T) {
+	svc, _ := newTestServices(t, WithConfigTOML(`
+[usage]
+backend = "native"
+
+[providers.claude]
+enabled = true
+`))
+	fetched := 0
+	prev := fetchModelsDevCatalogue
+	fetchModelsDevCatalogue = func() ([]modelsdev.ProviderModel, error) {
+		fetched++
+		return nil, nil
+	}
+	t.Cleanup(func() { fetchModelsDevCatalogue = prev })
+	svc.SetCatalogRefresh(func(context.Context) error {
+		return context.Canceled
+	})
+	if err := svc.Providers().RefreshRoutes(context.Background()); err == nil {
+		t.Fatal("RefreshRoutes() error = nil, want catalog hook failure")
+	}
+	if fetched != 0 {
+		t.Fatalf("models.dev fetch calls = %d, want 0 after hook failure", fetched)
+	}
+}
+
 func stubModelsDevFetch(t *testing.T, models []modelsdev.ProviderModel) {
 	t.Helper()
 	prev := fetchModelsDevCatalogue

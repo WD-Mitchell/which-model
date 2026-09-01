@@ -317,8 +317,10 @@ export function createMockEngineHost(
   const data: MockData = { ...seedData(), ...(overrides ? clone(overrides) : {}) }
 
   // Per-host accounts so tests cannot leak signed-in state into later cases.
+  const confirmWaiters = new Map<string, { resolve: () => void; reject: (e: unknown) => void }>()
   const mockAccounts: Record<string, ProviderAccount[]> = {
     claude: [{ name: 'Work', kind: 'oauth', ref: '~/.claude/.credentials.json' }],
+    codex: [{ name: 'ChatGPT', kind: 'oauth', ref: '' }],
     copilot: [{ name: 'GitHub', kind: 'oauth', ref: '' }],
   }
 
@@ -838,21 +840,50 @@ export function createMockEngineHost(
 
     signin: {
       async start(provider) {
+        if (provider === 'claude') {
+          return {
+            verification_uri: 'https://claude.ai/oauth/authorize',
+            user_code: '',
+          }
+        }
+        if (provider === 'codex') {
+          return {
+            verification_uri: 'https://auth.openai.com/codex/device',
+            user_code: 'WDML-MOCK',
+          }
+        }
         if (provider !== 'copilot') {
           throw new EngineError('validation_failed', `sign-in for ${provider} is not supported`)
         }
         return { verification_uri: 'https://github.com/login/device', user_code: 'WDML-MOCK' }
       },
       async confirm(provider) {
-        const accounts = mockAccounts[provider]
-        if (!accounts) return
+        if (provider === 'claude') {
+          await new Promise<void>((resolve, reject) => {
+            confirmWaiters.set(provider, { resolve, reject })
+          })
+        }
+        const accounts = mockAccounts[provider] ?? [{ name: provider, kind: 'oauth' as const, ref: '' }]
         mockAccounts[provider] = accounts.map((a) =>
           a.kind === 'oauth' && !a.ref.trim() ? { ...a, ref: 'which-model' } : a,
         )
         emit('config:changed', { section: 'providers' })
         emit('usage:updated', {})
       },
-      async cancel() {},
+      async submitCode(provider, _code) {
+        const waiter = confirmWaiters.get(provider)
+        if (waiter) {
+          confirmWaiters.delete(provider)
+          waiter.resolve()
+        }
+      },
+      async cancel(provider) {
+        const waiter = confirmWaiters.get(provider)
+        if (waiter) {
+          confirmWaiters.delete(provider)
+          waiter.reject(new EngineError('validation_failed', 'sign-in cancelled'))
+        }
+      },
     },
 
     window: {

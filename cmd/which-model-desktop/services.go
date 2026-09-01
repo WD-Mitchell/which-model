@@ -183,9 +183,10 @@ func (a *SettingsAPI) ShellSnippets() (service.ShellSnippets, error) {
 	return a.svc.Settings().ShellSnippets(ctx)
 }
 
-// SignInAPI — EngineHost.signin. The interactive device-flow sign-in
-// (copilot OAuth): Start returns the verification URL + user code, Confirm
-// polls until approved and saves the credential, Cancel abandons.
+// SignInAPI — EngineHost.signin. Copilot/Codex device login and Claude
+// PKCE paste: Start returns the URL (+ user code when there is one),
+// Confirm waits until approved, SubmitCode delivers a pasted Claude code,
+// Cancel abandons.
 type SignInAPI struct{ svc *service.Services }
 
 func (a *SignInAPI) Start(provider string) (service.SignInStart, error) {
@@ -196,6 +197,9 @@ func (a *SignInAPI) Confirm(provider string) error {
 }
 func (a *SignInAPI) Cancel(provider string) error {
 	return a.svc.SignIn().Cancel(provider)
+}
+func (a *SignInAPI) SubmitCode(provider, code string) error {
+	return a.svc.SignIn().SubmitCode(provider, code)
 }
 
 // registerServices builds the application.Service entries for every engine

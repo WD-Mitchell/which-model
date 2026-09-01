@@ -490,8 +490,10 @@ func TestProviderDetail_LevelsAndDefault(t *testing.T) {
 	if detail.ID != "claude" {
 		t.Fatalf("Detail.ID = %q", detail.ID)
 	}
-	want := ProviderDetail{Accounts: []ProviderAccountDTO{}, 
-		ID: "claude",
+	want := ProviderDetail{
+		ID:       "claude",
+		Builtin:  true,
+		Accounts: []ProviderAccountDTO{{Name: "Claude", Kind: AccountKindOAuth, Ref: ""}},
 		Models: []ProviderModel{
 			{ModelID: "claude-eco", ModelName: "Claude Eco", Levels: []RouteLevel{
 				// low then default (collapsed to high = the top present rung).

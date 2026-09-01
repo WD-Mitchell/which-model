@@ -75,15 +75,17 @@ export interface EngineHost {
         shellSnippets(): Promise<ShellSnippets>;
     };
     signin: {
-        /** Begin the OAuth device flow: returns the verification URL + code to
-         *  show the user. Currently only copilot ships a device flow. */
+        /** Begin OAuth: returns the URL to open and, for device-code providers,
+         *  the user code. Claude returns an empty user_code (paste the callback). */
         start(provider: string): Promise<{
             verification_uri: string;
             user_code: string;
         }>;
-        /** Poll until approved/expired/denied and save the credential. Long-
-         *  running: call off the render path. Rejects with ErrorDTO. */
+        /** Poll / wait until approved/expired/denied and save the credential.
+         *  Long-running: call off the render path. Rejects with ErrorDTO. */
         confirm(provider: string): Promise<void>;
+        /** Deliver a pasted Claude authentication code to an in-flight confirm. */
+        submitCode(provider: string, code: string): Promise<void>;
         /** Abandon an active flow (safe to call anytime). */
         cancel(provider: string): Promise<void>;
     };
