@@ -65,18 +65,18 @@ describe('Combobox', () => {
     expect(onPick).not.toHaveBeenCalled()
   })
 
-  it('closes on Escape', () => {
-    const { container, onOpenChange } = setup()
+  it('closes on Escape when open', () => {
+    const { container, onOpenChange } = setup({ open: true })
     const input = container.querySelector('input')!
     fireEvent.keyDown(input, { key: 'Escape' })
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
-  // Issue #31: the Combobox owns Escape — the event must not reach the
-  // window-level dismiss listener (the settings shell closes the whole
-  // window), matching Menu.tsx's stopPropagation convention.
-  it('stops Escape from reaching window-level dismiss listeners', () => {
-    const { container, onOpenChange } = setup()
+  // Issue #31: with the list OPEN the Combobox owns Escape — the event must
+  // not reach the window-level dismiss listener (the settings shell closes
+  // the whole window), matching Menu.tsx's stopPropagation convention.
+  it('stops Escape from reaching window-level dismiss listeners while open', () => {
+    const { container, onOpenChange } = setup({ open: true })
     const input = container.querySelector('input')!
     const windowListener = vi.fn()
     window.addEventListener('keydown', windowListener)
@@ -84,6 +84,22 @@ describe('Combobox', () => {
       fireEvent.keyDown(input, { key: 'Escape' })
       expect(onOpenChange).toHaveBeenCalledWith(false)
       expect(windowListener).not.toHaveBeenCalled()
+    } finally {
+      window.removeEventListener('keydown', windowListener)
+    }
+  })
+
+  // Issue #65 review: with the list CLOSED the Combobox must not consume
+  // Escape — the event bubbles so the shell's window listener still fires.
+  it('lets closed-combobox Escape reach window-level dismiss listeners', () => {
+    const { container, onOpenChange } = setup({ open: false })
+    const input = container.querySelector('input')!
+    const windowListener = vi.fn()
+    window.addEventListener('keydown', windowListener)
+    try {
+      fireEvent.keyDown(input, { key: 'Escape' })
+      expect(onOpenChange).not.toHaveBeenCalled()
+      expect(windowListener).toHaveBeenCalledTimes(1)
     } finally {
       window.removeEventListener('keydown', windowListener)
     }
