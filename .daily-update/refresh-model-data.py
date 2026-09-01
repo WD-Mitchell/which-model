@@ -150,6 +150,13 @@ def main(argv: list[str] | None = None) -> int:
     except collector.UpdateError as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
+    except OSError as error:
+        # Temp-config writes and the CSV replacement run as ordinary file
+        # I/O; an OSError here (disk full, permissions, ENOSPC on the
+        # artifact write) must fail through the same structured path as
+        # UpdateError, not escape as a raw traceback (issue #47).
+        print(f"error: {error}", file=sys.stderr)
+        return 1
     print(f"updated {args.output}; backup: {backup}")
     return 0
 
