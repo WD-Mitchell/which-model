@@ -511,7 +511,7 @@ func classifyNoPick(ex []ExcludedCandidate) *CodedError {
 	}
 	for _, x := range ex {
 		if x.ReasonCode == "provider_error" {
-			return &CodedError{Code: "usage_gated", Message: "every candidate failed with a provider error"}
+			return &CodedError{Code: "usage_gated", Message: "one or more candidates failed with a provider error"}
 		}
 	}
 	return &CodedError{Code: "no_pick", Message: "no candidate matched the request"}

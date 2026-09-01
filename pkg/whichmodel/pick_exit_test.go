@@ -149,8 +149,8 @@ func TestPickExitProviderErrorClass(t *testing.T) {
 	if ce.Code != "usage_gated" {
 		t.Errorf("code = %q, want usage_gated", ce.Code)
 	}
-	if ce.Message != "every candidate failed with a provider error" {
-		t.Errorf("message = %q, want %q", ce.Message, "every candidate failed with a provider error")
+	if ce.Message != "one or more candidates failed with a provider error" {
+		t.Errorf("message = %q, want %q", ce.Message, "one or more candidates failed with a provider error")
 	}
 	if ExitCodeFor(err) != 4 {
 		t.Errorf("exit = %d, want 4", ExitCodeFor(err))

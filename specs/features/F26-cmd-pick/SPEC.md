@@ -96,7 +96,7 @@ project: which-model
 
 16. Exit classification when zero candidates survive (precedence high → low; Decision D-15):
     - any `auth_required` exclusion → exit 5 (`[no_pick] auth required; run which-model auth status`),
-    - else any `band_gated` or `provider_error` exclusion → exit 4 (`[no_pick] usage gating excluded every candidate`),
+    - else any `band_gated` exclusion → exit 4 (`[no_pick] usage gating excluded every candidate`); else any `provider_error` exclusion → exit 4 (`[no_pick] one or more candidates failed with a provider error`; when both classes appear, the gating message wins),
     - else (only `not_in_availability_list`/`no_score_row`) → exit 3 (`[no_pick] no candidate matched the request`).
     - Any survivor exits 0. Runtime errors exit 1; argument errors exit 2. Usage-disabled usage-aware strategies and strict `no_providers` misconfiguration exit 2.
 17. Exit signalling via the F22 exit contract (F26 CONTRACTS §8.1): `RunE` returns the F22 error types; the failure line `which-model pick: [<code>] <message>` is rendered by F22. (Source: F22 contract; Decisions D-16.)
@@ -117,7 +117,7 @@ project: which-model
 | Strict `no_providers` misconfig | 2 | `[usage_config] usage is enabled but no providers are enabled; set [providers.<id>] enabled = true or [usage] enabled = "auto"` |
 | `least_used` + usage disabled | 2 | `[usage_disabled] strategy "least_used" requires usage data` |
 | All excluded, any auth_required | 5 | `[no_pick] auth required; run which-model auth status` |
-| All excluded, any band_gated/provider_error | 4 | `[no_pick] usage gating excluded every candidate` |
+| All excluded, any band_gated/provider_error | 4 | `[no_pick] usage gating excluded every candidate` (gating) / `[no_pick] one or more candidates failed with a provider error` (provider failures only) |
 | All excluded, only availability/score | 3 | `[no_pick] no candidate matched the request` |
 | Unrouted score row | — | stderr warning `warning: no route for score row <model>/<reasoning>; ignored` (no exit effect) |
 | No score row | — | stderr warning `warning: no score row for <model>/<reasoning>; excluded` |
