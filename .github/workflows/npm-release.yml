@@ -2,6 +2,12 @@ name: npm-release
 on:
   push:
     tags: ["v*"]
+  # Manual re-run path: dispatch this workflow with `--ref <tag>` so
+  # GITHUB_REF_NAME is the version tag, exactly as a tag push provides it.
+  # Needed because the release steps are idempotent by design (immutable
+  # release detection + `npm publish` skip) and a release must be
+  # re-drivable when a tag push event is lost or a downstream job fails.
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
