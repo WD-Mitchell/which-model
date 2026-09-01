@@ -591,7 +591,12 @@ function AccountsSection({
   const onSignIn = (i: number) => {
     getHost()
       .signin.start(id)
-      .then((s) => setSignIn({ provider: id, account: rows[i]?.name ?? 'account', phase: 'code', uri: s.verification_uri, code: s.user_code }))
+      .then((s) => {
+        // Auto-copy the user code: GitHub's device page reads it straight
+        // from the clipboard, so the flow is open-website → paste → approve.
+        void getHost().window.copyToClipboard(s.user_code)
+        setSignIn({ provider: id, account: rows[i]?.name ?? 'account', phase: 'code', uri: s.verification_uri, code: s.user_code })
+      })
       .catch((e) => {
         setSignIn(null)
         onError(errText(e, 'could not start sign-in'))
@@ -717,11 +722,9 @@ function AccountsSection({
           title={`Sign in to ${signIn.account}`}
           description={
             signIn.phase === 'code'
-              ? 'Enter this code at github.com/login/device to authorise which-model.'
+              ? 'Your code is copied to the clipboard — open the website and paste it to authorise which-model.'
               : 'Waiting for you to finish in the browser — this closes when GitHub confirms the device login.'
           }
-          onClose={onCancelSignIn}
-          closeOnBackdrop={signIn.phase !== 'waiting'}
           actions={
             signIn.phase === 'code' ? (
               <>
@@ -729,10 +732,10 @@ function AccountsSection({
                   variant="primary"
                   size="xs"
                   onClick={() => {
-                    if (signIn.uri) void getHost().window.copyToClipboard(signIn.uri)
+                    if (signIn.uri) void getHost().window.openURL(signIn.uri)
                   }}
                 >
-                  Copy link
+                  Open github.com/login/device
                 </Button>
                 <Button variant="primary" size="xs" onClick={onConfirmSignIn}>
                   I entered the code
@@ -749,7 +752,11 @@ function AccountsSection({
           }
         >
           {signIn.code ? (
-            <div className={cx('mono', styles.deviceCode)} onClick={() => signIn.code && void getHost().window.copyToClipboard(signIn.code)}>
+            <div
+              className={cx('mono', styles.deviceCode)}
+              title="copied to clipboard — click to copy again"
+              onClick={() => signIn.code && void getHost().window.copyToClipboard(signIn.code)}
+            >
               {signIn.code}
             </div>
           ) : null}

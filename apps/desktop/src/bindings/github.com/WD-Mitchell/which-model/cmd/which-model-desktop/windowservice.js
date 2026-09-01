@@ -49,6 +49,17 @@ export function OpenSettings() {
 }
 
 /**
+ * OpenURL opens a URL in the user's default browser (device-flow sign-in,
+ * update checks). Failure is logged, never surfaced to the webview — the
+ * frontend treats a failed open as a no-op.
+ * @param {string} url
+ * @returns {$CancellablePromise<void>}
+ */
+export function OpenURL(url) {
+    return $Call.ByName("main.WindowService.OpenURL", url);
+}
+
+/**
  * Quit terminates the application cleanly.
  * @returns {$CancellablePromise<void>}
  */

@@ -120,6 +120,7 @@ export function createWailsHost(): EngineHost {
       hidePopover: () => call(WindowService.HidePopover() as Cancellable<void>, () => {}),
       quit: () => call(WindowService.Quit() as Cancellable<void>, () => {}),
       copyToClipboard: (text: string) => call(WindowService.CopyToClipboard(text) as Cancellable<void>, () => {}),
+      openURL: (url: string) => call(WindowService.OpenURL(url) as Cancellable<void>, () => {}),
       setPopoverHeight: (height: number) => call(WindowService.SetPopoverHeight(height) as Cancellable<void>, () => {}),
       setTrayPick: (profileName: string, modelName: string, reasoning: string, provider: string) =>
         call(WindowService.SetTrayPick(profileName, modelName, reasoning, provider) as Cancellable<void>, () => {}),

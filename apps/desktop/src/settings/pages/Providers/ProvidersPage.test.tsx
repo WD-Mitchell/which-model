@@ -49,14 +49,17 @@ describe('Providers page copilot sign-in', () => {
     resetHost(host)
   })
 
-  it('starts the device flow and shows the user code', async () => {
+  it('starts the device flow, auto-copies the code, and shows it', async () => {
     const startSpy = vi.spyOn(host.signin, 'start')
+    const copySpy = vi.spyOn(host.window, 'copyToClipboard').mockResolvedValue(undefined)
     await openCopilotDetail(host)
     const signIn = await screen.findByText('Sign in…')
     fireEvent.click(signIn)
     expect(await screen.findByText('WDML-MOCK')).toBeDefined()
-    // The start call went to the host for copilot.
+    // The start call went to the host for copilot and the user code was
+    // auto-copied so the flow is open-website → paste → approve.
     await waitFor(() => expect(startSpy).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(copySpy).toHaveBeenCalledWith('WDML-MOCK'))
   })
 
   it('confirm closes the modal after the flow resolves', async () => {
@@ -76,6 +79,14 @@ describe('Providers page copilot sign-in', () => {
     await screen.findByText('WDML-MOCK')
     fireEvent.click(screen.getByText('I entered the code'))
     expect(await screen.findByText('GitHub device login expired.')).toBeDefined()
+  })
+
+  it('open-website button hands the verification URI to the host', async () => {
+    const openSpy = vi.spyOn(host.window, 'openURL').mockResolvedValue(undefined)
+    await openCopilotDetail(host)
+    fireEvent.click(await screen.findByText('Sign in…'))
+    fireEvent.click(await screen.findByText('Open github.com/login/device'))
+    await waitFor(() => expect(openSpy).toHaveBeenCalledWith('https://github.com/login/device'))
   })
 
   it('cancel abandons the flow without confirming', async () => {

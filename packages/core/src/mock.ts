@@ -852,6 +852,7 @@ export function createMockEngineHost(
       async hidePopover() {},
       async quit() {},
       async copyToClipboard(_text) {},
+      async openURL(_url) {},
       async setPopoverHeight(_height) {},
       async setTrayPick(_profileName, _modelName, _reasoning, _provider) {},
     },

@@ -4,6 +4,10 @@
 package main
 
 import (
+	"log"
+	"os/exec"
+	"runtime"
+
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -81,5 +85,24 @@ func (w *WindowService) CopyToClipboard(text string) error {
 		return nil
 	}
 	w.app.Clipboard.SetText(text)
+	return nil
+}
+
+// OpenURL opens a URL in the user's default browser (device-flow sign-in,
+// update checks). Failure is logged, never surfaced to the webview — the
+// frontend treats a failed open as a no-op.
+func (w *WindowService) OpenURL(url string) error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", url)
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+	default:
+		cmd = exec.Command("xdg-open", url)
+	}
+	if err := cmd.Start(); err != nil {
+		log.Printf("windowservice: could not open %s: %v", url, err)
+	}
 	return nil
 }

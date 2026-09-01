@@ -104,6 +104,8 @@ export interface EngineHost {
     hidePopover(): Promise<void>
     quit(): Promise<void>
     copyToClipboard(text: string): Promise<void>
+    /** Open a URL in the user's default browser (device-flow verification). */
+    openURL(url: string): Promise<void>
     /** Resize the popover window to its content's natural height (px,
      *  clamped host-side to [320, 620]) so the panel is content-sized like
      *  the design instead of a fixed 620 with filler. */
