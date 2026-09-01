@@ -120,6 +120,16 @@ func TestRead(t *testing.T) {
 		}
 	})
 
+	t.Run("uppercase hash rejected", func(t *testing.T) {
+		// F06 CONTRACTS pins 64 LOWERCASE hex; the writer already rejected
+		// uppercase, so Read must too (issue #46 asymmetry).
+		upper := strings.ToUpper(hash64a)
+		_, _, err := Read(writeTemp(t, ProvenancePrefix+" raw_sha256="+upper+"\n"+scoresBody))
+		if !errors.Is(err, ErrMalformedCSV) {
+			t.Errorf("err = %v, want ErrMalformedCSV", err)
+		}
+	})
+
 	t.Run("short row", func(t *testing.T) {
 		_, _, err := Read(writeTemp(t, "a,b,c\n1,2\n"))
 		if !errors.Is(err, ErrMalformedCSV) {
