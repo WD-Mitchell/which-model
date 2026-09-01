@@ -210,5 +210,10 @@ func resetTime(raw json.RawMessage) *time.Time {
 	default:
 		return nil
 	}
-	return &tm
+	// Normalize to UTC like the codex/claude adapters (issue #49): a
+	// source offset like +02:00 or the host-local Unix() zone otherwise
+	// renders copilot resets in a different offset than every other
+	// provider.
+	utc := tm.UTC()
+	return &utc
 }
