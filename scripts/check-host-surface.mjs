@@ -16,7 +16,11 @@ const bindingsDir = resolve(
 
 const hostSrc = readFileSync(hostPath, 'utf8')
 
-// Explicit EngineHost group -> binding module mapping (S04 CONTRACTS §2).
+// EngineHost group -> generated binding module. The keys are the module
+// export names (wails generates lowercase FILENAMES — pickapi.js etc. — but
+// PascalCase export symbols), so the filename is the lowercased module name
+// + ".js" (issue #33: reading the PascalCase name ENOENTs on
+// case-sensitive filesystems, i.e. Linux CI).
 const GROUP_MODULE = {
   profiles: 'ProfilesAPI',
   pick: 'PickAPI',
@@ -30,7 +34,9 @@ const GROUP_MODULE = {
 }
 
 function exportedFunctions(moduleName) {
-  const src = readFileSync(`${bindingsDir}/${moduleName}.js`, 'utf8')
+  // wails3 generate bindings emits all-lowercase filenames (index.js
+  // imports "./pickapi.js" etc.); only the export symbols are PascalCase.
+  const src = readFileSync(`${bindingsDir}/${moduleName.toLowerCase()}.js`, 'utf8')
   return [...src.matchAll(/^export function ([A-Za-z_$][\w$]*)/gm)].map((m) => m[1])
 }
 
