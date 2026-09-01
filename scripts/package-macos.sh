@@ -32,20 +32,28 @@ BUILDDATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 LDFLAGS="-X ${MODULE}/pkg/whichmodel.Version=${VERSION} -X ${MODULE}/pkg/whichmodel.Commit=${COMMIT} -X ${MODULE}/pkg/whichmodel.BuildDate=${BUILDDATE}"
 (cd "$ROOT" && go build -trimpath -ldflags "$LDFLAGS" -o "$MACOS/which-model-desktop" ./cmd/which-model-desktop)
 
-# Derive the bundle version from the same source as the binary's ldflags:
-# the git tag (v-prefixed stripped), falling back to the raw describe output
-# (dev/dirty builds) so the plist never contradicts the binary it wraps.
-if [[ "$VERSION" == v* ]]; then
-  BUNDLE_VERSION="${VERSION#v}"
-else
-  BUNDLE_VERSION="$VERSION"
+# Derive the bundle version from the same source as the binary's ldflags.
+# CFBundleShortVersionString must be a numeric X.Y.Z marketing version and
+# CFBundleVersion a numeric build number — raw `git describe` output
+# (v2.0.0-beta.1-11-ge9d5773, dev, ...-dirty) is NOT valid for either, so
+# extract the release tag's X.Y.Z and fail packaging when none exists
+# (issue #43 review: never copy describe output into the plist).
+MARKETING_VERSION="$(printf '%s' "$VERSION" | sed -nE 's/^v?([0-9]+\.[0-9]+\.[0-9]+).*$/\1/p')"
+if [ -z "$MARKETING_VERSION" ]; then
+  echo "error: no numeric X.Y.Z release version derivable from '$VERSION'." >&2
+  echo "       tag the commit (e.g. v1.2.3) before packaging." >&2
+  exit 1
 fi
-echo "==> Bundle version: $BUNDLE_VERSION"
+BUILD_NUMBER="$(git -C "$ROOT" rev-list --count "$(git -C "$ROOT" describe --tags --abbrev=0 2>/dev/null)..HEAD" 2>/dev/null || echo 1)"
+case "$BUILD_NUMBER" in
+  ''|*[!0-9]*) BUILD_NUMBER=1 ;;
+esac
+echo "==> Bundle version: $MARKETING_VERSION (build $BUILD_NUMBER)"
 
 # Info.plist — LSUIElement=true keeps the app out of the Dock (menu-bar only).
-# CFBundleVersion/ShortVersionString are interpolated from BUNDLE_VERSION
-# (issue #43): the plist must match the binary's stamped version, never a
-# hardcoded literal.
+# CFBundleShortVersionString carries the marketing version, CFBundleVersion
+# the numeric build counter; both derive from the same tag source as the
+# binary's ldflags (issue #43), never a hardcoded literal.
 cat > "$CONTENTS/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -62,9 +70,9 @@ cat > "$CONTENTS/Info.plist" <<PLIST
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleVersion</key>
-    <string>${BUNDLE_VERSION}</string>
+    <string>${BUILD_NUMBER}</string>
     <key>CFBundleShortVersionString</key>
-    <string>${BUNDLE_VERSION}</string>
+    <string>${MARKETING_VERSION}</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
     <key>LSUIElement</key>
@@ -74,6 +82,7 @@ cat > "$CONTENTS/Info.plist" <<PLIST
     <key>NSSupportsAutomaticGraphicsSwitching</key>
     <true/>
 </dict>
+</plist>
 PLIST
 
 # Copy tray icon as a resource.
