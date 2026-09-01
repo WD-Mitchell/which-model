@@ -632,7 +632,7 @@ normalizer = "minmax-linear"
 aggregator = "weighted-arithmetic-mean"
 
 [strategy]
-default = "score"          # default --strategy when which-model pick omits it
+default = "priority"       # default --strategy when which-model pick omits it
 default_profile = "balanced_implementation"
 tier1_share = 100           # percent weight of tier-1 metrics vs tier-2 categories, mirrors rank_models.py --tier1-share/--tier2-share
 tier2_share = 0

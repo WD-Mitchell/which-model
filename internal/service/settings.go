@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/WD-Mitchell/which-model/internal/config"
+	"github.com/WD-Mitchell/which-model/internal/pick/strategy"
 )
 
 // SettingsService is the settings facet of Services.
@@ -85,13 +86,15 @@ func (g *SettingsService) ShellSnippets(ctx context.Context) (ShellSnippets, err
 	}
 	slug := "balanced_implementation"
 	g.s.mu.RLock()
-	var strategy struct {
-		DefaultProfile string `toml:"default_profile"`
-	}
-	if err := g.s.cfg.UnmarshalKey("strategy", &strategy); err == nil && strategy.DefaultProfile != "" {
-		slug = strategy.DefaultProfile
-	}
+	var strategyConfig strategy.Config
+	err := g.s.cfg.UnmarshalKey("strategy", &strategyConfig)
 	g.s.mu.RUnlock()
+	if err != nil {
+		return ShellSnippets{}, toErrorDTO(fmt.Errorf("%w: %v", errValidation, err))
+	}
+	if strategyConfig.DefaultProfile != "" {
+		slug = strategyConfig.DefaultProfile
+	}
 	out := ShellSnippets{Alias: shellAlias, ClaudeMD: shellClaudeMD, Preview: "$ wm " + slug + "  →  no route"}
 	resp, err := g.s.Rank(ctx, RankRequest{ProfileSlug: slug, Holds: 3})
 	if err == nil && len(resp.Candidates) > 0 {

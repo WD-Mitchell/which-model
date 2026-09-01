@@ -39,7 +39,10 @@ type State struct {
 }
 
 type Config struct {
-    Default string `toml:"default"`
+    Default        string `toml:"default"`
+    DefaultProfile string `toml:"default_profile"`
+    Tier1Share     int    `toml:"tier1_share"`
+    Tier2Share     int    `toml:"tier2_share"`
 }
 
 type Strategy interface {
@@ -75,10 +78,15 @@ type ErrMissingReset struct{ Provider string }
 
 | Surface | Default | Contract |
 |---|---|---|
-| `strategy.default` | `"priority"` | canonical strategy name |
+| `strategy.default` | unset | canonical strategy name; F26 uses its dynamic fallback when unset |
+| `strategy.default_profile` | `"balanced_implementation"` | consumer fallback for the default ranking profile |
+| `strategy.tier1_share` | `100` | integer percentage |
+| `strategy.tier2_share` | `0` | integer percentage |
 | `providers.<id>.priority` | `0` | higher values are preferred |
-| `--strategy` | `priority` | one of the five canonical names |
+| `--strategy` | `""` | explicit canonical name; overrides `strategy.default` |
 | `--dry-run` | `false` | round-robin does not advance |
+
+`Config` is the single decoder schema for the complete `[strategy]` table. Every consumer decodes this full struct; partial anonymous structs are prohibited because F01 rejects undecoded sibling keys.
 
 `--seed` and `strategy.cost_max_score_drop` are removed.
 

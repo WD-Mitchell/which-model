@@ -157,8 +157,10 @@ which-model usage --all --json
 
 Once a backend and at least one provider are enabled, the default
 `usage.enabled = "auto"` setting allows `pick` to incorporate live or cached
-allowance data. With usage enabled, `pick` defaults to `closest-to-reset`; with
-usage disabled, it defaults to `priority`. Use `--no-usage` at any time to force
+allowance data. When `--strategy` is omitted, `pick` resolves the strategy in
+this order: an explicit `--strategy` flag, then `strategy.default` in
+`config.toml` if set, then the usage-aware fallback (`closest-to-reset` with
+usage enabled, `priority` without). Use `--no-usage` at any time to force
 a score-only run.
 
 > [!IMPORTANT]
@@ -185,7 +187,7 @@ Run `which-model <command> --help` for all options.
 - **`round-robin`** — rotate across candidates.
 - **`least-used`** — prefer the provider with the most allowance remaining; requires usage detection.
 - **`most-used`** — prefer the provider with the least allowance remaining; requires usage detection.
-- **`closest-to-reset`** — prefer the provider whose allowance resets soonest; requires usage detection and is the default when usage detection is enabled.
+- **`closest-to-reset`** — prefer the provider whose allowance resets soonest; requires usage detection and is the usage-aware fallback default when neither `--strategy` nor `strategy.default` is set.
 
 Example:
 

@@ -47,6 +47,8 @@ Select the provider with the earliest timestamp in `State.ResetAtByProvider`. F2
 
 `ParseStrategy("")` returns `pick.StrategyPriority`. `New` and `ParseStrategy` accept exactly the five canonical hyphenated strategy names. Unknown and removed names wrap `ErrUnknownStrategy`.
 
+`Config` owns the complete `[strategy]` table: `default`, `default_profile`, `tier1_share`, and `tier2_share`. CLI and desktop consumers decode that shared struct in full so F01 strict decoding accepts canonical sibling keys and rejects unknown keys consistently.
+
 Only `priority` and `round-robin` work when usage is disabled. `least-used`, `most-used`, and `closest-to-reset` refuse rather than silently degrading.
 
 ## 5. Error behaviour

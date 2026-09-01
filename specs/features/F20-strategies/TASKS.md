@@ -14,7 +14,7 @@ Feature prerequisites: F10, F18, and F19. Canonical enums come from `specs/globa
 **Files:** `internal/pick/strategy/strategy.go`, `internal/pick/strategy/strategy_test.go`
 
 1. Test route-key ordering, priority ordering, errors, and usage-disable messages.
-2. Implement `State`, `Config`, shared sorting helpers, and the errors in `CONTRACTS.md` §3-§5.
+2. Implement `State`, the complete shared `[strategy]` `Config` (`default`, `default_profile`, `tier1_share`, `tier2_share`), shared sorting helpers, and the errors in `CONTRACTS.md` §3-§5. Consumers must use this type rather than partial anonymous decoders.
 3. Run `go test ./internal/pick/strategy/...`.
 
 ## Task F20-T2: Implement priority selection

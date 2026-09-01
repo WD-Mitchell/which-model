@@ -127,28 +127,26 @@ func (c *Config) DecodeFile(path string) error {
 
 var (
 	textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
-	durationType         = reflect.TypeOf(time.Duration(0))
+	durationType        = reflect.TypeOf(time.Duration(0))
 )
 
 func (c *Config) UnmarshalKey(key string, out any) error {
-	node := rawLookup(c.raw, key)
-	if node == nil {
-		return nil
-	}
-	table, ok := node.(map[string]any)
-	if !ok {
-		return &ConfigError{Kind: KindInvalidValue, Key: key, Err: errors.New("not a table")}
-	}
-	text, err := toml.Marshal(table)
-	if err != nil {
-		return &ConfigError{Kind: KindInvalidValue, Key: key, Err: err}
-	}
-	md, err := toml.Decode(string(text), out)
-	if err != nil {
-		return &ConfigError{Kind: KindInvalidValue, Key: key, Err: err}
-	}
-	if undecoded := md.Undecoded(); len(undecoded) > 0 {
-		return &ConfigError{Kind: KindInvalidValue, Key: key + "." + undecoded[0].String()}
+	if node := rawLookup(c.raw, key); node != nil {
+		table, ok := node.(map[string]any)
+		if !ok {
+			return &ConfigError{Kind: KindInvalidValue, Key: key, Err: errors.New("not a table")}
+		}
+		text, err := toml.Marshal(table)
+		if err != nil {
+			return &ConfigError{Kind: KindInvalidValue, Key: key, Err: err}
+		}
+		md, err := toml.Decode(string(text), out)
+		if err != nil {
+			return &ConfigError{Kind: KindInvalidValue, Key: key, Err: err}
+		}
+		if undecoded := md.Undecoded(); len(undecoded) > 0 {
+			return &ConfigError{Kind: KindInvalidValue, Key: key + "." + undecoded[0].String()}
+		}
 	}
 
 	if len(c.env) == 0 {

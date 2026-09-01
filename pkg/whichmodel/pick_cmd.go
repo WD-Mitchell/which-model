@@ -33,7 +33,7 @@ func NewPickCmd() *cobra.Command {
 	cmd.Flags().String("profile", "", "profile id (one of the eleven annex-c §2.1 names)")
 	cmd.Flags().String("task-category", "", "task category selector, paired with --complexity")
 	cmd.Flags().String("complexity", "", "task complexity for --task-category (simple|medium|complex)")
-	cmd.Flags().String("strategy", "", "strategy name (default: closest-to-reset with usage, priority without)")
+	cmd.Flags().String("strategy", "", "strategy name; default: strategy.default from config, else closest-to-reset with usage, priority without")
 	cmd.Flags().StringSlice("available", nil, "allowlist file of model ids (repeatable)")
 	return cmd
 }
@@ -73,7 +73,7 @@ type PickArgs struct {
 	Profile      string   // resolved profile id (after --task-category mapping)
 	TaskCategory string   // raw --task-category (resolved in T2)
 	Complexity   string   // raw --complexity
-	Strategy     string   // blank selects closest-to-reset with usage, priority without
+	Strategy     string   // explicit --strategy wins, then strategy.default from config, then closest-to-reset (usage enabled) / priority (disabled)
 	Allowlists   []string // --available paths (raw, pre-read)
 	NoUsage      bool     // Global.NoUsage
 	JSON         bool     // Global.JSON; forced true when stdout is not a TTY

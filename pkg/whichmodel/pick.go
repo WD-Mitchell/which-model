@@ -272,17 +272,18 @@ type timeValue = time.Time
 // adapters (score rows, snapshots, evidence inputs). Single-threaded: set
 // at RunPick start, restored on exit.
 type runState struct {
-	cfg          *config.Config
-	profile      string
-	dataDir      string
-	scores       []catalog.ScoreRow // scores CSV, loaded once per run
-	scoreInputs  map[string]map[string]float64
-	routesByKey  map[string]routing.Route
-	excluded     []ExcludedCandidate
-	snapshots    map[string]*usageSnapshot
-	lastVerified map[string]timeValue
-	usageEnabled bool
-	usageReason  string
+	cfg            *config.Config
+	strategyConfig strategy.Config
+	profile        string
+	dataDir        string
+	scores         []catalog.ScoreRow // scores CSV, loaded once per run
+	scoreInputs    map[string]map[string]float64
+	routesByKey    map[string]routing.Route
+	excluded       []ExcludedCandidate
+	snapshots      map[string]*usageSnapshot
+	lastVerified   map[string]timeValue
+	usageEnabled   bool
+	usageReason    string
 	// pressureByProvider feeds least-used and most-used; resetAtByProvider
 	// feeds closest-to-reset.
 	pressureByProvider map[string]float64
@@ -409,16 +410,12 @@ var strategyApplyFunc = func(name string, cands []Candidate, opts strategyOption
 		Profile:             st.profile,
 		DataDir:             st.dataDir,
 		ProviderPriority:    providerOrder(st.cfg),
+		Config:              st.strategyConfig,
 		UsageEnabled:        st.usageEnabled,
 		UsageDisabledReason: st.usageReason,
 		PressureByProvider:  st.pressureByProvider,
 		ResetAtByProvider:   st.resetAtByProvider,
 	}
-	var sc strategy.Config
-	if err := st.cfg.UnmarshalKey("strategy", &sc); err != nil {
-		return nil, err
-	}
-	state.Config = sc
 	pcands := make([]pick.Candidate, len(cands))
 	for i, c := range cands {
 		pcands[i] = pick.Candidate{
@@ -889,15 +886,25 @@ func RunPick(args PickArgs, stdout, stderr io.Writer) error {
 	if err != nil {
 		return &UsageError{Message: err.Error()}
 	}
+	var strategyConfig strategy.Config
+	if err := cfg.UnmarshalKey("strategy", &strategyConfig); err != nil {
+		return &UsageError{Message: err.Error()}
+	}
 	enabled, reason := toggleResolveFunc(args.NoUsage, cfg)
 	if args.Strategy == "" {
-		if enabled {
-			args.Strategy = string(pick.StrategyClosestToReset)
-		} else {
-			args.Strategy = string(pick.StrategyPriority)
+		args.Strategy = strategyConfig.Default
+		if args.Strategy == "" {
+			if enabled {
+				args.Strategy = string(pick.StrategyClosestToReset)
+			} else {
+				args.Strategy = string(pick.StrategyPriority)
+			}
+		}
+		if err := validateStrategy(args.Strategy, strategyNamesFunc()); err != nil {
+			return err
 		}
 	}
-	st := &runState{cfg: cfg, profile: profile, scores: loadScoreRows(cfg), dataDir: stateDirFunc()}
+	st := &runState{cfg: cfg, strategyConfig: strategyConfig, profile: profile, scores: loadScoreRows(cfg), dataDir: stateDirFunc()}
 	prev := pickRun
 	pickRun = st
 	defer func() { pickRun = prev }()

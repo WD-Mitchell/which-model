@@ -156,6 +156,20 @@ func TestUnmarshalKey(t *testing.T) {
 			},
 		},
 		{
+			name: "env-overlay-without-file-section",
+			file: "",
+			run: func(t *testing.T, cfg *Config) {
+				cfg.env = map[string]string{"catalog.cache_ttl": "1h"}
+				var got testCatalog
+				if err := cfg.UnmarshalKey("catalog", &got); err != nil {
+					t.Fatalf("UnmarshalKey: %v", err)
+				}
+				if got.CacheTTL != time.Hour {
+					t.Fatalf("cache TTL = %s, want 1h", got.CacheTTL)
+				}
+			},
+		},
+		{
 			name: "env-parse-error",
 			file: "[catalog]\n",
 			run: func(t *testing.T, cfg *Config) {

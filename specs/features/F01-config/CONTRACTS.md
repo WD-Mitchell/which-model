@@ -166,13 +166,14 @@ the name that equals a vocabulary key (underscores included, e.g. `DEFAULT_PROFI
 
 ```go
 // Decodes the merged TOML subtree at the dotted key into out (struct
-// pointer, pre-populated with the caller's defaults), overlays stored env
-// overrides whose dotted path falls under the subtree (matched by toml tag
-// path; scalar kinds only: string, bool, int, time.Duration,
-// encoding.TextUnmarshaler, or a pointer to any of these — nil pointers
-// are allocated, so callers keep unset-vs-zero semantics), and rejects
-// unknown keys inside the subtree (KindInvalidValue). Missing key → out
-// untouched, nil. Key must address a TOML table.
+// pointer, pre-populated with the caller's defaults), then overlays stored
+// env overrides whose dotted path falls under the subtree even when no file
+// declares that table (matched by toml tag path; scalar kinds only: string,
+// bool, int, time.Duration, encoding.TextUnmarshaler, or a pointer to any of
+// these — nil pointers are allocated, so callers keep unset-vs-zero
+// semantics), and rejects unknown keys inside the subtree
+// (KindInvalidValue). A missing TOML key with no matching env override leaves
+// out untouched and returns nil. A present key must address a TOML table.
 func (c *Config) UnmarshalKey(key string, out any) error
 
 // Decodes one TOML file as a layer into c: parse, merge into the raw
