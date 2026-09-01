@@ -13,12 +13,39 @@ type Paths struct {
 }
 
 func ResolvePaths(goos, home string, getenv func(string) string) Paths {
-	configDir := filepath.Join(home, ".which-model")
+	if getenv == nil {
+		getenv = func(string) string { return "" }
+	}
+	// annex-d §4.5: darwin uses the macOS column unconditionally (XDG_*
+	// ignored, matching platform convention); every other GOOS follows the
+	// XDG base directories with their documented defaults.
+	if goos == "darwin" {
+		configDir := filepath.Join(home, "Library", "Application Support", "which-model")
+		return Paths{
+			UserConfigFile: filepath.Join(configDir, "config.toml"),
+			ConfigDir:      configDir,
+			CacheDir:       filepath.Join(home, "Library", "Caches", "which-model"),
+			StateDir:       filepath.Join(configDir, "state"),
+		}
+	}
+	configBase := getenv("XDG_CONFIG_HOME")
+	if configBase == "" {
+		configBase = filepath.Join(home, ".config")
+	}
+	cacheBase := getenv("XDG_CACHE_HOME")
+	if cacheBase == "" {
+		cacheBase = filepath.Join(home, ".cache")
+	}
+	stateBase := getenv("XDG_STATE_HOME")
+	if stateBase == "" {
+		stateBase = filepath.Join(home, ".local", "state")
+	}
+	configDir := filepath.Join(configBase, "which-model")
 	return Paths{
 		UserConfigFile: filepath.Join(configDir, "config.toml"),
 		ConfigDir:      configDir,
-		CacheDir:       filepath.Join(configDir, "cache"),
-		StateDir:       filepath.Join(configDir, "state"),
+		CacheDir:       filepath.Join(cacheBase, "which-model"),
+		StateDir:       filepath.Join(stateBase, "which-model"),
 	}
 }
 

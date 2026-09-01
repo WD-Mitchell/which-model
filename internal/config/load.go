@@ -61,6 +61,9 @@ func Load(opts LoadOptions) (*Config, error) {
 	}
 
 	cfg := Default()
+	if err := EnsureLegacyMigration(ResolvePaths(goos, home, getenv)); err != nil {
+		return nil, err
+	}
 	userFile := UserConfigFile(goos, home, getenv)
 	if info, err := os.Stat(userFile); err == nil && !info.IsDir() {
 		if err := cfg.DecodeFile(userFile); err != nil {
