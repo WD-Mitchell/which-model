@@ -1,11 +1,23 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
-
+# Dependabot version updates. The scaffold placeholder
+# (`package-ecosystem: ""`) was invalid and disabled updates entirely
+# (issue #44); declare each ecosystem the repo actually carries.
 version: 2
 updates:
-  - package-ecosystem: "" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  # Go module (CLI + libraries + desktop backend).
+  - package-ecosystem: "gomod"
+    directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+  # pnpm workspace (packages/*, apps/desktop, npm/* platform packages).
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+  # GitHub Actions workflows.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+  # Daily-update pipeline scripts (.daily-update/, Python stdlib only —
+  # no requirements.txt exists, so this entry is intentionally omitted
+  # until a manifest lands; see the issue discussion).
