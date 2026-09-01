@@ -58,6 +58,25 @@ describe('SettingsApp', () => {
     act(() => navBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true })))
     expect(await screen.findByText('Built-in profiles are read-only; duplicate one to edit its weights.')).toBeDefined()
   })
+
+  it('requests an engine-valid rank for the Favourites add-model search', async () => {
+    const rank = vi.spyOn(host.pick, 'rank')
+    resetHost(host)
+    renderApp(host)
+    const favourites = await screen.findAllByText('Favourites')
+    const navBtn = favourites.find((el) => el.tagName === 'BUTTON')
+    act(() => navBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+    await screen.findByText('Pinned models are offered first when they rank in range for the profile.')
+    await waitFor(() => expect(rank).toHaveBeenCalled())
+    expect(rank).toHaveBeenCalledWith(
+      expect.objectContaining({
+        profile_slug: 'balanced_implementation',
+        holds: 0,
+      }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Add model' }))
+    expect(await screen.findByText('Claude Sonnet 5.2')).toBeDefined()
+  })
 })
 
 describe('SettingsShell close', () => {

@@ -296,6 +296,16 @@ describe('createMockEngineHost — rank', () => {
     expect(fired).toEqual([])
   })
 
+  it('rejects holds values the engine rejects', async () => {
+    const host = createMockEngineHost()
+    await expect(
+      host.pick.rank({ profile_slug: 'balanced_implementation', holds: 50 }),
+    ).rejects.toMatchObject({
+      code: 'validation_failed',
+      message: 'holds 50 must be 3, 5 or 10',
+    })
+  })
+
   it('rank with overrides ignores the named profile weights and fires no event', async () => {
     const host = createMockEngineHost()
     const fired: string[] = []
