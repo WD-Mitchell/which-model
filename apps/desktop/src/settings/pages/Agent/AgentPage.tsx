@@ -43,8 +43,14 @@ export function AgentPage(_props: PageComponentProps) {
 
   const copy = useCallback(
     async (text: string) => {
-      await getHost().window.copyToClipboard(text)
-      toast.show('copied')
+      try {
+        await getHost().window.copyToClipboard(text)
+        toast.show('copied')
+      } catch (e) {
+        // Silent failure reads as success; report it like the popover's
+        // clipboard path does (issue #42).
+        toast.show((e as { message?: string }).message ?? 'copy failed')
+      }
     },
     [toast],
   )
