@@ -14,7 +14,7 @@ module: github.com/WD-Mitchell/which-model
 - `pkg/whichmodel/auth.go` — pure logic: status resolution/redaction, login orchestration, logout orchestration. Compiles under both build tags (F21 stubs).
 - Tests: `pkg/whichmodel/auth_cmd_test.go`, `pkg/whichmodel/auth_status_test.go`, `pkg/whichmodel/auth_redaction_test.go`, `pkg/whichmodel/auth_expiry_test.go`, `pkg/whichmodel/auth_login_test.go`, `pkg/whichmodel/auth_logout_test.go`, `pkg/whichmodel/auth_json_test.go`.
 
-No config keys, no state files are owned by F25 (it reads `[usage] enabled` and `[providers.<id>].enabled`; it never writes).
+F25 reads `[usage]`, provider enablement, and `[auth].use_keychain`. F12 owns managed credential persistence under the platform state directory; F25 writes it only through `credential.ManagedStore`.
 
 ## 2. Exported API (`pkg/whichmodel`)
 
@@ -67,17 +67,19 @@ Consumed global flags: `--json`, `--show-identity`, `--no-usage`. No other per-s
 | `usage.enabled` | `config.Load` typed field | L1 disabled refusal (SPEC §2.13) |
 | `usage.backend` | `config.Load` typed field | native-only command gate; off/codexbar refusal (SPEC §2.13) |
 | `providers.<id>.enabled` | `cfg.UnmarshalKey("providers.<id>.enabled", &v)` | `status` with no args (SPEC §2.1) |
+| `auth.use_keychain` | `cfg.LoadAuth()` | prefer OS keychain for managed sign-ins; default true |
 
 ## 5. Error codes and exit codes
 
-Command-level code strings on the failure line (`which-model auth <sub>: [<code>] <message>`): `arguments` (exit-2 argument errors — `UsageError`), `usage_disabled` (`--no-usage`, `usage.enabled = false`, or `usage.backend = "off"`), `unsupported` (CodexBar backend or login for a non-device-flow provider), `runtime` (logout removal failure). F25 `status` exit 5 uses the canonical codes `expired_credential` (any expired) or `login_required` (missing only) — both map to exit 5 via F22's global table. No new `Failure.Code` values are added (global CONTRACTS §1.6 is closed).
+Command-level code strings on the failure line (`which-model auth <sub>: [<code>] <message>`): `arguments` (exit-2 argument errors — `UsageError`), `usage_disabled` (`--no-usage`, `usage.enabled = false`, or `usage.backend = "off"`), `unsupported` (CodexBar backend or login for a non-device-flow provider), `runtime` (device polling, managed save, or logout removal failure). F25 `status` exit 5 uses the canonical codes `expired_credential` (any expired) or `login_required` (missing only) — both map to exit 5 via F22's global table. No new `Failure.Code` values are added (global CONTRACTS §1.6 is closed).
 
 | Subcommand | Exit | Condition |
 |---|---|---|
 | `status` | 0 | every queried provider `ok` |
 | `status` | 5 | ≥1 queried provider `missing` or `expired` |
 | `status` | 2 | unknown provider; bad flags; usage disabled |
-| `login` | 0 | device flow started/handed off successfully |
+| `login` | 0 | device flow completed and managed credential stored |
+| `login` | 1 | device polling or managed credential storage failed |
 | `login` | 2 | unknown provider; non-TTY or `WHICH_MODEL_NONINTERACTIVE=1`; unsupported provider; usage disabled |
 | `logout` | 0 | removed; prompt declined (`aborted`); nothing to remove |
 | `logout` | 1 | removal runtime error |
@@ -111,7 +113,7 @@ codex    ok       oauth   f6a4e1…77ab
 copilot  missing  -       -            -    run: which-model auth login copilot
 ```
 
-`login` stdout: `Open <verification_uri> and enter code <code>.` (exactly one line); `waiting for confirmation...` on stderr.
+`login` stdout: `Open <verification_uri> and enter code <code>.` (exactly one line); `waiting for confirmation...` on stderr. The command then polls to completion and persists the returned token before exiting 0; the token is never rendered.
 
 `logout` prompt (stdout): `Remove which-model's cached credential for <provider>? [y/N] `; declined → stderr `aborted`.
 
@@ -163,37 +165,33 @@ func registeredCommands() []*cobra.Command
 ```go
 package credential
 
-type Resolved struct {
-    Source    usage.Source // which resolver produced the credential
-    Secret    string       // the opaque token
-    ExpiresAt *time.Time   // nil = no known expiry
-    Account   string       // login/account identity if resolvable
-    Path      string       // filesystem path when file-sourced ("" otherwise)
-    FileMode  fs.FileMode  // mode of the source file (zero when not file-sourced)
+type ManagedStore struct {
+    StateDir    string
+    Keychain    ManagedKeychainStore
+    UseKeychain bool
 }
 
-// ResolveFirst tries the provider descriptor's ordered AuthSource chain and
-// returns the first usable credential. Missing credential → ErrNoCredential.
-func ResolveFirst(providerID string) (Resolved, error)
+func (s ManagedStore) Save(providerID, token string) error
+func (s ManagedStore) Remove(providerID string) error
+func ResolveProvider(ctx context.Context, providerID string, sources []usage.AuthSource, client *http.Client, store ManagedStore) (usage.Credential, []Warning, error)
 
-// Remove deletes ONLY credential material which-model itself wrote (its own
-// cache entries / keychain items). Provider-native stores are never touched.
-func Remove(providerID string) error
-
-// DeviceFlow is an interactive device-code flow (Copilot).
-type DeviceFlow struct {
-    Code           string // e.g. "WXYZ-1234"
-    VerificationURI string // e.g. "https://github.com/login/device"
+type DeviceFlow struct { /* see F12 CONTRACTS §7 */ }
+type DeviceCode struct {
+    DeviceCode       string
+    UserCode         string
+    VerificationURI string
+    ExpiresIn        time.Duration
+    Interval         time.Duration
 }
 
-// StartDeviceFlow begins the flow and returns immediately with the prompt
-// fields; Wait blocks until confirmation or deadline.
-func StartDeviceFlow(providerID string) (DeviceFlow, error)
+func NewDeviceFlow(spec usage.OAuthSpec) *DeviceFlow
+func (f *DeviceFlow) Start(ctx context.Context) (DeviceCode, error)
+func (f *DeviceFlow) Poll(ctx context.Context, code DeviceCode) (string, error)
 
-var ErrNoCredential = errors.New("no usable credential")
+var ErrNotFound = errors.New("credential not found")
 ```
 
-Expected files: `internal/usage/credential/*.go`. F25 consumes `ResolveFirst`, `Remove`, `StartDeviceFlow`/`DeviceFlow` only.
+F25 wraps `Start` so only `UserCode`/`VerificationURI` reach the renderer, polls using the retained `DeviceCode`, and passes the token directly to `ManagedStore.Save`. Status uses `ResolveProvider`; logout uses `ManagedStore.Remove`.
 
 ### 8.3 F05 `internal/security` (pinned surface)
 
@@ -204,9 +202,9 @@ Expected files: `internal/usage/credential/*.go`. F25 consumes `ResolveFirst`, `
 
 - `func All() []Descriptor`, `func Get(id string) (Descriptor, bool)` (`internal/usage/registry.go`) — provider validation (SPEC §2.1) and `AuthSources` display (SPEC §3).
 
-### 8.5 F01 `internal/config`
+### 8.5 F01/B01 `internal/config`
 
-- `func Load(path string) (*config.Config, error)` and `func (c *Config) UnmarshalKey(key string, out any) error` — `usage.enabled`, `providers.<id>.enabled` (SPEC §2.13).
+- `config.Load`, `(*Config).LoadAuth`, `config.ResolvePaths` — usage gates, `[auth].use_keychain`, and the managed fallback state directory.
 
 ## 9. Security invariants (this feature)
 

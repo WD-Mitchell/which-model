@@ -9,15 +9,15 @@ project: which-model-desktop
 
 ## 1. Purpose
 
-`SettingsService` owns the `[gui]` config section behind the Settings "General" page (mockup `generalToggles`, `shortcutOpts`, `holdOpts`, `dispCarousel`/`dispList`, `slStep`/`slBar`/`slSlider` blocks) and the "Agent integration" page's shell-hook snippets (mockup `agentRows` + `agentSnippet`). It exposes whole-struct get/set of `GUISettings` and the pinned `ShellSnippets` strings the UI renders verbatim.
+`SettingsService` owns the `[gui]` config section plus the settings-page projection of `[auth].use_keychain` behind the Settings "General" page (mockup `generalToggles`, `shortcutOpts`, `holdOpts`, `dispCarousel`/`dispList`, `slStep`/`slBar`/`slSlider` blocks) and the "Agent integration" page's shell-hook snippets (mockup `agentRows` + `agentSnippet`). It exposes whole-struct get/set of `GUISettings` and the pinned `ShellSnippets` strings the UI renders verbatim.
 
-Depends on: B02 (Services core), B01 (`[gui]` schema + defaults). The snippet preview additionally calls B04's `Rank` (read-only).
+Depends on: B02 (Services core), B01 (`[gui]`/`[auth]` schema + defaults). The snippet preview additionally calls B04's `Rank` (read-only).
 
 ## 2. Behaviour
 
-1. **Get.** Returns the current `GUISettings` assembled from `[gui]` with B01 defaults filling absent keys, plus `ConfigPath = paths.UserConfigFile` (display-only; the mockup's sidebar footer path). Never emits.
+1. **Get.** Returns the current `GUISettings` assembled from `[gui]` and `[auth].use_keychain`, with B01 defaults filling absent keys, plus `ConfigPath = paths.UserConfigFile` (display-only; the mockup's sidebar footer path). Never emits.
 
-2. **Set is whole-struct replace.** The UI always sends the full `GUISettings`; the service validates every enum field in the fixed order of §2.3, rewrites the entire `[gui]` section from the struct (no per-key merge), persists atomically, swaps in-memory state, then emits `settings:changed` with the new `GUISettings` (including `ConfigPath`) as payload. `ConfigPath` on the input is ignored — it is never read or persisted.
+2. **Set is whole-struct replace.** The UI always sends the full `GUISettings`; the service validates every enum field in the fixed order of §2.3, rewrites the entire `[gui]` section and `[auth].use_keychain` on one cloned config document, persists that document atomically, swaps in-memory state, then emits `settings:changed` with the new `GUISettings` (including `ConfigPath`) as payload. `ConfigPath` on the input is ignored — it is never read or persisted.
 
 3. **Validation order (fixed; messages exact, CONTRACTS §4).** (1) `Layout` ∈ {`carousel`,`list`}; (2) `WeightControl` ∈ {`step`,`bar`,`slider`}; (3) `Holds` ∈ {3,5,10}; (4) `Shortcut` ∈ {`alt+space`,`ctrl+space`,`cmd+shift+m`} — the three canonical strings (the UI renders them as ⌥␣ / ⌃␣ / ⇧⌘M); (5) `AutoUpdateFrequency` ∈ {`hourly`,`daily`,`weekly`,`monthly`}. First failure wins; no write, no event. Booleans need no validation.
 

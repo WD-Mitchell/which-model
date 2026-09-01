@@ -13,6 +13,7 @@ project: which-model-desktop
 |---|---|
 | `internal/config/gui.go` | §2 types, `Load*`/`Set*`/`Delete*` accessors, `DefaultGUIConfig`, validators, re-declared route-key regexps |
 | `internal/config/gui_test.go` | accessor/validator table tests + golden round-trip (§6) |
+| `internal/config/auth.go`, `auth_test.go` | `[auth]` storage preference, defaulting, and round-trip |
 | `internal/config/write.go` | `AtomicWriteFile` |
 | `internal/config/write_test.go` | atomic-write tests (§6) |
 | `internal/config/marshal.go` (change site) | render list extended per SPEC §2.6; trailing sorted unknown-section loop |
@@ -75,6 +76,14 @@ type GUIConfig struct {
     ShellAlias              bool   `toml:"shell_alias"`
 }
 
+// AuthConfig mirrors [auth]. It controls only credentials written by
+// which-model; provider-native keychain sources are unaffected.
+type AuthConfig struct {
+    UseKeychain bool `toml:"use_keychain" json:"use_keychain"`
+}
+
+func DefaultAuthConfig() AuthConfig // UseKeychain: true
+
 // DefaultGUIConfig returns the §4 defaults.
 func DefaultGUIConfig() GUIConfig
 
@@ -83,6 +92,7 @@ func DefaultGUIConfig() GUIConfig
 // categories is the canonical tier2 vocabulary (callers pass
 // pick.CategoryNames); it is unioned with the [groups.*] slugs internally.
 func (c *Config) LoadGUI() (GUIConfig, error)
+func (c *Config) LoadAuth() (AuthConfig, error)
 func (c *Config) LoadProfiles(categories []string) (ProfilesTOML, error)
 func (c *Config) LoadHarnesses() (HarnessesTOML, error)
 func (c *Config) LoadFavourites() (FavouritesTOML, error)
@@ -92,6 +102,7 @@ func (c *Config) LoadGroups() (GroupsTOML, error)
 // Setters: validate (§5 order, same messages), then write plain values into
 // the raw document so MarshalTOML round-trips them (SPEC §2.5). No disk I/O.
 func (c *Config) SetGUI(g GUIConfig) error
+func (c *Config) SetAuth(a AuthConfig) error
 func (c *Config) SetProfile(slug string, p ProfileTOML, categories []string) error
 func (c *Config) SetHarness(slug string, h HarnessTOML) error
 func (c *Config) SetFavourites(f FavouritesTOML) error
@@ -156,6 +167,9 @@ auto_update_frequency = "daily"   # "hourly"|"daily"|"weekly"|"monthly"
 mcp_server = false
 claude_md_hint = false
 shell_alias = false
+
+[auth]                            # all keys optional; per-key defaults:
+use_keychain = true               # prefer OS keychain; false forces state-file storage
 ```
 
 None of these keys is env-addressable (SPEC §2.7).

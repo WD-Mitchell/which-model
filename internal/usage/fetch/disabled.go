@@ -8,6 +8,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/WD-Mitchell/which-model/internal/config"
 	"github.com/WD-Mitchell/which-model/internal/usage"
 	"github.com/WD-Mitchell/which-model/internal/usage/credential"
 )
@@ -15,14 +16,18 @@ import (
 // Options configures one FetchAll call. Signature-identical to F14's real
 // struct (CONTRACTS §4 — field set pinned; do not rename fields).
 type Options struct {
-	Refresh      bool
-	Offline      bool
-	MaxAge       time.Duration
-	ShowIdentity bool
-	Enabled      map[string]bool
-	Timeout      time.Duration
-	MaxParallel  int
-	CacheDir     string
+	Backend                config.UsageBackend
+	Refresh                bool
+	Offline                bool
+	MaxAge                 time.Duration
+	ShowIdentity           bool
+	Enabled                map[string]bool
+	Timeout                time.Duration
+	MaxParallel            int
+	CacheDir               string
+	Source                 usage.Source
+	StateDir               string
+	DisableManagedKeychain bool
 }
 
 // FetchAll in the compiled-out build always returns the sentinel error.

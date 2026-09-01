@@ -185,22 +185,16 @@ graph TD
 - create `pkg/whichmodel/auth_login_test.go`
 - edit `pkg/whichmodel/auth.go`
 
-**Spec references:** `specs/features/F25-cmd-auth/SPEC.md §2.7, §2.8, §2.9`, `specs/features/F25-cmd-auth/CONTRACTS.md §8.2` (F12 `StartDeviceFlow`)
+**Spec references:** `specs/features/F25-cmd-auth/SPEC.md §2.7, §2.8, §2.9`, `specs/features/F25-cmd-auth/CONTRACTS.md §8.2` (F12 `DeviceFlow`, `ManagedStore`)
 
 **Instructions:**
-1. Write `auth_login_test.go` first. Seams: `var startDeviceFlowFunc = credential.StartDeviceFlow`; TTY detection seam `var stdinIsTTY = func() bool { return term.IsTerminal(int(os.Stdin.Fd())) }`; env seam `var nonInteractiveEnv = func() bool { return os.Getenv("WHICH_MODEL_NONINTERACTIVE") == "1" }`.
-2. Test 1 (unattended refusal): `stdinIsTTY = false` → `RunAuthLogin("copilot", …)` → exit 2, message `refusing unattended login; run from an interactive terminal`; `startDeviceFlowFunc` never called (assert via a flag in the fake).
-3. Test 2 (env refusal): TTY true, `nonInteractiveEnv = true` → same refusal.
-4. Test 3 (device flow): TTY true; fake `StartDeviceFlow("copilot")` returns `DeviceFlow{Code: "WXYZ-1234", VerificationURI: "https://github.com/login/device"}` → stdout exactly `Open https://github.com/login/device and enter code WXYZ-1234.\n`, stderr contains `waiting for confirmation...`, exit nil.
-5. Test 4 (unsupported provider): TTY true; provider `claude` (whose descriptor has no device flow — check `AuthSources`) → exit 2, message contains `not supported until M5` and `sign in with the provider's own client`; `startDeviceFlowFunc` never called.
-6. Test 5 (flow error): TTY true, fake returns error → exit 1 with the error text.
-7. Implement `RunAuthLogin(provider, stdout, stderr, stdin) error` in `auth.go`:
-   - TTY + env refusal checks (exit 2 `arguments`).
-   - `d, ok := usage.Get(provider)`; unknown → exit 2 (already validated in cmd layer; keep the guard).
-   - Capability check: `supportsDeviceFlow(d)` — true iff `credential` registers a device flow for the id. For this task, the check is: the provider descriptor's `AuthSources` contains exactly the device-flow-capable set (Copilot). Implement `var deviceFlowProviderIDs = map[string]bool{"copilot": true}` keyed on the F11 descriptor ID, with a comment that F12's device-flow registry is the single source of truth when it lands; the test for `claude` uses the real registry.
-   - `df, err := startDeviceFlowFunc(provider)`; on error → exit 1 `runtime`.
-   - stdout: `fmt.Fprintf(stdout, "Open %s and enter code %s.\n", df.VerificationURI, df.Code)`; stderr: `waiting for confirmation...`.
-   - Return nil (the wait/outcome handling is F12's `DeviceFlow.Wait`, owned by F12; F25's contract covers the prompt).
+1. Write `auth_login_test.go` first. Seams: `startDeviceFlowFunc`, `saveCredentialFunc`; TTY detection seam `stdinIsTTY`; env seam `nonInteractiveEnv`.
+2. Test unattended and env refusals before any flow starts.
+3. Test the complete success path: fake `DeviceFlow.Poll` returns a token; assert polling happened, `saveCredentialFunc(provider, token)` was called, the prompt/progress text is exact, and no token appears in output.
+4. Test a polling error: exit 1 and save is not called.
+5. Test a storage error whose message embeds a canary token: exit 1, error/output redact the token.
+6. Keep the unsupported-provider and flow-start error cases.
+7. Implement `RunAuthLogin`: validate interactivity/provider capability; call `Start`; print the validated prompt and progress; call `Poll`; pass the token directly to the managed-store save seam; return nil only after storage succeeds. Poll/save errors map to `runtime`, and every save error is redacted with the token before rendering.
 8. Run `go test ./pkg/whichmodel/...`; then `go build ./pkg/whichmodel/...`.
 
 **Test cases (write these first):**
@@ -209,15 +203,17 @@ graph TD
 |---|---|---|
 | 1 | non-TTY stdin | exit 2, refusal message, flow never started |
 | 2 | TTY + `WHICH_MODEL_NONINTERACTIVE=1` | exit 2, refusal message |
-| 3 | TTY + fake device flow | exact prompt line on stdout, `waiting for confirmation...` on stderr, exit nil |
+| 3 | TTY + fake device flow success | exact prompt/progress; polled and saved; exit nil |
 | 4 | TTY + `claude` | exit 2, `not supported until M5`, flow never started |
-| 5 | TTY + flow error | exit 1, error text on stderr |
+| 5 | flow-start error | exit 1, sanitised error text |
+| 6 | poll error | exit 1; save never called |
+| 7 | save error embedding canary token | exit 1; token absent from error/stdout/stderr |
 
 **Acceptance criteria:**
 - [ ] `go build ./pkg/whichmodel/...` succeeds
 - [ ] `go test ./pkg/whichmodel/...` passes with the test cases above
 - [ ] no file outside the Files list modified
-- [ ] no token or code appears outside the prompt line
+- [ ] no token appears in output; user code appears only in the prompt line
 
 ## Task F25-T6: Logout orchestration
 
@@ -227,23 +223,23 @@ graph TD
 - create `pkg/whichmodel/auth_logout_test.go`
 - edit `pkg/whichmodel/auth.go`
 
-**Spec references:** `specs/features/F25-cmd-auth/SPEC.md §2.10, §2.11`, `specs/features/F25-cmd-auth/CONTRACTS.md §8.2, §8.3` (F12 `Remove`, F05 `HasBroadPermissions`)
+**Spec references:** `specs/features/F25-cmd-auth/SPEC.md §2.10, §2.11`, `specs/features/F25-cmd-auth/CONTRACTS.md §8.2, §8.3` (F12 `ManagedStore.Remove`, F05 `HasBroadPermissions`)
 
 **Instructions:**
-1. Write `auth_logout_test.go` first. Seams: `var removeFunc = credential.Remove`, `var hasBroadPermsFunc = security.HasBroadPermissions`.
+1. Write `auth_logout_test.go` first. Seams: `removeFunc`, `managedCredentialFileInfoFunc`, and `hasBroadPermsFunc`.
 2. Test 1 (confirmed removal): fake `Remove` returns nil → exit nil; prompt output `Remove which-model's cached credential for claude? [y/N] ` then removal; when stdin yields `y\n` → no `aborted`.
 3. Test 2 (declined): stdin `n\n` → `Remove` NOT called, stderr `aborted`, exit 0.
 4. Test 3 (unattended without --yes): `stdinIsTTY = false`, `yes = false` → exit 2, `refusing unattended logout without --yes`, `Remove` not called.
-5. Test 4 (nothing removable): fake `Remove` returns `credential.ErrNoCredential` (sentinel re-exported from F12) → stderr `no which-model-managed credential for claude; nothing to remove`, exit 0.
-6. Test 5 (permission warning): fake `ResolveFirst` returns `FileMode: 0o644` and `HasBroadPermissions(0o644) == true` → stderr contains exactly one line `Warning: <path> permissions are broader than 0600; review them.`, removal still happens, exit 0. `<path>` is `Resolved.Path`.
-7. Test 6 (removal error): fake `Remove` returns `errors.New("rm failed")` → exit 1, `[runtime] rm failed`.
-8. Implement `RunAuthLogout(provider string, yes bool, stdout, stderr io.Writer, stdin io.Reader) error` in `auth.go`:
+5. Test 4 (nothing removable): fake `Remove` returns `credential.ErrNotFound` → stderr `no which-model-managed credential for claude; nothing to remove`, exit 0.
+6. Test 5 (permission warning): fake managed-file info returns path + mode 0644 and `HasBroadPermissions(0644) == true` → stderr contains exactly one warning, removal still happens, exit 0.
+7. Test 6 (unresolvable credential): make `resolveFirstFunc` fail the test if called; fake `Remove` succeeds → removal still happens, exit 0.
+8. Test 7 (removal error): fake `Remove` returns `errors.New("rm failed")` → exit 1, `[runtime] rm failed`.
+9. Implement `RunAuthLogout(provider string, yes bool, stdout, stderr io.Writer, stdin io.Reader) error` in `auth.go`:
    - TTY gate: `!yes && !stdinIsTTY()` → exit 2.
    - Prompt on stdout when `!yes`: `Remove which-model's cached credential for <provider>? [y/N] `; read one line from stdin via `bufio`; anything not `y`/`yes` (case-insensitive) → stderr `aborted`, return nil.
-   - Resolve first (`resolveFirstFunc`) to learn `Path`/`FileMode` for the warning; missing credential → `nothing to remove` message, exit 0.
-   - If `hasBroadPermsFunc(FileMode)` → exactly one warning line on stderr (never chmod/chown).
-   - `err := removeFunc(provider)`; `errors.Is(err, credential.ErrNoCredential)` → nothing-to-remove message, exit 0; other errors → exit 1 `runtime`.
-9. Run `go test ./pkg/whichmodel/...`; then `go build ./pkg/whichmodel/...`.
+   - Stat only the managed fallback file to obtain `Path`/`FileMode`; if broad, emit exactly one warning (never chmod/chown). Do not resolve the credential before removal.
+   - `err := removeFunc(provider)`; `errors.Is(err, credential.ErrNotFound)` → nothing-to-remove message, exit 0; other errors → exit 1 `runtime`.
+10. Run `go test ./pkg/whichmodel/...`; then `go build ./pkg/whichmodel/...`.
 
 **Test cases (write these first):**
 
@@ -252,9 +248,10 @@ graph TD
 | 1 | TTY + `y` | prompt then removal, exit 0 |
 | 2 | TTY + `n` | no removal, stderr `aborted`, exit 0 |
 | 3 | non-TTY, no `--yes` | exit 2, refusal, no removal |
-| 4 | `Remove` → `ErrNoCredential` | `nothing to remove`, exit 0 |
-| 5 | `FileMode 0o644` broad | exactly one warning line, removal still runs, exit 0 |
-| 6 | `Remove` → error | exit 1, `[runtime]` line |
+| 4 | `Remove` → `ErrNotFound` | `nothing to remove`, exit 0 |
+| 5 | managed fallback mode 0644 | exactly one warning line, removal still runs, exit 0 |
+| 6 | managed credential cannot resolve | resolution not called; removal still runs, exit 0 |
+| 7 | `Remove` → error | exit 1, `[runtime]` line |
 
 **Acceptance criteria:**
 - [ ] `go build ./pkg/whichmodel/...` succeeds

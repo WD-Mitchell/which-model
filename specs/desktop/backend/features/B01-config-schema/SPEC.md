@@ -9,17 +9,17 @@ project: which-model-desktop
 
 ## 1. Purpose
 
-B01 gives the desktop app durable config state the CLI never needed: six new TOML sections in the user `config.toml` (`[profiles.*]`, `[harnesses.*]`, `[favourites]`, `[routes.disabled]`, `[groups.*]`, `[gui]`) with typed accessors and validated save-side setters in `internal/config/gui.go`, and the promotion of the CLI's unexported `atomicWrite` helper into `internal/config/write.go` as `AtomicWriteFile`, so every config write in the system (CLI `config set` and every B02+ service mutation) goes through one durable code path.
+B01 gives the desktop app durable config state the CLI never needed: seven TOML sections in the user `config.toml` (`[profiles.*]`, `[harnesses.*]`, `[favourites]`, `[routes.disabled]`, `[groups.*]`, `[gui]`, `[auth]`) with typed accessors and validated save-side setters in `internal/config/gui.go` and `internal/config/auth.go`, and the promotion of the CLI's unexported `atomicWrite` helper into `internal/config/write.go` as `AtomicWriteFile`, so every config write in the system (CLI `config set` and every B02+ service mutation) goes through one durable code path.
 
 Depends on: nothing (wave-3 root). Consumed by: B02–B10, D00 §2.3/§2.7.
 
 ## 2. Behaviour
 
-1. **Decode path.** Every accessor decodes its section from the merged raw document via the existing `Config.UnmarshalKey` (`internal/config/unmarshal.go`), so file layering (user → project → env) is inherited unchanged. A section absent from the document yields the section's defaults (GUI) or an empty map/zero value (all others) with no error.
+1. **Decode path.** Every accessor decodes its section from the merged raw document via the existing `Config.UnmarshalKey` (`internal/config/unmarshal.go`), so file layering (user → project → env) is inherited unchanged. A section absent from the document yields the section's defaults (`[gui]` and `[auth]`) or an empty map/zero value (all others) with no error.
 
 2. **Closed schema inside owned sections.** Unknown keys inside a B01-owned section are errors (the existing `Undecoded()` check in `UnmarshalKey` — `ConfigError{KindInvalidValue}` naming the first offending key). Unknown keys in map-valued positions (`tier1`, `tier2`, `[routes.disabled]` provider keys) are data, not schema, and are validated semantically per §2.4.
 
-3. **Defaults.** `[gui]` decodes through an unexported pointered mirror so each of the 13 keys independently falls back to its default (CONTRACTS §4) when unset — never zero-valued. `DefaultGUIConfig()` returns the full default set; `LoadGUI` on an empty config returns exactly `DefaultGUIConfig()`.
+3. **Defaults.** `[gui]` decodes through an unexported pointered mirror so each of the 13 keys independently falls back to its default (CONTRACTS §4) when unset — never zero-valued. `[auth]` uses the same pointered-mirror rule and defaults `use_keychain = true`. `DefaultGUIConfig()` and `DefaultAuthConfig()` return the full defaults; their load accessors on an empty config return exactly those values.
 
 4. **Validation, fixed order.** Each `Load*` accessor and each `Set*` setter validates with the exact check order and error strings of CONTRACTS §5, so messages are golden-testable. Map iteration for validation is sorted ascending (slugs, provider ids, tier2 keys); list entries are checked in list order. Common rules:
    - Slugs (profile, harness, group, provider keys, harness `providers` entries) match `[a-z0-9_]+`.
@@ -31,9 +31,9 @@ Depends on: nothing (wave-3 root). Consumed by: B02–B10, D00 §2.3/§2.7.
    - `[groups.<slug>].benchmarks`: non-empty; entries non-empty strings; duplicates rejected.
    - `[gui]` enums: `layout`, `weight_control`, `holds`, `shortcut`, `auto_update_frequency` per D00 `GUISettings` value sets.
 
-5. **Save-side setters mutate the raw document.** `Set*`/`Delete*` methods validate (setters only; deletes are idempotent and never error), then write plain `map[string]any`/`[]any` values into `Config`'s raw document (via the existing internal `setKey` machinery), so a subsequent `MarshalTOML` emits them while preserving every key B01 does not own. Setters never touch disk; persistence is the caller's `MarshalTOML` → `AtomicWriteFile` sequence (B00 §2.2). `SetGUI` writes all 13 keys explicitly (a saved config is self-describing; defaults apply only to absent keys).
+5. **Save-side setters mutate the raw document.** `Set*`/`Delete*` methods validate (setters only; deletes are idempotent and never error), then write plain `map[string]any`/`[]any` values into `Config`'s raw document (via the existing internal `setKey` machinery), so a subsequent `MarshalTOML` emits them while preserving every key B01 does not own. Setters never touch disk; persistence is the caller's `MarshalTOML` → `AtomicWriteFile` sequence (B00 §2.2). `SetGUI` writes all 13 GUI keys and `SetAuth` writes `use_keychain` explicitly (a saved config is self-describing; defaults apply only to absent keys).
 
-6. **Marshal round-trip.** `MarshalTOML`'s fixed render list is extended to `usage, scoring, strategy, bands, catalog, output, gui, profiles, groups, harnesses, favourites, routes, providers`; after the fixed list, any remaining top-level raw tables render in ascending name order. Consequence (and the golden test of CONTRACTS §6): a document containing all six new sections plus unknown sections/keys survives load → marshal with no key lost, and marshal is byte-stable (marshalling the reloaded output reproduces it byte-for-byte).
+6. **Marshal round-trip.** `MarshalTOML`'s fixed render list is extended to `usage, auth, scoring, strategy, bands, catalog, output, gui, profiles, groups, harnesses, favourites, routes, providers`; after the fixed list, any remaining top-level raw tables render in ascending name order. Consequence (and the golden test of CONTRACTS §6): a document containing all seven new sections plus unknown sections/keys survives load → marshal with no key lost, and marshal is byte-stable (marshalling the reloaded output reproduces it byte-for-byte).
 
 7. **Not env-addressable.** No additions to the `envKeys` vocabulary (`internal/config/env.go`). A `WHICH_MODEL_*` variable that resolves into a B01 section under the existing suffix rules fails at the existing eager checks (`ApplyEnv` / `UnmarshalKey` unmatched-overlay), exactly as for any unknown env key today.
 
@@ -55,6 +55,7 @@ Depends on: nothing (wave-3 root). Consumed by: B02–B10, D00 §2.3/§2.7.
 | tier1 keys exactly 3 | Missing OR extra tier1 key is `validation_failed` | Plan §4 B01; the DTO's "0 = removed" semantics (D00) apply to tier2 only — tier1 axes always participate |
 | Weights stored 1..5 only | 0 never persisted; setters receive maps already stripped of zeros by the service (B00 Decisions) | TOML stays minimal; engine validation requires (0,5] |
 | GUI defaults per-key | Pointered decode mirror, F19 `TOMLConfig`-style | A config with only `layout = "list"` must not zero the other 12 keys |
+| Auth storage default | `use_keychain = true`; false is an explicit opt-out | Prefer platform-protected storage while keeping a deterministic file-only setting |
 | Marshal render list + trailing unknowns | Fixed order then sorted remainder (§2.6) | Deterministic bytes for the golden test; unknown top-level sections were silently dropped before — a GUI that rewrites the whole file must not eat user data |
 | Builtin collision deferred to service | §2.9 | Layering; matches B00 §6.4 (conflict at save time) |
 | One atomic writer | `AtomicWriteFile` shared by CLI and services; 0600 + dir fsync added during promotion | D00 §2.3; config may hold credential paths — tighten mode while touching it |

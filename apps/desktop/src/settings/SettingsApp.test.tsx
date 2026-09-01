@@ -1,6 +1,6 @@
 // U07 CONTRACTS §6 — SettingsApp tests: nav clearing detail, back semantics.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { screen, render, act, fireEvent, cleanup } from '@testing-library/react'
+import { screen, render, act, fireEvent, cleanup, waitFor } from '@testing-library/react'
 
 afterEach(() => cleanup())
 import { createMockEngineHost } from '@which-model/core/mock'
@@ -36,6 +36,19 @@ describe('SettingsApp', () => {
   it('renders the General page by default', async () => {
     renderApp(host)
     expect(await screen.findByText('How which-model runs on this Mac, and how the pick is drawn in the popover.')).toBeDefined()
+  })
+
+  it('persists the system-keychain preference as one settings delta', async () => {
+    const initial = await host.settings.get()
+    const spy = vi.spyOn(host.settings, 'set')
+    resetHost(host)
+    renderApp(host)
+    const label = await screen.findByText('Store sign-ins in system keychain')
+    const toggle = label.closest('div')?.querySelector('[role="switch"]')
+    expect(toggle).not.toBeNull()
+    fireEvent.click(toggle!)
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(1))
+    expect(spy).toHaveBeenCalledWith({ ...initial, use_keychain: false })
   })
 
   it('navigates to a page when a sidebar item is clicked', async () => {

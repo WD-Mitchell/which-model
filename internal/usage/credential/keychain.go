@@ -16,6 +16,14 @@ type KeychainStore interface {
 	Get(service, account string) (string, error)
 }
 
+// ManagedKeychainStore extends keychain lookup with the mutations required
+// for credentials created and removed by which-model.
+type ManagedKeychainStore interface {
+	KeychainStore
+	Set(service, account, value string) error
+	Delete(service, account string) error
+}
+
 // keyringNotFound mirrors github.com/zalando/go-keyring's ErrNotFound
 // sentinel without importing the package here (go-keyring is referenced
 // only from the darwin build adapter, SPEC D2). The concrete value is
@@ -31,6 +39,16 @@ type UnavailableKeychain struct{}
 // Get always reports the item as not found.
 func (UnavailableKeychain) Get(service, account string) (string, error) {
 	return "", ErrNotFound
+}
+
+// Set reports that this platform has no writable keychain.
+func (UnavailableKeychain) Set(service, account, value string) error {
+	return ErrNotFound
+}
+
+// Delete reports that this platform has no writable keychain.
+func (UnavailableKeychain) Delete(service, account string) error {
+	return ErrNotFound
 }
 
 // KeychainResolver resolves a generic-password item. Not-found →

@@ -38,16 +38,18 @@ const (
 
 // Options configures one FetchAll call. All fields optional.
 type Options struct {
-	Backend      config.UsageBackend // off, native, or codexbar; empty preserves native
-	Refresh      bool                // skip cache reads; refetch and rewrite (annex-d --refresh-usage)
-	Offline      bool                // read-only: cache only, never credentials/fetch/writes
-	MaxAge       time.Duration       // TTL override via cache.EffectiveTTL (annex-d --max-age)
-	ShowIdentity bool                // false (default): Account/Plan cleared on RETURNED snapshots
-	Enabled      map[string]bool     // L1a gate, default-deny (SPEC D1)
-	Timeout      time.Duration       // per-provider timeout; 0 → descriptor.Timeout → DefaultTimeoutSec
-	MaxParallel  int                 // fan-out cap; <= 0 → min(active, DefaultMaxParallel)
-	CacheDir     string              // "" → cache.New() (system dir); test seam (SPEC D11)
-	Source       usage.Source        // optional source forwarded to CodexBar
+	Backend                config.UsageBackend // off, native, or codexbar; empty preserves native
+	Refresh                bool                // skip cache reads; refetch and rewrite (annex-d --refresh-usage)
+	Offline                bool                // read-only: cache only, never credentials/fetch/writes
+	MaxAge                 time.Duration       // TTL override via cache.EffectiveTTL (annex-d --max-age)
+	ShowIdentity           bool                // false (default): Account/Plan cleared on RETURNED snapshots
+	Enabled                map[string]bool     // L1a gate, default-deny (SPEC D1)
+	Timeout                time.Duration       // per-provider timeout; 0 → descriptor.Timeout → DefaultTimeoutSec
+	MaxParallel            int                 // fan-out cap; <= 0 → min(active, DefaultMaxParallel)
+	CacheDir               string              // "" → cache.New() (system dir); test seam (SPEC D11)
+	Source                 usage.Source        // optional source forwarded to CodexBar
+	StateDir               string              // "" resolves the platform state directory
+	DisableManagedKeychain bool                // false (default) prefers the OS keychain
 }
 
 var codexbarFetch = codexbar.FetchWithSource
@@ -243,7 +245,11 @@ func runProvider(gctx context.Context, store *cache.Store, client *http.Client, 
 	if len(desc.Auth) > 0 {
 		var rerr error
 		var rwarns []credential.Warning
-		cred, rwarns, rerr = credential.ResolveChain(pctx, desc.Auth, client)
+		cred, rwarns, rerr = credential.ResolveProvider(pctx, id, desc.Auth, client, credential.ManagedStore{
+			StateDir:    opts.StateDir,
+			Keychain:    credential.DefaultKeychain(),
+			UseKeychain: !opts.DisableManagedKeychain,
+		})
 		warns = append(warns, rwarns...)
 		if rerr != nil {
 			if errors.Is(rerr, credential.ErrNotFound) {

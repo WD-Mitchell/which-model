@@ -220,6 +220,7 @@ function seedSettings(): GUISettings {
     mcp_server: false,
     claude_md_hint: false,
     shell_alias: false,
+    use_keychain: true,
     config_path: '~/Library/Application Support/which-model/config.toml',
   }
 }

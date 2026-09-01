@@ -119,6 +119,14 @@ type KeychainStore interface {
     Get(service, account string) (string, error)
 }
 
+// ManagedKeychainStore adds the mutations used only for credentials written
+// by which-model.
+type ManagedKeychainStore interface {
+    KeychainStore
+    Set(service, account, value string) error
+    Delete(service, account string) error
+}
+
 // KeychainResolver resolves a generic-password item. Not-found →
 // ErrNotFound; other store errors → keychain_unavailable.
 type KeychainResolver struct {
@@ -129,12 +137,39 @@ type KeychainResolver struct {
 
 func (r *KeychainResolver) Resolve(ctx context.Context) (usage.Credential, error)
 
-// DefaultKeychain returns DarwinKeychain on darwin (wraps
-// github.com/zalando/go-keyring) and UnavailableKeychain (always
-// ErrNotFound) elsewhere. Build-tagged implementations:
+// DefaultKeychain returns DarwinKeychain on darwin (wrapping
+// github.com/zalando/go-keyring) and UnavailableKeychain elsewhere.
+// Both implement Get/Set/Delete; unavailable operations return ErrNotFound.
+// Build-tagged implementations:
 //   keychain_darwin.go — //go:build darwin && !nousage
 //   keychain_other.go  — //go:build !darwin && !nousage
-func DefaultKeychain() KeychainStore
+func DefaultKeychain() ManagedKeychainStore
+```
+
+### 5.1 Managed credentials — `internal/usage/credential/managed.go`
+
+```go
+// ManagedStore persists credentials created by which-model. Keychain storage
+// uses service "which-model" and account <provider>. When disabled or when a
+// keychain operation is unavailable, storage falls back to
+// <StateDir>/credentials/<provider>.json (atomic mode 0600).
+type ManagedStore struct {
+    StateDir    string
+    Keychain    ManagedKeychainStore
+    UseKeychain bool
+}
+
+func (s ManagedStore) Path(provider string) string
+func (s ManagedStore) Save(provider, token string) error
+func (s ManagedStore) Resolve(ctx context.Context, provider string) (usage.Credential, []Warning, error)
+// Remove deletes both managed locations regardless of UseKeychain so a
+// preference change cannot strand an active credential.
+func (s ManagedStore) Remove(provider string) error
+
+// ResolveProvider preserves the descriptor's declared source order, then
+// tries managed storage only for a provider with AuthOAuthDeviceFlow and runs
+// that source's Validate hook before accepting the managed token.
+func ResolveProvider(ctx context.Context, provider string, sources []usage.AuthSource, client *http.Client, store ManagedStore) (usage.Credential, []Warning, error)
 ```
 
 ## 6. Cookie — `internal/usage/credential/cookie.go`
@@ -183,9 +218,9 @@ func (f *DeviceFlow) Start(ctx context.Context) (DeviceCode, error)
 
 // Poll runs the deadline-checked polling loop (SPEC §9): slow_down →
 // interval += 5s; access_denied → access_denied; expired_token/deadline →
-// device_expired; unknown → unsupported_response. Success →
-// Credential{Token, Source: AuthOAuthDeviceFlow}.
-func (f *DeviceFlow) Poll(ctx context.Context, code DeviceCode) (usage.Credential, error)
+// device_expired; unknown → unsupported_response. Success returns the
+// validated opaque token.
+func (f *DeviceFlow) Poll(ctx context.Context, code DeviceCode) (string, error)
 ```
 
 ## 8. Expiry — `internal/usage/credential/expiry.go`

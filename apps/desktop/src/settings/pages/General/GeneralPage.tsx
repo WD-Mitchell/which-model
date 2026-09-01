@@ -36,9 +36,8 @@ const FREQ_OPTS: ReadonlyArray<{ value: GUISettings['auto_update_frequency']; la
   { value: 'monthly', label: 'Monthly' },
 ]
 
-/** The five `system` switches in the mockup's order and with its exact copy
- *  (`generalToggles`, demo.dc.html L1535-1541). read/patch keep the mapping to
- *  GUISettings explicit — no computed-key casts. */
+/** System switches. read/patch keep the mapping to GUISettings explicit —
+ *  no computed-key casts. */
 const TOGGLES: ReadonlyArray<{
   name: string
   read(s: GUISettings): boolean
@@ -53,6 +52,11 @@ const TOGGLES: ReadonlyArray<{
     name: 'Launch at startup',
     read: (s) => s.launch_at_login,
     patch: (on) => ({ launch_at_login: on }),
+  },
+  {
+    name: 'Store sign-ins in system keychain',
+    read: (s) => s.use_keychain,
+    patch: (on) => ({ use_keychain: on }),
   },
   {
     name: 'Copy launch command instead',
@@ -126,8 +130,8 @@ export function GeneralPage(_props: PageComponentProps) {
           />
         </div>
 
-        {/* Two-column grid (mockup L606-623): the five switches followed by the
-            update-frequency select, which fills the sixth cell. */}
+        {/* Two-column grid: the system switches followed by the
+            update-frequency select. */}
         <div className={styles.grid}>
           {TOGGLES.map((t) => {
             const on = t.read(current)

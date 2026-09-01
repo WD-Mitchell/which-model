@@ -38,7 +38,7 @@
  */
 
 /**
- * GUISettings is the [gui] section as the settings page reads/writes it.
+ * GUISettings is the settings-page aggregate for [gui] plus [auth].use_keychain.
  * @typedef {Object} GUISettings
  * @property {string} layout - "carousel"|"list"
  * @property {string} default_tab - "profiles"|"sliders"
@@ -54,6 +54,7 @@
  * @property {boolean} mcp_server
  * @property {boolean} claude_md_hint
  * @property {boolean} shell_alias
+ * @property {boolean} use_keychain - [auth], true prefers OS keychain
  * @property {string} config_path - read-only, display only
  */
 

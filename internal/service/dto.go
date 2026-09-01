@@ -139,7 +139,7 @@ type ProviderDetail struct {
 type HarnessInfo struct {
 	Slug      string          `json:"slug"`
 	Name      string          `json:"name"`
-	Command   string          `json:"command"`   // template with {model_id}/{reasoning}
+	Command   string          `json:"command"` // template with {model_id}/{reasoning}
 	Builtin   bool            `json:"builtin"`
 	Installed bool            `json:"installed"` // argv[0] found on PATH
 	Providers map[string]bool `json:"providers"` // per-harness provider allow-map
@@ -177,7 +177,7 @@ type UsageDTO struct {
 type GroupBenchmark struct {
 	Name          string `json:"name"`
 	On            bool   `json:"on"`
-	Covered       int    `json:"covered"`        // (model,reasoning) rows reporting it
+	Covered       int    `json:"covered"` // (model,reasoning) rows reporting it
 	CoverageTotal int    `json:"coverage_total"`
 }
 
@@ -220,10 +220,10 @@ type Favourite struct {
 	InRange    bool   `json:"in_range"`    // route still resolvable
 }
 
-// GUISettings is the [gui] section as the settings page reads/writes it.
+// GUISettings is the settings-page aggregate for [gui] plus [auth].use_keychain.
 type GUISettings struct {
-	Layout                  string `json:"layout"`      // "carousel"|"list"
-	DefaultTab              string `json:"default_tab"` // "profiles"|"sliders"
+	Layout                  string `json:"layout"`         // "carousel"|"list"
+	DefaultTab              string `json:"default_tab"`    // "profiles"|"sliders"
 	WeightControl           string `json:"weight_control"` // "step"|"bar"|"slider"
 	Holds                   int    `json:"holds"`          // 3|5|10
 	Shortcut                string `json:"shortcut"`       // "alt+space"|"ctrl+space"|"cmd+shift+m"
@@ -236,7 +236,8 @@ type GUISettings struct {
 	MCPServer               bool   `json:"mcp_server"`
 	ClaudeMDHint            bool   `json:"claude_md_hint"`
 	ShellAlias              bool   `json:"shell_alias"`
-	ConfigPath              string `json:"config_path"` // read-only, display only
+	UseKeychain             bool   `json:"use_keychain"` // [auth], true prefers OS keychain
+	ConfigPath              string `json:"config_path"`  // read-only, display only
 }
 
 // ShellSnippets are the copyable setup snippets.

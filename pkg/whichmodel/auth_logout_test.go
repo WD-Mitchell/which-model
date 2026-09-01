@@ -7,15 +7,22 @@ import (
 	"io/fs"
 	"strings"
 	"testing"
-
-	"github.com/WD-Mitchell/which-model/internal/security"
 )
 
+func stubAuthLogoutFileInfo(t *testing.T) {
+	t.Helper()
+	old := managedCredentialFileInfoFunc
+	managedCredentialFileInfoFunc = func(string) (string, fs.FileMode, error) {
+		return "", 0, nil
+	}
+	t.Cleanup(func() { managedCredentialFileInfoFunc = old })
+}
+
 func TestAuthLogoutConfirmed(t *testing.T) {
-	oldTTY, oldResolve, oldRemove := stdinIsTTY, resolveFirstFunc, removeFunc
-	t.Cleanup(func() { stdinIsTTY, resolveFirstFunc, removeFunc = oldTTY, oldResolve, oldRemove })
+	stubAuthLogoutFileInfo(t)
+	oldTTY, oldRemove := stdinIsTTY, removeFunc
+	t.Cleanup(func() { stdinIsTTY, removeFunc = oldTTY, oldRemove })
 	stdinIsTTY = func() bool { return true }
-	resolveFirstFunc = func(string) (AuthResolved, error) { return AuthResolved{Path: "/tmp/which-model-cred"}, nil }
 	removed := false
 	removeFunc = func(string) error { removed = true; return nil }
 	var out, errOut strings.Builder
@@ -25,10 +32,9 @@ func TestAuthLogoutConfirmed(t *testing.T) {
 }
 
 func TestAuthLogoutDeclined(t *testing.T) {
-	oldTTY, oldResolve, oldRemove := stdinIsTTY, resolveFirstFunc, removeFunc
-	t.Cleanup(func() { stdinIsTTY, resolveFirstFunc, removeFunc = oldTTY, oldResolve, oldRemove })
+	oldTTY, oldRemove := stdinIsTTY, removeFunc
+	t.Cleanup(func() { stdinIsTTY, removeFunc = oldTTY, oldRemove })
 	stdinIsTTY = func() bool { return true }
-	resolveFirstFunc = func(string) (AuthResolved, error) { return AuthResolved{}, nil }
 	removed := false
 	removeFunc = func(string) error { removed = true; return nil }
 	var out, errOut strings.Builder
@@ -51,10 +57,10 @@ func TestAuthLogoutRejectsUnattended(t *testing.T) {
 }
 
 func TestAuthLogoutNothingToRemove(t *testing.T) {
-	oldTTY, oldResolve, oldRemove := stdinIsTTY, resolveFirstFunc, removeFunc
-	t.Cleanup(func() { stdinIsTTY, resolveFirstFunc, removeFunc = oldTTY, oldResolve, oldRemove })
+	stubAuthLogoutFileInfo(t)
+	oldTTY, oldRemove := stdinIsTTY, removeFunc
+	t.Cleanup(func() { stdinIsTTY, removeFunc = oldTTY, oldRemove })
 	stdinIsTTY = func() bool { return true }
-	resolveFirstFunc = func(string) (AuthResolved, error) { return AuthResolved{}, nil }
 	removeFunc = func(string) error { return errNoCredential }
 	var out, errOut strings.Builder
 	if err := RunAuthLogout("claude", true, &out, &errOut, strings.NewReader("")); err != nil || !strings.Contains(errOut.String(), "no which-model-managed credential for claude; nothing to remove") {
@@ -62,14 +68,32 @@ func TestAuthLogoutNothingToRemove(t *testing.T) {
 	}
 }
 
-func TestAuthLogoutPermissionWarning(t *testing.T) {
-	oldTTY, oldResolve, oldRemove, oldPerms := stdinIsTTY, resolveFirstFunc, removeFunc, hasBroadPermsFunc
-	t.Cleanup(func() {
-		stdinIsTTY, resolveFirstFunc, removeFunc, hasBroadPermsFunc = oldTTY, oldResolve, oldRemove, oldPerms
-	})
+func TestAuthLogoutRemovesUnresolvableManagedCredential(t *testing.T) {
+	stubAuthLogoutFileInfo(t)
+	oldTTY, oldResolve, oldRemove := stdinIsTTY, resolveFirstFunc, removeFunc
+	t.Cleanup(func() { stdinIsTTY, resolveFirstFunc, removeFunc = oldTTY, oldResolve, oldRemove })
 	stdinIsTTY = func() bool { return true }
 	resolveFirstFunc = func(string) (AuthResolved, error) {
-		return AuthResolved{Path: "/tmp/cred", FileMode: fs.FileMode(0o644)}, nil
+		t.Fatal("logout must not require credential resolution")
+		return AuthResolved{}, errNoCredential
+	}
+	removed := false
+	removeFunc = func(string) error { removed = true; return nil }
+	var out, errOut strings.Builder
+	if err := RunAuthLogout("claude", true, &out, &errOut, strings.NewReader("")); err != nil || !removed {
+		t.Fatalf("err = %v, removed = %v, stderr = %q", err, removed, errOut.String())
+	}
+}
+
+func TestAuthLogoutPermissionWarning(t *testing.T) {
+	stubAuthLogoutFileInfo(t)
+	oldTTY, oldRemove, oldPerms := stdinIsTTY, removeFunc, hasBroadPermsFunc
+	t.Cleanup(func() {
+		stdinIsTTY, removeFunc, hasBroadPermsFunc = oldTTY, oldRemove, oldPerms
+	})
+	stdinIsTTY = func() bool { return true }
+	managedCredentialFileInfoFunc = func(string) (string, fs.FileMode, error) {
+		return "/tmp/cred", fs.FileMode(0o644), nil
 	}
 	removeFunc = func(string) error { return nil }
 	hasBroadPermsFunc = func(mode fs.FileMode) bool { return mode == 0o644 }
@@ -80,10 +104,10 @@ func TestAuthLogoutPermissionWarning(t *testing.T) {
 }
 
 func TestAuthLogoutRemovalError(t *testing.T) {
-	oldTTY, oldResolve, oldRemove := stdinIsTTY, resolveFirstFunc, removeFunc
-	t.Cleanup(func() { stdinIsTTY, resolveFirstFunc, removeFunc = oldTTY, oldResolve, oldRemove })
+	stubAuthLogoutFileInfo(t)
+	oldTTY, oldRemove := stdinIsTTY, removeFunc
+	t.Cleanup(func() { stdinIsTTY, removeFunc = oldTTY, oldRemove })
 	stdinIsTTY = func() bool { return true }
-	resolveFirstFunc = func(string) (AuthResolved, error) { return AuthResolved{}, nil }
 	removeFunc = func(string) error { return errors.New("rm failed") }
 	var out, errOut strings.Builder
 	err := RunAuthLogout("claude", true, &out, &errOut, strings.NewReader(""))
@@ -91,5 +115,3 @@ func TestAuthLogoutRemovalError(t *testing.T) {
 		t.Fatalf("err = %v, exit = %d, stderr = %q", err, ExitCodeFor(err), errOut.String())
 	}
 }
-
-var _ = security.HasBroadPermissions

@@ -105,7 +105,7 @@ func (c *Config) MarshalTOML() ([]byte, error) {
 
 	// B01 SPEC §2.6: fixed render list, then any remaining top-level raw
 	// tables in ascending name order (unknown sections must not be dropped).
-	fixed := []string{"usage", "scoring", "strategy", "bands", "catalog", "output", "gui", "profiles", "groups", "harnesses", "favourites", "routes", "providers"}
+	fixed := []string{"usage", "auth", "scoring", "strategy", "bands", "catalog", "output", "gui", "profiles", "groups", "harnesses", "favourites", "routes", "providers"}
 	rendered := make(map[string]bool, len(fixed))
 	var builder strings.Builder
 	for _, name := range fixed {

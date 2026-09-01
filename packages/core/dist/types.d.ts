@@ -155,6 +155,8 @@ export interface GUISettings {
     mcp_server: boolean;
     claude_md_hint: boolean;
     shell_alias: boolean;
+    /** Prefer the OS keychain for credentials created by which-model. */
+    use_keychain: boolean;
     config_path: string;
 }
 export interface ShellSnippets {
