@@ -143,6 +143,7 @@ func newSkillsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List installed agent skills",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if repo != "" {
 				skills.SetRepoDir(repo)

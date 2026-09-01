@@ -20,6 +20,7 @@ func newServeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "serve",
 		Short: "serve the usage cache over HTTP (placeholder)",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return &CodedError{Code: "serve_unavailable", Message: "serve is not available in this build; it requires the usage cache subsystem (F13) which lands in a later milestone"}
 		},

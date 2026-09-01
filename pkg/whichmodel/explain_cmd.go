@@ -15,6 +15,7 @@ func NewExplainCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "explain",
 		Short: "Explain a previous pick",
+		Args:  cobra.NoArgs,
 		RunE:  runExplainE,
 	}
 	cmd.Flags().Bool("last", false, "explain the most recent pick record")

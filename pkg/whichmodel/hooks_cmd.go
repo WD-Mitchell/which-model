@@ -61,6 +61,7 @@ func newHooksInstallCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "install",
 		Short: "Install agent hooks into the repo config",
+		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, args []string) error {
 			if usage && noUsage {
 				return &UsageError{Message: "--usage and --no-usage are mutually exclusive"}
@@ -116,6 +117,7 @@ func newHooksRemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "remove",
 		Short: "Remove installed agent hooks (owned entries only)",
+		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, args []string) error {
 			if !validHooksTarget(target) {
 				return &UsageError{Message: fmt.Sprintf("unknown target %q (known: claude, generic)", target)}

@@ -44,6 +44,7 @@ func NewVersionCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "print version information",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if Global.JSON {
 				return output.RenderJSON(Stdout, output.OutputEnvelope{}, VersionJSON())
