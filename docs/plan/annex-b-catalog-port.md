@@ -104,7 +104,7 @@ Go implementation: build on `net/http.Client` with a custom `http.RoundTripper` 
   3. Fallback lookup by **id suffix** (`canonical_id` after the last `/`) or by **cleaned display name**; unlike the provider-family matcher in §2.4, multiple hits here are NOT ambiguous — evidence from every matching record is merged, keeping the highest value per benchmark name.
 - Effort scoping (`_effort`, `§1.2`): parse `record["variant"]` against `(?P<effort>minimal|low|medium|high|xhigh|max)(?: effort| reasoning)?(?:, (?:context compaction|with tools))?` or `reasoning effort (?P<effort>none|minimal|low|medium|high|xhigh|max)(?:, ...)?`; `"none"` → `"default"`. No parseable variant → default (non-effort-scoped) value; parseable effort → override scoped to that effort.
 - Duplicate resolution: **always the maximum numeric score** across records sharing `(benchmark name, effort)`, source-agnostic — `BENCHMARK_HARNESS_PRIORITY` in the Python source is dead code and MUST NOT be ported.
-- Version string (`_version`) is validated for shape only (`v?\d+(\.\d+)*` or `"Month YYYY"`), never used to break ties.
+- Benchmark `version` metadata is ignored entirely — never validated for shape and never used to break ties.  models.dev emits free-form versions (`"1.1 Main"`); shape validation broke the collector in CI (2026-09-01) and the max-score policy never consumed the value.
 - Only benchmark names present in the caller-supplied `selected_names` (from `benchmarks.toml`, §6.3) are extracted — the extraction map is pre-seeded `{name: nil for name in selected_names}`.
 
 ### 2.4 Artificial Analysis v2 API (`internal/catalog/fetch/aa/api.go`) — the only authenticated source

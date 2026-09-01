@@ -710,7 +710,6 @@ class UpdateAvailableModelRawValuesTests(unittest.TestCase):
     def test_models_dev_rejects_malformed_and_conflicting_target_benchmarks(self) -> None:
         cases = (
             ([{"name": "GPQA Diamond", "score": "bad"}], "must be numeric"),
-            ([{"name": "Terminal-Bench", "version": "latest", "score": 50}], "invalid version"),
         )
         for benchmarks, expected in cases:
             with self.subTest(expected=expected), self.assertRaisesRegex(
@@ -749,18 +748,29 @@ class UpdateAvailableModelRawValuesTests(unittest.TestCase):
         self.assertEqual(dict(defaults), {"Humanity's Last Exam": Decimal("64.5")})
         self.assertEqual(overrides, ())
 
-    def test_models_dev_accepts_month_year_benchmark_versions(self) -> None:
+    def test_models_dev_ignores_benchmark_versions(self) -> None:
         defaults, overrides = updater.extract_selected_models_dev_benchmarks(
             "vendor/nova",
             {
                 "benchmarks": [
                     {"name": "HMMT", "version": "November 2025", "score": 94.4},
                     {"name": "HMMT", "version": "February 2026", "score": 92.5},
+                    {"name": "Terminal-Bench", "version": "2.1", "score": 52.5},
+                    {"name": "Terminal-Bench", "version": "v2", "score": 50},
+                    {"name": "FrontierCode", "version": "1.1 Main", "score": 43.6},
+                    {"name": "FrontierCode", "version": "latest", "score": 40},
                 ]
             },
-            ["HMMT"],
+            ["HMMT", "Terminal-Bench", "FrontierCode"],
         )
-        self.assertEqual(dict(defaults), {"HMMT": Decimal("94.4")})
+        self.assertEqual(
+            dict(defaults),
+            {
+                "HMMT": Decimal("94.4"),
+                "Terminal-Bench": Decimal("52.5"),
+                "FrontierCode": Decimal("43.6"),
+            },
+        )
         self.assertEqual(overrides, ())
 
     def test_models_dev_base_model_association_populates_every_effort_row(self) -> None:

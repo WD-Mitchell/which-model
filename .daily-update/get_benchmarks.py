@@ -56,29 +56,6 @@ def _effort(record: Mapping[str, object]) -> str | None:
     return "default" if match.group("effort") == "none" else match.group("effort")
 
 
-def _version(value: object, *, field: str) -> tuple[int, ...]:
-    if value is None:
-        return (0,)
-    if not isinstance(value, str):
-        raise UpdateError(f"{field} has an invalid version")
-    normalized = value.strip()
-    if re.fullmatch(r"v?\d+(?:\.\d+)*", normalized):
-        return tuple(int(part) for part in normalized.removeprefix("v").split("."))
-    month = re.fullmatch(
-        r"(?P<month>January|February|March|April|May|June|July|August|"
-        r"September|October|November|December)\s+(?P<year>\d{4})",
-        normalized,
-        re.IGNORECASE,
-    )
-    if month:
-        month_number = (
-            "january february march april may june july august september october "
-            "november december"
-        ).split().index(month.group("month").casefold()) + 1
-        return int(month.group("year")), month_number
-    raise UpdateError(f"{field} has an invalid version")
-
-
 def _resolve(records: Sequence[Mapping[str, object]], *, field: str) -> Decimal:
     """Resolve duplicate benchmark evidence using the highest numeric score."""
     scores = [
@@ -112,12 +89,10 @@ def extract_benchmarks(
         for record in by_name[name]:
             scoped.setdefault(_effort(record), []).append(record)
         for effort, candidates in scoped.items():
-            # Validate every version, but deliberately do not discard older
-            # records or prefer a harness.  The collection policy is simple:
+            # Deliberately do not discard older records, validate version
+            # metadata, or prefer a harness.  The collection policy is simple:
             # when the same benchmark has multiple numeric values, retain the
             # highest value, regardless of source metadata.
-            for record in candidates:
-                _version(record.get("version"), field=f"models.dev {model_id!r} {name!r}")
             score = _resolve(
                 candidates,
                 field=f"models.dev model {model_id!r} benchmark {name!r}"
