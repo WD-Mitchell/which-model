@@ -202,7 +202,7 @@ Every file in this package starts with `//go:build !nousage`. Every task that re
 | 3 | `printf 'tok123\n\n'` | `ErrNotFound` (extra newline → unsafe shape) |
 | 4 | `sh -c 'exit 3'` | `ErrNotFound` |
 | 5 | `sh -c 'sleep 5'` with `Timeout 100ms` | `ErrNotFound` in < 2s |
-| 6 | `sh -c 'head -c 40000 /dev/zero | tr "\\0" "a"'` (40 KiB output) | `ErrNotFound` |
+| 6 | `sh -c 'head -c 40000 /dev/zero \| tr "\\0" "a"'` (40 KiB output) | `ErrNotFound` |
 | 7 | `./definitely-not-a-binary` | `ErrNotFound` |
 | 8 | already-cancelled ctx + `sleep 5` | `ErrNotFound` promptly |
 | 9 | `printf 'bad\ttok\n'` (tab) | `ErrNotFound` |
@@ -215,7 +215,7 @@ Every file in this package starts with `//go:build !nousage`. Every task that re
 - [ ] canary-token criterion: case 10 proves CLI failure paths never leak command output into errors
 - [ ] no file outside the Files list modified
 
-## Task F12-T6: KeychainResolver
+## Task F12-T6: KeychainResolver and managed credentials
 
 **Depends on:** F12-T1
 **Files:**
@@ -223,16 +223,18 @@ Every file in this package starts with `//go:build !nousage`. Every task that re
 - create `internal/usage/credential/keychain_darwin.go`
 - create `internal/usage/credential/keychain_other.go`
 - create `internal/usage/credential/keychain_test.go`
+- create `internal/usage/credential/managed.go`
+- create `internal/usage/credential/managed_test.go`
 
-**Spec references:** `specs/features/F12-credentials/CONTRACTS.md §5`, `specs/features/F12-credentials/SPEC.md §7, D2`, `docs/plan/annex-a-provider-matrix.md` §4
+**Spec references:** `specs/features/F12-credentials/CONTRACTS.md §5–§5.1`, `specs/features/F12-credentials/SPEC.md §7, §7a, D2, D13`
 
 **Instructions:**
-1. Create `keychain.go` (`//go:build !nousage`): `type KeychainStore interface { Get(service, account string) (string, error) }`; `type KeychainResolver struct { Store KeychainStore; Service string; Account string }`. `Resolve(ctx)`: `r.Store.Get(r.Service, r.Account)`; `errors.Is(err, keyring.ErrNotFound)` → `ErrNotFound`; any other error → `usage.NewFailureError("keychain_unavailable", fmt.Sprintf("keychain lookup failed for service %q", r.Service))` — deliberately WITHOUT the store's error text (deterministic, never leaks secret material; SPEC §7). `""` result → `ErrNotFound`. Validate token via `security.ValidateOpaqueToken`; failure → `ErrNotFound`. Success → `Credential{Token, Source: AuthKeychainGeneric}`.
-2. Create `keychain_darwin.go` with `//go:build darwin && !nousage`: `type DarwinKeychain struct{}`; `func (DarwinKeychain) Get(service, account string) (string, error)` delegating to `keyring.Get(service, account)` from `github.com/zalando/go-keyring`. (This is the ONLY file importing go-keyring; no tests exercise it — real keychains are never touched by tests, SPEC D2.)
-3. Create `keychain_other.go` with `//go:build !darwin && !nousage`: `type UnavailableKeychain struct{}`; `Get` returns `ErrNotFound` (SPEC §7, D12).
-4. `func DefaultKeychain() KeychainStore` in `keychain.go`: `return DarwinKeychain{}` on darwin via a tiny indirection — simplest: declare `DefaultKeychain` in each build-tagged file (darwin → `DarwinKeychain{}`, other → `UnavailableKeychain{}`).
-5. Write `keychain_test.go` with a fake store; never touch the real keychain.
-6. Run `go mod tidy` only if the go-keyring dependency is missing from `go.mod` (it is referenced only by the darwin file; `go build` on darwin will fetch it — do NOT vendor).
+1. Create the read-only `KeychainStore`, read/write `ManagedKeychainStore`, and sanitised `KeychainResolver` contracts. Only the Darwin adapter imports go-keyring; non-Darwin operations return `ErrNotFound`.
+2. Implement Darwin `Get`/`Set`/`Delete` with go-keyring and return `ManagedKeychainStore` from `DefaultKeychain`.
+3. Implement `ManagedStore` using service `"which-model"` and account `<provider>`. Keychain is preferred when enabled; any failed write falls back to `<StateDir>/credentials/<provider>.json` through `config.AtomicWriteFile` (0600).
+4. Resolution falls back from unavailable keychain to the managed file, validates opaque tokens, and reports `AuthOAuthDeviceFlow`. Removal attempts both stores regardless of preference.
+5. Implement `ResolveProvider`: preserve `ResolveChain` precedence, then resolve managed storage only for descriptors with a device-flow source and apply that source's `Validate`.
+6. Tests use fakes and temp directories only; never touch the real keychain or user state.
 
 **Test cases (write these first):**
 
@@ -245,6 +247,12 @@ Every file in this package starts with `//go:build !nousage`. Every task that re
 | 5 | canary: fake store returns `"canary-9f3a2b1c4d5e6f78"`; then a second case where store errors with an error whose text embeds the canary | case A resolves and `Credential.String()` redacts; case B's error message lacks the canary |
 | 6 | `UnavailableKeychain{}.Get("s", "a")` | `ErrNotFound` (runs on all platforms) |
 | 7 | `DefaultKeychain()` | non-nil `KeychainStore` (interface satisfaction, compile) |
+| 8 | managed keychain save succeeds | no fallback file; resolve returns OAuth token |
+| 9 | keychain unavailable | fallback file mode 0600; resolve succeeds |
+| 10 | keychain disabled | no keychain calls; file save/resolve succeeds |
+| 11 | remove | both stores cleared; second removal returns `ErrNotFound` |
+| 12 | ResolveProvider with missing declared source + managed token | managed token validated and returned |
+| 13 | higher-precedence env credential + managed token | env wins; managed keychain not read |
 
 **Acceptance criteria:**
 - [ ] `go build ./internal/usage/credential/...` succeeds
@@ -333,7 +341,7 @@ Every file in this package starts with `//go:build !nousage`. Every task that re
 **Spec references:** `specs/features/F12-credentials/CONTRACTS.md §7`, `specs/features/F12-credentials/SPEC.md §9, D6`, `docs/plan/research/usage-allowance-checks-spec.md` §2.3
 
 **Instructions:**
-1. Add `DeviceCode` struct (CONTRACTS §7) if not already defined and `Poll(ctx, code DeviceCode) (usage.Credential, error)` to `deviceflow.go`: compute deadline `now := f.Now(); deadline := now.Add(code.ExpiresIn)`. Loop: `if !now.Before(deadline) || ctx.Err() != nil { return Credential{}, device_expired }` (check BEFORE each request). POST `TokenURL` (form: `client_id`, `device_code`, `grant_type=urn:ietf:params:oauth:grant-type:device_code`; `client_secret` when set) with `f.HTTPClient`; transport error → `network`; non-2xx → `provider_status` (except: parse body FIRST when 200; error fields only come from 200 responses — for non-200 just map by status); body via `security.ReadResponseBounded`. On 200: `error` field: `authorization_pending` → `f.Sleep(code.Interval); now = f.Now(); continue`; `slow_down` → `code.Interval += 5 * time.Second` (cumulative; SPEC §9) then sleep+continue; `access_denied` → `access_denied` FailureError; `expired_token` → `device_expired`; any other non-empty error → `unsupported_response`. No error field: `access_token` must pass `security.ValidateOpaqueToken` (else `unsupported_response`); success → `Credential{Token, Source: AuthOAuthDeviceFlow}`. After sleep: re-check deadline BEFORE the next request (SPEC §9: zero polls after deadline).
+1. Add `DeviceCode` struct (CONTRACTS §7) if not already defined and `Poll(ctx, code DeviceCode) (string, error)` to `deviceflow.go`: compute deadline `now := f.Now(); deadline := now.Add(code.ExpiresIn)`. Loop: if the deadline has passed or `ctx` is done, return `device_expired` before making another request. POST `TokenURL` with `client_id`, `device_code`, the device-code grant type, and optional `client_secret`; transport error → `network`; non-2xx → `provider_status`; bound the body with `security.ReadResponseBounded`. On 200: `authorization_pending` sleeps/retries; `slow_down` cumulatively adds 5s before sleep/retry; `access_denied` and `expired_token` map to their canonical failures; unknown errors → `unsupported_response`. A successful `access_token` must pass `security.ValidateOpaqueToken`, then is returned as the opaque string. Re-check the deadline after every sleep and before the next request.
 2. Keep `Now`/`Sleep` seams: tests inject `Now` (a `*fakeClock`) and `Sleep` (advances the clock) per CONTRACTS §7.
 3. Write `deviceflow_poll_test.go`: one httptest server whose handler switches on a scripted queue of responses (pending, pending, success).
 
@@ -341,13 +349,13 @@ Every file in this package starts with `//go:build !nousage`. Every task that re
 
 | # | input | want |
 |---|---|---|
-| 1 | pending → pending → success | token returned, `Source == AuthOAuthDeviceFlow`, 3 requests |
+| 1 | pending → pending → success | validated token string returned; 3 requests |
 | 2 | first response `slow_down` | `Interval` grew by 5s (assert next request's sleep via fake clock — 2 requests, 2nd after +5s) |
 | 3 | `access_denied` | `access_denied` FailureError |
 | 4 | `expired_token` | `device_expired` FailureError |
 | 5 | deadline already past at entry (`Now` set past `ExpiresIn`) | `device_expired`, request counter == 0 |
 | 6 | `ExpiresIn 2s`, interval 1s, fake clock advances 3s during first sleep | 1 request total, `device_expired` |
-| 7 | canary: success `access_token` = canary, and a second case `access_denied` with `error_description` embedding canary | case A: `Credential.String()` redacts; case B: error message lacks the canary |
+| 7 | canary: success `access_token` = canary, and a second case `access_denied` with `error_description` embedding canary | case A returns the token only to its caller; case B's error message lacks the canary |
 | 8 | unknown error field `"weird_error"` | `unsupported_response` |
 
 **Acceptance criteria:**

@@ -46,6 +46,8 @@ type Options struct {
     Timeout    time.Duration     // per-provider timeout; 0 → descriptor.Timeout → DefaultTimeoutSec
     MaxParallel int              // fan-out cap; <= 0 → min(active, DefaultMaxParallel)
     CacheDir   string            // "" → cache.New() (system dir); test seam (SPEC D11)
+    StateDir   string            // "" → platform state dir; managed credential fallback
+    DisableManagedKeychain bool  // false (default) prefers OS keychain
 }
 
 // FetchAll returns one Snapshot per requested AND enabled provider, sorted
@@ -74,9 +76,9 @@ func SourceFor(cred usage.Credential, kind usage.Kind) usage.Source
 | Symbol | Source | Producer |
 |---|---|---|
 | `usage.Descriptor`, `usage.AuthSource`, `usage.Credential`, `usage.Snapshot`, `usage.Failure`, `usage.FailureError`, `usage.AsFailure`, `usage.Kind`, `usage.Get`, `usage.IDs` | `internal/usage` — `specs/features/F11-usage-types/CONTRACTS.md` | F11-T2/T3/T4/T5 |
-| `credential.ResolveChain`, `credential.Warning`, `credential.ErrNotFound` | `internal/usage/credential` — `specs/features/F12-credentials/CONTRACTS.md §1` | F12-T1/T7 |
+| `credential.ResolveProvider`, `credential.ManagedStore`, `credential.Warning`, `credential.ErrNotFound` | `internal/usage/credential` — `specs/features/F12-credentials/CONTRACTS.md §5.1` | F12 |
 | `cache.New`, `cache.Store{Read,Write,OfflineRead}`, `cache.EffectiveTTL`, `cache.ErrCacheMiss` | `internal/usage/cache` — `specs/features/F13-usage-cache/CONTRACTS.md §1` | F13-T1/T2/T3/T4/T6 |
-| `httpkit.AsError` (defensive only — F14 never constructs an httpkit client; transport is plain `&http.Client{}` per F11 `FetchFunc`, `specs/DEFERRED.md` D1) | `internal/httpkit` — `specs/features/F04-http/CONTRACTS.md` |
+| `httpkit.AsError` (defensive only — F14 never constructs an httpkit client; transport is plain `&http.Client{}` per F11 `FetchFunc`, `specs/DEFERRED.md` D1) | `internal/httpkit` — `specs/features/F04-http/CONTRACTS.md` | F04 |
 
 ## 3. Ownership summary
 

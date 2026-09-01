@@ -16,4 +16,4 @@ var keyringNotFound = errors.New("secret not found in keyring")
 // DefaultKeychain returns the unavailable keychain adapter: keychain
 // sources are macOS-specific, so a missing capability degrades to "no
 // candidate", never a crash.
-func DefaultKeychain() KeychainStore { return UnavailableKeychain{} }
+func DefaultKeychain() ManagedKeychainStore { return UnavailableKeychain{} }

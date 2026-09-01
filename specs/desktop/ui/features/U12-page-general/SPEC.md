@@ -9,7 +9,7 @@ project: which-model-desktop
 
 ## 1. Purpose
 
-`GeneralPage` (`apps/desktop/src/settings/pages/general/`) is the "General" page inside the U07 settings shell: global shortcut, five system toggles, update frequency, and the three results-display preferences (ranking layout, weight control style, ranks held). Every control reads the single `GUISettings` struct and writes it back whole with exactly one field changed.
+`GeneralPage` (`apps/desktop/src/settings/pages/general/`) is the "General" page inside the U07 settings shell: global shortcut, six system toggles, update frequency, and the three results-display preferences (ranking layout, weight control style, ranks held). Every control reads the single `GUISettings` struct and writes it back whole with exactly one field changed.
 
 Depends on: U02, U07. Inherits `specs/desktop/global/*` (D00) and `specs/desktop/ui/*` (U00). Mockup `onGeneral` block of `specs/desktop/mockup/demo.dc.html` is normative for geometry and copy.
 
@@ -19,17 +19,18 @@ Depends on: U02, U07. Inherits `specs/desktop/global/*` (D00) and `specs/desktop
 
 2. **"system" section.** Uppercase mono section label `system` (accent, 9px, .13em tracking, per mockup). First row: title "Open the popover", note "Global shortcut, works from any app.", and a mono `SegmentedControl` (U02) on the right with display options `⌥ Space` / `⌃ Space` / `⇧⌘ M`. The seg maps display glyphs ↔ canonical `GUISettings.Shortcut` strings (D00 CONTRACTS §2): `⌥ Space` ↔ `alt+space`, `⌃ Space` ↔ `ctrl+space`, `⇧⌘ M` ↔ `cmd+shift+m`. Selecting an option writes `shortcut`.
 
-3. **Toggle grid.** Below the shortcut row, a 2-column grid (`1fr 1fr`, 28px column gap) of five `Toggle` (U02) rows, names verbatim and bound to the listed `GUISettings` fields:
+3. **Toggle grid.** Below the shortcut row, a 2-column grid (`1fr 1fr`, 28px column gap) of six `Toggle` (U02) rows, names verbatim and bound to the listed `GUISettings` fields:
    | Name | Field |
    |---|---|
    | Show menu bar icon | `show_menu_bar_icon` |
    | Launch at startup | `launch_at_login` |
+   | Store sign-ins in system keychain | `use_keychain` |
    | Copy launch command instead | `copy_command_instead` |
    | Close popover after launching | `close_popover_after_launch` |
    | Install updates automatically | `auto_update` |
    Row label colour is bright when on, muted when off (mockup `g.fg`).
 
-4. **Check for updates.** Sixth grid cell: label "Check for updates" and a `.wmsel` native `<select>` with options Hourly/Daily/Weekly/Monthly (values `hourly`/`daily`/`weekly`/`monthly`) bound to `auto_update_frequency`. When `auto_update` is false the WHOLE row is dimmed to opacity `.38`; per the mockup the select stays operable while dimmed.
+4. **Check for updates.** Next grid cell: label "Check for updates" and a `.wmsel` native `<select>` with options Hourly/Daily/Weekly/Monthly (values `hourly`/`daily`/`weekly`/`monthly`) bound to `auto_update_frequency`. When `auto_update` is false the WHOLE row is dimmed to opacity `.38`; per the mockup the select stays operable while dimmed.
 
 5. **"results display" section.** Second uppercase label `results display`. Three rows:
    a. **Ranking layout** — note "How the popover presents the held ranks." Right side: two `LayoutSwatch` mini-mockups (82×40, radius 6) captioned `carousel` and `list`, drawn as in the mockup (carousel: two 4×7 side nubs + centred accent bar + 70% grey bar; list: three stacked bars — accent, 80% grey, 62% grey). Clicking one writes `layout`.

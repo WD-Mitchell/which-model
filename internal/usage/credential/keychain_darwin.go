@@ -21,5 +21,15 @@ func (DarwinKeychain) Get(service, account string) (string, error) {
 	return keyring.Get(service, account)
 }
 
+// Set stores a generic-password item for service/account.
+func (DarwinKeychain) Set(service, account, value string) error {
+	return keyring.Set(service, account, value)
+}
+
+// Delete removes a generic-password item for service/account.
+func (DarwinKeychain) Delete(service, account string) error {
+	return keyring.Delete(service, account)
+}
+
 // DefaultKeychain returns the macOS keychain adapter.
-func DefaultKeychain() KeychainStore { return DarwinKeychain{} }
+func DefaultKeychain() ManagedKeychainStore { return DarwinKeychain{} }

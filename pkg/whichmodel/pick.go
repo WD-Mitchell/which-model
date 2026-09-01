@@ -336,7 +336,19 @@ var pickFetchAllFunc = func(ctx context.Context, providers []string, opts pickFe
 	for _, p := range providers {
 		enabled[p] = true
 	}
-	snaps, _, err := fetch.FetchAll(ctx, providers, fetch.Options{Enabled: enabled})
+	auth := config.DefaultAuthConfig()
+	if st := pickRun; st != nil && st.cfg != nil {
+		var err error
+		auth, err = st.cfg.LoadAuth()
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	snaps, _, err := fetch.FetchAll(ctx, providers, fetch.Options{
+		Enabled:                enabled,
+		StateDir:               stateDirFunc(),
+		DisableManagedKeychain: !auth.UseKeychain,
+	})
 	if err != nil {
 		return nil, nil, err
 	}

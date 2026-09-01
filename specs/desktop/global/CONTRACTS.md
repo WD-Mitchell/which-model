@@ -184,6 +184,7 @@ type GUISettings struct {
     MCPServer               bool   `json:"mcp_server"`
     ClaudeMDHint            bool   `json:"claude_md_hint"`
     ShellAlias              bool   `json:"shell_alias"`
+    UseKeychain             bool   `json:"use_keychain"` // [auth]; default true
     ConfigPath              string `json:"config_path"` // read-only, display only
 }
 

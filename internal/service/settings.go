@@ -25,7 +25,11 @@ func (g *SettingsService) Get(ctx context.Context) (GUISettings, error) {
 	if err != nil {
 		return GUISettings{}, toErrorDTO(err)
 	}
-	return guiDTO(gui, g.s.paths.UserConfigFile), nil
+	auth, err := g.s.cfg.LoadAuth()
+	if err != nil {
+		return GUISettings{}, toErrorDTO(err)
+	}
+	return guiDTO(gui, auth, g.s.paths.UserConfigFile), nil
 }
 
 // Set validates and atomically replaces the complete GUI section.
@@ -44,6 +48,9 @@ func (g *SettingsService) Set(ctx context.Context, in GUISettings) error {
 	copyCfg, cleanup, err := cloneConfig(g.s.cfg)
 	if err == nil {
 		err = copyCfg.SetGUI(guiConfig(in))
+	}
+	if err == nil {
+		err = copyCfg.SetAuth(config.AuthConfig{UseKeychain: in.UseKeychain})
 	}
 	var data []byte
 	if err == nil {
@@ -71,8 +78,6 @@ func (g *SettingsService) Set(ctx context.Context, in GUISettings) error {
 const shellAlias = "alias wm='which-model pick --profile'"
 const shellClaudeMD = "## Model selection\nBefore delegating work, run `wm <profile>` to print the best model id for that task profile.\n`wm` is an alias for `which-model pick --profile`; profiles live in which-model's config.toml."
 
-
-
 // ShellSnippets returns pinned setup snippets and a live ranking preview.
 func (g *SettingsService) ShellSnippets(ctx context.Context) (ShellSnippets, error) {
 	if err := ctx.Err(); err != nil {
@@ -96,8 +101,8 @@ func (g *SettingsService) ShellSnippets(ctx context.Context) (ShellSnippets, err
 	return out, nil
 }
 
-func guiDTO(g config.GUIConfig, path string) GUISettings {
-	return GUISettings{Layout: g.Layout, DefaultTab: g.DefaultTab, WeightControl: g.WeightControl, Holds: g.Holds, Shortcut: g.Shortcut, ShowMenuBarIcon: g.ShowMenuBarIcon, LaunchAtLogin: g.LaunchAtLogin, CopyCommandInstead: g.CopyCommandInstead, ClosePopoverAfterLaunch: g.ClosePopoverAfterLaunch, AutoUpdate: g.AutoUpdate, AutoUpdateFrequency: g.AutoUpdateFrequency, MCPServer: g.MCPServer, ClaudeMDHint: g.ClaudeMDHint, ShellAlias: g.ShellAlias, ConfigPath: path}
+func guiDTO(g config.GUIConfig, auth config.AuthConfig, path string) GUISettings {
+	return GUISettings{Layout: g.Layout, DefaultTab: g.DefaultTab, WeightControl: g.WeightControl, Holds: g.Holds, Shortcut: g.Shortcut, ShowMenuBarIcon: g.ShowMenuBarIcon, LaunchAtLogin: g.LaunchAtLogin, CopyCommandInstead: g.CopyCommandInstead, ClosePopoverAfterLaunch: g.ClosePopoverAfterLaunch, AutoUpdate: g.AutoUpdate, AutoUpdateFrequency: g.AutoUpdateFrequency, MCPServer: g.MCPServer, ClaudeMDHint: g.ClaudeMDHint, ShellAlias: g.ShellAlias, UseKeychain: auth.UseKeychain, ConfigPath: path}
 }
 
 func guiConfig(g GUISettings) config.GUIConfig {

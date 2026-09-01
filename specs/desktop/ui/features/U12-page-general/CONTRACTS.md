@@ -11,33 +11,16 @@ project: which-model-desktop
 
 | File | Contents |
 |---|---|
-| `apps/desktop/src/settings/pages/general/GeneralPage.tsx` | `GeneralPage` + registry entry export |
-| `apps/desktop/src/settings/pages/general/LayoutSwatch.tsx` | local `LayoutSwatch` |
-| `apps/desktop/src/settings/pages/general/ControlSwatch.tsx` | local `ControlSwatch` |
-| `apps/desktop/src/settings/pages/general/GeneralPage.module.css` | grid/section/swatch styles |
-| `apps/desktop/src/settings/pages/general/GeneralPage.test.tsx` | fixtures §5 |
+| `apps/desktop/src/settings/pages/General/GeneralPage.tsx` | `GeneralPage` + local `Swatch` renderer |
+| `apps/desktop/src/settings/pages/General/GeneralPage.module.css` | grid/section/swatch styles |
+| `apps/desktop/src/settings/SettingsApp.test.tsx` | General-page integration fixtures, including keychain toggle |
 
 ## 2. Exports
 
 ```ts
-// GeneralPage: no props; obtains EngineHost via the app host context (U07)
-// and TanStack Query key ['settings'].
-export function GeneralPage(): JSX.Element
-
-// LayoutSwatch/ControlSwatch: pure presentational; selection visuals per SPEC §2.6.
-export interface LayoutSwatchProps {
-  kind: 'carousel' | 'list'      // which 82×40 mini-mockup to draw; caption = kind
-  selected: boolean
-  onSelect: () => void            // NOT called when selected
-}
-export function LayoutSwatch(props: LayoutSwatchProps): JSX.Element
-
-export interface ControlSwatchProps {
-  kind: 'step' | 'bar' | 'slider' // which 66×26 mini-mockup to draw; caption = kind
-  selected: boolean
-  onSelect: () => void            // NOT called when selected
-}
-export function ControlSwatch(props: ControlSwatchProps): JSX.Element
+// GeneralPage obtains the EngineHost through the app host and TanStack Query
+// key ['settings']; Swatch is a file-local presentational helper.
+export function GeneralPage(props: PageComponentProps): JSX.Element
 ```
 
 ## 3. Copy (verbatim)
@@ -63,7 +46,7 @@ export function ControlSwatch(props: ControlSwatchProps): JSX.Element
 
 ## 5. Test fixtures (`GeneralPage.test.tsx`, vitest + testing-library + `createMockEngineHost`)
 
-- **One-delta writes.** For EACH control (shortcut seg option, each of the 5 toggles, select change, each layout swatch, each control swatch, each holds option): activating it calls `settings.set` exactly once with the full current `GUISettings` in which ONLY that control's field differs (deep-equal on every other field).
+- **One-delta writes.** For EACH control (shortcut seg option, each of the 6 toggles, select change, each layout swatch, each control swatch, each holds option): activating it calls `settings.set` exactly once with the full current `GUISettings` in which ONLY that control's field differs (deep-equal on every other field).
 - Shortcut: clicking `⇧⌘ M` writes `shortcut: 'cmd+shift+m'` (glyph→canonical).
 - Holds: clicking `10` writes `holds: 10` (number, not string).
 - **Select dimming.** With `auto_update: false` the Check-for-updates row has opacity `.38`; with `true`, opacity `1`; changing the select still fires while dimmed.

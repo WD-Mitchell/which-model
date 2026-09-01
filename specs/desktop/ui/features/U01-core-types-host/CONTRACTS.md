@@ -167,7 +167,7 @@ export function createMockEngineHost(
 
 ### 4.6 Default GUISettings
 
-`layout:"carousel"`, `weight_control:"slider"`, `holds:5`, `shortcut:"alt+space"`, `show_menu_bar_icon:true`, `launch_at_login:false`, `copy_command_instead:false`, `close_popover_after_launch:true`, `auto_update:true`, `auto_update_frequency:"daily"`, `mcp_server:false`, `claude_md_hint:false`, `shell_alias:false`, `config_path:"~/Library/Application Support/which-model/config.toml"`.
+`layout:"carousel"`, `weight_control:"slider"`, `holds:5`, `shortcut:"alt+space"`, `show_menu_bar_icon:true`, `launch_at_login:false`, `copy_command_instead:false`, `close_popover_after_launch:true`, `auto_update:true`, `auto_update_frequency:"daily"`, `mcp_server:false`, `claude_md_hint:false`, `shell_alias:false`, `use_keychain:true`, `config_path:"~/Library/Application Support/which-model/config.toml"`.
 
 ## 5. Payload map note
 

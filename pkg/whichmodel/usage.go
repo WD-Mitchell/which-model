@@ -34,14 +34,15 @@ type UsageArgs struct {
 
 // FetchAllOptions is the command-to-fetch boundary.
 type FetchAllOptions struct {
-	Providers       []string
-	Source          usage.Source
-	Backend         config.UsageBackend
-	ForceRefresh    bool
-	MaxAge          time.Duration
-	Timeout         time.Duration
-	Offline         bool
-	IncludeIdentity bool
+	Providers              []string
+	Source                 usage.Source
+	Backend                config.UsageBackend
+	ForceRefresh           bool
+	MaxAge                 time.Duration
+	Timeout                time.Duration
+	Offline                bool
+	IncludeIdentity        bool
+	DisableManagedKeychain bool
 }
 
 // FetchResult is the normalized result consumed by the command renderer.
@@ -58,14 +59,15 @@ func fetchAll(ctx context.Context, opts FetchAllOptions) (*FetchResult, error) {
 		enabled[id] = true
 	}
 	snapshots, _, err := fetch.FetchAll(ctx, opts.Providers, fetch.Options{
-		Backend:      opts.Backend,
-		Refresh:      opts.ForceRefresh,
-		Offline:      opts.Offline || opts.Source == usage.SourceCache,
-		MaxAge:       opts.MaxAge,
-		ShowIdentity: opts.IncludeIdentity,
-		Enabled:      enabled,
-		Timeout:      opts.Timeout,
-		Source:       opts.Source,
+		Backend:                opts.Backend,
+		Refresh:                opts.ForceRefresh,
+		Offline:                opts.Offline || opts.Source == usage.SourceCache,
+		MaxAge:                 opts.MaxAge,
+		ShowIdentity:           opts.IncludeIdentity,
+		Enabled:                enabled,
+		Timeout:                opts.Timeout,
+		Source:                 opts.Source,
+		DisableManagedKeychain: opts.DisableManagedKeychain,
 	})
 	if err != nil {
 		return nil, err
@@ -84,6 +86,10 @@ func RunUsage(args UsageArgs, stdout, stderr io.Writer) error {
 		return &UsageError{Message: "no providers requested; name providers or pass --all"}
 	}
 	cfg, err := config.Load(config.LoadOptions{Path: args.ConfigPath})
+	if err != nil {
+		return &UsageError{Message: err.Error()}
+	}
+	auth, err := cfg.LoadAuth()
 	if err != nil {
 		return &UsageError{Message: err.Error()}
 	}
@@ -123,14 +129,15 @@ func RunUsage(args UsageArgs, stdout, stderr io.Writer) error {
 		}
 	}
 	res, err := fetchAllFunc(context.Background(), FetchAllOptions{
-		Providers:       providers,
-		Source:          args.Source,
-		Backend:         cfg.Usage.Backend,
-		ForceRefresh:    args.ForceRefresh,
-		MaxAge:          args.MaxAge,
-		Timeout:         args.Timeout,
-		Offline:         args.Offline,
-		IncludeIdentity: args.ShowIdentity,
+		Providers:              providers,
+		Source:                 args.Source,
+		Backend:                cfg.Usage.Backend,
+		ForceRefresh:           args.ForceRefresh,
+		MaxAge:                 args.MaxAge,
+		Timeout:                args.Timeout,
+		Offline:                args.Offline,
+		IncludeIdentity:        args.ShowIdentity,
+		DisableManagedKeychain: !auth.UseKeychain,
 	})
 	if err != nil {
 		return &CodedError{Code: "runtime", Message: err.Error()}

@@ -14,7 +14,7 @@ project: which-model-desktop
 | `internal/service/settings.go` | `SettingsService`, `(*Services).Settings()`, Get/Set/ShellSnippets, snippet constants |
 | `internal/service/settings_test.go` | table tests per §5 |
 
-Package `internal/service` (B00 import boundary applies). DTOs are D00 canon (`GUISettings`, `ShellSnippets`). `[gui]` key names, types, and defaults are owned by B01 (`internal/config/gui.go`); this feature owns their runtime semantics and validation messages.
+Package `internal/service` (B00 import boundary applies). DTOs are D00 canon (`GUISettings`, `ShellSnippets`). `[gui]` and `[auth].use_keychain` key names, types, and defaults are owned by B01 (`internal/config/gui.go`, `auth.go`); this feature owns their settings-service semantics and GUI validation messages.
 
 ## 2. Exported API — `internal/service/settings.go`
 
@@ -28,13 +28,14 @@ type SettingsService struct { s *Services }
 // Settings returns the settings facet (shares the Services lock and config).
 func (s *Services) Settings() *SettingsService
 
-// Get assembles GUISettings from [gui] + B01 defaults; ConfigPath is always
-// paths.UserConfigFile (SPEC §2.1). Read-only; never emits.
+// Get assembles GUISettings from [gui] and [auth] + B01 defaults;
+// ConfigPath is always paths.UserConfigFile (SPEC §2.1). Read-only; never emits.
 func (g *SettingsService) Get(ctx context.Context) (GUISettings, error)
 
 // Set validates in the fixed order of SPEC §2.3 (messages §4), replaces the
-// whole [gui] section, persists atomically, and emits settings:changed with
-// the new GUISettings (ConfigPath filled) as payload. in.ConfigPath ignored.
+// whole [gui] section plus [auth].use_keychain in one atomic config write, and
+// emits settings:changed with the new GUISettings (ConfigPath filled) as
+// payload. in.ConfigPath ignored.
 func (g *SettingsService) Set(ctx context.Context, in GUISettings) error
 
 // ShellSnippets returns the pinned Alias and ClaudeMD strings (§3) and the
@@ -82,8 +83,8 @@ Before delegating work, run `wm <profile>` to print the best model id for that t
 
 Built on `newTestServices(t, ...)` (B02). Required cases:
 
-1. **Defaults**: empty config → Get returns B01's `[gui]` defaults with `ConfigPath` = the temp `UserConfigFile`.
-2. **Round-trip**: Set a fully non-default struct → Get returns it field-for-field; config.toml on disk contains the `[gui]` keys; unknown keys elsewhere in the file preserved.
+1. **Defaults**: empty config → Get returns B01's `[gui]` defaults, `UseKeychain = true`, and `ConfigPath` = the temp `UserConfigFile`.
+2. **Round-trip**: Set a fully non-default struct → Get returns it field-for-field; config.toml on disk contains the `[gui]` keys and `[auth].use_keychain`; unknown keys elsewhere in the file preserved.
 3. **Event**: successful Set → recorder shows exactly one `settings:changed` whose payload equals the new `GUISettings` (ConfigPath filled); failed Set → zero events.
 4. **Enum rejection table**: one case per §4 row (bad layout/weight_control/holds/shortcut/frequency) asserting exact message and `validation_failed`; a struct with two bad fields fails on the earlier-ordered one.
 5. **ConfigPath ignored**: Set with `ConfigPath: "/evil"` succeeds; disk has no such value; Get still reports the real path.

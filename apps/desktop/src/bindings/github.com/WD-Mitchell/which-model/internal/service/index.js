@@ -25,7 +25,7 @@ import * as $models from "./models.js";
  */
 
 /**
- * GUISettings is the [gui] section as the settings page reads/writes it.
+ * GUISettings is the settings-page aggregate for [gui] plus [auth].use_keychain.
  * @typedef {$models.GUISettings} GUISettings
  */
 

@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 
@@ -35,27 +36,49 @@ type AuthResolved struct {
 	Secret    string
 	ExpiresAt *time.Time
 	Account   string
-	Path      string
-	FileMode  fs.FileMode
 }
 
 var errNoCredential = credential.ErrNotFound
 
 var resolveFirstFunc = resolveFirst
 
+func managedCredentialStore() (credential.ManagedStore, error) {
+	cfg, err := config.Load(config.LoadOptions{Path: Global.ConfigPath})
+	if err != nil {
+		return credential.ManagedStore{}, err
+	}
+	auth, err := cfg.LoadAuth()
+	if err != nil {
+		return credential.ManagedStore{}, err
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return credential.ManagedStore{}, errors.New("cannot resolve credential storage directory")
+	}
+	paths := config.ResolvePaths(runtime.GOOS, home, os.Getenv)
+	return credential.ManagedStore{
+		StateDir:    paths.StateDir,
+		Keychain:    credential.DefaultKeychain(),
+		UseKeychain: auth.UseKeychain,
+	}, nil
+}
+
 func resolveFirst(providerID string) (AuthResolved, error) {
 	desc, err := usage.Get(providerID)
 	if err != nil {
 		return AuthResolved{}, err
 	}
-	resolved, _, err := credential.ResolveChain(context.Background(), desc.Auth, &http.Client{})
+	store, err := managedCredentialStore()
+	if err != nil {
+		return AuthResolved{}, err
+	}
+	resolved, _, err := credential.ResolveProvider(context.Background(), providerID, desc.Auth, &http.Client{}, store)
 	if err != nil {
 		return AuthResolved{}, err
 	}
 	result := AuthResolved{
-		Source:   fetch.SourceFor(resolved, desc.Kind),
-		Secret:   resolved.Token,
-		FileMode: fs.FileMode(resolved.Mode),
+		Source: fetch.SourceFor(resolved, desc.Kind),
+		Secret: resolved.Token,
 	}
 	for _, key := range []string{"account", "account_id", "login", "username"} {
 		if result.Account == "" {
@@ -275,6 +298,7 @@ func redactAuthMessage(message, secret string) string {
 type DeviceFlow struct {
 	Code            string
 	VerificationURI string
+	Poll            func() (string, error)
 }
 
 var stdinIsTTY = func() bool { return term.IsTerminal(int(os.Stdin.Fd())) }
@@ -300,9 +324,25 @@ func startDeviceFlow(provider string) (DeviceFlow, error) {
 		if err != nil {
 			return DeviceFlow{}, err
 		}
-		return DeviceFlow{Code: code.UserCode, VerificationURI: code.VerificationURI}, nil
+		return DeviceFlow{
+			Code:            code.UserCode,
+			VerificationURI: code.VerificationURI,
+			Poll: func() (string, error) {
+				return flow.Poll(context.Background(), code)
+			},
+		}, nil
 	}
 	return DeviceFlow{}, &CodedError{Code: "unsupported", Message: fmt.Sprintf("login for %s is not supported until M5; sign in with the provider's own client, then run which-model auth status %s", provider, provider)}
+}
+
+var saveCredentialFunc = saveCredential
+
+func saveCredential(provider, token string) error {
+	store, err := managedCredentialStore()
+	if err != nil {
+		return err
+	}
+	return store.Save(provider, token)
 }
 
 func RunAuthLogin(provider string, stdout, stderr io.Writer, stdin io.Reader) error {
@@ -332,13 +372,57 @@ func RunAuthLogin(provider string, stdout, stderr io.Writer, stdin io.Reader) er
 	if stderr != nil {
 		_, _ = io.WriteString(stderr, "waiting for confirmation...\n")
 	}
+	if flow.Poll == nil {
+		return &CodedError{Code: "runtime", Message: "device login could not be completed"}
+	}
+	token, err := flow.Poll()
+	if err != nil {
+		message := redactAuthMessage(err.Error(), "")
+		if stderr != nil {
+			_, _ = fmt.Fprintf(stderr, "[runtime] %s\n", message)
+		}
+		return &CodedError{Code: "runtime", Message: message}
+	}
+	if err := saveCredentialFunc(provider, token); err != nil {
+		message := redactAuthMessage(err.Error(), token)
+		if stderr != nil {
+			_, _ = fmt.Fprintf(stderr, "[runtime] %s\n", message)
+		}
+		return &CodedError{Code: "runtime", Message: message}
+	}
 	return nil
 }
 
 var removeFunc = removeCredential
 var hasBroadPermsFunc = security.HasBroadPermissions
+var managedCredentialFileInfoFunc = managedCredentialFileInfo
 
-func removeCredential(string) error { return errNoCredential }
+func removeCredential(provider string) error {
+	store, err := managedCredentialStore()
+	if err != nil {
+		return err
+	}
+	return store.Remove(provider)
+}
+
+func managedCredentialFileInfo(provider string) (string, fs.FileMode, error) {
+	store, err := managedCredentialStore()
+	if err != nil {
+		return "", 0, err
+	}
+	path := store.Path(provider)
+	if path == "" {
+		return "", 0, nil
+	}
+	info, err := os.Stat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return "", 0, nil
+	}
+	if err != nil {
+		return "", 0, err
+	}
+	return path, info.Mode().Perm(), nil
+}
 
 func RunAuthLogout(provider string, yes bool, stdout, stderr io.Writer, stdin io.Reader) error {
 	if err := authUsageDisabled(Global.NoUsage, Global.ConfigPath); err != nil {
@@ -366,23 +450,10 @@ func RunAuthLogout(provider string, yes bool, stdout, stderr io.Writer, stdin io
 			return nil
 		}
 	}
-	resolved, err := resolveFirstFunc(provider)
-	if errors.Is(err, errNoCredential) {
+	path, mode, infoErr := managedCredentialFileInfoFunc(provider)
+	if infoErr == nil && path != "" && hasBroadPermsFunc(mode) {
 		if stderr != nil {
-			_, _ = fmt.Fprintf(stderr, "no which-model-managed credential for %s; nothing to remove\n", provider)
-		}
-		return nil
-	}
-	if err != nil {
-		message := redactAuthMessage(err.Error(), "")
-		if stderr != nil {
-			_, _ = fmt.Fprintf(stderr, "[runtime] %s\n", message)
-		}
-		return &CodedError{Code: "runtime", Message: message}
-	}
-	if resolved.Path != "" && hasBroadPermsFunc(resolved.FileMode) {
-		if stderr != nil {
-			_, _ = fmt.Fprintf(stderr, "Warning: %s permissions are broader than 0600; review them.\n", resolved.Path)
+			_, _ = fmt.Fprintf(stderr, "Warning: %s permissions are broader than 0600; review them.\n", path)
 		}
 	}
 	if err := removeFunc(provider); err != nil {
