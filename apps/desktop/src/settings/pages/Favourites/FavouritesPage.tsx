@@ -12,7 +12,7 @@
 import { useCallback, useState } from 'react'
 import { Button, Combobox, Tag, useToast } from '@which-model/ui'
 import type { RankedModel } from '@which-model/core'
-import { useFavourites, useRank, useSettings } from '../../../lib/queries'
+import { useFavourites, useRank } from '../../../lib/queries'
 import { getHost } from '../../../lib/host'
 import { DetailHeader } from '../../DetailHeader'
 import { PAGE_META } from '../../pages'
@@ -22,14 +22,12 @@ import styles from './FavouritesPage.module.css'
 export function FavouritesPage(_props: PageComponentProps) {
   const toast = useToast()
   const { data: favourites } = useFavourites()
-  const { data: settings } = useSettings()
-  const holds = settings?.holds ?? 5
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
   const list = favourites ?? []
 
-  // Candidate models come from a default-profile rank (broad availability).
-  const { data: rank } = useRank('balanced_implementation', 'none', 50)
+  // Candidate models use the configured engine-valid hold count.
+  const { data: rank } = useRank('balanced_implementation', 'none', 0)
   const candidates: RankedModel[] = rank?.candidates ?? []
 
   const matching = candidates
