@@ -109,6 +109,53 @@ func TestApplyEnv(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "strategy default",
+			env:  map[string]string{"WHICH_MODEL_STRATEGY_DEFAULT": "priority"},
+			check: func(t *testing.T, cfg *Config) {
+				if cfg.env["strategy.default"] != "priority" {
+					t.Fatalf("strategy.default = %q", cfg.env["strategy.default"])
+				}
+			},
+		},
+		{
+			name: "catalog publish enabled",
+			env:  map[string]string{"WHICH_MODEL_CATALOG_PUBLISH_ENABLED": "true"},
+			check: func(t *testing.T, cfg *Config) {
+				if cfg.env["catalog.publish.enabled"] != "true" {
+					t.Fatalf("catalog.publish.enabled = %q", cfg.env["catalog.publish.enabled"])
+				}
+			},
+		},
+		{
+			name: "output color",
+			env:  map[string]string{"WHICH_MODEL_OUTPUT_COLOR": "true"},
+			check: func(t *testing.T, cfg *Config) {
+				if cfg.env["output.color"] != "true" {
+					t.Fatalf("output.color = %q", cfg.env["output.color"])
+				}
+			},
+		},
+		{
+			name:  "wrong section usage default",
+			env:   map[string]string{"WHICH_MODEL_USAGE_DEFAULT": "1"},
+			check: func(t *testing.T, cfg *Config) {},
+		},
+		{
+			name:  "wrong section scoring default",
+			env:   map[string]string{"WHICH_MODEL_SCORING_DEFAULT": "x"},
+			check: func(t *testing.T, cfg *Config) {},
+		},
+		{
+			name:  "wrong section provider schedule",
+			env:   map[string]string{"WHICH_MODEL_PROVIDERS_CLAUDE_SCHEDULE": "1"},
+			check: func(t *testing.T, cfg *Config) {},
+		},
+		{
+			name:  "unknown section",
+			env:   map[string]string{"WHICH_MODEL_GUI_LAYOUT": "list"},
+			check: func(t *testing.T, cfg *Config) {},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -120,18 +167,22 @@ func TestApplyEnv(t *testing.T) {
 			}
 			getenv := func(name string) string { return values[name] }
 			err := ApplyEnv(cfg, getenv, environ)
-			wantErr := tt.name == "usage invalid" || tt.name == "cache ttl invalid" || tt.name == "enabled invalid" || tt.name == "unknown provider key" || tt.name == "unknown generic key"
+			wantErr := tt.name == "usage invalid" || tt.name == "cache ttl invalid" || tt.name == "enabled invalid" || tt.name == "unknown provider key" || tt.name == "unknown generic key" || tt.name == "wrong section usage default" || tt.name == "wrong section scoring default" || tt.name == "wrong section provider schedule" || tt.name == "unknown section"
 			if wantErr {
 				var ce *ConfigError
 				if !errors.As(err, &ce) || ce.ExitCode() != 2 {
 					t.Fatalf("error = %v", err)
 				}
 				wantKey := map[string]string{
-					"usage invalid":        "WHICH_MODEL_USAGE_ENABLED",
-					"cache ttl invalid":    "WHICH_MODEL_PROVIDERS_CLAUDE_CACHE_TTL",
-					"enabled invalid":      "WHICH_MODEL_PROVIDERS_CLAUDE_ENABLED",
-					"unknown provider key": "WHICH_MODEL_PROVIDERS_CLAUDE_BANANA",
-					"unknown generic key":  "WHICH_MODEL_CATALOG_BANANA",
+					"usage invalid":                   "WHICH_MODEL_USAGE_ENABLED",
+					"cache ttl invalid":               "WHICH_MODEL_PROVIDERS_CLAUDE_CACHE_TTL",
+					"enabled invalid":                 "WHICH_MODEL_PROVIDERS_CLAUDE_ENABLED",
+					"unknown provider key":            "WHICH_MODEL_PROVIDERS_CLAUDE_BANANA",
+					"unknown generic key":             "WHICH_MODEL_CATALOG_BANANA",
+					"wrong section usage default":     "WHICH_MODEL_USAGE_DEFAULT",
+					"wrong section scoring default":   "WHICH_MODEL_SCORING_DEFAULT",
+					"wrong section provider schedule": "WHICH_MODEL_PROVIDERS_CLAUDE_SCHEDULE",
+					"unknown section":                 "WHICH_MODEL_GUI_LAYOUT",
 				}[tt.name]
 				if ce.Key != wantKey {
 					t.Fatalf("Key = %q, want %q", ce.Key, wantKey)

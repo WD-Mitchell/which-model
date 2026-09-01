@@ -239,7 +239,7 @@ Unknown keys under `usage.*` or `providers.<id>.*` → `KindInvalidValue` (stric
 
 `<ID>` = provider id uppercased with `-` → `_`. Unknown provider keys (`WHICH_MODEL_PROVIDERS_<ID>_<other>`) → `KindInvalidValue`.
 
-**Closed env-key vocabulary** (D14): a `WHICH_MODEL_*` var is valid iff its longest-suffix match lands on one of these lowercased key names (arrays excluded — annex-d §4.4):
+**Closed env-key vocabulary** (D14): a `WHICH_MODEL_*` var is valid iff its longest-suffix match lands on one of these lowercased key names AND the resolved section owns that key per the table (arrays excluded — annex-d §4.4):
 
 | Key names | Sections |
 |---|---|
@@ -252,7 +252,7 @@ Unknown keys under `usage.*` or `providers.<id>.*` → `KindInvalidValue` (stric
 | `schedule`, `timezone`, `mode`, `auto_merge`, `merge_method`, `commit_message`, `pr_title`, `run_tests` | `catalog.publish` (`branches`, `pr_labels` arrays excluded) |
 | `color`, `timestamps`, `identity_default` | `output` |
 
-Any other `WHICH_MODEL_*` var → `KindInvalidValue` at `ApplyEnv` time (eager). Matches are stored as `dotted-key → raw value` and applied by `UnmarshalKey` when the owning feature decodes its section (e.g. `WHICH_MODEL_BANDS_GATE_ABOVE_USED_PERCENT` → `bands.gate_above_used_percent`; `WHICH_MODEL_CATALOG_PUBLISH_SCHEDULE` → `catalog.publish.schedule`). Arrays are never env-addressable. Adding a config key later updates this table + the vocabulary test.
+Any other `WHICH_MODEL_*` var — no suffix match, an unknown section, or a key the resolved section does not own (e.g. `WHICH_MODEL_USAGE_DEFAULT`: `default` exists but `strategy` owns it) — → `KindInvalidValue` at `ApplyEnv` time (eager). Matches are stored as `dotted-key → raw value` and applied by `UnmarshalKey` when the owning feature decodes its section (e.g. `WHICH_MODEL_BANDS_GATE_ABOVE_USED_PERCENT` → `bands.gate_above_used_percent`; `WHICH_MODEL_CATALOG_PUBLISH_SCHEDULE` → `catalog.publish.schedule`). Arrays are never env-addressable. Adding a config key later updates this table + the vocabulary test.
 
 ## 4. Flags owned
 
