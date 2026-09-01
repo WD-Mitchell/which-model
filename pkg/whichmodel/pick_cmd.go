@@ -35,6 +35,7 @@ func NewPickCmd() *cobra.Command {
 	cmd.Flags().String("complexity", "", "task complexity for --task-category (simple|medium|complex)")
 	cmd.Flags().String("strategy", "", "strategy name; default: strategy.default from config, else closest-to-reset with usage, priority without")
 	cmd.Flags().StringSlice("available", nil, "allowlist file of model ids (repeatable)")
+	cmd.Flags().Bool("dry-run", false, "round-robin: read the rotation cursor without advancing it")
 	return cmd
 }
 
@@ -44,6 +45,7 @@ func runPickE(c *cobra.Command, args []string) error {
 	complexity, _ := c.Flags().GetString("complexity")
 	strategy, _ := c.Flags().GetString("strategy")
 	available, _ := c.Flags().GetStringSlice("available")
+	dryRun, _ := c.Flags().GetBool("dry-run")
 	out := c.OutOrStdout()
 	return RunPick(PickArgs{
 		Profile:      profile,
@@ -51,6 +53,7 @@ func runPickE(c *cobra.Command, args []string) error {
 		Complexity:   complexity,
 		Strategy:     strategy,
 		Allowlists:   available,
+		DryRun:       dryRun,
 		NoUsage:      Global.NoUsage,
 		JSON:         Global.JSON || !stdoutIsTTY(out),
 		ConfigPath:   Global.ConfigPath,
@@ -75,6 +78,7 @@ type PickArgs struct {
 	Complexity   string   // raw --complexity
 	Strategy     string   // explicit --strategy wins, then strategy.default from config, then closest-to-reset (usage enabled) / priority (disabled)
 	Allowlists   []string // --available paths (raw, pre-read)
+	DryRun       bool     // --dry-run: round-robin reads the cursor without advancing
 	NoUsage      bool     // Global.NoUsage
 	JSON         bool     // Global.JSON; forced true when stdout is not a TTY
 	ConfigPath   string   // Global.ConfigPath

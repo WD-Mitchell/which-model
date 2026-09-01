@@ -276,6 +276,7 @@ type runState struct {
 	strategyConfig strategy.Config
 	profile        string
 	dataDir        string
+	dryRun         bool               // feeds strategy.State.DryRun: round-robin reads the cursor without advancing (F20 CONTRACTS §6)
 	scores         []catalog.ScoreRow // scores CSV, loaded once per run
 	scoreInputs    map[string]map[string]float64
 	routesByKey    map[string]routing.Route
@@ -409,6 +410,7 @@ var strategyApplyFunc = func(name string, cands []Candidate, opts strategyOption
 	state := &strategy.State{
 		Profile:             st.profile,
 		DataDir:             st.dataDir,
+		DryRun:              st.dryRun,
 		ProviderPriority:    providerOrder(st.cfg),
 		Config:              st.strategyConfig,
 		UsageEnabled:        st.usageEnabled,
@@ -913,7 +915,7 @@ func RunPick(args PickArgs, stdout, stderr io.Writer) error {
 			return err
 		}
 	}
-	st := &runState{cfg: cfg, strategyConfig: strategyConfig, profile: profile, scores: loadScoreRows(cfg), dataDir: stateDirFunc()}
+	st := &runState{cfg: cfg, strategyConfig: strategyConfig, profile: profile, dryRun: args.DryRun, scores: loadScoreRows(cfg), dataDir: stateDirFunc()}
 	prev := pickRun
 	pickRun = st
 	defer func() { pickRun = prev }()

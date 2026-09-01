@@ -136,6 +136,27 @@ tier2_share = 20
 	}
 }
 
+// Issue #52: --dry-run must reach strategy.State.DryRun so round-robin
+// reads but does not advance the persisted cursor (F20 CONTRACTS §6).
+func TestPickStrategyReceivesDryRun(t *testing.T) {
+	cfg, _ := pickPipelineSetup(t, pickTwoRoutes(), pickTwoScores(), nil, nil, nil)
+	var gotDryRun bool
+	old := strategyApplyFunc
+	strategyApplyFunc = func(name string, cands []Candidate, opts strategyOptions) ([]Candidate, error) {
+		gotDryRun = pickRun.dryRun
+		return cands, nil
+	}
+	t.Cleanup(func() { strategyApplyFunc = old })
+
+	err, _, _ := runPick(t, PickArgs{Profile: "complex_implementation", Strategy: "round-robin", DryRun: true, ConfigPath: cfg})
+	if err != nil {
+		t.Fatalf("err = %v", err)
+	}
+	if !gotDryRun {
+		t.Error("run state dryRun = false, want true (--dry-run plumb through)")
+	}
+}
+
 func TestPickStrategyReceivesEarliestProviderReset(t *testing.T) {
 	claudeLater := time.Date(2026, 8, 10, 14, 0, 0, 0, time.UTC)
 	claudeSooner := time.Date(2026, 8, 10, 13, 0, 0, 0, time.UTC)
