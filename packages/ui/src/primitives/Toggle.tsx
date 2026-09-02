@@ -5,9 +5,10 @@ export interface ToggleProps {
   on: boolean
   disabled?: boolean // .sw.off + handler suppressed
   onToggle: (on: boolean) => void // called with !on
+  'aria-label'?: string
 }
 
-export function Toggle({ on, disabled = false, onToggle }: ToggleProps) {
+export function Toggle({ on, disabled = false, onToggle, 'aria-label': ariaLabel }: ToggleProps) {
   function toggle() {
     if (!disabled) onToggle(!on)
   }
@@ -24,6 +25,7 @@ export function Toggle({ on, disabled = false, onToggle }: ToggleProps) {
     <span
       role="switch"
       aria-checked={on}
+      aria-label={ariaLabel}
       tabIndex={disabled ? -1 : 0}
       className={cx('sw', on && 'on', disabled && 'off')}
       onClick={toggle}

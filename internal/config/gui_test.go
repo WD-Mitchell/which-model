@@ -461,10 +461,10 @@ func TestSetLoadRoundTrip(t *testing.T) {
 		if !ok {
 			t.Fatalf("no [gui] in %q", out)
 		}
-		// Bump deliberately when a setting is added: gui.default_tab (the
-		// popover's opening tab) took this from 13 to 14.
-		if len(gui) != 14 {
-			t.Fatalf("[gui] has %d keys, want 14: %v", len(gui), gui)
+		// Bump deliberately when a setting is added: catalog_repo +
+		// use_local_aa took this from 14 to 16.
+		if len(gui) != 16 {
+			t.Fatalf("[gui] has %d keys, want 16: %v", len(gui), gui)
 		}
 		got, err := loadFixture(t, string(out)).LoadGUI()
 		if err != nil {

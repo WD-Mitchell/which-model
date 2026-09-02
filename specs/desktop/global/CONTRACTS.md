@@ -185,6 +185,10 @@ type GUISettings struct {
     ClaudeMDHint            bool   `json:"claude_md_hint"`
     ShellAlias              bool   `json:"shell_alias"`
     UseKeychain             bool   `json:"use_keychain"` // [auth]; default true
+    CatalogRepo             string `json:"catalog_repo"` // "owner/repo" or "owner/repo@ref"
+    UseLocalAA              bool   `json:"use_local_aa"`
+    AAAPIKey                string `json:"aa_api_key"`   // write-only; Get returns ""
+    AAAPIKeySet             bool   `json:"aa_api_key_set"`
     ConfigPath              string `json:"config_path"` // read-only, display only
 }
 

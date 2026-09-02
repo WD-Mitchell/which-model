@@ -128,6 +128,7 @@ func TestSignInConfirmSavesCredential(t *testing.T) {
 		EffortLevels: []string{"max"},
 	}})
 	svc, rec := newTestServices(t, WithConfigTOML("[usage]\nbackend = \"native\"\n\n[auth]\nuse_keychain = false\n\n[providers."+testFlowProviderID+"]\nenabled = true\n\n[[providers."+testFlowProviderID+".accounts]]\nname = \"GitHub\"\nkind = \"oauth\"\nref = \"\"\n"))
+	stubCatalogRepoFromCache(t, svc)
 	tokenBodies := make(chan string, 8)
 	newFlowTestTargets(t, `{"device_code":"abc123","user_code":"WDML-TEST","verification_uri":"https://github.com/login/device","expires_in":900}`, tokenBodies)
 	tokenBodies <- `{"access_token":"tok-confirm-1","token_type":"bearer"}`
@@ -353,6 +354,7 @@ func TestSignInClaudeSubmitCodeThenConfirm(t *testing.T) {
 	t.Cleanup(func() { startClaudeLogin = func() (*claude.BrowserLogin, error) { return claude.StartBrowserLogin() } })
 
 	svc, _ := newTestServices(t, WithConfigTOML("[usage]\nbackend = \"native\"\n\n[auth]\nuse_keychain = false\n\n[providers.claude]\nenabled = true\n"))
+	stubCatalogRepoFromCache(t, svc)
 	started, err := svc.SignIn().Start(context.Background(), "claude")
 	if err != nil {
 		t.Fatal(err)
@@ -422,6 +424,7 @@ func TestSignInCodexDeviceSavesCredential(t *testing.T) {
 	})
 
 	svc, _ := newTestServices(t, WithConfigTOML("[usage]\nbackend = \"native\"\n\n[auth]\nuse_keychain = false\n\n[providers.codex]\nenabled = true\n"))
+	stubCatalogRepoFromCache(t, svc)
 	started, err := svc.SignIn().Start(context.Background(), "codex")
 	if err != nil {
 		t.Fatalf("Start: %v", err)

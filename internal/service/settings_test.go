@@ -18,11 +18,11 @@ func TestSettingsDefaultsAndRoundTrip(t *testing.T) {
 	}
 	def := config.DefaultGUIConfig()
 	authDef := config.DefaultAuthConfig()
-	want := guiDTO(def, authDef, svc.paths.UserConfigFile, "")
+	want := guiDTO(def, authDef, svc.paths.UserConfigFile, "", false)
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("defaults = %#v, want %#v", got, want)
 	}
-	in := GUISettings{Layout: "list", DefaultTab: "sliders", WeightControl: "bar", Holds: 10, Shortcut: "cmd+shift+m", ShowMenuBarIcon: false, LaunchAtLogin: true, CopyCommandInstead: true, ClosePopoverAfterLaunch: false, AutoUpdate: false, AutoUpdateFrequency: "weekly", MCPServer: true, ClaudeMDHint: true, ShellAlias: true, UseKeychain: false, ConfigPath: "/evil"}
+	in := GUISettings{Layout: "list", DefaultTab: "sliders", WeightControl: "bar", Holds: 10, Shortcut: "cmd+shift+m", ShowMenuBarIcon: false, LaunchAtLogin: true, CopyCommandInstead: true, ClosePopoverAfterLaunch: false, AutoUpdate: false, AutoUpdateFrequency: "weekly", MCPServer: true, ClaudeMDHint: true, ShellAlias: true, UseKeychain: false, CatalogRepo: "WD-Mitchell/which-model", ConfigPath: "/evil"}
 	if err := svc.Settings().Set(context.Background(), in); err != nil {
 		t.Fatal(err)
 	}
@@ -169,5 +169,32 @@ func TestSettingsDefaultTabNormalisation(t *testing.T) {
 	want := `validation_failed: validation failed: gui: default_tab must be "profiles" or "sliders", got "elsewhere"`
 	if err := svc.Settings().Set(ctx, bad); err == nil || err.Error() != want {
 		t.Errorf("Set with bad default_tab err = %v, want %q", err, want)
+	}
+}
+
+func TestSettingsCatalogRepoDefaults(t *testing.T) {
+	svc, _ := newTestServices(t)
+	ctx := context.Background()
+	got, err := svc.Settings().Get(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.CatalogRepo != config.DefaultCatalogRepo || got.UseLocalAA {
+		t.Fatalf("defaults catalog = %+v", got)
+	}
+	got.CatalogRepo = ""
+	if err := svc.Settings().Set(ctx, got); err != nil {
+		t.Fatal(err)
+	}
+	got, err = svc.Settings().Get(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.CatalogRepo != config.DefaultCatalogRepo {
+		t.Fatalf("empty catalog_repo persisted as %q, want default", got.CatalogRepo)
+	}
+	got.CatalogRepo = "not a repo"
+	if err := svc.Settings().Set(ctx, got); err == nil {
+		t.Fatal("Set invalid catalog_repo error = nil")
 	}
 }

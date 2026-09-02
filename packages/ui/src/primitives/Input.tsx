@@ -9,6 +9,7 @@ export interface InputProps {
   mono?: boolean // default true (.wminput); false → font-body
   disabled?: boolean
   className?: string // on the .input wrapper
+  type?: 'text' | 'password'
   onFocus?: () => void
   /** Commit-on-blur editors (the mockup's inline rename fields, demo.dc.html
    *  462) need the counterpart to onFocus. */
@@ -23,6 +24,7 @@ export function Input({
   mono = true,
   disabled = false,
   className,
+  type = 'text',
   onFocus,
   onBlur,
   onKeyDown,
@@ -31,6 +33,7 @@ export function Input({
     <span className={cx('input', styles.wrap, className)}>
       <input
         className={cx('wminput', !mono && styles.body)}
+        type={type}
         value={value}
         placeholder={placeholder}
         disabled={disabled}

@@ -18,6 +18,7 @@ backend = "native"
 [providers.claude]
 enabled = true
 `))
+	stubCatalogRepoFromCache(t, svc)
 	stubModelsDevFetch(t, []modelsdev.ProviderModel{{
 		Provider:     "anthropic",
 		ModelID:      "claude-opus-5",
@@ -70,6 +71,7 @@ backend = "native"
 [providers.claude]
 enabled = true
 `))
+	stubCatalogRepoFromCache(t, svc)
 	stubModelsDevFetch(t, []modelsdev.ProviderModel{{
 		Provider:     "anthropic",
 		ModelID:      "claude-opus-5",
@@ -95,6 +97,9 @@ func TestRefreshRoutesInvokesCatalogHook(t *testing.T) {
 	svc, rec := newTestServices(t, WithConfigTOML(`
 [usage]
 backend = "native"
+
+[gui]
+use_local_aa = true
 
 [providers.claude]
 enabled = true
@@ -135,6 +140,9 @@ func TestRefreshRoutesCatalogHookErrorStopsJoin(t *testing.T) {
 [usage]
 backend = "native"
 
+[gui]
+use_local_aa = true
+
 [providers.claude]
 enabled = true
 `))
@@ -153,6 +161,31 @@ enabled = true
 	}
 	if fetched != 0 {
 		t.Fatalf("models.dev fetch calls = %d, want 0 after hook failure", fetched)
+	}
+}
+
+func TestRefreshRoutesDefaultPullsRepoNotHook(t *testing.T) {
+	svc, _ := newTestServices(t, WithConfigTOML(`
+[usage]
+backend = "native"
+`))
+	hookCalls := 0
+	svc.SetCatalogRefresh(func(context.Context) error {
+		hookCalls++
+		return context.Canceled
+	})
+	stubCatalogRepoFromCache(t, svc)
+	stubModelsDevFetch(t, []modelsdev.ProviderModel{{
+		Provider:     "anthropic",
+		ModelID:      "claude-opus-5",
+		Name:         "Claude Opus 5",
+		EffortLevels: []string{"max"},
+	}})
+	if err := svc.Providers().RefreshRoutes(context.Background()); err != nil {
+		t.Fatalf("RefreshRoutes() error = %v", err)
+	}
+	if hookCalls != 0 {
+		t.Fatalf("catalog hook calls = %d, want 0 when use_local_aa is off", hookCalls)
 	}
 }
 

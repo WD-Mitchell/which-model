@@ -157,6 +157,14 @@ export interface GUISettings {
     shell_alias: boolean;
     /** Prefer the OS keychain for credentials created by which-model. */
     use_keychain: boolean;
+    /** GitHub owner/repo (optional @ref) to pull scores from. Default: WD-Mitchell/which-model. */
+    catalog_repo: string;
+    /** When true, collect scores with a local Artificial Analysis API key instead of catalog_repo. */
+    use_local_aa: boolean;
+    /** Write-only. Get always returns "". Set a new key, or "-" to clear. */
+    aa_api_key: string;
+    /** True when a local AA API key is stored. */
+    aa_api_key_set: boolean;
     config_path: string;
     /** Running build identity, e.g. "which-model 2.0.0 (commit ab12cd3, built 2026-09-01)". */
     version: string;

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/WD-Mitchell/which-model/internal/config"
 	"github.com/WD-Mitchell/which-model/internal/pick/strategy"
@@ -30,7 +31,7 @@ func (g *SettingsService) Get(ctx context.Context) (GUISettings, error) {
 	if err != nil {
 		return GUISettings{}, toErrorDTO(err)
 	}
-	return guiDTO(gui, auth, g.s.paths.UserConfigFile, g.s.version), nil
+	return guiDTO(gui, auth, g.s.paths.UserConfigFile, g.s.version, readAAKeyFile(g.s.paths.ConfigDir) != ""), nil
 }
 
 // Set validates and atomically replaces the complete GUI section.
@@ -60,6 +61,15 @@ func (g *SettingsService) Set(ctx context.Context, in GUISettings) error {
 	if err == nil {
 		err = config.AtomicWriteFile(g.s.paths.UserConfigFile, data)
 	}
+	if err == nil {
+		switch strings.TrimSpace(in.AAAPIKey) {
+		case "":
+		case aaKeyClearSentinel:
+			err = clearAAKeyFile(g.s.paths.ConfigDir)
+		default:
+			err = writeAAKeyFile(g.s.paths.ConfigDir, in.AAAPIKey)
+		}
+	}
 	if cleanup != nil {
 		cleanup()
 	}
@@ -71,6 +81,9 @@ func (g *SettingsService) Set(ctx context.Context, in GUISettings) error {
 	g.s.mu.Unlock()
 
 	payload := in
+	payload.AAAPIKey = ""
+	payload.AAAPIKeySet = readAAKeyFile(g.s.paths.ConfigDir) != ""
+	payload.CatalogRepo = guiConfig(in).CatalogRepo
 	payload.ConfigPath = g.s.paths.UserConfigFile
 	payload.Version = g.s.version
 	g.s.emit(EventSettingsChanged, payload)
@@ -105,12 +118,20 @@ func (g *SettingsService) ShellSnippets(ctx context.Context) (ShellSnippets, err
 	return out, nil
 }
 
-func guiDTO(g config.GUIConfig, auth config.AuthConfig, path, version string) GUISettings {
-	return GUISettings{Layout: g.Layout, DefaultTab: g.DefaultTab, WeightControl: g.WeightControl, Holds: g.Holds, Shortcut: g.Shortcut, ShowMenuBarIcon: g.ShowMenuBarIcon, LaunchAtLogin: g.LaunchAtLogin, CopyCommandInstead: g.CopyCommandInstead, ClosePopoverAfterLaunch: g.ClosePopoverAfterLaunch, AutoUpdate: g.AutoUpdate, AutoUpdateFrequency: g.AutoUpdateFrequency, MCPServer: g.MCPServer, ClaudeMDHint: g.ClaudeMDHint, ShellAlias: g.ShellAlias, UseKeychain: auth.UseKeychain, ConfigPath: path, Version: version}
+func guiDTO(g config.GUIConfig, auth config.AuthConfig, path, version string, aaKeySet bool) GUISettings {
+	repo := g.CatalogRepo
+	if strings.TrimSpace(repo) == "" {
+		repo = config.DefaultCatalogRepo
+	}
+	return GUISettings{Layout: g.Layout, DefaultTab: g.DefaultTab, WeightControl: g.WeightControl, Holds: g.Holds, Shortcut: g.Shortcut, ShowMenuBarIcon: g.ShowMenuBarIcon, LaunchAtLogin: g.LaunchAtLogin, CopyCommandInstead: g.CopyCommandInstead, ClosePopoverAfterLaunch: g.ClosePopoverAfterLaunch, AutoUpdate: g.AutoUpdate, AutoUpdateFrequency: g.AutoUpdateFrequency, MCPServer: g.MCPServer, ClaudeMDHint: g.ClaudeMDHint, ShellAlias: g.ShellAlias, UseKeychain: auth.UseKeychain, CatalogRepo: repo, UseLocalAA: g.UseLocalAA, AAAPIKeySet: aaKeySet, ConfigPath: path, Version: version}
 }
 
 func guiConfig(g GUISettings) config.GUIConfig {
-	return config.GUIConfig{Layout: g.Layout, DefaultTab: g.DefaultTab, WeightControl: g.WeightControl, Holds: g.Holds, Shortcut: g.Shortcut, ShowMenuBarIcon: g.ShowMenuBarIcon, LaunchAtLogin: g.LaunchAtLogin, CopyCommandInstead: g.CopyCommandInstead, ClosePopoverAfterLaunch: g.ClosePopoverAfterLaunch, AutoUpdate: g.AutoUpdate, AutoUpdateFrequency: g.AutoUpdateFrequency, MCPServer: g.MCPServer, ClaudeMDHint: g.ClaudeMDHint, ShellAlias: g.ShellAlias}
+	repo := strings.TrimSpace(g.CatalogRepo)
+	if repo == "" {
+		repo = config.DefaultCatalogRepo
+	}
+	return config.GUIConfig{Layout: g.Layout, DefaultTab: g.DefaultTab, WeightControl: g.WeightControl, Holds: g.Holds, Shortcut: g.Shortcut, ShowMenuBarIcon: g.ShowMenuBarIcon, LaunchAtLogin: g.LaunchAtLogin, CopyCommandInstead: g.CopyCommandInstead, ClosePopoverAfterLaunch: g.ClosePopoverAfterLaunch, AutoUpdate: g.AutoUpdate, AutoUpdateFrequency: g.AutoUpdateFrequency, MCPServer: g.MCPServer, ClaudeMDHint: g.ClaudeMDHint, ShellAlias: g.ShellAlias, CatalogRepo: repo, UseLocalAA: g.UseLocalAA}
 }
 
 func validateGUISettings(g GUISettings) error {
@@ -135,6 +156,9 @@ func validateGUISettings(g GUISettings) error {
 	if g.DefaultTab != "profiles" && g.DefaultTab != "sliders" {
 		return fmt.Errorf("%w: gui: default_tab must be \"profiles\" or \"sliders\", got %q", errValidation, g.DefaultTab)
 	}
+	if _, _, _, err := config.ParseCatalogRepoSpec(g.CatalogRepo); err != nil {
+		return fmt.Errorf("%w: gui: catalog_repo: %v", errValidation, err)
+	}
 	return nil
 }
 
@@ -144,6 +168,9 @@ func validateGUISettings(g GUISettings) error {
 func normaliseGUISettings(g GUISettings) GUISettings {
 	if g.DefaultTab == "" {
 		g.DefaultTab = "profiles"
+	}
+	if strings.TrimSpace(g.CatalogRepo) == "" {
+		g.CatalogRepo = config.DefaultCatalogRepo
 	}
 	return g
 }

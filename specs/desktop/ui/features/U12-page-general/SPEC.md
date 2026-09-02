@@ -41,6 +41,11 @@ Depends on: U02, U07. Inherits `specs/desktop/global/*` (D00) and `specs/desktop
 
 7. **Page chrome.** Title/blurb are supplied to the U07 registry: title "General", blurb "How which-model runs on this Mac, and how the pick is drawn in the popover.", no page action.
 
+8. **"catalogue" section.** Uppercase mono label `catalogue`. Rows:
+   a. **Data source repo** — note "Benchmarks are pulled from this GitHub repository. Default is the main which-model repo." Right side: text field bound to `catalog_repo` (`owner/repo` or `owner/repo@ref`). Empty blurs to `WD-Mitchell/which-model`. Commit on blur.
+   b. **Collect locally** — note "Optional. Use your own Artificial Analysis API key instead of the repo." Toggle bound to `use_local_aa`. Off (default) pulls `catalog_repo`; on runs `catalog refresh` with a local AA key.
+   c. **Artificial Analysis API key** — shown only when `use_local_aa` is on. Password field; Get never echoes the key (`aa_api_key_set` indicates a saved key). Commit on blur. Sentinel `-` clears the sidecar file. The key is NOT written to config.toml.
+
 ## 3. Error behaviour
 
 - `['settings']` pending → nothing rendered (page body blank until data); error → inline error state with retry (U00 SPEC §3).

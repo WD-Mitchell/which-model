@@ -221,6 +221,10 @@ function seedSettings(): GUISettings {
     claude_md_hint: false,
     shell_alias: false,
     use_keychain: true,
+    catalog_repo: 'WD-Mitchell/which-model',
+    use_local_aa: false,
+    aa_api_key: '',
+    aa_api_key_set: false,
     config_path: '~/Library/Application Support/which-model/config.toml',
     version: 'which-model dev (commit unknown, built unknown)',
   }
@@ -817,7 +821,18 @@ export function createMockEngineHost(
         return clone(data.settings)
       },
       async set(s) {
-        data.settings = clone(s)
+        const next = clone(s)
+        const key = next.aa_api_key.trim()
+        if (key === '-') {
+          next.aa_api_key_set = false
+        } else if (key.length > 0) {
+          next.aa_api_key_set = true
+        } else {
+          next.aa_api_key_set = data.settings.aa_api_key_set
+        }
+        next.aa_api_key = ''
+        if (!next.catalog_repo.trim()) next.catalog_repo = 'WD-Mitchell/which-model'
+        data.settings = next
         emit('settings:changed', data.settings)
       },
       async shellSnippets() {

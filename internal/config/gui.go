@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 // Route-key grammar re-declared from specs/desktop/global CONTRACTS.md §1
@@ -73,6 +74,8 @@ type GUIConfig struct {
 	MCPServer               bool   `toml:"mcp_server"`
 	ClaudeMDHint            bool   `toml:"claude_md_hint"`
 	ShellAlias              bool   `toml:"shell_alias"`
+	CatalogRepo             string `toml:"catalog_repo"`
+	UseLocalAA              bool   `toml:"use_local_aa"`
 }
 
 // guiConfigTOML is the pointered decode mirror of GUIConfig: each key falls
@@ -92,12 +95,14 @@ type guiConfigTOML struct {
 	MCPServer               *bool   `toml:"mcp_server"`
 	ClaudeMDHint            *bool   `toml:"claude_md_hint"`
 	ShellAlias              *bool   `toml:"shell_alias"`
+	CatalogRepo             *string `toml:"catalog_repo"`
+	UseLocalAA              *bool   `toml:"use_local_aa"`
 }
 
 // DefaultGUIConfig returns the [gui] per-key defaults (CONTRACTS §4).
 func DefaultGUIConfig() GUIConfig {
 	return GUIConfig{
-		Layout:                  "carousel",
+		Layout: "carousel",
 		// The popover opens on the profile picker; the complexity slider is the
 		// other tab. Shipped default is profiles.
 		DefaultTab:              "profiles",
@@ -113,6 +118,8 @@ func DefaultGUIConfig() GUIConfig {
 		MCPServer:               false,
 		ClaudeMDHint:            false,
 		ShellAlias:              false,
+		CatalogRepo:             DefaultCatalogRepo,
+		UseLocalAA:              false,
 	}
 }
 
@@ -177,6 +184,15 @@ func (c *Config) LoadGUI() (GUIConfig, error) {
 	}
 	if mirror.ShellAlias != nil {
 		gui.ShellAlias = *mirror.ShellAlias
+	}
+	if mirror.CatalogRepo != nil {
+		gui.CatalogRepo = *mirror.CatalogRepo
+	}
+	if mirror.UseLocalAA != nil {
+		gui.UseLocalAA = *mirror.UseLocalAA
+	}
+	if strings.TrimSpace(gui.CatalogRepo) == "" {
+		gui.CatalogRepo = DefaultCatalogRepo
 	}
 	if err := validateGUI(gui); err != nil {
 		return GUIConfig{}, err
@@ -265,9 +281,12 @@ func (c *Config) LoadGroups() (GroupsTOML, error) {
 	return groups, nil
 }
 
-// SetGUI validates then writes all 13 [gui] keys into the raw document
+// SetGUI validates then writes every [gui] key into the raw document
 // (a saved config is self-describing; defaults apply only to absent keys).
 func (c *Config) SetGUI(g GUIConfig) error {
+	if strings.TrimSpace(g.CatalogRepo) == "" {
+		g.CatalogRepo = DefaultCatalogRepo
+	}
 	if err := validateGUI(g); err != nil {
 		return err
 	}
@@ -286,6 +305,8 @@ func (c *Config) SetGUI(g GUIConfig) error {
 		"mcp_server":                 g.MCPServer,
 		"claude_md_hint":             g.ClaudeMDHint,
 		"shell_alias":                g.ShellAlias,
+		"catalog_repo":               g.CatalogRepo,
+		"use_local_aa":               g.UseLocalAA,
 	})
 	return nil
 }
@@ -516,6 +537,56 @@ func validateGroup(slug string, g GroupTOML) error {
 	return nil
 }
 
+// DefaultCatalogRepo is the GitHub repository desktop Settings pulls
+// scores from unless the user picks another. Ref defaults to main.
+const DefaultCatalogRepo = "WD-Mitchell/which-model"
+
+const defaultCatalogRef = "main"
+
+// ParseCatalogRepoSpec accepts "owner/repo", "owner/repo@ref", or a
+// github.com URL. Empty spec is the shipped default.
+func ParseCatalogRepoSpec(spec string) (owner, repo, ref string, err error) {
+	s := strings.TrimSpace(spec)
+	if s == "" {
+		s = DefaultCatalogRepo
+	}
+	s = strings.TrimPrefix(s, "https://")
+	s = strings.TrimPrefix(s, "http://")
+	s = strings.TrimPrefix(s, "github.com/")
+	s = strings.TrimSuffix(s, ".git")
+	ref = defaultCatalogRef
+	if i := strings.LastIndex(s, "@"); i >= 0 && !strings.Contains(s[i+1:], "/") {
+		ref = s[i+1:]
+		s = s[:i]
+	}
+	parts := strings.Split(s, "/")
+	if len(parts) >= 4 && parts[2] == "tree" {
+		ref = parts[3]
+		parts = parts[:2]
+	}
+	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", "", fmt.Errorf("want owner/repo")
+	}
+	owner, repo = parts[0], strings.TrimSuffix(parts[1], ".git")
+	if !catalogRepoPartOK(owner) || !catalogRepoPartOK(repo) || ref == "" || strings.ContainsAny(ref, " /\\") {
+		return "", "", "", fmt.Errorf("want owner/repo or owner/repo@ref")
+	}
+	return owner, repo, ref, nil
+}
+
+func catalogRepoPartOK(s string) bool {
+	if s == "" || s == "." || s == ".." {
+		return false
+	}
+	for _, r := range s {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
 func validateGUI(g GUIConfig) error {
 	switch g.Layout {
 	case "carousel", "list":
@@ -546,6 +617,9 @@ func validateGUI(g GUIConfig) error {
 	case "hourly", "daily", "weekly", "monthly":
 	default:
 		return invalidValue("gui.auto_update_frequency", `must be "hourly", "daily", "weekly" or "monthly"`)
+	}
+	if _, _, _, err := ParseCatalogRepoSpec(g.CatalogRepo); err != nil {
+		return invalidValue("gui.catalog_repo", "%s", err.Error())
 	}
 	return nil
 }

@@ -9,6 +9,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -45,14 +46,9 @@ var (
 	updateBusy    bool
 )
 
-// refreshBenchmarks rebuilds the scores CSV from models.dev + Artificial
-// Analysis, then reloads the in-process catalogue so the popover reflects it
-// without a restart.
-//
-// It runs the real CLI pipeline via whichmodel.ExecuteArgs rather than
-// duplicating the collect/derive stages: `catalog refresh`'s implementation is
-// unexported and cobra-bound, and a second copy here would drift. ExecuteArgs
-// mutates package-level flag state (whichmodel.Global), hence catalogMu.
+// refreshBenchmarks rebuilds the scores CSV (GitHub repo by default, or a
+// local Artificial Analysis collect when that is enabled in Settings), then
+// rebuilds routes so the popover reflects the new catalogue without a restart.
 func (m *trayMenu) refreshBenchmarks() {
 	refreshRunning.Lock()
 	if refreshBusy {
@@ -71,26 +67,14 @@ func (m *trayMenu) refreshBenchmarks() {
 			refreshRunning.Unlock()
 		}()
 
-		if err := refreshCatalogCLI(); err != nil {
+		if m.svc == nil {
+			notice(m.app, "benchmark refresh failed — engine not ready")
+			return
+		}
+		if err := m.svc.Providers().RefreshRoutes(context.Background()); err != nil {
 			log.Printf("tray: %v", err)
 			notice(m.app, "benchmark refresh failed — see the log")
 			return
-		}
-		// Routes are derived from the same catalogue; refreshing scores without
-		// them would leave new models unroutable.
-		catalogMu.Lock()
-		routesCode := whichmodel.ExecuteArgs([]string{"routes", "refresh"})
-		catalogMu.Unlock()
-		if routesCode != 0 {
-			log.Printf("tray: routes refresh exited %d", routesCode)
-		}
-
-		if m.svc != nil {
-			if err := m.svc.ReloadCatalog(); err != nil {
-				log.Printf("tray: catalog reload failed: %v", err)
-				notice(m.app, "benchmarks refreshed — restart to pick up the new catalogue")
-				return
-			}
 		}
 		notice(m.app, "benchmarks refreshed")
 	}()

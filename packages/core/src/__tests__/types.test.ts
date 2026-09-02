@@ -179,7 +179,13 @@ const settings: GUISettings = {
   claude_md_hint: false,
   shell_alias: false,
   use_keychain: true,
+  catalog_repo: 'WD-Mitchell/which-model',
+  use_local_aa: false,
+  aa_api_key: '',
+  aa_api_key_set: false,
   config_path: '~/Library/Application Support/which-model/config.toml',
+  default_tab: 'profiles',
+  version: 'which-model dev',
 }
 
 // @ts-expect-error — layout is a closed union, arbitrary strings rejected

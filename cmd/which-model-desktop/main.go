@@ -66,13 +66,15 @@ func main() {
 		}
 	})
 
+	catalogMissing := false
 	svc, err := service.New(paths, cfg, bridge.Emit)
 	if err != nil {
-		// Missing scores CSV is no longer fatal — the app starts with an
-		// empty catalog so the user can refresh from the Settings or CLI.
+		// Missing scores CSV is no longer fatal — the app starts empty and
+		// pulls the default GitHub repo (or a local AA collect if enabled).
 		if isCatalogMissing(err) {
 			log.Printf("startup: catalog missing, starting with empty state: %v", err)
 			svc = service.NewEmpty(paths, cfg, bridge.Emit)
+			catalogMissing = true
 		} else {
 			title, msg := initErrorMessage(err)
 			fatalStartup(nil, title, msg)
@@ -88,6 +90,15 @@ func main() {
 		}
 		return refreshCatalogCLI()
 	})
+	if catalogMissing {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+			defer cancel()
+			if err := svc.Providers().RefreshRoutes(ctx); err != nil {
+				log.Printf("startup: catalog pull failed: %v", err)
+			}
+		}()
+	}
 
 	// 4. application.New with single-instance (S02 SPEC §2.1.4). The second
 	// launch callback shows the popover (pop is assigned immediately after).

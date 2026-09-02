@@ -37,20 +37,19 @@ func modelsDevCachePath(cacheDir string) string {
 // scores CSV, preserving user-declared routes. Settings calls this after a
 // successful sign-in and from the signed-in "Refresh models" button.
 //
-// When catalogRefresh is set (desktop host), scores are rebuilt first so
-// newly-authenticated providers can join the latest benchmarks — not just
-// the last catalogue cache.
+// When catalogRefresh is set (desktop host) AND the user opted into a local
+// Artificial Analysis key, scores are rebuilt via that hook. Otherwise
+// scores are pulled from the configured GitHub repo (default: the main
+// which-model repository). Login still succeeds if this step fails.
 func (p *ProviderService) RefreshRoutes(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return toErrorDTO(err)
 	}
-	if p.s.catalogRefresh != nil {
-		if err := p.s.catalogRefresh(ctx); err != nil {
-			return toErrorDTO(fmt.Errorf("refresh benchmarks: %w", err))
-		}
-		if err := p.s.ReloadCatalog(); err != nil {
-			return toErrorDTO(fmt.Errorf("reload catalogue: %w", err))
-		}
+	if err := p.s.refreshCatalogSource(ctx); err != nil {
+		return toErrorDTO(fmt.Errorf("refresh benchmarks: %w", err))
+	}
+	if err := p.s.ReloadCatalog(); err != nil {
+		return toErrorDTO(fmt.Errorf("reload catalogue: %w", err))
 	}
 	catalogue, err := p.loadOrFetchModelsDev()
 	if err != nil {

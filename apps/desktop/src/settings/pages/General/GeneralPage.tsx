@@ -7,7 +7,7 @@
 // carry no class="row"). <main> supplies no padding of its own (U07 contract),
 // and the config-path footer now lives in the sidebar, not on this page.
 import { useCallback, useEffect, useState } from 'react'
-import { SegmentedControl, Toggle, useToast } from '@which-model/ui'
+import { Input, SegmentedControl, Toggle, useToast } from '@which-model/ui'
 import type { GUISettings } from '@which-model/core'
 import { useSettings } from '../../../lib/queries'
 import { getHost } from '../../../lib/host'
@@ -79,6 +79,8 @@ export function GeneralPage(_props: PageComponentProps) {
   const toast = useToast()
   const { data: settings } = useSettings()
   const [draft, setDraft] = useState<GUISettings | null>(null)
+  const [repoDraft, setRepoDraft] = useState<string | null>(null)
+  const [aaKeyDraft, setAaKeyDraft] = useState('')
   const current = draft ?? settings
 
   useEffect(() => {
@@ -189,6 +191,69 @@ export function GeneralPage(_props: PageComponentProps) {
             onChange={(v) => set({ default_tab: v as 'profiles' | 'sliders' })}
           />
         </div>
+
+        <span className={`mono ${styles.kicker} ${styles.kickerNext}`}>catalogue</span>
+
+        <div className={styles.row}>
+          <span className={styles.labelBlock}>
+            <span className={styles.label}>Data source repo</span>
+            <span className={styles.note}>
+              Benchmarks are pulled from this GitHub repository. Default is the main which-model
+              repo.
+            </span>
+          </span>
+          <Input
+            className={styles.catalogInput}
+            value={repoDraft ?? current.catalog_repo}
+            placeholder="WD-Mitchell/which-model"
+            onChange={setRepoDraft}
+            onBlur={() => {
+              const next = (repoDraft ?? current.catalog_repo).trim() || 'WD-Mitchell/which-model'
+              setRepoDraft(null)
+              if (next !== current.catalog_repo) set({ catalog_repo: next })
+            }}
+          />
+        </div>
+
+        <div className={styles.row}>
+          <span className={styles.labelBlock}>
+            <span className={styles.label}>Collect locally</span>
+            <span className={styles.note}>
+              Optional. Use your own Artificial Analysis API key instead of the repo.
+            </span>
+          </span>
+          <Toggle
+            on={current.use_local_aa}
+            onToggle={(on) => set({ use_local_aa: on })}
+            aria-label="Collect locally"
+          />
+        </div>
+
+        {current.use_local_aa ? (
+          <div className={styles.row}>
+            <span className={styles.labelBlock}>
+              <span className={styles.label}>Artificial Analysis API key</span>
+              <span className={styles.note}>
+                {current.aa_api_key_set
+                  ? 'A key is saved. Paste a new one to replace it, or “-” to remove it.'
+                  : 'Required for local collect. Not stored in config.toml.'}
+              </span>
+            </span>
+            <Input
+              className={styles.catalogInput}
+              type="password"
+              value={aaKeyDraft}
+              placeholder={current.aa_api_key_set ? 'saved' : 'ARTIFICIAL_ANALYSIS_API'}
+              onChange={setAaKeyDraft}
+              onBlur={() => {
+                const next = aaKeyDraft.trim()
+                if (!next) return
+                setAaKeyDraft('')
+                void persist({ ...current, aa_api_key: next })
+              }}
+            />
+          </div>
+        ) : null}
 
         <span className={`mono ${styles.kicker} ${styles.kickerNext}`}>results display</span>
 
