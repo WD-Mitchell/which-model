@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -110,6 +111,14 @@ func readModelsDevCache(path string) ([]modelsdev.ProviderModel, bool) {
 	var catalogue []modelsdev.ProviderModel
 	if err := json.Unmarshal(data, &catalogue); err != nil || len(catalogue) == 0 {
 		return nil, false
+	}
+	// If the cached file has no cost keys in the payload at all, it was written
+	// by an older binary before price support was introduced. Refresh it.
+	if !bytes.Contains(data, []byte("cost")) && !bytes.Contains(data, []byte("Cost")) {
+		if fresh, err := fetchModelsDevCatalogue(); err == nil && len(fresh) > 0 {
+			_ = writeModelsDevCache(path, fresh)
+			return fresh, true
+		}
 	}
 	return catalogue, true
 }

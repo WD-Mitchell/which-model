@@ -358,7 +358,22 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 	costs := map[string]costPair{}
 	if cached, ok := readModelsDevCache(modelsDevCachePath(s.paths.CacheDir)); ok {
 		for _, rec := range cached {
-			costs[rec.Provider+"|"+rec.ModelID] = costPair{rec.InputCostUSDPerM, rec.OutputCostUSDPerM}
+			if rec.InputCostUSDPerM != nil || rec.OutputCostUSDPerM != nil {
+				pair := costPair{rec.InputCostUSDPerM, rec.OutputCostUSDPerM}
+				costs[rec.Provider+"|"+rec.ModelID] = pair
+				if rec.Name != "" {
+					costs[rec.Provider+"|"+identity.CleanModelName(rec.Name)] = pair
+				}
+				if _, exists := costs[rec.ModelID]; !exists {
+					costs[rec.ModelID] = pair
+				}
+				if rec.Name != "" {
+					cleanedName := identity.CleanModelName(rec.Name)
+					if _, exists := costs[cleanedName]; !exists {
+						costs[cleanedName] = pair
+					}
+				}
+			}
 		}
 	}
 	joins := make([]string, 0, len(byKey))
@@ -381,7 +396,23 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 			routeKeys = append(routeKeys, rk)
 		}
 		sort.Strings(routeKeys)
-		pair := costs[routing.CatalogueSlugFor(a.provider)+"|"+a.modelID]
+		slug := routing.CatalogueSlugFor(a.provider)
+		pair, ok := costs[slug+"|"+a.modelID]
+		if !ok {
+			pair, ok = costs[a.provider+"|"+a.modelID]
+		}
+		if !ok {
+			pair, ok = costs[slug+"|"+base.ModelName]
+		}
+		if !ok {
+			pair, ok = costs[a.provider+"|"+base.ModelName]
+		}
+		if !ok {
+			pair, ok = costs[a.modelID]
+		}
+		if !ok {
+			pair = costs[base.ModelName]
+		}
 		providers = append(providers, CatalogModelProvider{
 			Provider:          a.provider,
 			ModelID:           a.modelID,

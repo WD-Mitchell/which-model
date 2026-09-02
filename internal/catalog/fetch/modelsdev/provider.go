@@ -21,24 +21,87 @@ const ProvidersURL = "https://models.dev/api.json"
 
 // ProviderModel is one non-deprecated models.dev provider record.
 type ProviderModel struct {
-	Provider  string
-	ModelID   string
-	Name      string
-	Status    string
-	BaseModel string
+	Provider  string `json:"provider"`
+	ModelID   string `json:"model_id"`
+	Name      string `json:"name"`
+	Status    string `json:"status,omitempty"`
+	BaseModel string `json:"base_model,omitempty"`
 	// Reasoning reports whether the record exposes effort levels
 	// (len(EffortLevels) > 0 after normalization).
-	Reasoning bool
+	Reasoning bool `json:"reasoning"`
 	// EffortLevels are the record's reasoning effort levels: parsed via
 	// identity.ParseEffort, normalized (invalid levels such as "none" or
 	// "default" become "default", then identity.CollapseReasoning), sorted,
 	// deduplicated. Levels that are not a subset of identity.ReasoningLevels
 	// are a hard error.
-	EffortLevels []string
+	EffortLevels []string `json:"effort_levels,omitempty"`
 	// Input/output prices in USD per 1M tokens (models.dev `cost.input` /
 	// `cost.output`). Nil when the record has no listed price — never inferred.
-	InputCostUSDPerM  *float64
-	OutputCostUSDPerM *float64
+	InputCostUSDPerM  *float64 `json:"input_cost_usd_per_m"`
+	OutputCostUSDPerM *float64 `json:"output_cost_usd_per_m"`
+}
+
+type providerModelAlias ProviderModel
+
+// UnmarshalJSON provides backwards-compatible deserialization from both
+// camelCase and snake_case representations as well as direct models.dev cost objects.
+func (p *ProviderModel) UnmarshalJSON(data []byte) error {
+	var aux struct {
+		providerModelAlias
+		ProviderUpper          string   `json:"Provider"`
+		ModelIDUpper           string   `json:"ModelID"`
+		NameUpper              string   `json:"Name"`
+		StatusUpper            string   `json:"Status"`
+		BaseModelUpper         string   `json:"BaseModel"`
+		ReasoningUpper         bool     `json:"Reasoning"`
+		EffortLevelsUpper      []string `json:"EffortLevels"`
+		InputCostUSDPerMUpper  *float64 `json:"InputCostUSDPerM"`
+		OutputCostUSDPerMUpper *float64 `json:"OutputCostUSDPerM"`
+		Cost                   *struct {
+			Input  *float64 `json:"input"`
+			Output *float64 `json:"output"`
+		} `json:"cost"`
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	*p = ProviderModel(aux.providerModelAlias)
+	if p.Provider == "" && aux.ProviderUpper != "" {
+		p.Provider = aux.ProviderUpper
+	}
+	if p.ModelID == "" && aux.ModelIDUpper != "" {
+		p.ModelID = aux.ModelIDUpper
+	}
+	if p.Name == "" && aux.NameUpper != "" {
+		p.Name = aux.NameUpper
+	}
+	if p.Status == "" && aux.StatusUpper != "" {
+		p.Status = aux.StatusUpper
+	}
+	if p.BaseModel == "" && aux.BaseModelUpper != "" {
+		p.BaseModel = aux.BaseModelUpper
+	}
+	if !p.Reasoning && aux.ReasoningUpper {
+		p.Reasoning = aux.ReasoningUpper
+	}
+	if len(p.EffortLevels) == 0 && len(aux.EffortLevelsUpper) > 0 {
+		p.EffortLevels = aux.EffortLevelsUpper
+	}
+	if p.InputCostUSDPerM == nil {
+		if aux.InputCostUSDPerMUpper != nil {
+			p.InputCostUSDPerM = aux.InputCostUSDPerMUpper
+		} else if aux.Cost != nil && aux.Cost.Input != nil {
+			p.InputCostUSDPerM = aux.Cost.Input
+		}
+	}
+	if p.OutputCostUSDPerM == nil {
+		if aux.OutputCostUSDPerMUpper != nil {
+			p.OutputCostUSDPerM = aux.OutputCostUSDPerMUpper
+		} else if aux.Cost != nil && aux.Cost.Output != nil {
+			p.OutputCostUSDPerM = aux.Cost.Output
+		}
+	}
+	return nil
 }
 
 // providerRecord mirrors one element of the models.dev providers array.
