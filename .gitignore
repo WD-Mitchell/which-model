@@ -12,12 +12,14 @@ __pycache__/
 .idea/
 .vscode/
 
-# Go (future)
+# Go
 /which-model
+/which-model-desktop
 /wm
 /wmodel
 /whichm
 *.exe
+*.test
 
 # Release artifacts (npm packaging)
 /dist/
@@ -37,4 +39,20 @@ cmd/which-model-desktop/frontend/
 # The packaging script overwrites frontend/dist/ with the real vite output;
 # the placeholder index.html is committed so `go build ./...` always works.
 !cmd/which-model-desktop/frontend/dist/index.html
-// which-model desktop build output
+
+# TypeScript incremental cache (`tsc -b` writes tsconfig.tsbuildinfo)
+*.tsbuildinfo
+
+# Bundler / test caches
+.vite/
+coverage/
+.pytest_cache/
+
+# Logs
+*.log
+pnpm-debug.log*
+
+# Local secrets (README: never commit ARTIFICIAL_ANALYSIS_API)
+.env
+.env.*
+!.env.example
