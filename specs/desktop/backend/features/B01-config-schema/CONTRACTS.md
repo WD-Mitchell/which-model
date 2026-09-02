@@ -74,6 +74,9 @@ type GUIConfig struct {
     MCPServer               bool   `toml:"mcp_server"`
     ClaudeMDHint            bool   `toml:"claude_md_hint"`
     ShellAlias              bool   `toml:"shell_alias"`
+    CatalogRepo             string `toml:"catalog_repo"`
+    UseLocalAA              bool   `toml:"use_local_aa"`
+    OnlyEnabledProviders    bool   `toml:"only_enabled_providers"`
 }
 
 // AuthConfig mirrors [auth]. It controls only credentials written by

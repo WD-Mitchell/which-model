@@ -109,6 +109,7 @@
  * @property {boolean} claude_md_hint
  * @property {boolean} shell_alias
  * @property {boolean} use_keychain - [auth], true prefers OS keychain
+ * @property {boolean} only_enabled_providers
  * @property {string} config_path - read-only, display only
  * @property {string} version - read-only, display only
  */

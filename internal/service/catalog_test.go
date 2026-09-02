@@ -260,6 +260,23 @@ func TestCatalogModels(t *testing.T) {
 		t.Errorf("Kimi intelligence = %v, want 0", kimi.Intelligence)
 	}
 }
+func TestCatalogModels_OnlyEnabledProvidersFilter(t *testing.T) {
+	svc, _ := newTestServices(t, WithConfigTOML(`
+[gui]
+only_enabled_providers = true
+`))
+	got, err := svc.Catalog().Models(catCtx())
+	if err != nil {
+		t.Fatalf("Models: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("len(Models) with only_enabled_providers=true = %d, want 2 (%v)", len(got), got)
+	}
+	if got[0].ModelName != "Claude Opus 5" || got[1].ModelName != "GPT-5.6 Sol" {
+		t.Fatalf("models = %s, %s, want Opus and Sol (excluding Kimi)", got[0].ModelName, got[1].ModelName)
+	}
+}
+
 
 func TestCatalogModelsTopReasoningScores(t *testing.T) {
 	header := "model,reasoning,intelligence_index_score,time_per_intelligence_index_task_seconds_score,cost_per_intelligence_index_task_usd_score,median_end_to_end_response_time_seconds_score,artificial_analysis_coding_index_score,artificial_analysis_agentic_index_score"

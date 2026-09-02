@@ -326,13 +326,14 @@ func TestLoadAbsentSections(t *testing.T) {
 }
 
 func TestLoadGUIPerKeyDefaults(t *testing.T) {
-	cfg := loadFixture(t, "[gui]\nlayout = \"list\"\n")
+	cfg := loadFixture(t, "[gui]\nlayout = \"list\"\nonly_enabled_providers = true\n")
 	gui, err := cfg.LoadGUI()
 	if err != nil {
 		t.Fatalf("LoadGUI: %v", err)
 	}
 	want := DefaultGUIConfig()
 	want.Layout = "list"
+	want.OnlyEnabledProviders = true
 	if gui != want {
 		t.Fatalf("LoadGUI = %+v, want %+v", gui, want)
 	}
@@ -446,6 +447,7 @@ func TestSetLoadRoundTrip(t *testing.T) {
 		g := DefaultGUIConfig()
 		g.Layout = "list"
 		g.Holds = 10
+		g.OnlyEnabledProviders = true
 		if err := cfg.SetGUI(g); err != nil {
 			t.Fatalf("SetGUI: %v", err)
 		}
@@ -462,9 +464,9 @@ func TestSetLoadRoundTrip(t *testing.T) {
 			t.Fatalf("no [gui] in %q", out)
 		}
 		// Bump deliberately when a setting is added: catalog_repo +
-		// use_local_aa took this from 14 to 16.
-		if len(gui) != 16 {
-			t.Fatalf("[gui] has %d keys, want 16: %v", len(gui), gui)
+		// use_local_aa + only_enabled_providers took this from 14 to 17.
+		if len(gui) != 17 {
+			t.Fatalf("[gui] has %d keys, want 17: %v", len(gui), gui)
 		}
 		got, err := loadFixture(t, string(out)).LoadGUI()
 		if err != nil {

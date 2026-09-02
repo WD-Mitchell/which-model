@@ -47,4 +47,16 @@ describe('GeneralPage catalogue source', () => {
       expect(screen.getByPlaceholderText('ARTIFICIAL_ANALYSIS_API')).toBeDefined()
     })
   })
+
+  it('toggles only show and recommend enabled providers', async () => {
+    renderApp(host)
+    const toggle = await screen.findByRole('switch', {
+      name: 'Only show and recommend enabled providers',
+    })
+    expect(toggle.getAttribute('aria-checked')).toBe('false')
+    fireEvent.click(toggle)
+    await waitFor(async () => {
+      expect((await host.settings.get()).only_enabled_providers).toBe(true)
+    })
+  })
 })

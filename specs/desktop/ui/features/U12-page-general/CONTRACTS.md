@@ -30,8 +30,7 @@ export function GeneralPage(props: PageComponentProps): JSX.Element
 | Section labels | `system`, `results display` |
 | Shortcut row | `Open the popover` / `Global shortcut, works from any app.` |
 | Shortcut seg options | `⌥ Space`, `⌃ Space`, `⇧⌘ M` |
-| Toggles | `Show menu bar icon`, `Launch at startup`, `Copy launch command instead`, `Close popover after launching`, `Install updates automatically` |
-| Select row | `Check for updates`; options `Hourly`, `Daily`, `Weekly`, `Monthly` |
+| Toggles | `Show menu bar icon`, `Launch at startup`, `Copy launch command instead`, `Close popover after launching`, `Install updates automatically`, `Only show and recommend enabled providers` |
 | Layout row | `Ranking layout` / `How the popover presents the held ranks.`; captions `carousel`, `list` |
 | Control row | `Weight control` / `Used for every profile weight and the scale.`; captions `step`, `bar`, `slider` |
 | Holds row | `Ranks held per pick`; seg options `3`, `5`, `10` |

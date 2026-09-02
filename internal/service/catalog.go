@@ -139,7 +139,22 @@ func (c *CatalogService) Models(ctx context.Context) ([]CatalogModel, error) {
 	_ = ctx
 	c.s.mu.RLock()
 	defer c.s.mu.RUnlock()
-	return c.s.catalogModelsLocked(), nil
+	list := c.s.catalogModelsLocked()
+	if c.s.onlyEnabledProvidersLocked() {
+		filtered := make([]CatalogModel, 0, len(list))
+		for _, m := range list {
+			if m.ProviderCount > 0 {
+				filtered = append(filtered, m)
+			}
+		}
+		return filtered, nil
+	}
+	return list, nil
+}
+
+func (s *Services) onlyEnabledProvidersLocked() bool {
+	gui, err := s.cfg.LoadGUI()
+	return err == nil && gui.OnlyEnabledProviders
 }
 
 func tier1ScorePtr(row catalog.ScoreRow, axis pick.Tier1Axis) *float64 {
@@ -193,6 +208,12 @@ func (s *Services) catalogModelsLocked() []CatalogModel {
 		if a == nil {
 			continue
 		}
+		if route.Reasoning != "" {
+			level := identity.CollapseReasoning(route.Reasoning)
+			if level != "" {
+				a.reasoning[level] = struct{}{}
+			}
+		}
 		if route.ModelID != "" {
 			a.ids[route.ModelID] = struct{}{}
 		}
@@ -201,6 +222,10 @@ func (s *Services) catalogModelsLocked() []CatalogModel {
 		}
 	}
 	for _, pID := range s.providerUniverseLocked() {
+		pcfg, ok := s.cfg.Providers[pID]
+		if !ok || !pcfg.Enabled {
+			continue
+		}
 		for _, pm := range s.Providers().providerModelsLocked(pID) {
 			cleaned := identity.CleanModelName(pm.ModelName)
 			if a := byName[cleaned]; a != nil {

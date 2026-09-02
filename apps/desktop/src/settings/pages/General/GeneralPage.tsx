@@ -73,6 +73,11 @@ const TOGGLES: ReadonlyArray<{
     read: (s) => s.auto_update,
     patch: (on) => ({ auto_update: on }),
   },
+  {
+    name: 'Only show and recommend enabled providers',
+    read: (s) => s.only_enabled_providers,
+    patch: (on) => ({ only_enabled_providers: on }),
+  },
 ]
 
 export function GeneralPage(_props: PageComponentProps) {
@@ -142,7 +147,7 @@ export function GeneralPage(_props: PageComponentProps) {
                 <span className={styles.toggleLabel} data-on={on}>
                   {t.name}
                 </span>
-                <Toggle on={on} onToggle={(next) => set(t.patch(next))} />
+                <Toggle on={on} onToggle={(next) => set(t.patch(next))} aria-label={t.name} />
               </div>
             )
           })}
