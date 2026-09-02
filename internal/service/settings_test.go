@@ -22,7 +22,7 @@ func TestSettingsDefaultsAndRoundTrip(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("defaults = %#v, want %#v", got, want)
 	}
-	in := GUISettings{Layout: "list", DefaultTab: "sliders", WeightControl: "bar", Holds: 10, Shortcut: "cmd+shift+m", ShowMenuBarIcon: false, LaunchAtLogin: true, CopyCommandInstead: true, ClosePopoverAfterLaunch: false, AutoUpdate: false, AutoUpdateFrequency: "weekly", MCPServer: true, ClaudeMDHint: true, ShellAlias: true, UseKeychain: false, CatalogRepo: "WD-Mitchell/which-model", OnlyEnabledProviders: true, ConfigPath: "/evil"}
+	in := GUISettings{Layout: "list", DefaultTab: "sliders", WeightControl: "bar", Holds: 10, Shortcut: "cmd+shift+m", ShowMenuBarIcon: false, LaunchAtLogin: true, CopyCommandInstead: true, ClosePopoverAfterLaunch: false, AutoUpdate: false, AutoUpdateFrequency: "weekly", MCPServer: true, ClaudeMDHint: true, ShellAlias: true, UseKeychain: false, CatalogRepo: "WD-Mitchell/which-model", BenchmarkCheckFrequency: "1h", OnlyEnabledProviders: true, ConfigPath: "/evil"}
 	if err := svc.Settings().Set(context.Background(), in); err != nil {
 		t.Fatal(err)
 	}

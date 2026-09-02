@@ -293,6 +293,7 @@ type GUISettings struct {
 	UseKeychain             bool   `json:"use_keychain"` // [auth], true prefers OS keychain
 	CatalogRepo             string `json:"catalog_repo"` // "owner/repo" or "owner/repo@ref"
 	UseLocalAA              bool   `json:"use_local_aa"`
+	BenchmarkCheckFrequency string `json:"benchmark_check_frequency"`
 	OnlyEnabledProviders    bool   `json:"only_enabled_providers"`
 	AAAPIKey                string `json:"aa_api_key"` // write-only; Get always returns ""
 	AAAPIKeySet             bool   `json:"aa_api_key_set"`

@@ -464,9 +464,9 @@ func TestSetLoadRoundTrip(t *testing.T) {
 			t.Fatalf("no [gui] in %q", out)
 		}
 		// Bump deliberately when a setting is added: catalog_repo +
-		// use_local_aa + only_enabled_providers took this from 14 to 17.
-		if len(gui) != 17 {
-			t.Fatalf("[gui] has %d keys, want 17: %v", len(gui), gui)
+		// use_local_aa + only_enabled_providers + benchmark_check_frequency took this from 14 to 18.
+		if len(gui) != 18 {
+			t.Fatalf("[gui] has %d keys, want 18: %v", len(gui), gui)
 		}
 		got, err := loadFixture(t, string(out)).LoadGUI()
 		if err != nil {

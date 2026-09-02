@@ -36,6 +36,20 @@ const FREQ_OPTS: ReadonlyArray<{ value: GUISettings['auto_update_frequency']; la
   { value: 'monthly', label: 'Monthly' },
 ]
 
+/** Benchmark check frequency options. */
+const BENCHMARK_FREQ_OPTS: ReadonlyArray<{
+  value: GUISettings['benchmark_check_frequency']
+  label: string
+}> = [
+  { value: '15m', label: '15 mins' },
+  { value: '1h', label: '1 hour' },
+  { value: '3h', label: '3 hours' },
+  { value: '6h', label: '6 hours' },
+  { value: '12h', label: '12 hours' },
+  { value: '24h', label: '24 hours' },
+  { value: 'weekly', label: 'Weekly' },
+]
+
 /** System switches. read/patch keep the mapping to GUISettings explicit —
  *  no computed-key casts. */
 const TOGGLES: ReadonlyArray<{
@@ -287,6 +301,32 @@ export function GeneralPage(_props: PageComponentProps) {
             />
           </div>
         ) : null}
+
+        <div className={styles.row}>
+          <span className={styles.labelBlock}>
+            <span className={styles.label}>Check for new benchmarks</span>
+            <span className={styles.note}>
+              How often which-model synchronises updated scores and benchmarks.
+            </span>
+          </span>
+          <select
+            className="wmsel"
+            aria-label="Check for new benchmarks"
+            value={current.benchmark_check_frequency ?? '6h'}
+            onChange={(e) =>
+              set({
+                benchmark_check_frequency: e.target
+                  .value as GUISettings['benchmark_check_frequency'],
+              })
+            }
+          >
+            {BENCHMARK_FREQ_OPTS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
         <span className={`mono ${styles.kicker} ${styles.kickerNext}`}>results display</span>
 
