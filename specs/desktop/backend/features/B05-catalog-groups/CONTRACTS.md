@@ -28,6 +28,10 @@ func (s *Services) Benchmarks(ctx context.Context) ([]string, error)
 // Value (raw) + Norm (Value/max*100), Norm desc (SPEC §2.4).
 func (s *Services) BenchmarkDetail(ctx context.Context, name string) (BenchmarkDetail, error)
 
+// ModelDetail returns every benchmark (model, reasoning) reports. Unknown
+// or untested pairs return empty Rows, not not_found.
+func (s *Services) ModelDetail(ctx context.Context, model, reasoning string) (ModelScoreDetail, error)
+
 // Groups returns builtins (benchmarks.toml order) then customs (slug asc);
 // InProfiles counts builtin+custom profiles weighting the slug (SPEC §2.5).
 func (s *Services) Groups(ctx context.Context) ([]GroupSummary, error)

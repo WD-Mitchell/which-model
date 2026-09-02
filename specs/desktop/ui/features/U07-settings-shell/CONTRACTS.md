@@ -36,6 +36,7 @@ export type Detail =
   | { kind: 'benchmark'; id: string;  // Benchmark groups; id = benchmark name
       fromGroup: string | null }      // originating group slug; back returns there
   | { kind: 'provider'; id: string }  // Providers; id = provider id
+  | { kind: 'provider-model'; provider: string; modelName: string; reasoning: string }
   | { kind: 'harness'; id: string }   // Harnesses; id = harness slug
 
 /** Props every registered page component receives — the ONLY interface U08–U14 implement to. */

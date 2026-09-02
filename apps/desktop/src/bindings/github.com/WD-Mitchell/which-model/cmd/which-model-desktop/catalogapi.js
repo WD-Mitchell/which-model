@@ -24,6 +24,15 @@ export function BenchmarkDetail(name) {
 }
 
 /**
+ * @param {string} model
+ * @param {string} reasoning
+ * @returns {$CancellablePromise<service$0.ModelScoreDetail>}
+ */
+export function ModelDetail(model, reasoning) {
+    return $Call.ByName("main.CatalogAPI.ModelDetail", model, reasoning);
+}
+
+/**
  * @returns {$CancellablePromise<string[] | null>}
  */
 export function Benchmarks() {

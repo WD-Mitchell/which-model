@@ -212,6 +212,23 @@ type BenchmarkDetail struct {
 	Rows   []BenchRow `json:"rows"`   // tested rows only, Norm desc by default
 }
 
+// ModelBenchRow is one benchmark result for a (model, reasoning) pair.
+type ModelBenchRow struct {
+	Name   string   `json:"name"`
+	Value  float64  `json:"value"`
+	Norm   float64  `json:"norm"` // value / max * 100 across every tested model
+	Groups []string `json:"groups"`
+}
+
+// ModelScoreDetail is the inverse of BenchmarkDetail: every benchmark
+// (model, reasoning) reports. An unknown or untested pair returns empty Rows,
+// not not_found — Settings always lets you open a catalogue combo.
+type ModelScoreDetail struct {
+	Model     string          `json:"model"`
+	Reasoning string          `json:"reasoning"`
+	Rows      []ModelBenchRow `json:"rows"`
+}
+
 // Favourite is one pinned route.
 type Favourite struct {
 	RouteKey   string `json:"route_key"`

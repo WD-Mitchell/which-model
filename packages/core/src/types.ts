@@ -150,6 +150,18 @@ export interface BenchmarkDetail {
   rows: BenchRow[]
 }
 
+export interface ModelBenchRow {
+  name: string
+  value: number
+  norm: number
+  groups: string[]
+}
+export interface ModelScoreDetail {
+  model: string
+  reasoning: string
+  rows: ModelBenchRow[]
+}
+
 export interface Favourite {
   route_key: string
   model_name: string

@@ -162,6 +162,17 @@ type BenchmarkDetail struct {
     Groups []string   `json:"groups"` // group slugs containing it
     Rows   []BenchRow `json:"rows"`   // tested rows only, Norm desc by default
 }
+type ModelBenchRow struct {
+    Name   string   `json:"name"`
+    Value  float64  `json:"value"`
+    Norm   float64  `json:"norm"`
+    Groups []string `json:"groups"`
+}
+type ModelScoreDetail struct {
+    Model     string          `json:"model"`
+    Reasoning string          `json:"reasoning"`
+    Rows      []ModelBenchRow `json:"rows"`
+}
 
 type Favourite struct {
     RouteKey   string `json:"route_key"`
@@ -253,6 +264,7 @@ export interface EngineHost {
   catalog: {
     benchmarks(): Promise<string[]>
     benchmarkDetail(name: string): Promise<BenchmarkDetail>
+    modelDetail(model: string, reasoning: string): Promise<ModelScoreDetail>
     groups(): Promise<GroupSummary[]>
     groupDetail(slug: string): Promise<GroupDetail>
     saveGroup(slug: string, benchmarks: string[], renameTo?: string): Promise<void>

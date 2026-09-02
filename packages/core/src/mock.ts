@@ -7,10 +7,12 @@ import type {
   GroupDetail,
   GUISettings,
   HarnessInfo,
+  ModelScoreDetail,
   ProfileDetail,
   ProviderAccount,
   ProviderDetail,
   ProviderInfo,
+  ProviderModel,
   RankedModel,
   RankResponse,
   UsageDTO,
@@ -269,6 +271,74 @@ function formatRouteKey(provider: string, modelId: string, reasoning: string): s
   return `${provider}/${modelId}@${reasoning}`
 }
 
+const EFFORT_ORDER = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
+
+function collapseReasoning(level: string): string {
+  return level === 'default' ? 'high' : level
+}
+
+function addReasoningLevel(levels: string[], reasoning: string): void {
+  const collapsed = collapseReasoning(reasoning)
+  if (levels.some((existing) => collapseReasoning(existing) === collapsed)) return
+  levels.push(reasoning)
+}
+
+function reasoningLess(left: string, right: string): boolean {
+  const leftCanonical = collapseReasoning(left)
+  const rightCanonical = collapseReasoning(right)
+  const leftRank = (EFFORT_ORDER as readonly string[]).indexOf(leftCanonical)
+  const rightRank = (EFFORT_ORDER as readonly string[]).indexOf(rightCanonical)
+  const leftKnown = leftRank >= 0
+  const rightKnown = rightRank >= 0
+  if (leftKnown && rightKnown && leftRank !== rightRank) return leftRank < rightRank
+  if (leftKnown !== rightKnown) return leftKnown
+  if (leftCanonical !== rightCanonical) return leftCanonical < rightCanonical
+  return left < right
+}
+
+function topReasoning(levels: string[]): string {
+  let top = ''
+  let topRank = -1
+  for (const level of levels) {
+    const canonical = collapseReasoning(level)
+    const rank = (EFFORT_ORDER as readonly string[]).indexOf(canonical)
+    if (rank < 0) {
+      if (top === '') top = canonical
+      continue
+    }
+    if (rank > topRank) {
+      topRank = rank
+      top = canonical
+    }
+  }
+  return top
+}
+
+/** Currently offered models + effort levels — independent of scores. */
+const PROVIDER_CATALOGUE: Record<string, { id: string; name: string; levels: string[] }[]> = {
+  claude: [
+    { id: 'claude-haiku-4', name: 'Claude Haiku 4', levels: ['low', 'medium', 'high'] },
+    { id: 'claude-opus-5', name: 'Claude Opus 5', levels: ['low', 'high', 'max'] },
+    { id: 'claude-sonnet-5.2', name: 'Claude Sonnet 5.2', levels: ['low', 'medium', 'high'] },
+  ],
+  codex: [
+    { id: 'gpt-5.6-luna', name: 'GPT-5.6 Luna', levels: ['low', 'medium', 'high', 'max'] },
+    { id: 'gpt-5.6-sol', name: 'GPT-5.6 Sol', levels: ['low', 'medium', 'high'] },
+  ],
+  copilot: [
+    { id: 'claude-sonnet-5.2', name: 'Claude Sonnet 5.2', levels: ['low', 'medium', 'high'] },
+    { id: 'gpt-5.6-luna', name: 'GPT-5.6 Luna', levels: ['low', 'medium', 'high', 'max'] },
+    { id: 'gpt-5.6-sol', name: 'GPT-5.6 Sol', levels: ['low', 'medium', 'high'] },
+    { id: 'grok-5-fast', name: 'Grok 5 Fast', levels: ['low', 'medium', 'high'] },
+    { id: 'llama-5-405b', name: 'Llama 5 405B', levels: ['low', 'medium'] },
+  ],
+  cursor: [
+    { id: 'gemini-3.5-ultra', name: 'Gemini 3.5 Ultra', levels: ['low', 'medium', 'high', 'max'] },
+    { id: 'grok-5-fast', name: 'Grok 5 Fast', levels: ['low', 'medium', 'high'] },
+    { id: 'qwen-3.5-max', name: 'Qwen 3.5 Max', levels: ['low', 'medium', 'high'] },
+  ],
+}
+
 // ---------------------------------------------------------------------------
 // Scoring (U01 CONTRACTS §7)
 // ---------------------------------------------------------------------------
@@ -377,6 +447,50 @@ export function createMockEngineHost(
 
   function routeDisabled(provider: string, modelId: string, reasoning: string): boolean {
     return data.routesDisabled.includes(formatRouteKey(provider, modelId, reasoning))
+  }
+
+  function providerModels(id: string): ProviderModel[] {
+    const models = new Map<string, { name: string; levels: string[] }>()
+    for (const row of data.models.filter((m) => m.providers.includes(id))) {
+      const cur = models.get(row.id)
+      if (cur === undefined) models.set(row.id, { name: row.name, levels: [row.reasoning] })
+      else addReasoningLevel(cur.levels, row.reasoning)
+    }
+    for (const entry of PROVIDER_CATALOGUE[id] ?? []) {
+      const cur = models.get(entry.id)
+      if (cur === undefined) {
+        const levels = [...entry.levels]
+        if (levels.length === 0) addReasoningLevel(levels, 'default')
+        models.set(entry.id, { name: entry.name, levels })
+        continue
+      }
+      if (entry.levels.length > 0) {
+        for (const level of entry.levels) addReasoningLevel(cur.levels, level)
+      } else if (cur.levels.length === 0) {
+        addReasoningLevel(cur.levels, 'default')
+      }
+    }
+    return [...models.entries()]
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([modelId, model]) => {
+        const levels = [...model.levels].sort((a, b) => (reasoningLess(a, b) ? -1 : 1))
+        const top = topReasoning(levels)
+        let defaultSet = false
+        return {
+          model_id: modelId,
+          model_name: model.name,
+          levels: levels.map((reasoning) => {
+            const canonical = collapseReasoning(reasoning)
+            const isDefault = defaultSet === false && canonical === top
+            if (isDefault) defaultSet = true
+            return {
+              reasoning,
+              enabled: routeDisabled(id, modelId, reasoning) === false,
+              default: isDefault,
+            }
+          }),
+        }
+      })
   }
 
   function providersByPriority(): MockProvider[] {
@@ -535,6 +649,25 @@ export function createMockEngineHost(
           rows: withNorm,
         }
       },
+      async modelDetail(model, reasoning) {
+        const match = data.models.find((x) => x.name === model && x.reasoning === reasoning)
+        if (match === undefined) {
+          return { model, reasoning, rows: [] } satisfies ModelScoreDetail
+        }
+        const rows: ModelScoreDetail['rows'] = data.benchmarks.map((name) => {
+          const values = data.models.map((row) => round2(benchScore(row, name) * 20))
+          const maxValue = Math.max(...values, 0)
+          const value = round2(benchScore(match, name) * 20)
+          return {
+            name,
+            value,
+            norm: maxValue === 0 ? 0 : Math.round((value / maxValue) * 100),
+            groups: data.groups.filter((g) => g.benchmarks.includes(name)).map((g) => g.slug),
+          }
+        })
+        rows.sort((a, b) => b.norm - a.norm || a.name.localeCompare(b.name))
+        return { model, reasoning, rows }
+      },
       async groups() {
         return data.groups.map((g) => ({
           slug: g.slug,
@@ -644,19 +777,7 @@ export function createMockEngineHost(
           id: p.id,
           accounts: mockAccounts[p.id] ?? [],
           builtin: ['claude', 'codex', 'copilot'].includes(p.id),
-          models: data.models
-            .filter((m) => m.providers.includes(p.id))
-            .map((m) => ({
-              model_id: m.id,
-              model_name: m.name,
-              levels: [
-                {
-                  reasoning: m.reasoning,
-                  enabled: !routeDisabled(p.id, m.id, m.reasoning),
-                  default: true,
-                },
-              ],
-            })),
+          models: providerModels(p.id),
         }
         return detail
       },
@@ -671,11 +792,13 @@ export function createMockEngineHost(
       },
       async setAllRoutes(id, on) {
         requireProvider(id)
-        for (const m of data.models.filter((x) => x.providers.includes(id))) {
-          const key = formatRouteKey(id, m.id, m.reasoning)
-          const i = data.routesDisabled.indexOf(key)
-          if (on && i !== -1) data.routesDisabled.splice(i, 1)
-          if (!on && i === -1) data.routesDisabled.push(key)
+        for (const m of providerModels(id)) {
+          for (const level of m.levels) {
+            const key = formatRouteKey(id, m.model_id, level.reasoning)
+            const i = data.routesDisabled.indexOf(key)
+            if (on && i !== -1) data.routesDisabled.splice(i, 1)
+            if (!on && i === -1) data.routesDisabled.push(key)
+          }
         }
         emit('config:changed', { section: 'providers' })
       },

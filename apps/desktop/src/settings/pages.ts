@@ -13,6 +13,12 @@ export type Detail =
       fromGroup: string | null // originating group slug; back returns there
     }
   | { kind: 'provider'; id: string } // Providers; id = provider id
+  | {
+      kind: 'provider-model'
+      provider: string
+      modelName: string
+      reasoning: string
+    } // Providers; one model+reasoning combo's benchmarks
   | { kind: 'harness'; id: string } // Harnesses; id = harness slug
 
 /** Props every registered page component receives — the ONLY interface

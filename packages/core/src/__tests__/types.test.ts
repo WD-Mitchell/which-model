@@ -11,6 +11,7 @@ import type {
   GUISettings,
   HarnessInfo,
   LaunchResult,
+  ModelScoreDetail,
   ProfileDetail,
   ProfileStats,
   ProfileSummary,
@@ -156,6 +157,11 @@ const benchmarkDetail: BenchmarkDetail = {
   groups: ['software_engineering'],
   rows: [benchRow],
 }
+const modelScoreDetail: ModelScoreDetail = {
+  model: 'Claude Opus 5',
+  reasoning: 'max',
+  rows: [{ name: 'SWE-Bench Verified', value: 96, norm: 100, groups: ['software_engineering'] }],
+}
 
 const favourite: Favourite = {
   route_key: 'claude/claude-opus-5@max',
@@ -202,7 +208,7 @@ describe('types', () => {
       profile, detail, badCase, missingKey, rankReq, rankReqWithOverrides,
       rankReqNullOverrides, ranked, rankResp, catalogLine, provider,
       providerWithNumbers, providerDetail, harness, launch, usage, groupDetail,
-      groupSummary, benchmarkDetail, favourite, settings, badSettings,
+      groupSummary, benchmarkDetail, modelScoreDetail, favourite, settings, badSettings,
       snippets, stats, errorDto,
     ]
     expect(all.length).toBeGreaterThan(0)

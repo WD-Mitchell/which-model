@@ -63,6 +63,9 @@ func (a *CatalogAPI) Benchmarks() ([]string, error) {
 func (a *CatalogAPI) BenchmarkDetail(name string) (service.BenchmarkDetail, error) {
 	return a.svc.Catalog().BenchmarkDetail(ctx, name)
 }
+func (a *CatalogAPI) ModelDetail(model, reasoning string) (service.ModelScoreDetail, error) {
+	return a.svc.Catalog().ModelDetail(ctx, model, reasoning)
+}
 func (a *CatalogAPI) Groups() ([]service.GroupSummary, error) {
 	return a.svc.Catalog().Groups(ctx)
 }

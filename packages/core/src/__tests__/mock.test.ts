@@ -403,6 +403,31 @@ describe('createMockEngineHost — remaining surfaces', () => {
     const norms = bench.rows.map((r) => r.norm)
     expect([...norms].sort((a, b) => b - a)).toEqual(norms)
     expect(Math.max(...norms)).toBe(100)
+
+    const model = await host.catalog.modelDetail('Claude Opus 5', 'max')
+    expect(model.model).toBe('Claude Opus 5')
+    expect(model.reasoning).toBe('max')
+    expect(model.rows.length).toBeGreaterThan(0)
+    expect(model.rows.some((r) => r.name === 'MMMU Pro')).toBe(true)
+    expect(Math.max(...model.rows.map((r) => r.norm))).toBe(100)
+    const missing = await host.catalog.modelDetail('No Such Model', 'max')
+    expect(missing.rows).toEqual([])
+  })
+
+  it('provider detail lists catalogue models and every effort level', async () => {
+    const host = createMockEngineHost()
+    const claude = await host.providers.detail('claude')
+    expect(claude.models.map((m) => m.model_id)).toEqual([
+      'claude-haiku-4',
+      'claude-opus-5',
+      'claude-sonnet-5.2',
+    ])
+    const opus = claude.models.find((m) => m.model_id === 'claude-opus-5')!
+    expect(opus.levels.map((l) => l.reasoning)).toEqual(['low', 'high', 'max'])
+    const haiku = claude.models.find((m) => m.model_id === 'claude-haiku-4')!
+    expect(haiku.levels.map((l) => l.reasoning)).toEqual(['low', 'medium', 'high'])
+    const untested = await host.catalog.modelDetail('Claude Haiku 4', 'low')
+    expect(untested.rows).toEqual([])
   })
 
   it('favourites round-trip with route labels', async () => {

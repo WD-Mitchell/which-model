@@ -8,6 +8,7 @@ import type {
   GroupSummary,
   GUISettings,
   HarnessInfo,
+  ModelScoreDetail,
   ProfileDetail,
   ProfileSummary,
   ProviderDetail,
@@ -131,6 +132,17 @@ export function useBenchmarkDetail(name: string): UseQueryResult<BenchmarkDetail
     queryKey: ['benchmark', name],
     queryFn: () => getHost().catalog.benchmarkDetail(name),
     enabled: Boolean(name),
+  })
+}
+
+export function useModelScoreDetail(
+  model: string,
+  reasoning: string,
+): UseQueryResult<ModelScoreDetail> {
+  return useQuery({
+    queryKey: ['model-score', model, reasoning],
+    queryFn: () => getHost().catalog.modelDetail(model, reasoning),
+    enabled: Boolean(model) && Boolean(reasoning),
   })
 }
 

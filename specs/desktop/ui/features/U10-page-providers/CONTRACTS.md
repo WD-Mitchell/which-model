@@ -63,15 +63,16 @@ Queries: `['providers']` → `host.providers.list()`; `['provider', id]` → `ho
 | Disabled limits cell | `not enabled` |
 | Models cell | `{routes_on} of {routes_total} routes` |
 | Reorder toast | `provider priority: {ids.join(' → ')}` |
-| Detail blurb | `Models {id} can serve. Each reasoning level routes separately — switch off the ones the picker should not consider.` |
+| Detail blurb | `Models {id} can serve. Each reasoning level routes separately — switch off the ones the picker should not consider. Click a level to see its benchmarks.` |
 | Detail back link | `Providers` |
 | Summary | `{on} of {total} routes enabled` |
 | Bulk buttons | `Enable all` / `Disable all` (provider-wide and per-model) |
 | Detail delete | icon 13px trash (`.ib` 24px box); tooltip `Delete {id}`, disabled tooltip `Built-in provider — cannot be deleted`; success toast `deleted {id}` |
 | Level label | `reasoning {reasoning}` |
 | Default tag | `default` |
-| Unrouted model marker | `no routes` |
+| Level click | opens `{ kind: 'provider-model', provider, modelName, reasoning }` |
 | Error lines | `couldn't load providers` / `couldn't load {id}` / `Retry` |
+| Empty benchmarks | `No benchmarks for this model and reasoning level yet.` |
 
 ## 5. Test fixtures (vitest + `createMockEngineHost`, U01 CONTRACTS §4)
 
@@ -87,6 +88,8 @@ Mock providers: claude/codex/copilot enabled, cursor disabled (mock defaults).
 | Detail summary | computed `{on} of {total} routes enabled` matches mock levels; `Enable all` → `setAllRoutes('claude', true)`; `Disable all` → `(…, false)` |
 | Per-model batch | model with mixed levels: button label `Disable all`; click → one `setRouteEnabled('claude', modelId, l, false)` per level, in level order, and NO `setAllRoutes` call; all-off model shows `Enable all` and batches `true` |
 | Level toggle | click one level → `setRouteEnabled(id, modelId, reasoning, !enabled)` once; `default` tag only on the level with `default: true` |
+| Level click | click `max` on Claude Opus 5 → title `Claude Opus 5  (max)` and a SWE-Bench row; back via `claude` returns to accounts |
+| Untested combo | click `low` on Claude Haiku 4 (catalogue-only) → empty copy `No benchmarks for this model and reasoning level yet.` |
 | Error | rejecting `setEnabled` with `{code:'io_error', message:'m'}` toasts `m` |
 
 Verify: `pnpm --filter desktop test` green.

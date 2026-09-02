@@ -92,22 +92,22 @@ func TestCatalogCoverageGolden(t *testing.T) {
 	svc, _ := newTestServices(t)
 	// CoverageTotal = every (model, reasoning) row in the cached scores CSV.
 	cov := map[string]int{
-		"SWE-Bench Verified":    1,
-		"SWE-Bench Pro":         2,
+		"SWE-Bench Verified":     1,
+		"SWE-Bench Pro":          2,
 		"SWE-Bench Multilingual": 1,
 		"SWE-Bench Multimodal":   1,
-		"DeepSWE":               2,
-		"Terminal-Bench":        1,
-		"AutomationBench":       1,
-		"FrontierCode":          0,
-		"Program Bench":         0,
-		"MCP Atlas":             1,
-		"Toolathlon":            1,
-		"Finance Agent":         1,
-		"FinanceAgent":          0,
-		"τ3 Banking":            0,
-		"GDPval":                0,
-		"GDPval-AA":             0,
+		"DeepSWE":                2,
+		"Terminal-Bench":         1,
+		"AutomationBench":        1,
+		"FrontierCode":           0,
+		"Program Bench":          0,
+		"MCP Atlas":              1,
+		"Toolathlon":             1,
+		"Finance Agent":          1,
+		"FinanceAgent":           0,
+		"τ3 Banking":             0,
+		"GDPval":                 0,
+		"GDPval-AA":              0,
 	}
 	for _, slug := range []string{"software_engineering", "finance"} {
 		detail, err := svc.Catalog().GroupDetail(catCtx(), slug)
@@ -166,6 +166,44 @@ func TestCatalogBenchmarkDetail(t *testing.T) {
 	}
 	if !reflect.DeepEqual(d.Rows, wantRows) {
 		t.Errorf("Rows = %+v, want %+v", d.Rows, wantRows)
+	}
+}
+
+func TestCatalogModelDetail(t *testing.T) {
+	svc, _ := newTestServices(t)
+	c := svc.Catalog()
+
+	empty, err := c.ModelDetail(catCtx(), "No Such Model", "max")
+	if err != nil {
+		t.Fatalf("unknown model: %v", err)
+	}
+	if len(empty.Rows) != 0 {
+		t.Fatalf("unknown model rows = %+v, want empty", empty.Rows)
+	}
+
+	d, err := c.ModelDetail(catCtx(), "Claude Opus 5", "max")
+	if err != nil {
+		t.Fatalf("ModelDetail: %v", err)
+	}
+	if d.Model != "Claude Opus 5" || d.Reasoning != "max" {
+		t.Fatalf("identity = %s/%s", d.Model, d.Reasoning)
+	}
+	if len(d.Rows) == 0 {
+		t.Fatal("ModelDetail rows empty, want SWE-Bench scores")
+	}
+	byName := map[string]ModelBenchRow{}
+	for _, row := range d.Rows {
+		byName[row.Name] = row
+	}
+	verified, ok := byName["SWE-Bench Verified"]
+	if !ok {
+		t.Fatalf("missing SWE-Bench Verified in %+v", d.Rows)
+	}
+	if verified.Value != 96 || verified.Norm != 100 {
+		t.Errorf("SWE-Bench Verified = %+v, want value 96 norm 100", verified)
+	}
+	if !reflect.DeepEqual(verified.Groups, []string{"software_engineering"}) {
+		t.Errorf("groups = %v, want [software_engineering]", verified.Groups)
 	}
 }
 

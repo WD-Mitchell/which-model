@@ -35,13 +35,13 @@ func (s *Services) ProviderSetEnabled(ctx context.Context, id string, on bool) e
 func (s *Services) ProvidersReorder(ctx context.Context, orderedIDs []string) error
 
 // ProviderDetail returns every model currently available from the provider
-// (SPEC §2.8): routes-table models with their present reasoning levels,
-// UNION the provider's full models.dev catalogue (unrouted models carry
-// nil Levels and their models.dev name). Unknown id -> errNotFound.
+// (SPEC §2.8): routes-table models UNION the models.dev catalogue, with
+// every catalogue effort level (or "default" when none are declared).
+// Unknown id -> errNotFound.
 func (s *Services) ProviderDetail(ctx context.Context, id string) (ProviderDetail, error)
 
 // ProviderSetRouteEnabled toggles one [routes.disabled].<id> entry
-// (SPEC §2.9). Triple absent from routes table -> errNotFound.
+// (SPEC §2.9). Triple absent from Detail listing -> errNotFound.
 // Emits config:changed{"section":"routes"}.
 func (s *Services) ProviderSetRouteEnabled(ctx context.Context, id, modelID, reasoning string, on bool) error
 

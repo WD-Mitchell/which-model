@@ -302,12 +302,12 @@ func firstWindow(windows []usage.Window, id string) (usage.Window, bool) {
 }
 
 // Detail returns every model currently available from the provider: the
-// routes table's models (with their levels) UNION the provider's full
-// models.dev catalogue — a model with no benchmark row produces no routes,
-// but it is still available from the provider, so it lists with nil Levels
-// and its models.dev name. The catalogue comes from the same cache file
-// Addable reads (<cache>/catalog/modelsdev_providers.json); an absent or
-// unreadable cache degrades to routes-only (never an error, never a fetch).
+// routes table UNION the provider's full models.dev catalogue. Levels come
+// from models.dev EffortLevels (or a single "default" when the catalogue
+// declares none), plus any extra levels the routes table already carries.
+// A missing scores row no longer hides the combo. The catalogue comes from
+// the same cache file Addable reads; an absent or unreadable cache degrades
+// to routes-only (never an error, never a fetch).
 func (p *ProviderService) Detail(ctx context.Context, id string) (ProviderDetail, error) {
 	_ = ctx
 	p.s.mu.RLock()
@@ -326,12 +326,34 @@ func (p *ProviderService) Detail(ctx context.Context, id string) (ProviderDetail
 		}
 		accounts = []ProviderAccountDTO{{Name: name, Kind: AccountKindOAuth, Ref: ""}}
 	}
-	disabled := p.s.disabledRouteSetLocked(id)
-	type modelData struct {
-		name   string
-		levels []string
-		seen   map[string]struct{}
+	return ProviderDetail{
+		ID:       id,
+		Accounts: accounts,
+		Builtin:  providerBuiltin(id),
+		Models:   p.providerModelsLocked(id),
+	}, nil
+}
+
+type modelData struct {
+	name   string
+	levels []string
+}
+
+func addReasoningLevel(model *modelData, reasoning string) {
+	collapsed := identity.CollapseReasoning(reasoning)
+	for _, existing := range model.levels {
+		if identity.CollapseReasoning(existing) == collapsed {
+			return
+		}
 	}
+	model.levels = append(model.levels, reasoning)
+}
+
+// providerModelsLocked lists every catalogue + routed model for id, with
+// every reasoning level the provider currently exposes. Caller holds RLock
+// or Lock.
+func (p *ProviderService) providerModelsLocked(id string) []ProviderModel {
+	disabled := p.s.disabledRouteSetLocked(id)
 	models := make(map[string]*modelData)
 	for _, route := range p.s.routes.Routes {
 		if route.Provider != id {
@@ -339,36 +361,37 @@ func (p *ProviderService) Detail(ctx context.Context, id string) (ProviderDetail
 		}
 		model := models[route.ModelID]
 		if model == nil {
-			model = &modelData{name: route.Model, seen: make(map[string]struct{})}
+			model = &modelData{name: route.Model}
 			models[route.ModelID] = model
 		} else if model.name == "" || (route.Model != "" && route.Model < model.name) {
 			model.name = route.Model
 		}
-		if _, ok := model.seen[route.Reasoning]; !ok {
-			model.seen[route.Reasoning] = struct{}{}
-			model.levels = append(model.levels, route.Reasoning)
-		}
+		addReasoningLevel(model, route.Reasoning)
 	}
-	// Catalogue names: models.dev is the naming authority. Unrouted
-	// catalogue models join the list; routed models fall back to the
-	// catalogue name only when the table carries none (user-declared names
-	// are operator input and win).
-	catalogueNames := p.modelsDevNamesLocked(id)
-	for modelID, name := range catalogueNames {
-		if _, routed := models[modelID]; routed {
-			if models[modelID].name == "" {
-				models[modelID].name = name
+	for modelID, entry := range p.modelsDevCatalogueLocked(id) {
+		model := models[modelID]
+		if model == nil {
+			model = &modelData{name: entry.name}
+			models[modelID] = model
+		} else if model.name == "" {
+			model.name = entry.name
+		}
+		if len(entry.levels) > 0 {
+			for _, level := range entry.levels {
+				addReasoningLevel(model, level)
 			}
 			continue
 		}
-		models[modelID] = &modelData{name: name, seen: map[string]struct{}{}}
+		if len(model.levels) == 0 {
+			addReasoningLevel(model, "default")
+		}
 	}
 	modelIDs := make([]string, 0, len(models))
 	for modelID := range models {
 		modelIDs = append(modelIDs, modelID)
 	}
 	sort.Strings(modelIDs)
-	out := ProviderDetail{ID: id, Accounts: accounts, Builtin: providerBuiltin(id), Models: make([]ProviderModel, 0, len(modelIDs))}
+	out := make([]ProviderModel, 0, len(modelIDs))
 	for _, modelID := range modelIDs {
 		model := models[modelID]
 		sort.SliceStable(model.levels, func(i, j int) bool {
@@ -384,22 +407,41 @@ func (p *ProviderService) Detail(ctx context.Context, id string) (ProviderDetail
 				defaultSet = true
 			}
 			_, off := disabled[modelID+"@"+reasoning]
+			if !off {
+				_, off = disabled[modelID+"@"+canonical]
+			}
 			levels = append(levels, RouteLevel{Reasoning: reasoning, Enabled: !off, Default: isDefault})
 		}
-		var levelPtr []RouteLevel
-		if len(levels) > 0 {
-			levelPtr = levels
-		}
-		out.Models = append(out.Models, ProviderModel{ModelID: modelID, ModelName: model.name, Levels: levelPtr})
+		out = append(out, ProviderModel{ModelID: modelID, ModelName: model.name, Levels: levels})
 	}
-	return out, nil
+	return out
 }
 
-// modelsDevNamesLocked returns the provider's models.dev catalogue models as
-// ModelID → Name (models.dev names, already cleaned at collect time). Builtin
-// provider ids map onto their catalogue slug (routing.CatalogueSlugFor); an
-// added provider's id IS its slug. Absent or unreadable cache → nil.
-func (p *ProviderService) modelsDevNamesLocked(id string) map[string]string {
+func (p *ProviderService) comboKnownLocked(provider, modelID, reasoning string) bool {
+	want := identity.CollapseReasoning(reasoning)
+	for _, model := range p.providerModelsLocked(provider) {
+		if model.ModelID != modelID {
+			continue
+		}
+		for _, level := range model.Levels {
+			if identity.CollapseReasoning(level.Reasoning) == want {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+type modelsDevEntry struct {
+	name   string
+	levels []string
+}
+
+// modelsDevCatalogueLocked returns the provider's models.dev catalogue as
+// ModelID → name + effort levels. Builtin ids map onto their catalogue slug
+// (routing.CatalogueSlugFor); an added provider's id IS its slug. Absent or
+// unreadable cache → nil.
+func (p *ProviderService) modelsDevCatalogueLocked(id string) map[string]modelsDevEntry {
 	data, err := os.ReadFile(filepath.Join(p.s.paths.CacheDir, "catalog", "modelsdev_providers.json"))
 	if err != nil {
 		return nil
@@ -409,13 +451,13 @@ func (p *ProviderService) modelsDevNamesLocked(id string) map[string]string {
 		return nil
 	}
 	slug := routing.CatalogueSlugFor(id)
-	names := make(map[string]string)
+	out := make(map[string]modelsDevEntry)
 	for _, m := range catalogue {
 		if m.Provider == slug {
-			names[m.ModelID] = m.Name
+			out[m.ModelID] = modelsDevEntry{name: m.Name, levels: append([]string(nil), m.EffortLevels...)}
 		}
 	}
-	return names
+	return out
 }
 
 func reasoningLess(left, right string) bool {
@@ -829,12 +871,7 @@ func (p *ProviderService) SetRouteEnabled(ctx context.Context, provider, modelID
 	p.s.mu.RLock()
 	known, route := p.providerKnownLocked(provider), false
 	if known {
-		for _, candidate := range p.s.routes.Routes {
-			if candidate.Provider == provider && candidate.ModelID == modelID && candidate.Reasoning == reasoning {
-				route = true
-				break
-			}
-		}
+		route = p.comboKnownLocked(provider, modelID, reasoning)
 	}
 	p.s.mu.RUnlock()
 	if !known {
@@ -912,9 +949,9 @@ func (p *ProviderService) SetAllRoutes(ctx context.Context, provider string, ena
 				delete(disabled, provider)
 			} else {
 				all := make([]string, 0)
-				for _, route := range p.s.routes.Routes {
-					if route.Provider == provider {
-						all = append(all, routeKey(route))
+				for _, model := range p.providerModelsLocked(provider) {
+					for _, level := range model.Levels {
+						all = append(all, model.ModelID+"@"+level.Reasoning)
 					}
 				}
 				disabled[provider] = normalizeStrings(all)

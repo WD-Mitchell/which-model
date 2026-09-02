@@ -21,6 +21,24 @@
  */
 
 /**
+ * ModelBenchRow is one benchmark result for a (model, reasoning) pair.
+ * @typedef {Object} ModelBenchRow
+ * @property {string} name
+ * @property {number} value
+ * @property {number} norm - value / max * 100 across every tested model
+ * @property {string[] | null} groups
+ */
+
+/**
+ * ModelScoreDetail is the inverse of BenchmarkDetail: every benchmark
+ * (model, reasoning) reports.
+ * @typedef {Object} ModelScoreDetail
+ * @property {string} model
+ * @property {string} reasoning
+ * @property {ModelBenchRow[] | null} rows
+ */
+
+/**
  * CatalogSummary counts the live catalog.
  * @typedef {Object} CatalogSummary
  * @property {number} models - distinct (model, reasoning) rows in scores CSV

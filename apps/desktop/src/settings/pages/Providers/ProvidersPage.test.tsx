@@ -2,7 +2,7 @@
 // opens GitHub, and starts polling immediately. Cancel aborts. Success
 // marks the account signed in. Drives the real page through SettingsApp.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { screen, render, act, fireEvent, cleanup, waitFor } from '@testing-library/react'
+import { screen, render, act, fireEvent, cleanup, waitFor, within } from '@testing-library/react'
 
 afterEach(() => cleanup())
 import { createMockEngineHost } from '@which-model/core/mock'
@@ -129,8 +129,9 @@ describe('Providers page copilot sign-in', () => {
     host = createMockEngineHost({ models: [] }) as EngineHost & { data: never }
     resetHost(host)
     await openCopilotDetail(host)
-    expect(screen.getByText('No models for this provider yet. Sign in, then refresh models.')).toBeDefined()
     expect(screen.queryByText(/which-model routes refresh/)).toBeNull()
+    expect(screen.queryByText('No models for this provider yet. Sign in, then refresh models.')).toBeNull()
+    expect(await screen.findByText('GPT-5.6 Luna')).toBeDefined()
   })
 
   it('shows Refresh models after sign-in and the button rebuilds routes', async () => {
@@ -196,5 +197,30 @@ describe('Providers page claude and codex sign-in', () => {
     fireEvent.change(paste, { target: { value: 'abc#state' } })
     fireEvent.click(await screen.findByText('Continue'))
     await waitFor(() => expect(submitSpy).toHaveBeenCalledWith('claude', 'abc#state'))
+  })
+})
+
+describe('Providers page model levels and benchmarks', () => {
+  let host: EngineHost
+  beforeEach(() => {
+    host = createMockEngineHost()
+    resetHost(host)
+  })
+
+  it('lists reasoning levels and opens that combo’s benchmarks on click', async () => {
+    await openProviderDetail(host, 'claude')
+    expect(screen.queryByText('no routes')).toBeNull()
+    expect(await screen.findByText('Claude Haiku 4')).toBeDefined()
+    const opus = (await screen.findByText('Claude Opus 5')).closest('div')
+    expect(opus).not.toBeNull()
+    fireEvent.click(within(opus!).getByRole('button', { name: 'max' }))
+    expect(await screen.findByRole('heading', { name: /Claude Opus 5.*\(max\)/ })).toBeDefined()
+    expect(await screen.findByText('SWE-Bench Verified')).toBeDefined()
+    fireEvent.click(await screen.findByText('claude'))
+    expect(await screen.findByText('accounts')).toBeDefined()
+    const haiku = (await screen.findByText('Claude Haiku 4')).closest('div')
+    fireEvent.click(within(haiku!).getByRole('button', { name: 'low' }))
+    expect(await screen.findByRole('heading', { name: /Claude Haiku 4.*\(low\)/ })).toBeDefined()
+    expect(await screen.findByText('No benchmarks for this model and reasoning level yet.')).toBeDefined()
   })
 })

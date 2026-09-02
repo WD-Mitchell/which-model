@@ -39,6 +39,8 @@ Depends on: B02 (Services, caches, error mapper, test helper). Inherits D00, B00
 
 12. **Derive-failure semantics.** If any step of §2.10 (a)–(d) fails — including a missing raw CSV — the group mutation is ALREADY persisted and stays persisted: the method returns `io_error` with the failing path in the message, the in-memory catalog caches keep their previous contents, `catalog:changed` is NOT emitted, and `config:changed` (`{"section":"groups"}`) is emitted instead so the UI still refetches the saved group list. A failed CONFIG write (before the pipeline) leaves everything untouched and emits nothing (B00 §2.2).
 
+13. **ModelDetail.** Inverse of BenchmarkDetail: given a model display name and reasoning level (cleaned and collapsed the same way as the scores CSV), return every catalogue benchmark that pair reports. Unknown or untested pairs return empty `Rows`, not `not_found`, so Settings can open any catalogue combo. `Norm` is value/max×100 against every tested model of that benchmark, matching BenchmarkDetail.
+
 ## 3. Error behaviour
 
 - All boundary errors map via `toErrorDTO` (B00 §3): `builtin_readonly`, `not_found`, `conflict`, `validation_failed` per §2.8/§2.9; file failures → `io_error` naming the path.

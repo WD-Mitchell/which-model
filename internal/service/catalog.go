@@ -73,28 +73,82 @@ func (c *CatalogService) BenchmarkDetail(ctx context.Context, name string) (Benc
 		return BenchmarkDetail{}, fmt.Errorf("%w: no benchmark %q", errNotFound, name)
 	}
 
+	return BenchmarkDetail{
+		Name:   name,
+		Note:   benchmarkNote,
+		Groups: c.s.groupsForBenchmarkLocked(name),
+		Rows:   c.s.benchmarkRowsLocked(name),
+	}, nil
+}
+
+// ModelDetail returns every benchmark (model, reasoning) reports. Unknown or
+// untested pairs return empty Rows (not not_found) so Settings can open any
+// catalogue combo. Norm is value/max×100 against every tested model of that
+// benchmark, matching BenchmarkDetail.
+func (c *CatalogService) ModelDetail(ctx context.Context, model, reasoning string) (ModelScoreDetail, error) {
+	_ = ctx
+	c.s.mu.RLock()
+	defer c.s.mu.RUnlock()
+	cleaned := identity.CleanModelName(model)
+	level := identity.CollapseReasoning(strings.TrimSpace(reasoning))
+	out := ModelScoreDetail{Model: cleaned, Reasoning: level, Rows: []ModelBenchRow{}}
+	if cleaned == "" || level == "" {
+		return out, nil
+	}
+	catalogue, err := c.s.catalogueLocked()
+	if err != nil {
+		return ModelScoreDetail{}, err
+	}
+	key := modelKey{model: cleaned, reasoning: level}
+	for _, name := range catalogue {
+		rawMap := c.s.rawValues[name]
+		value, ok := rawMap[key]
+		if !ok {
+			continue
+		}
+		max := sdecimal.Zero
+		for _, candidate := range rawMap {
+			if candidate.GreaterThan(max) {
+				max = candidate
+			}
+		}
+		norm := sdecimal.Zero
+		if !max.IsZero() {
+			norm = wdecimal.RoundHalfUp(value.Div(max).Mul(dec100), 0)
+		}
+		out.Rows = append(out.Rows, ModelBenchRow{
+			Name:   name,
+			Value:  value.InexactFloat64(),
+			Norm:   norm.InexactFloat64(),
+			Groups: c.s.groupsForBenchmarkLocked(name),
+		})
+	}
+	sort.SliceStable(out.Rows, func(i, j int) bool {
+		if out.Rows[i].Norm != out.Rows[j].Norm {
+			return out.Rows[i].Norm > out.Rows[j].Norm
+		}
+		return out.Rows[i].Name < out.Rows[j].Name
+	})
+	return out, nil
+}
+
+func (s *Services) groupsForBenchmarkLocked(name string) []string {
 	var groupSlugs []string
-	for _, eg := range c.s.benchConfig.EvidenceGroups {
+	for _, eg := range s.benchConfig.EvidenceGroups {
 		if stringInSlice(eg.Benchmarks, name) {
 			groupSlugs = append(groupSlugs, eg.Category)
 		}
 	}
-	customs, err := customGroupMap(c.s.cfg)
+	customs, err := customGroupMap(s.cfg)
 	if err != nil {
-		return BenchmarkDetail{}, err
+		return groupSlugs
 	}
 	for _, slug := range sortedKeys(customs) {
 		if stringInSlice(customs[slug], name) {
 			groupSlugs = append(groupSlugs, slug)
 		}
 	}
-
-	return BenchmarkDetail{
-		Name:   name,
-		Note:   benchmarkNote,
-		Groups: groupSlugs,
-		Rows:   c.s.benchmarkRowsLocked(name),
-	}, nil
+	return groupSlugs
 }
 
 // benchmarkRowsLocked builds the tested rows for one benchmark from the

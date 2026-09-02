@@ -559,8 +559,8 @@ func TestProviderDetail_IncludesCatalogueModels(t *testing.T) {
 		gotIDs = append(gotIDs, m.ModelID)
 	}
 	// Routed models keep their levels; the unrouted catalogue model
-	// (claude-haiku-4) joins with nil levels; the openai row belongs to a
-	// different slug and must not leak in. model_id ascending overall.
+	// (claude-haiku-4) joins with a default level so it can be opened.
+	// The openai row belongs to a different slug and must not leak in.
 	wantIDs := []string{"claude-eco", "claude-haiku-4", "claude-opus-5", "claude-sonnet-4"}
 	if !reflect.DeepEqual(gotIDs, wantIDs) {
 		t.Fatalf("Detail model ids = %v, want %v", gotIDs, wantIDs)
@@ -570,8 +570,8 @@ func TestProviderDetail_IncludesCatalogueModels(t *testing.T) {
 			if m.ModelName != "Claude Haiku 4" {
 				t.Errorf("unrouted ModelName = %q, want models.dev name %q", m.ModelName, "Claude Haiku 4")
 			}
-			if m.Levels != nil {
-				t.Errorf("unrouted Levels = %#v, want nil", m.Levels)
+			if len(m.Levels) != 1 || m.Levels[0].Reasoning != "default" {
+				t.Errorf("unrouted Levels = %#v, want default", m.Levels)
 			}
 		}
 	}
@@ -585,6 +585,46 @@ func TestProviderDetail_NoCatalogueCacheIsRoutesOnly(t *testing.T) {
 	}
 	if len(detail.Models) != 3 {
 		t.Fatalf("Detail models = %d, want 3 (routes only)", len(detail.Models))
+	}
+}
+
+func TestProviderDetail_CatalogueEffortLevels(t *testing.T) {
+	svc, _ := newTestServices(t, WithRoutes(detailRoutes()))
+	seedModelsDev(t, svc, `[
+		{"Provider":"anthropic","ModelID":"claude-haiku-4","Name":"Claude Haiku 4","EffortLevels":["low","medium","high"]},
+		{"Provider":"anthropic","ModelID":"claude-opus-5","Name":"Claude Opus 5","EffortLevels":["low","high","max"]}
+	]`)
+	detail, err := svc.Providers().Detail(context.Background(), "claude")
+	if err != nil {
+		t.Fatalf("Detail: %v", err)
+	}
+	byID := map[string]ProviderModel{}
+	for _, m := range detail.Models {
+		byID[m.ModelID] = m
+	}
+	haiku := byID["claude-haiku-4"]
+	if haiku.ModelID == "" {
+		t.Fatal("missing claude-haiku-4")
+	}
+	got := make([]string, 0, len(haiku.Levels))
+	for _, l := range haiku.Levels {
+		got = append(got, l.Reasoning)
+	}
+	want := []string{"low", "medium", "high"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("haiku levels = %v, want %v (catalogue, not scores)", got, want)
+	}
+	opus := byID["claude-opus-5"]
+	got = nil
+	for _, l := range opus.Levels {
+		got = append(got, l.Reasoning)
+	}
+	want = []string{"low", "high", "max"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("opus levels = %v, want %v", got, want)
+	}
+	if err := svc.Providers().SetRouteEnabled(context.Background(), "claude", "claude-haiku-4", "low", false); err != nil {
+		t.Fatalf("SetRouteEnabled catalogue-only combo: %v", err)
 	}
 }
 

@@ -15,6 +15,16 @@ import * as $models from "./models.js";
  */
 
 /**
+ * ModelBenchRow is one benchmark result for a (model, reasoning) pair.
+ * @typedef {$models.ModelBenchRow} ModelBenchRow
+ */
+
+/**
+ * ModelScoreDetail is the inverse of BenchmarkDetail.
+ * @typedef {$models.ModelScoreDetail} ModelScoreDetail
+ */
+
+/**
  * CatalogSummary counts the live catalog.
  * @typedef {$models.CatalogSummary} CatalogSummary
  */

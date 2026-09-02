@@ -16,7 +16,7 @@ const INVALIDATION: Record<EngineEvent, QueryKey[]> = {
     ['rank'],
     ['catalog-line'],
   ],
-  'catalog:changed': [['groups'], ['group'], ['benchmarks'], ['benchmark'], ['rank']],
+  'catalog:changed': [['groups'], ['group'], ['benchmarks'], ['benchmark'], ['model-score'], ['rank']],
   'usage:updated': [['usage'], ['providers']],
   'settings:changed': [['settings'], ['rank']],
   'pick:recorded': [['profiles'], ['catalog-line']],

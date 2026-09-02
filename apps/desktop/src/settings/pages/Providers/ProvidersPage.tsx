@@ -17,7 +17,7 @@
 // Layout contract (U07): <main> has no horizontal padding, so every block here
 // carries its own 22px gutter — including the drag rows, which get theirs via
 // DragList's `rowClassName` so the grab handle sits inside the gutter.
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Button,
   Combobox,
@@ -35,7 +35,7 @@ import {
 } from '@which-model/ui'
 import type { MenuItem } from '@which-model/ui'
 import type { ProviderAccount, ProviderDetail, ProviderInfo } from '@which-model/core'
-import { useProviderDetail, useProviders } from '../../../lib/queries'
+import { useModelScoreDetail, useProviderDetail, useProviders } from '../../../lib/queries'
 import { getHost } from '../../../lib/host'
 import { DetailHeader } from '../../DetailHeader'
 import { PAGE_META } from '../../pages'
@@ -120,8 +120,18 @@ function ChevronIcon() {
 
 
 export function ProvidersPage({ detail, openDetail, closeDetail }: PageComponentProps) {
+  if (detail?.kind === 'provider-model') {
+    return (
+      <ModelBenchmarksView
+        provider={detail.provider}
+        modelName={detail.modelName}
+        reasoning={detail.reasoning}
+        onBack={closeDetail}
+      />
+    )
+  }
   return detail?.kind === 'provider' ? (
-    <ProviderDetailView id={detail.id} onBack={closeDetail} />
+    <ProviderDetailView id={detail.id} onBack={closeDetail} openDetail={openDetail} />
   ) : (
     <ProvidersListView openDetail={openDetail} />
   )
@@ -404,7 +414,7 @@ function ProvidersListView({ openDetail }: { openDetail(d: Detail): void }) {
 
 /** demo.dc.html 1191 — the detail view's blurb, interpolated on the id. */
 function detailBlurb(id: string): string {
-  return `Models ${id} can serve. Each reasoning level routes separately — switch off the ones the picker should not consider.`
+  return `Models ${id} can serve. Each reasoning level routes separately — switch off the ones the picker should not consider. Click a level to see its benchmarks.`
 }
 
 function countRoutes(detail: ProviderDetail): { on: number; total: number } {
@@ -423,7 +433,15 @@ function isSignedIn(accounts: readonly ProviderAccount[] | undefined): boolean {
   return (accounts ?? []).some((a) => a.ref.trim().length > 0)
 }
 
-function ProviderDetailView({ id, onBack }: { id: string; onBack(): void }) {
+function ProviderDetailView({
+  id,
+  onBack,
+  openDetail,
+}: {
+  id: string
+  onBack(): void
+  openDetail(d: Detail): void
+}) {
   const toast = useToast()
   const { data: detail } = useProviderDetail(id)
   const [refreshing, setRefreshing] = useState(false)
@@ -536,9 +554,6 @@ function ProviderDetailView({ id, onBack }: { id: string; onBack(): void }) {
       ) : null}
 
       {detail.models.map((m) => {
-        // A model with no levels is available from the provider but produced
-        // no routes (no benchmark row matches it) — show it, name it, and
-        // mark it unrouted; there is nothing to toggle.
         const levels = m.levels ?? []
         const allOn = levels.length > 0 && levels.every((l) => l.enabled)
         return (
@@ -559,23 +574,29 @@ function ProviderDetailView({ id, onBack }: { id: string; onBack(): void }) {
               ) : null}
             </span>
             <span className={styles.levels}>
-              {levels.length > 0 ? (
-                levels.map((l) => (
-                  // L773
-                  <span key={l.reasoning} className={styles.level}>
-                    <Toggle
-                      on={l.enabled}
-                      onToggle={(next: boolean) => handleRoute(m.model_id, l.reasoning, next)}
-                    />
-                    <span className={cx('mono', styles.levelName, !l.enabled && styles.levelOff)}>
-                      {l.reasoning}
-                    </span>
-                    {l.default ? <Tag variant="neutral">default</Tag> : null}
-                  </span>
-                ))
-              ) : (
-                <span className={cx('mono', styles.levelName, styles.levelOff)}>no routes</span>
-              )}
+              {levels.map((l) => (
+                <span key={l.reasoning} className={styles.level}>
+                  <Toggle
+                    on={l.enabled}
+                    onToggle={(next: boolean) => handleRoute(m.model_id, l.reasoning, next)}
+                  />
+                  <button
+                    type="button"
+                    className={cx('mono', styles.levelName, !l.enabled && styles.levelOff)}
+                    onClick={() =>
+                      openDetail({
+                        kind: 'provider-model',
+                        provider: id,
+                        modelName: m.model_name,
+                        reasoning: l.reasoning,
+                      })
+                    }
+                  >
+                    {l.reasoning}
+                  </button>
+                  {l.default ? <Tag variant="neutral">default</Tag> : null}
+                </span>
+              ))}
             </span>
           </div>
         )
@@ -852,6 +873,100 @@ function AccountsSection({
         </SettingsModal>
       )}
     </section>
+  )
+}
+
+type BenchSortKey = 'name' | 'value' | 'score'
+
+function ModelBenchmarksView({
+  provider,
+  modelName,
+  reasoning,
+  onBack,
+}: {
+  provider: string
+  modelName: string
+  reasoning: string
+  onBack(): void
+}) {
+  const { data: detail } = useModelScoreDetail(modelName, reasoning)
+  const [sort, setSort] = useState<{ key: BenchSortKey; dir: 'asc' | 'desc' }>({
+    key: 'score',
+    dir: 'desc',
+  })
+  const sortedRows = useMemo(() => {
+    if (!detail) return []
+    const sign = sort.dir === 'desc' ? -1 : 1
+    return [...detail.rows].sort((a, b) => {
+      if (sort.key === 'name') return sign * a.name.localeCompare(b.name)
+      if (sort.key === 'score') return sign * (a.norm - b.norm)
+      return sign * (a.value - b.value)
+    })
+  }, [detail, sort])
+
+  if (!detail) return <div className={cx(styles.page, styles.loading)}>loading…</div>
+
+  return (
+    <div className={styles.page}>
+      <DetailHeader
+        title={`${detail.model}  (${detail.reasoning})`}
+        blurb={`Benchmarks this model reports at the ${detail.reasoning} reasoning level.`}
+        backLabel={provider}
+        onBack={onBack}
+      />
+      <div className={styles.testedHead}>
+        <span className={styles.testedLabel}>benchmarks</span>
+        <span className={cx('mono', styles.testedCount)}>
+          {sortedRows.length === 0 ? 'none yet' : `${sortedRows.length} tested`}
+        </span>
+      </div>
+      <div className={styles.sortRow}>
+        {(
+          [
+            { key: 'name', label: 'benchmark', cls: styles.sortName },
+            { key: 'value', label: 'result', cls: styles.sortValue },
+            { key: 'score', label: 'normalised score', cls: styles.sortScore },
+          ] as const
+        ).map((c) => {
+          const active = sort.key === c.key
+          return (
+            <button
+              key={c.key}
+              type="button"
+              className={cx('mono', styles.sortCol, c.cls, active && styles.sortColActive)}
+              onClick={() =>
+                setSort({ key: c.key, dir: active && sort.dir === 'desc' ? 'asc' : 'desc' })
+              }
+            >
+              {c.label + (active ? (sort.dir === 'desc' ? '  ↓' : '  ↑') : '')}
+            </button>
+          )
+        })}
+      </div>
+      <div className={cx('scroll', styles.benchList)}>
+        {sortedRows.map((r) => {
+          const score = Math.round(r.norm)
+          return (
+            <span key={r.name} className={styles.benchRow}>
+              <span className={styles.benchLabel}>{r.name}</span>
+              <span className={cx('mono', styles.benchValue)}>{r.value.toFixed(1)}</span>
+              <span className={cx('mono', styles.benchScore)}>{score}</span>
+              <span className={styles.benchBar}>
+                <b
+                  className={styles.benchBarFill}
+                  style={{ width: `${Math.max(0, Math.min(100, score))}%` }}
+                />
+              </span>
+            </span>
+          )
+        })}
+        {sortedRows.length === 0 ? (
+          <span className={cx('mono', styles.benchEmpty)}>
+            No benchmarks for this model and reasoning level yet.
+          </span>
+        ) : null}
+      </div>
+    </div>
   )
 }
 
