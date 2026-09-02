@@ -57,6 +57,18 @@ describe('GeneralPage benchmarks data source', () => {
     })
   })
 
+  it('defaults the benchmark check frequency to 6 hours and updates on change', async () => {
+    renderApp(host)
+    const select = (await screen.findByRole('combobox', {
+      name: 'Check for new benchmarks',
+    })) as HTMLSelectElement
+    expect(select.value).toBe('6h')
+    fireEvent.change(select, { target: { value: '1h' } })
+    await waitFor(async () => {
+      expect((await host.settings.get()).benchmark_check_frequency).toBe('1h')
+    })
+  })
+
   it('toggles only show and recommend enabled providers', async () => {
     renderApp(host)
     const toggle = await screen.findByRole('switch', {

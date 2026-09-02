@@ -123,7 +123,11 @@ func guiDTO(g config.GUIConfig, auth config.AuthConfig, path, version string, aa
 	if strings.TrimSpace(repo) == "" {
 		repo = config.DefaultCatalogRepo
 	}
-	return GUISettings{Layout: g.Layout, DefaultTab: g.DefaultTab, WeightControl: g.WeightControl, Holds: g.Holds, Shortcut: g.Shortcut, ShowMenuBarIcon: g.ShowMenuBarIcon, LaunchAtLogin: g.LaunchAtLogin, CopyCommandInstead: g.CopyCommandInstead, ClosePopoverAfterLaunch: g.ClosePopoverAfterLaunch, AutoUpdate: g.AutoUpdate, AutoUpdateFrequency: g.AutoUpdateFrequency, MCPServer: g.MCPServer, ClaudeMDHint: g.ClaudeMDHint, ShellAlias: g.ShellAlias, UseKeychain: auth.UseKeychain, CatalogRepo: repo, UseLocalAA: g.UseLocalAA, OnlyEnabledProviders: g.OnlyEnabledProviders, AAAPIKeySet: aaKeySet, ConfigPath: path, Version: version}
+	freq := g.BenchmarkCheckFrequency
+	if strings.TrimSpace(freq) == "" {
+		freq = "6h"
+	}
+	return GUISettings{Layout: g.Layout, DefaultTab: g.DefaultTab, WeightControl: g.WeightControl, Holds: g.Holds, Shortcut: g.Shortcut, ShowMenuBarIcon: g.ShowMenuBarIcon, LaunchAtLogin: g.LaunchAtLogin, CopyCommandInstead: g.CopyCommandInstead, ClosePopoverAfterLaunch: g.ClosePopoverAfterLaunch, AutoUpdate: g.AutoUpdate, AutoUpdateFrequency: g.AutoUpdateFrequency, MCPServer: g.MCPServer, ClaudeMDHint: g.ClaudeMDHint, ShellAlias: g.ShellAlias, UseKeychain: auth.UseKeychain, CatalogRepo: repo, UseLocalAA: g.UseLocalAA, BenchmarkCheckFrequency: freq, OnlyEnabledProviders: g.OnlyEnabledProviders, AAAPIKeySet: aaKeySet, ConfigPath: path, Version: version}
 }
 
 func guiConfig(g GUISettings) config.GUIConfig {
@@ -131,7 +135,11 @@ func guiConfig(g GUISettings) config.GUIConfig {
 	if repo == "" {
 		repo = config.DefaultCatalogRepo
 	}
-	return config.GUIConfig{Layout: g.Layout, DefaultTab: g.DefaultTab, WeightControl: g.WeightControl, Holds: g.Holds, Shortcut: g.Shortcut, ShowMenuBarIcon: g.ShowMenuBarIcon, LaunchAtLogin: g.LaunchAtLogin, CopyCommandInstead: g.CopyCommandInstead, ClosePopoverAfterLaunch: g.ClosePopoverAfterLaunch, AutoUpdate: g.AutoUpdate, AutoUpdateFrequency: g.AutoUpdateFrequency, MCPServer: g.MCPServer, ClaudeMDHint: g.ClaudeMDHint, ShellAlias: g.ShellAlias, CatalogRepo: repo, UseLocalAA: g.UseLocalAA, OnlyEnabledProviders: g.OnlyEnabledProviders}
+	freq := strings.TrimSpace(g.BenchmarkCheckFrequency)
+	if freq == "" {
+		freq = "6h"
+	}
+	return config.GUIConfig{Layout: g.Layout, DefaultTab: g.DefaultTab, WeightControl: g.WeightControl, Holds: g.Holds, Shortcut: g.Shortcut, ShowMenuBarIcon: g.ShowMenuBarIcon, LaunchAtLogin: g.LaunchAtLogin, CopyCommandInstead: g.CopyCommandInstead, ClosePopoverAfterLaunch: g.ClosePopoverAfterLaunch, AutoUpdate: g.AutoUpdate, AutoUpdateFrequency: g.AutoUpdateFrequency, MCPServer: g.MCPServer, ClaudeMDHint: g.ClaudeMDHint, ShellAlias: g.ShellAlias, CatalogRepo: repo, UseLocalAA: g.UseLocalAA, BenchmarkCheckFrequency: freq, OnlyEnabledProviders: g.OnlyEnabledProviders}
 }
 
 func validateGUISettings(g GUISettings) error {
@@ -171,6 +179,9 @@ func normaliseGUISettings(g GUISettings) GUISettings {
 	}
 	if strings.TrimSpace(g.CatalogRepo) == "" {
 		g.CatalogRepo = config.DefaultCatalogRepo
+	}
+	if strings.TrimSpace(g.BenchmarkCheckFrequency) == "" {
+		g.BenchmarkCheckFrequency = "6h"
 	}
 	return g
 }

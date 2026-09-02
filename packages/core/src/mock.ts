@@ -234,6 +234,7 @@ function seedSettings(): GUISettings {
     catalog_repo: 'WD-Mitchell/which-model',
     use_local_aa: false,
     only_enabled_providers: false,
+    benchmark_check_frequency: '6h',
     aa_api_key: '',
     aa_api_key_set: false,
     config_path: '~/Library/Application Support/which-model/config.toml',

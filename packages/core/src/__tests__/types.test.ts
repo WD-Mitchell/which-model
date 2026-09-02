@@ -218,6 +218,7 @@ const settings: GUISettings = {
   use_keychain: true,
   catalog_repo: 'WD-Mitchell/which-model',
   use_local_aa: false,
+  benchmark_check_frequency: '6h',
   aa_api_key: '',
   aa_api_key_set: false,
   config_path: '~/Library/Application Support/which-model/config.toml',

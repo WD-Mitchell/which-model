@@ -76,6 +76,7 @@ type GUIConfig struct {
 	ShellAlias              bool   `toml:"shell_alias"`
 	CatalogRepo             string `toml:"catalog_repo"`
 	UseLocalAA              bool   `toml:"use_local_aa"`
+	BenchmarkCheckFrequency string `toml:"benchmark_check_frequency"`
 	OnlyEnabledProviders    bool   `toml:"only_enabled_providers"`
 }
 
@@ -98,6 +99,7 @@ type guiConfigTOML struct {
 	ShellAlias              *bool   `toml:"shell_alias"`
 	CatalogRepo             *string `toml:"catalog_repo"`
 	UseLocalAA              *bool   `toml:"use_local_aa"`
+	BenchmarkCheckFrequency *string `toml:"benchmark_check_frequency"`
 	OnlyEnabledProviders    *bool   `toml:"only_enabled_providers"`
 }
 
@@ -122,6 +124,7 @@ func DefaultGUIConfig() GUIConfig {
 		ShellAlias:              false,
 		CatalogRepo:             DefaultCatalogRepo,
 		UseLocalAA:              false,
+		BenchmarkCheckFrequency: "6h",
 		OnlyEnabledProviders:    false,
 	}
 }
@@ -193,6 +196,12 @@ func (c *Config) LoadGUI() (GUIConfig, error) {
 	}
 	if mirror.UseLocalAA != nil {
 		gui.UseLocalAA = *mirror.UseLocalAA
+	}
+	if mirror.BenchmarkCheckFrequency != nil {
+		gui.BenchmarkCheckFrequency = *mirror.BenchmarkCheckFrequency
+	}
+	if strings.TrimSpace(gui.BenchmarkCheckFrequency) == "" {
+		gui.BenchmarkCheckFrequency = "6h"
 	}
 	if mirror.OnlyEnabledProviders != nil {
 		gui.OnlyEnabledProviders = *mirror.OnlyEnabledProviders
@@ -293,6 +302,9 @@ func (c *Config) SetGUI(g GUIConfig) error {
 	if strings.TrimSpace(g.CatalogRepo) == "" {
 		g.CatalogRepo = DefaultCatalogRepo
 	}
+	if strings.TrimSpace(g.BenchmarkCheckFrequency) == "" {
+		g.BenchmarkCheckFrequency = "6h"
+	}
 	if err := validateGUI(g); err != nil {
 		return err
 	}
@@ -313,6 +325,7 @@ func (c *Config) SetGUI(g GUIConfig) error {
 		"shell_alias":                g.ShellAlias,
 		"catalog_repo":               g.CatalogRepo,
 		"use_local_aa":               g.UseLocalAA,
+		"benchmark_check_frequency":  g.BenchmarkCheckFrequency,
 		"only_enabled_providers":     g.OnlyEnabledProviders,
 	})
 	return nil
@@ -624,6 +637,11 @@ func validateGUI(g GUIConfig) error {
 	case "hourly", "daily", "weekly", "monthly":
 	default:
 		return invalidValue("gui.auto_update_frequency", `must be "hourly", "daily", "weekly" or "monthly"`)
+	}
+	switch g.BenchmarkCheckFrequency {
+	case "15m", "1h", "3h", "6h", "12h", "24h", "weekly":
+	default:
+		return invalidValue("gui.benchmark_check_frequency", `must be "15m", "1h", "3h", "6h", "12h", "24h" or "weekly"`)
 	}
 	if _, _, _, err := ParseCatalogRepoSpec(g.CatalogRepo); err != nil {
 		return invalidValue("gui.catalog_repo", "%s", err.Error())
