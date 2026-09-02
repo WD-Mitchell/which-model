@@ -59,13 +59,12 @@ function searchInput() {
 
 async function pickProfile(query: string) {
   const input = searchInput()
-  // Flush the query state so the combobox recomputes matches before Enter.
-  await act(async () => {
-    fireEvent.change(input, { target: { value: query } })
+  fireEvent.change(input, { target: { value: query } })
+  await waitFor(() => {
+    const surface = document.querySelector('div[class*="_surface_"]')
+    expect(surface).not.toBeNull()
   })
-  await act(async () => {
-    fireEvent.keyDown(input, { key: 'Enter' })
-  })
+  fireEvent.keyDown(input, { key: 'Enter' })
 }
 
 describe('popover landing', () => {
