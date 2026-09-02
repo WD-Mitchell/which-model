@@ -54,5 +54,5 @@ Inherits `specs/desktop/global/*`. The mockup `specs/desktop/mockup/demo.dc.html
 | `packages/ui` WeightRow/BalanceSlider/ComplexityScale/WeightEditor | U03 |
 | `packages/ui` RankCarousel/RankList/ModelResultCard/ProfileWeightSparkbar | U04 |
 | `apps/desktop/src/popover/**` | U05 (landing/shell/footer), U06 (weights view) |
-| `apps/desktop/src/settings/**` shell/nav/registry | U07; one page dir per U08–U14 |
+| `apps/desktop/src/settings/**` shell/nav/registry | U07; one page dir per U08–U15 |
 | `apps/desktop/src/lib/{queries.ts,invalidate.ts,overrides.ts}` | U05 (queries/invalidate), U06 (overrides) |

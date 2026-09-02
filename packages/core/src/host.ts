@@ -7,6 +7,7 @@ import type {
   GUISettings,
   HarnessInfo,
   LaunchResult,
+  CatalogModel,
   ModelScoreDetail,
   ProfileDetail,
   ProfileSummary,
@@ -40,6 +41,8 @@ export interface EngineHost {
     benchmarkDetail(name: string): Promise<BenchmarkDetail>
     /** Benchmarks for one (model, reasoning) pair. Empty rows if untested. */
     modelDetail(model: string, reasoning: string): Promise<ModelScoreDetail>
+    /** Distinct catalog models (scores CSV), name ascending. */
+    models(): Promise<CatalogModel[]>
     groups(): Promise<GroupSummary[]>
     groupDetail(slug: string): Promise<GroupDetail>
     saveGroup(slug: string, benchmarks: string[], renameTo?: string): Promise<void>

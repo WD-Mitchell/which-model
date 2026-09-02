@@ -39,6 +39,18 @@
  */
 
 /**
+ * CatalogModel is one distinct catalog identity.
+ * @typedef {Object} CatalogModel
+ * @property {string} model_name
+ * @property {string} model_id
+ * @property {string[] | null} reasoning
+ * @property {number | null} intelligence
+ * @property {number | null} cost
+ * @property {number | null} speed
+ * @property {number} provider_count
+ */
+
+/**
  * CatalogSummary counts the live catalog.
  * @typedef {Object} CatalogSummary
  * @property {number} models - distinct (model, reasoning) rows in scores CSV

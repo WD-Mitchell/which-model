@@ -66,6 +66,9 @@ func (a *CatalogAPI) BenchmarkDetail(name string) (service.BenchmarkDetail, erro
 func (a *CatalogAPI) ModelDetail(model, reasoning string) (service.ModelScoreDetail, error) {
 	return a.svc.Catalog().ModelDetail(ctx, model, reasoning)
 }
+func (a *CatalogAPI) Models() ([]service.CatalogModel, error) {
+	return a.svc.Catalog().Models(ctx)
+}
 func (a *CatalogAPI) Groups() ([]service.GroupSummary, error) {
 	return a.svc.Catalog().Groups(ctx)
 }

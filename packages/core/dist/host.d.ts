@@ -1,4 +1,4 @@
-import type { BenchmarkDetail, CatalogSummary, Favourite, GroupDetail, GroupSummary, GUISettings, HarnessInfo, LaunchResult, ModelScoreDetail, ProfileDetail, ProfileSummary, ProviderAccount, ProviderDetail, ProviderInfo, RankRequest, RankResponse, ShellSnippets, UsageDTO } from './types.js';
+import type { BenchmarkDetail, CatalogSummary, Favourite, GroupDetail, GroupSummary, GUISettings, HarnessInfo, LaunchResult, CatalogModel, ModelScoreDetail, ProfileDetail, ProfileSummary, ProviderAccount, ProviderDetail, ProviderInfo, RankRequest, RankResponse, ShellSnippets, UsageDTO } from './types.js';
 import type { EngineEvent } from './events.js';
 export interface EngineHost {
     profiles: {
@@ -19,6 +19,8 @@ export interface EngineHost {
         benchmarkDetail(name: string): Promise<BenchmarkDetail>;
         /** Benchmarks for one (model, reasoning) pair. Empty rows if untested. */
         modelDetail(model: string, reasoning: string): Promise<ModelScoreDetail>;
+        /** Distinct catalog models (scores CSV), name ascending. */
+        models(): Promise<CatalogModel[]>;
         groups(): Promise<GroupSummary[]>;
         groupDetail(slug: string): Promise<GroupDetail>;
         saveGroup(slug: string, benchmarks: string[], renameTo?: string): Promise<void>;

@@ -207,6 +207,80 @@ func TestCatalogModelDetail(t *testing.T) {
 	}
 }
 
+func TestCatalogModels(t *testing.T) {
+	svc, _ := newTestServices(t)
+	got, err := svc.Catalog().Models(catCtx())
+	if err != nil {
+		t.Fatalf("Models: %v", err)
+	}
+	if len(got) != 3 {
+		t.Fatalf("len(Models) = %d, want 3 (%v)", len(got), got)
+	}
+	if got[0].ModelName != "Claude Opus 5" || got[1].ModelName != "GPT-5.6 Sol" || got[2].ModelName != "Kimi K2.7 Code" {
+		t.Fatalf("order = %s, %s, %s", got[0].ModelName, got[1].ModelName, got[2].ModelName)
+	}
+	opus := got[0]
+	if opus.ModelID != "claude-opus-5" {
+		t.Errorf("Opus ModelID = %q, want claude-opus-5", opus.ModelID)
+	}
+	if !reflect.DeepEqual(opus.Reasoning, []string{"max"}) {
+		t.Errorf("Opus reasoning = %v, want [max]", opus.Reasoning)
+	}
+	if opus.Intelligence == nil || *opus.Intelligence != 100 {
+		t.Errorf("Opus intelligence = %v, want 100", opus.Intelligence)
+	}
+	if opus.Cost == nil || *opus.Cost != 0 {
+		t.Errorf("Opus cost = %v, want 0", opus.Cost)
+	}
+	if opus.Speed == nil || *opus.Speed != 12 {
+		t.Errorf("Opus speed = %v, want 12", opus.Speed)
+	}
+	if opus.ProviderCount != 1 {
+		t.Errorf("Opus ProviderCount = %d, want 1", opus.ProviderCount)
+	}
+	sol := got[1]
+	if sol.ModelID != "gpt-5.6" {
+		t.Errorf("Sol ModelID = %q, want gpt-5.6", sol.ModelID)
+	}
+	if sol.Intelligence == nil || *sol.Intelligence != 63 {
+		t.Errorf("Sol intelligence = %v, want 63", sol.Intelligence)
+	}
+	if sol.ProviderCount != 1 {
+		t.Errorf("Sol ProviderCount = %d, want 1", sol.ProviderCount)
+	}
+	kimi := got[2]
+	if kimi.ModelID != "" {
+		t.Errorf("Kimi ModelID = %q, want empty", kimi.ModelID)
+	}
+	if kimi.ProviderCount != 0 {
+		t.Errorf("Kimi ProviderCount = %d, want 0", kimi.ProviderCount)
+	}
+	if kimi.Intelligence == nil || *kimi.Intelligence != 0 {
+		t.Errorf("Kimi intelligence = %v, want 0", kimi.Intelligence)
+	}
+}
+
+func TestCatalogModelsTopReasoningScores(t *testing.T) {
+	header := "model,reasoning,intelligence_index_score,time_per_intelligence_index_task_seconds_score,cost_per_intelligence_index_task_usd_score,median_end_to_end_response_time_seconds_score,artificial_analysis_coding_index_score,artificial_analysis_agentic_index_score"
+	csv := header + "\n" +
+		"Claude Opus 5,high,40,10,20,30,0,0\n" +
+		"Claude Opus 5,max,90,10,20,30,0,0\n"
+	svc, _ := newTestServices(t, WithScoresCSV(csv))
+	got, err := svc.Catalog().Models(catCtx())
+	if err != nil {
+		t.Fatalf("Models: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("len = %d, want 1", len(got))
+	}
+	if !reflect.DeepEqual(got[0].Reasoning, []string{"high", "max"}) {
+		t.Errorf("reasoning = %v, want [high max]", got[0].Reasoning)
+	}
+	if got[0].Intelligence == nil || *got[0].Intelligence != 90 {
+		t.Errorf("intelligence = %v, want 90 (max row)", got[0].Intelligence)
+	}
+}
+
 func TestCatalogGroupsList(t *testing.T) {
 	svc, _ := newTestServices(t)
 	got, err := svc.Catalog().Groups(catCtx())

@@ -230,6 +230,20 @@ type ModelScoreDetail struct {
 }
 
 // Favourite is one pinned route.
+
+// CatalogModel is one distinct catalog identity (scores CSV model name),
+// aggregated across reasoning rows. Intelligence/Cost/Speed are the top
+// reasoning level's tier-1 scores (0–100), nil when that axis is blank.
+type CatalogModel struct {
+	ModelName     string   `json:"model_name"`
+	ModelID       string   `json:"model_id"` // representative route id; "" if none
+	Reasoning     []string `json:"reasoning"`
+	Intelligence  *float64 `json:"intelligence"`
+	Cost          *float64 `json:"cost"`
+	Speed         *float64 `json:"speed"`
+	ProviderCount int      `json:"provider_count"`
+}
+
 type Favourite struct {
 	RouteKey   string `json:"route_key"`
 	ModelName  string `json:"model_name"`

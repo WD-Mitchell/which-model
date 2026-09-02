@@ -19,6 +19,7 @@ export type Detail =
       modelName: string
       reasoning: string
     } // Providers; one model+reasoning combo's benchmarks
+  | { kind: 'model'; id: string } // Models page; id = catalog display name
   | { kind: 'harness'; id: string } // Harnesses; id = harness slug
 
 /** Props every registered page component receives — the ONLY interface
@@ -33,6 +34,7 @@ export type SettingsPageName =
   | 'General'
   | 'Profiles'
   | 'Benchmark groups'
+  | 'Models'
   | 'Favourites'
   | 'Providers'
   | 'Harnesses'
@@ -70,7 +72,7 @@ export const NAV_GROUPS: ReadonlyArray<
   // governs, and the per-provider limits list it duplicated is the Providers
   // list itself.
   ['app', ['General']],
-  ['ranking', ['Profiles', 'Benchmark groups', 'Favourites']],
+  ['ranking', ['Profiles', 'Benchmark groups', 'Models', 'Favourites']],
   ['routing', ['Providers', 'Harnesses', 'Agent integration']],
 ] as const
 
@@ -83,6 +85,7 @@ export const PAGE_REGISTRY: Record<
   Profiles: React.lazy(() => import('./pages/Profiles/ProfilesPage')),
   'Benchmark groups': React.lazy(() => import('./pages/Groups/GroupsPage')),
   Favourites: React.lazy(() => import('./pages/Favourites/FavouritesPage')),
+  Models: React.lazy(() => import('./pages/Models/ModelsPage')),
   Providers: React.lazy(() => import('./pages/Providers/ProvidersPage')),
   Harnesses: React.lazy(() => import('./pages/Harnesses/HarnessesPage')),
   'Agent integration': React.lazy(() => import('./pages/Agent/AgentPage')),
@@ -112,6 +115,11 @@ export const PAGE_META: Record<
     'Favourites',
     'Pinned models are offered first when they rank in range for the profile.',
     'Add model',
+  ],
+  Models: [
+    'Models',
+    'Every model in the catalog. Open one for its identity, reasoning levels, and catalog scores.',
+    null,
   ],
   General: [
     'General',

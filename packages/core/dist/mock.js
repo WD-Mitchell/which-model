@@ -552,6 +552,48 @@ export function createMockEngineHost(overrides) {
                 rows.sort((a, b) => b.norm - a.norm || a.name.localeCompare(b.name));
                 return { model, reasoning, rows };
             },
+            async models() {
+                const byName = new Map();
+                for (const m of data.models) {
+                    const rank = EFFORT_ORDER.indexOf(collapseReasoning(m.reasoning));
+                    let acc = byName.get(m.name);
+                    if (acc === undefined) {
+                        byName.set(m.name, {
+                            name: m.name,
+                            id: m.id,
+                            reasoning: [m.reasoning],
+                            intel: m.core.intelligence,
+                            cost: m.core.cost,
+                            speed: m.core.speed,
+                            providers: new Set(m.providers),
+                            topRank: rank,
+                        });
+                        continue;
+                    }
+                    if (!acc.reasoning.includes(m.reasoning))
+                        acc.reasoning.push(m.reasoning);
+                    for (const provider of m.providers)
+                        acc.providers.add(provider);
+                    if (rank >= acc.topRank) {
+                        acc.topRank = rank;
+                        acc.id = m.id;
+                        acc.intel = m.core.intelligence;
+                        acc.cost = m.core.cost;
+                        acc.speed = m.core.speed;
+                    }
+                }
+                return [...byName.values()]
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((a) => ({
+                    model_name: a.name,
+                    model_id: a.id,
+                    reasoning: [...a.reasoning].sort((x, y) => (reasoningLess(x, y) ? -1 : 1)),
+                    intelligence: a.intel,
+                    cost: a.cost,
+                    speed: a.speed,
+                    provider_count: a.providers.size,
+                }));
+            },
             async groups() {
                 return data.groups.map((g) => ({
                     slug: g.slug,

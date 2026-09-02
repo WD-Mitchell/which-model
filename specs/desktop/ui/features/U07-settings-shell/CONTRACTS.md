@@ -37,6 +37,7 @@ export type Detail =
       fromGroup: string | null }      // originating group slug; back returns there
   | { kind: 'provider'; id: string }  // Providers; id = provider id
   | { kind: 'provider-model'; provider: string; modelName: string; reasoning: string }
+  | { kind: 'model'; id: string }     // Models page; id = catalog display name
   | { kind: 'harness'; id: string }   // Harnesses; id = harness slug
 
 /** Props every registered page component receives — the ONLY interface U08–U14 implement to. */
@@ -48,7 +49,7 @@ export interface PageComponentProps {
 
 export type SettingsPageName =
   | 'General' | 'Usage detection'
-  | 'Profiles' | 'Benchmark groups' | 'Favourites'
+  | 'Profiles' | 'Benchmark groups' | 'Models' | 'Favourites'
   | 'Providers' | 'Harnesses' | 'Agent integration'
 
 export type SettingsPageComponent = React.ComponentType<PageComponentProps>
@@ -86,7 +87,7 @@ Host access for pages: `SettingsApp` provides `props.host` via context; hook `us
 ```ts
 export const NAV_GROUPS: ReadonlyArray<readonly [string, ReadonlyArray<SettingsPageName>]> = [
   ['app',     ['General', 'Usage detection']],
-  ['ranking', ['Profiles', 'Benchmark groups', 'Favourites']],
+  ['ranking', ['Profiles', 'Benchmark groups', 'Models', 'Favourites']],
   ['routing', ['Providers', 'Harnesses', 'Agent integration']],
 ] as const
 ```
@@ -101,6 +102,7 @@ export const PAGE_REGISTRY: Record<SettingsPageName, React.LazyExoticComponent<S
   'Profiles':          React.lazy(() => import('./pages/Profiles/ProfilesPage')),          // U08
   'Benchmark groups':  React.lazy(() => import('./pages/Groups/GroupsPage')),              // U09
   'Favourites':        React.lazy(() => import('./pages/Favourites/FavouritesPage')),      // U14
+  'Models':            React.lazy(() => import('./pages/Models/ModelsPage')),              // U15
   'Providers':         React.lazy(() => import('./pages/Providers/ProvidersPage')),        // U10
   'Harnesses':         React.lazy(() => import('./pages/Harnesses/HarnessesPage')),        // U11
   'Agent integration': React.lazy(() => import('./pages/Agent/AgentPage')),                // U14
@@ -117,6 +119,7 @@ export const PAGE_META: Record<SettingsPageName, readonly [string, string, strin
   'Benchmark groups': ['Benchmark groups', 'A group bundles benchmarks into one signal a profile can weight. Built-in groups are read-only — duplicate one to change what it contains.', 'New group'],
   'Harnesses': ['Harnesses', 'Detected automatically. {model_id} and {reasoning} are filled from the pick. Open one to choose which providers it may use.', 'Add custom'],
   'Favourites': ['Favourites', 'Pinned models are offered first when they rank in range for the profile.', 'Add model'],
+  'Models': ['Models', 'Every model in the catalog. Open one for its identity, reasoning levels, and catalog scores.', null],
   'General': ['General', 'How which-model runs on this Mac, and how the pick is drawn in the popover.', null],
   'Usage detection': ['Usage detection', 'Where limits are read from, and how often.', null],
   'Providers': ['Providers', 'Drag to set priority — highest at the top. Default-deny: a provider is never read until you enable it. Open one to choose which of its models may be routed to.', null],

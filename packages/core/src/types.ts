@@ -162,6 +162,17 @@ export interface ModelScoreDetail {
   rows: ModelBenchRow[]
 }
 
+/** One distinct catalog identity (scores CSV model name). */
+export interface CatalogModel {
+  model_name: string
+  model_id: string
+  reasoning: string[]
+  intelligence: number | null
+  cost: number | null
+  speed: number | null
+  provider_count: number
+}
+
 export interface Favourite {
   route_key: string
   model_name: string

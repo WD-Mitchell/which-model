@@ -9,13 +9,13 @@ project: which-model-desktop
 
 ## 1. Purpose
 
-The settings window's application frame in `apps/desktop/src/settings`: `SettingsApp` (entry component holding navigation state), `SettingsShell` (titlebar + sidebar + content column), `DetailHeader` (shared page/detail header), and the typed page registry (`pages.ts`) that U08–U14 plug their page components into. U07 owns WHICH page/detail is showing and the chrome around it; the pages themselves own their content. The mockup `specs/desktop/mockup/demo.dc.html` (settings window markup, lines 243–276; nav/meta constants, lines 938–956; back logic, line 1325) is normative.
+The settings window's application frame in `apps/desktop/src/settings`: `SettingsApp` (entry component holding navigation state), `SettingsShell` (titlebar + sidebar + content column), `DetailHeader` (shared page/detail header), and the typed page registry (`pages.ts`) that U08–U15 plug their page components into. U07 owns WHICH page/detail is showing and the chrome around it; the pages themselves own their content. The mockup `specs/desktop/mockup/demo.dc.html` (settings window markup, lines 243–276; nav/meta constants, lines 938–956; back logic, line 1325) is normative.
 
 Inherits `specs/desktop/global/*` and `specs/desktop/ui/*`. Depends on: U01 (types, `EngineHost`), U02 (ToastProvider, theme).
 
 ## 2. Behaviour
 
-1. **Navigation state.** `SettingsApp` holds `{page: SettingsPageName, detail: Detail | null}`. `page` is one of the eight nav item names (CONTRACTS §3); initial page is `'Profiles'`. `Detail` is the tagged union in CONTRACTS §2 (`kind` ∈ profile/group/benchmark/provider/harness + `id`; the benchmark variant additionally carries `fromGroup` — the group-detail slug it was opened from, or `null`). Selecting any sidebar item sets `page` AND clears `detail` to `null`, even when re-selecting the current page (mockup `go()` always resets detail state).
+1. **Navigation state.** `SettingsApp` holds `{page: SettingsPageName, detail: Detail | null}`. `page` is one of the nav item names (CONTRACTS §3); initial page is `'Profiles'`. `Detail` is the tagged union in CONTRACTS §2 (`kind` ∈ profile/group/benchmark/provider/harness + `id`; the benchmark variant additionally carries `fromGroup` — the group-detail slug it was opened from, or `null`). Selecting any sidebar item sets `page` AND clears `detail` to `null`, even when re-selecting the current page (mockup `go()` always resets detail state).
 
 2. **Back semantics.** `closeDetail()` mirrors the mockup's `onPageBack` exactly: when `detail.kind === 'benchmark'` and `fromGroup` is non-null, back returns to the originating group detail (`detail := {kind:'group', id: fromGroup}`); in every other case (including benchmark with `fromGroup: null`) `detail := null`, returning to the page's list view. `openDetail(d)` replaces `detail` wholesale; U09 passes `fromGroup` when opening a benchmark from a group detail.
 

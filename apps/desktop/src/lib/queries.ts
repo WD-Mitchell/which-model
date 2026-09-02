@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import type {
   BenchmarkDetail,
+  CatalogModel,
   CatalogSummary,
   Favourite,
   GroupDetail,
@@ -144,6 +145,10 @@ export function useModelScoreDetail(
     queryFn: () => getHost().catalog.modelDetail(model, reasoning),
     enabled: Boolean(model) && Boolean(reasoning),
   })
+}
+
+export function useCatalogModels(): UseQueryResult<CatalogModel[]> {
+  return useQuery({ queryKey: ['catalog-models'], queryFn: () => getHost().catalog.models() })
 }
 
 export function useProviders(): UseQueryResult<ProviderInfo[]> {

@@ -32,6 +32,10 @@ func (s *Services) BenchmarkDetail(ctx context.Context, name string) (BenchmarkD
 // or untested pairs return empty Rows, not not_found.
 func (s *Services) ModelDetail(ctx context.Context, model, reasoning string) (ModelScoreDetail, error)
 
+// Models returns one CatalogModel per distinct scores-CSV display name,
+// sorted name ascending (SPEC §2.14).
+func (s *Services) Models(ctx context.Context) ([]CatalogModel, error)
+
 // Groups returns builtins (benchmarks.toml order) then customs (slug asc);
 // InProfiles counts builtin+custom profiles weighting the slug (SPEC §2.5).
 func (s *Services) Groups(ctx context.Context) ([]GroupSummary, error)
@@ -129,6 +133,7 @@ Events: success ⇒ `catalog:changed` `{}`; derive-phase failure ⇒ `config:cha
 | `TestSaveGroupDeriveRankChanges` | save custom group + weight it in a custom profile ⇒ scores CSV rewritten (content/mtime differs), `Categories[slug]` overlaid, B04 Rank order changes vs before; exactly one `catalog:changed` |
 | `TestRenameRewritesProfileWeights` | `renameTo` sanitised (`"My Group! "` → `my_group`); tier2 key moved in every referencing custom profile in the same config write; collision → `conflict`, no write, no event |
 | `TestDeleteStripsWeights` | `[groups.<slug>]` gone; tier2 key stripped from custom profiles; re-derive ran; one `catalog:changed` |
+| `TestCatalogModels` | golden scores CSV → 3 models (Claude Opus 5, GPT-5.6 Sol, Kimi K2.7 Code); Opus has id `claude-opus-5`, intel 100, provider_count 1; Kimi has empty id and provider_count 0 |
 | `TestBuiltinMutationRejected` | SaveGroup/DeleteGroup on a builtin slug → `builtin_readonly`; config untouched; zero events; DuplicateGroup on the same slug succeeds as `<slug>_copy` |
 | `TestDeriveFailurePersistsGroup` | raw CSV removed: SaveGroup → `io_error` naming the raw path; `[groups.<slug>]` persisted; catalog cache unchanged; `config:changed` emitted, no `catalog:changed` |
 

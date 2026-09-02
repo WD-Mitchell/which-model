@@ -132,6 +132,110 @@ func (c *CatalogService) ModelDetail(ctx context.Context, model, reasoning strin
 	return out, nil
 }
 
+// Models returns one CatalogModel per distinct scores-CSV display name,
+// sorted name ascending (B05 SPEC §2.14).
+func (c *CatalogService) Models(ctx context.Context) ([]CatalogModel, error) {
+	_ = ctx
+	c.s.mu.RLock()
+	defer c.s.mu.RUnlock()
+	return c.s.catalogModelsLocked(), nil
+}
+
+func tier1ScorePtr(row catalog.ScoreRow, axis pick.Tier1Axis) *float64 {
+	v, ok := row.Tier1[pick.Tier1ScoreColumn[axis]]
+	if !ok {
+		return nil
+	}
+	f := v.InexactFloat64()
+	return &f
+}
+
+func (s *Services) catalogModelsLocked() []CatalogModel {
+	type acc struct {
+		name               string
+		reasoning          map[string]struct{}
+		topRank            int
+		hasTop             bool
+		intel, cost, speed *float64
+		ids                map[string]struct{}
+		providers          map[string]struct{}
+	}
+	byName := make(map[string]*acc, len(s.scores))
+	for _, row := range s.scores {
+		a := byName[row.Model]
+		if a == nil {
+			a = &acc{
+				name:      row.Model,
+				reasoning: map[string]struct{}{},
+				ids:       map[string]struct{}{},
+				providers: map[string]struct{}{},
+				topRank:   -1,
+			}
+			byName[row.Model] = a
+		}
+		level := identity.CollapseReasoning(row.Reasoning)
+		a.reasoning[level] = struct{}{}
+		rank, known := identity.EffortOrder[level]
+		if !known {
+			rank = -1
+		}
+		if !a.hasTop || rank >= a.topRank {
+			a.hasTop = true
+			a.topRank = rank
+			a.intel = tier1ScorePtr(row, pick.AxisIntelligence)
+			a.cost = tier1ScorePtr(row, pick.AxisCost)
+			a.speed = tier1ScorePtr(row, pick.AxisSpeed)
+		}
+	}
+	for _, route := range s.routes.Routes {
+		a := byName[route.Model]
+		if a == nil {
+			continue
+		}
+		if route.ModelID != "" {
+			a.ids[route.ModelID] = struct{}{}
+		}
+		if route.Provider != "" {
+			a.providers[route.Provider] = struct{}{}
+		}
+	}
+	names := make([]string, 0, len(byName))
+	for name := range byName {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	out := make([]CatalogModel, 0, len(names))
+	for _, name := range names {
+		a := byName[name]
+		levels := make([]string, 0, len(a.reasoning))
+		for level := range a.reasoning {
+			levels = append(levels, level)
+		}
+		sort.SliceStable(levels, func(i, j int) bool {
+			return reasoningLess(levels[i], levels[j])
+		})
+		ids := make([]string, 0, len(a.ids))
+		for id := range a.ids {
+			ids = append(ids, id)
+		}
+		sort.Strings(ids)
+		modelID := ""
+		if len(ids) > 0 {
+			modelID = ids[0]
+		}
+		out = append(out, CatalogModel{
+			ModelName:     name,
+			ModelID:       modelID,
+			Reasoning:     levels,
+			Intelligence:  a.intel,
+			Cost:          a.cost,
+			Speed:         a.speed,
+			ProviderCount: len(a.providers),
+		})
+	}
+	return out
+}
+
 func (s *Services) groupsForBenchmarkLocked(name string) []string {
 	var groupSlugs []string
 	for _, eg := range s.benchConfig.EvidenceGroups {

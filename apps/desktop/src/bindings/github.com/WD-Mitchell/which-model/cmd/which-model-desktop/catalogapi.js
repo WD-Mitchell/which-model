@@ -33,6 +33,13 @@ export function ModelDetail(model, reasoning) {
 }
 
 /**
+ * @returns {$CancellablePromise<service$0.CatalogModel[] | null>}
+ */
+export function Models() {
+    return $Call.ByName("main.CatalogAPI.Models");
+}
+
+/**
  * @returns {$CancellablePromise<string[] | null>}
  */
 export function Benchmarks() {

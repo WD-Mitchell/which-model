@@ -47,6 +47,7 @@ Spec-as-source development for the desktop app (Wails v3 + React). One hierarchi
 | U12 | page-general | ui | U02, U07 |
 | U13 | page-usage | ui | U02, U07 |
 | U14 | page-favourites-agent | ui | U02, U07 |
+| U15 | page-models | ui | U02, U07 |
 | S01 | scaffold | shell | D00 |
 | S02 | tray-popover | shell | S01, B02 |
 | S03 | settings-window | shell | S01 |

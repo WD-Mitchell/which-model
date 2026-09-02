@@ -65,6 +65,7 @@ export function createWailsHost(): EngineHost {
       benchmarkDetail: (name: string) => call(CatalogAPI.BenchmarkDetail(name) as Cancellable<unknown>, (r) => r as never),
       modelDetail: (model: string, reasoning: string) =>
         call(CatalogAPI.ModelDetail(model, reasoning) as Cancellable<unknown>, (r) => r as never),
+      models: () => call(CatalogAPI.Models() as Cancellable<unknown>, (r) => r as never),
       groups: () => call(CatalogAPI.Groups() as Cancellable<unknown>, (r) => r as never),
       groupDetail: (slug: string) => call(CatalogAPI.GroupDetail(slug) as Cancellable<unknown>, (r) => r as never),
       saveGroup: (slug: string, benchmarks: string[], renameTo?: string) =>

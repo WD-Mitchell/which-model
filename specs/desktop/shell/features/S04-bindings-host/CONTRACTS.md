@@ -42,6 +42,8 @@ func (a *PickAPI) CatalogLine() (service.CatalogSummary, error)
 type CatalogAPI struct{ svc *service.Services }
 func (a *CatalogAPI) Benchmarks() ([]string, error)
 func (a *CatalogAPI) BenchmarkDetail(name string) (service.BenchmarkDetail, error)
+func (a *CatalogAPI) ModelDetail(model, reasoning string) (service.ModelScoreDetail, error)
+func (a *CatalogAPI) Models() ([]service.CatalogModel, error)
 func (a *CatalogAPI) Groups() ([]service.GroupSummary, error)
 func (a *CatalogAPI) GroupDetail(slug string) (service.GroupDetail, error)
 func (a *CatalogAPI) SaveGroup(slug string, benchmarks []string, renameTo string) error // renameTo "" = no rename (TS optional arg)

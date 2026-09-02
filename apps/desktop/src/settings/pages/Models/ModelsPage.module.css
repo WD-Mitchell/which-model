@@ -1,0 +1,166 @@
+/* U15 — Models page. Geometry follows U09 list rows (22px gutter, `.row`
+   hover from nocturne) so the catalog table reads like the rest of Settings. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+}
+
+.filter {
+  padding: 0 22px 12px;
+}
+
+.kicker {
+  display: block;
+  padding: 0 22px 6px;
+  font-size: 9px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.colHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 0 22px 7px;
+}
+
+.colHeader > span {
+  font-size: 9px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 38%, transparent);
+}
+
+.cName {
+  flex: 1;
+  min-width: 0;
+}
+
+.cReasoning {
+  flex: none;
+  width: 148px;
+}
+
+.cScore {
+  flex: none;
+  width: 48px;
+  text-align: right;
+}
+
+.cProviders {
+  flex: none;
+  width: 72px;
+  text-align: right;
+}
+
+.cChevron {
+  flex: none;
+  width: 10px;
+}
+
+.modelRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 22px;
+  border-top: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+  cursor: pointer;
+}
+
+.nameCell {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.name {
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--color-text) 88%, transparent);
+}
+
+.id {
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
+.reasoning {
+  flex: none;
+  width: 148px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.score {
+  flex: none;
+  width: 48px;
+  text-align: right;
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+
+.providers {
+  flex: none;
+  width: 72px;
+  text-align: right;
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+
+.chevron {
+  flex: none;
+  width: 10px;
+  color: color-mix(in srgb, var(--color-text) 38%, transparent);
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 22px;
+}
+
+.loading {
+  padding: 15px 22px;
+  font-size: 12px;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+}
+
+.detailReasoning {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 22px 16px;
+}
+
+.detailScores {
+  display: flex;
+  gap: 22px;
+  padding: 0 22px 18px;
+}
+
+.detailScore {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 64px;
+}
+
+.detailLabel {
+  font-size: 9px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 38%, transparent);
+}
+
+.detailValue {
+  font-size: 16px;
+  color: color-mix(in srgb, var(--color-text) 88%, transparent);
+}

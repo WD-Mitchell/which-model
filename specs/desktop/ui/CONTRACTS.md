@@ -47,8 +47,8 @@ export function usePointerFraction(
 
 | Event | Invalidated query keys |
 |---|---|
-| `config:changed` | `['profiles']`, `['providers']`, `['provider', *]`, `['harnesses']`, `['favourites']`, `['rank']*`, `['catalog-line']` |
-| `catalog:changed` | `['groups']`, `['group', *]`, `['benchmarks']`, `['benchmark', *]`, `['rank']*` |
+| `config:changed` | `['profiles']`, `['providers']`, `['provider', *]`, `['harnesses']`, `['favourites']`, `['rank']*`, `['catalog-line']`, `['catalog-models']` |
+| `catalog:changed` | `['groups']`, `['group', *]`, `['benchmarks']`, `['benchmark', *]`, `['catalog-models']`, `['rank']*` |
 | `usage:updated` | `['usage']`, `['providers']` |
 | `settings:changed` | `['settings']`, `['rank']*` |
 | `pick:recorded` | `['profiles']` (pick counts), `['catalog-line']` |
@@ -57,7 +57,7 @@ export function usePointerFraction(
 
 ## 6. Query keys (canonical; features cite)
 
-`['profiles']` `['profile', slug]` `['complexity-scale']` `['rank', slug, overridesHash, holds]` `['catalog-line']` `['groups']` `['group', slug]` `['benchmarks']` `['benchmark', name]` `['providers']` `['provider', id]` `['harnesses']` `['usage', force]` `['favourites']` `['settings']` `['snippets']`
+`['profiles']` `['profile', slug]` `['complexity-scale']` `['rank', slug, overridesHash, holds]` `['catalog-line']` `['groups']` `['group', slug]` `['benchmarks']` `['benchmark', name]` `['catalog-models']` `['providers']` `['provider', id]` `['harnesses']` `['usage', force]` `['favourites']` `['settings']` `['snippets']`
 `overridesHash` = stable JSON stringify of the overrides DTO or `'none'`.
 
 ## 7. Visual tokens

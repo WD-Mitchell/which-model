@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type {
   BenchmarkDetail,
   BenchRow,
+  CatalogModel,
   CatalogSummary,
   ErrorDTO,
   Favourite,
@@ -161,6 +162,15 @@ const modelScoreDetail: ModelScoreDetail = {
   model: 'Claude Opus 5',
   reasoning: 'max',
   rows: [{ name: 'SWE-Bench Verified', value: 96, norm: 100, groups: ['software_engineering'] }],
+}
+const catalogModel: CatalogModel = {
+  model_name: 'Claude Opus 5',
+  model_id: 'claude-opus-5',
+  reasoning: ['max'],
+  intelligence: 100,
+  cost: 0,
+  speed: 12,
+  provider_count: 1,
 }
 
 const favourite: Favourite = {
