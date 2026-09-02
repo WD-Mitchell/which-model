@@ -118,10 +118,10 @@ Default fixture: routes table with providers `claude`,`codex` (≥2 models × �
 
 | Test | Asserts |
 |---|---|
-| `TestProvidersList_OrderAndUniverse` | union of table+config providers; priority asc, ties id asc; display Priority 1..N; config-only provider has RoutesTotal 0; table-only provider Enabled false |
+| `TestProvidersList_OrderAndUniverse` | union of table+config+catalogue providers; priority asc, ties id asc; display Priority 1..N; config-only provider has RoutesTotal/Models 0; table-only provider Enabled false; Models counts distinct catalogue ∪ routed model ids |
 | `TestProvidersList_LimitsLine` | golden table over §5: disabled → `not enabled`; usage off → `usage off`; no/failed cache → `no usage data`; seeded snapshot → exact composed line + pointer fields + Credits/Resets/Auth |
 | `TestProvidersList_NoFetch` | usage fields come from cache files alone: no registry/descriptor is registered, no network; a stale cache file still populates fields (OfflineRead path). Compile-level guard: the file does not import `internal/usage/fetch` (checked by an import-list test over the package via `go/parser` or equivalent) |
-| `TestProviderSetEnabled_Persists` | toggle → reload config.toml from disk → value round-trips; unknown id → `not_found`, no write, no event |
+| `TestProviderSetEnabled_Persists`, `TestProviderSetEnabled_CatalogueOnly`, `TestProviderSetEnabled_Unknown` | toggle → reload config.toml from disk → value round-trips; a catalogue-only provider is writable; unknown id → `not_found`, no write, no event |
 | `TestProvidersReorder_RoundTrip` | reorder → List order matches input → priorities on disk are 1..N; second List after reload identical |
 | `TestProvidersReorder_RejectsWrongSet` | golden messages §6 rows 1–3 in order (dup, unknown, missing); config untouched, zero events |
 | `TestProviderDetail_LevelsAndDefault` | Levels = table's levels only, ascending ladder order; Default on exactly the top rung; `"default"` reasoning collapses to `high` before comparison |

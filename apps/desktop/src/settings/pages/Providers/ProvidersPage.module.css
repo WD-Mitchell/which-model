@@ -18,6 +18,35 @@
 }
 
 /* ——— provider list (mockup L734-755) ————————————————————————————————— */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 22px 12px;
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 150px;
+  max-width: 240px;
+}
+
+.enabledFilter {
+  flex: none;
+}
+
+.sortControl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.sortLabel {
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
 
 /* L735 */
 .kicker {
@@ -347,6 +376,16 @@
 .dragRow {
   padding: 0 22px 6px;
   align-items: center;
+}
+
+.staticList {
+  display: flex;
+  flex-direction: column;
+}
+
+.staticRow {
+  display: flex;
+  padding-left: 50px;
 }
 
 .order {

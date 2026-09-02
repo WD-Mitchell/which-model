@@ -42,6 +42,11 @@ func (s *Services) providerUniverse() []string {
 }
 
 func (s *Services) providerUniverseLocked() []string {
+	catalogue := loadModelsDevCatalogue(s.paths.CacheDir)
+	return s.providerUniverseFromCatalogueLocked(catalogue)
+}
+
+func (s *Services) providerUniverseFromCatalogueLocked(catalogue []modelsdev.ProviderModel) []string {
 	seen := make(map[string]struct{}, len(s.cfg.Providers)+len(s.routes.Routes))
 	for id := range s.cfg.Providers {
 		seen[id] = struct{}{}
@@ -63,15 +68,9 @@ func (s *Services) providerUniverseLocked() []string {
 	for _, route := range s.routes.Routes {
 		seen[route.Provider] = struct{}{}
 	}
-	cachePath := filepath.Join(s.paths.CacheDir, "catalog", "modelsdev_providers.json")
-	if data, err := os.ReadFile(cachePath); err == nil {
-		var catalogue []modelsdev.ProviderModel
-		if err := json.Unmarshal(data, &catalogue); err == nil {
-			for _, m := range catalogue {
-				if m.Provider != "" {
-					seen[m.Provider] = struct{}{}
-				}
-			}
+	for _, model := range catalogue {
+		if model.Provider != "" {
+			seen[model.Provider] = struct{}{}
 		}
 	}
 	ids := make([]string, 0, len(seen))
@@ -87,6 +86,18 @@ func (s *Services) providerUniverseLocked() []string {
 		return ids[i] < ids[j]
 	})
 	return ids
+}
+
+func loadModelsDevCatalogue(cacheDir string) []modelsdev.ProviderModel {
+	data, err := os.ReadFile(filepath.Join(cacheDir, "catalog", "modelsdev_providers.json"))
+	if err != nil {
+		return nil
+	}
+	var catalogue []modelsdev.ProviderModel
+	if err := json.Unmarshal(data, &catalogue); err != nil {
+		return nil
+	}
+	return catalogue
 }
 
 // disabledRouteSet returns the disabled route keys for one provider. Stale
@@ -148,7 +159,17 @@ func (p *ProviderService) List(ctx context.Context) ([]ProviderInfo, error) {
 }
 
 func (p *ProviderService) listLocked() ([]ProviderInfo, error) {
-	ids := p.s.providerUniverseLocked()
+	catalogue := loadModelsDevCatalogue(p.s.paths.CacheDir)
+	ids := p.s.providerUniverseFromCatalogueLocked(catalogue)
+	catalogueModelIDs := make(map[string]map[string]struct{})
+	for _, model := range catalogue {
+		modelIDs := catalogueModelIDs[model.Provider]
+		if modelIDs == nil {
+			modelIDs = make(map[string]struct{})
+			catalogueModelIDs[model.Provider] = modelIDs
+		}
+		modelIDs[model.ModelID] = struct{}{}
+	}
 	disabled, err := p.s.cfg.LoadRoutesDisabled()
 	if err != nil {
 		return nil, err
@@ -167,13 +188,24 @@ func (p *ProviderService) listLocked() ([]ProviderInfo, error) {
 		}
 
 		routesTotal := 0
+		var modelIDs map[string]struct{}
 		currentKeys := make(map[string]struct{})
 		for _, route := range p.s.routes.Routes {
 			if route.Provider != id {
 				continue
 			}
 			routesTotal++
+			if modelIDs == nil {
+				modelIDs = make(map[string]struct{})
+			}
+			modelIDs[route.ModelID] = struct{}{}
 			currentKeys[routeKey(route)] = struct{}{}
+		}
+		modelCount := len(modelIDs)
+		for modelID := range catalogueModelIDs[routing.CatalogueSlugFor(id)] {
+			if _, routed := modelIDs[modelID]; !routed {
+				modelCount++
+			}
 		}
 		routesOff := 0
 		for _, key := range disabled[id] {
@@ -182,6 +214,7 @@ func (p *ProviderService) listLocked() ([]ProviderInfo, error) {
 			}
 		}
 		info.RoutesTotal = routesTotal
+		info.Models = modelCount
 		info.RoutesOn = routesTotal - routesOff
 		if info.RoutesOn < 0 {
 			info.RoutesOn = 0
@@ -453,14 +486,7 @@ type modelsDevEntry struct {
 // (routing.CatalogueSlugFor); an added provider's id IS its slug. Absent or
 // unreadable cache → nil.
 func (p *ProviderService) modelsDevCatalogueLocked(id string) map[string]modelsDevEntry {
-	data, err := os.ReadFile(filepath.Join(p.s.paths.CacheDir, "catalog", "modelsdev_providers.json"))
-	if err != nil {
-		return nil
-	}
-	var catalogue []modelsdev.ProviderModel
-	if err := json.Unmarshal(data, &catalogue); err != nil {
-		return nil
-	}
+	catalogue := loadModelsDevCatalogue(p.s.paths.CacheDir)
 	slug := routing.CatalogueSlugFor(id)
 	out := make(map[string]modelsDevEntry)
 	for _, m := range catalogue {
@@ -497,12 +523,15 @@ func (p *ProviderService) providerKnownLocked(id string) bool {
 			return true
 		}
 	}
-	// Must stay in step with providerUniverseLocked, which also admits every
-	// registered usage provider. Listing an id the writes then reject is worse
-	// than not listing it: enabling one returned
-	// `not found: providers: unknown provider "claude"`.
 	for _, registered := range usage.IDs() {
 		if registered == id {
+			return true
+		}
+	}
+	// Keep catalogue-only providers writable as well as listable. Otherwise a
+	// provider such as Alibaba appears in List but SetEnabled rejects it.
+	for _, model := range loadModelsDevCatalogue(p.s.paths.CacheDir) {
+		if model.Provider == id {
 			return true
 		}
 	}

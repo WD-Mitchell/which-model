@@ -84,6 +84,7 @@ const provider: ProviderInfo = {
   id: 'cursor',
   enabled: false,
   priority: 4,
+  models: 3,
   auth: 'via codexbar',
   limits_line: 'not enabled',
   routes_on: 0,
@@ -93,6 +94,8 @@ const provider: ProviderInfo = {
   monthly: null,
   credits: 'no plan detected',
   resets: '—',
+  accounts: 0,
+  builtin: false,
 }
 const providerWithNumbers: ProviderInfo = { ...provider, session: 42, weekly: 18, monthly: 54 }
 

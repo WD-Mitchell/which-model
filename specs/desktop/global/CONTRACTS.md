@@ -73,6 +73,7 @@ type ProviderInfo struct {
     ID          string `json:"id"`
     Enabled     bool   `json:"enabled"`
     Priority    int    `json:"priority"`   // 1-based display order
+    Models      int    `json:"models"`     // distinct model ids available through this provider
     Auth        string `json:"auth"`       // e.g. "oauth", "device flow", "" when unknown
     LimitsLine  string `json:"limits_line"`// human summary or "not enabled"
     RoutesOn    int    `json:"routes_on"`
@@ -82,6 +83,8 @@ type ProviderInfo struct {
     Monthly     *int   `json:"monthly"`
     Credits     string `json:"credits"`
     Resets      string `json:"resets"`
+    Accounts    int    `json:"accounts"`   // configured account count
+    Builtin     bool   `json:"builtin"`    // ships a usage adapter; cannot be deleted
 }
 
 type RouteLevel struct {

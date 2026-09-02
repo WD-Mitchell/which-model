@@ -810,6 +810,7 @@ export function createMockEngineHost(overrides) {
                         id: p.id,
                         enabled: p.on,
                         priority: p.priority,
+                        models: new Set(models.map((model) => model.id)).size,
                         auth: p.auth,
                         limits_line: p.limits,
                         routes_on: models.filter((m) => !routeDisabled(p.id, m.id, m.reasoning)).length,

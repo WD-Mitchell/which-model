@@ -9,19 +9,19 @@ project: which-model-desktop
 
 ## 1. Purpose
 
-The Providers page of the settings window: a draggable priority list of providers (enable, reorder-to-set-fallback-order) and a per-provider detail view where each model's reasoning levels can be routed on or off. It is the GUI for the config's provider order, provider enablement, and `[routes.disabled]`. Lives in the app layer (`apps/desktop/src/settings/pages/providers/`), registered in U07's page registry under `Providers`; visuals are normative from the mockup (`specs/desktop/mockup/demo.dc.html`, provider list ~lines 734–754, detail ~756–782).
+The Providers page of the settings window: a searchable, filterable provider catalogue with deterministic sorting, enablement, drag-to-set fallback order, and a per-provider detail view where each model's reasoning levels can be routed on or off. It is the GUI for the config's provider order, provider enablement, and `[routes.disabled]`. Lives in the app layer (`apps/desktop/src/settings/pages/providers/`), registered in U07's page registry under `Providers`; visuals derive from the mockup (`specs/desktop/mockup/demo.dc.html`, provider list ~lines 734–754, detail ~756–782).
 
 Depends on: U02 (Toggle, Button, DragList, useToast), U07 (settings shell, `DetailHeader`, page registry, `PageComponentProps`).
 
 ## 2. Behaviour
 
-1. **List data.** `ProvidersPage` fetches `providers.list()` under query key `['providers']` and renders one row per `ProviderInfo`, in the array order returned (already priority-sorted). The U07 header shows the PAGE_META copy (CONTRACTS §4) with no page action. Above the rows sits the section label `providers · drag to set fallback order` and a column header row: 16px handle spacer / `#` 14px / `provider` 132px / `limits` flex / `models` 112px right-aligned / 10px chevron spacer.
+1. **List data and controls.** `ProvidersPage` fetches `providers.list()` under query key `['providers']`. A search input filters provider ids case-insensitively as the user types. An enabled-state segmented control has `all`, `enabled`, and `disabled`. A sort select defaults to `name-asc` and offers `name-desc`, `models-desc`, `models-asc`, `enabled-first`, `disabled-first`, and `priority`; every tie is provider id ascending. Filtering runs before sorting. The section label is `{visible} of {total} providers`, except the unfiltered `priority` view, where it is `providers · drag to set fallback order`.
 
-2. **Rows.** Each row (inside U02 `DragList`, vertical, keyed by `ProviderInfo.id`): grab-dots handle (six-dot svg, `cursor: grab`), order number = array index + 1, `Toggle` reflecting `enabled`, provider id (bright when on, dim when off), limits line (`limits_line` when enabled, the literal `not enabled` when disabled), models column `{routes_on} of {routes_total} routes`, chevron. Clicking anywhere on the row except the toggle/handle opens the detail; the toggle click stops propagation. While a row is being dragged its background is `color-mix(accent 14%)`; other rows stay transparent.
+2. **Rows.** Each visible row is keyed by `ProviderInfo.id` and shows the provider's 1-based `priority`, enable toggle, provider id, live limits, distinct-model count (`{models} model[s]`), and chevron. Clicking the card except its toggle opens detail. The unfiltered `priority` view renders the full provider universe inside U02 `DragList`; every other view is static and omits the drag handle so a filtered or derived order can never submit a partial reorder.
 
 3. **Toggle.** Row toggle calls `providers.setEnabled(id, !enabled)`. No optimistic write; the `config:changed` event invalidates `['providers']` (U00 CONTRACTS §5) and the row re-renders from the refetch.
 
-4. **Reorder.** `DragList.onReorder(ids)` fires with the FULL new ordering of every provider id (enabled and disabled alike). The handler calls `providers.reorder(ids)` with exactly that array, then toasts `provider priority: {ids.join(' → ')}` — all ids, joined with ` → ` (space-arrow-space). A drop on the original index is a no-op (no host call, no toast).
+4. **Reorder.** Reordering is available only when sort is `priority`, enabled-state is `all`, and search is empty. `DragList.onReorder(ids)` therefore always fires with the FULL new ordering of every provider id (enabled and disabled alike), and the handler calls `providers.reorder(ids)` with exactly that array. A drop on the original index is a no-op.
 
 5. **Detail data.** `ProviderDetail` receives the provider id via U07's detail-view stack (`PageComponentProps`) and fetches `providers.detail(id)` under `['provider', id]`. The U07 `DetailHeader` shows back link `Providers`, title = provider id, blurb = the detail copy in CONTRACTS §4.
 
@@ -31,7 +31,7 @@ Depends on: U02 (Toggle, Button, DragList, useToast), U07 (settings shell, `Deta
 
 8. **Level toggles.** A level toggle calls `providers.setRouteEnabled(id, model_id, reasoning, !enabled)`. The per-model button is a batch: sequential awaited `setRouteEnabled(id, model_id, l.reasoning, target)` calls, one per level of that model, where `target = !anyOn` — NOT `setAllRoutes`, which is provider-wide. The handler runs the calls in level order inside one async function; invalidation happens once via the resulting `config:changed` event(s).
 
-9. **Loading/empty.** While either query is pending, render nothing below the header (no spinner chrome). An empty provider list renders the header rows only; a detail with zero models renders the summary line `0 of 0 routes enabled`.
+9. **Loading/empty.** While either query is pending, render nothing below the header (no spinner chrome). An empty provider universe shows the route-refresh guidance. A non-empty universe whose active controls match no providers shows `No providers match these filters.` A detail with zero models renders `0 of 0 routes enabled`.
 
 ## 3. Error behaviour
 
@@ -48,7 +48,10 @@ Depends on: U02 (Toggle, Button, DragList, useToast), U07 (settings shell, `Deta
 | Per-model bulk | Sequential `setRouteEnabled` per level, target `!anyOn` | `setAllRoutes` is provider-wide (D00 §5); mockup's `onAll` flips exactly that model's level keys |
 | Per-model label rule | `anyOn ⇒ Disable all` else `Enable all` | mockup `allLabel` line 1154 |
 | No optimistic updates | Mutate → event-driven invalidation | U00 SPEC §2.7 owns invalidation; avoids double bookkeeping |
-| Order number | Render index + 1, not `ProviderInfo.priority` | during drag the visual order is the truth; both agree at rest |
+| Order number | Render `ProviderInfo.priority` in every view | filtered and derived sorts retain the provider's true fallback position |
+| Default sort | Provider id A–Z | catalogues remain scannable independent of fallback priority |
+| Sort ties | Provider id ascending | deterministic results for equal model counts or enabled state |
+| Drag availability | Full-universe priority view only | `providers.reorder` rejects subsets; static views avoid misleading handles |
 
 ## 5. Out of scope
 

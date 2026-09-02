@@ -33,6 +33,21 @@ function renderApp(host: EngineHost) {
   )
 }
 
+async function openProvidersList(host: EngineHost) {
+  renderApp(host)
+  await screen.findByText('which-model — Settings')
+  const nav = await screen.findAllByText('Providers')
+  const navBtn = nav.find((el) => el.tagName === 'BUTTON')
+  act(() => navBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+  await screen.findByLabelText('Search providers')
+}
+
+function providerOrder(): string[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('[data-provider-id]')).map(
+    (row) => row.dataset.providerId!,
+  )
+}
+
 async function openCopilotDetail(host: EngineHost) {
   renderApp(host)
   await screen.findByText('which-model — Settings')
@@ -262,5 +277,150 @@ describe('Providers page custom provider adding', () => {
     await waitFor(() => {
       expect(addSpy).toHaveBeenCalledWith('custom_vllm')
     })
+  })
+})
+
+describe('Providers page list controls', () => {
+  let host: EngineHost
+
+  beforeEach(async () => {
+    host = createMockEngineHost()
+    resetHost(host)
+    await host.providers.reorder([
+      'xai',
+      'mistral',
+      'google',
+      'cursor',
+      'copilot',
+      'codex',
+      'claude',
+    ])
+  })
+
+  it('defaults to provider name A–Z and filters by a case-insensitive search', async () => {
+    await openProvidersList(host)
+    expect(providerOrder()).toEqual([
+      'claude',
+      'codex',
+      'copilot',
+      'cursor',
+      'google',
+      'mistral',
+      'xai',
+    ])
+
+    fireEvent.change(screen.getByLabelText('Search providers'), {
+      target: { value: 'PIL' },
+    })
+    expect(providerOrder()).toEqual(['copilot'])
+  })
+
+  it('filters providers by enabled state', async () => {
+    await openProvidersList(host)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'disabled' }))
+    expect(providerOrder()).toEqual(['cursor', 'google', 'mistral', 'xai'])
+
+    fireEvent.click(screen.getByRole('radio', { name: 'enabled' }))
+    expect(providerOrder()).toEqual(['claude', 'codex', 'copilot'])
+
+    fireEvent.click(screen.getByRole('radio', { name: 'all' }))
+    expect(providerOrder()).toHaveLength(7)
+  })
+
+  it('sorts provider names in both directions', async () => {
+    await openProvidersList(host)
+    fireEvent.change(screen.getByLabelText('Sort providers'), {
+      target: { value: 'name-desc' },
+    })
+    expect(providerOrder()).toEqual([
+      'xai',
+      'mistral',
+      'google',
+      'cursor',
+      'copilot',
+      'codex',
+      'claude',
+    ])
+
+    fireEvent.change(screen.getByLabelText('Sort providers'), {
+      target: { value: 'name-asc' },
+    })
+    expect(providerOrder()[0]).toBe('claude')
+  })
+
+  it('sorts distinct model counts high-to-low and low-to-high', async () => {
+    await openProvidersList(host)
+    fireEvent.change(screen.getByLabelText('Sort providers'), {
+      target: { value: 'models-desc' },
+    })
+    expect(providerOrder()).toEqual([
+      'copilot',
+      'cursor',
+      'claude',
+      'codex',
+      'google',
+      'mistral',
+      'xai',
+    ])
+
+    fireEvent.change(screen.getByLabelText('Sort providers'), {
+      target: { value: 'models-asc' },
+    })
+    expect(providerOrder()).toEqual([
+      'google',
+      'mistral',
+      'xai',
+      'claude',
+      'codex',
+      'cursor',
+      'copilot',
+    ])
+  })
+
+  it('sorts enabled and disabled providers in both directions', async () => {
+    await openProvidersList(host)
+    fireEvent.change(screen.getByLabelText('Sort providers'), {
+      target: { value: 'disabled-first' },
+    })
+    expect(providerOrder()).toEqual([
+      'cursor',
+      'google',
+      'mistral',
+      'xai',
+      'claude',
+      'codex',
+      'copilot',
+    ])
+
+    fireEvent.change(screen.getByLabelText('Sort providers'), {
+      target: { value: 'enabled-first' },
+    })
+    expect(providerOrder()).toEqual([
+      'claude',
+      'codex',
+      'copilot',
+      'cursor',
+      'google',
+      'mistral',
+      'xai',
+    ])
+  })
+
+  it('keeps priority order available for drag-based fallback editing', async () => {
+    await openProvidersList(host)
+    fireEvent.change(screen.getByLabelText('Sort providers'), {
+      target: { value: 'priority' },
+    })
+    expect(providerOrder()).toEqual([
+      'xai',
+      'mistral',
+      'google',
+      'cursor',
+      'copilot',
+      'codex',
+      'claude',
+    ])
+    expect(screen.getByText('providers · drag to set fallback order')).toBeDefined()
   })
 })

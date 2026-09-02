@@ -37,6 +37,7 @@ Queries: `['providers']` → `host.providers.list()`; `['provider', id]` → `ho
 | Element | Value |
 |---|---|
 | Section label | mono 9px, letter-spacing .13em, uppercase, accent, padding `0 22px 6px` |
+| List controls | flex center gap 10px, padding `0 22px 12px`; search grows to 240px; enabled-state segmented control; native `wmsel` sort control |
 | Column header row | flex gap 12px, padding `0 22px 7px`; cols 16px / 14px / 132px / flex / 112px right / 10px; mono 9px uppercase `text 38%` |
 | Row | flex center gap 12px, padding `11px 22px`, border-top 1px `text 8%`, cursor pointer |
 | Grab handle | 16×16 `.ib`, `text 35%`, cursor grab; 11×11 svg, six 1px-radius dots at (4,8)×(2.5,6,9.5) |
@@ -58,11 +59,13 @@ Queries: `['providers']` → `host.providers.list()`; `['provider', id]` → `ho
 | Where | String |
 |---|---|
 | PAGE_META title / blurb / action | `Providers` / `Drag to set priority — highest at the top. Default-deny: a provider is never read until you enable it. Open one to choose which of its models may be routed to.` / none |
-| Section label | `providers · drag to set fallback order` |
-| Column headers | `#`, `provider`, `limits`, `models` |
+| Search | placeholder and accessible label `Search providers`; case-insensitive id substring |
+| Enabled filter | `all` / `enabled` / `disabled` |
+| Sort options | `Name A–Z` / `Name Z–A` / `Models high–low` / `Models low–high` / `Enabled first` / `Disabled first` / `Priority (drag)` |
+| Section label | `{visible} of {total} provider[s]`; priority/all/empty-search mode uses `providers · drag to set fallback order` |
+| Model count | `{models} model` when 1, otherwise `{models} models` |
 | Disabled limits cell | `not enabled` |
-| Models cell | `{routes_on} of {routes_total} routes` |
-| Reorder toast | `provider priority: {ids.join(' → ')}` |
+| Reorder payload | full ordered id array, only from the priority/all/empty-search view |
 | Detail blurb | `Models {id} can serve. Each reasoning level routes separately — switch off the ones the picker should not consider. Click a level to see its benchmarks.` |
 | Detail back link | `Providers` |
 | Summary | `{on} of {total} routes enabled` |
@@ -80,7 +83,13 @@ Mock providers: claude/codex/copilot enabled, cursor disabled (mock defaults).
 
 | Case | Assertion |
 |---|---|
-| Row render | 4 rows in list order; cursor row shows `not enabled` and dim id; models cell matches `{routes_on} of {routes_total} routes` |
+| Row render | all mock providers render A–Z by default; disabled rows show `not enabled`; model cell uses `{models} model[s]` |
+| Search | mixed-case substring narrows the rendered provider ids immediately |
+| Enabled filter | disabled/enabled/all render the exact matching subsets |
+| Name sorts | default A–Z and explicit Z–A, independent of backend priority |
+| Model-count sorts | high–low and low–high use distinct model counts with id-ascending ties |
+| Enabled-state sorts | enabled-first and disabled-first group correctly with id-ascending ties |
+| Priority sort | restores backend priority order and the drag section label |
 | Toggle | click claude toggle → `setEnabled('claude', false)` once; row click NOT fired (no `openDetail`) |
 | Reorder | simulate `DragList` reorder codex→top → `providers.reorder(['codex','claude','copilot','cursor'])` with the FULL id array once, and toast text `provider priority: codex → claude → copilot → cursor` |
 | Reorder no-op | drop at original index → no host call, no toast |

@@ -151,11 +151,48 @@ export function ProvidersPage({ detail, openDetail, closeDetail }: PageComponent
 // ——— provider list (mockup L734-755) —————————————————————————————————————
 
 type Backend = 'off' | 'native' | 'codexbar'
+type EnabledFilter = 'all' | 'enabled' | 'disabled'
+type ProviderSort =
+  | 'name-asc'
+  | 'name-desc'
+  | 'models-desc'
+  | 'models-asc'
+  | 'enabled-first'
+  | 'disabled-first'
+  | 'priority'
+
+function compareProviderIDs(left: ProviderInfo, right: ProviderInfo): number {
+  return left.id < right.id ? -1 : left.id > right.id ? 1 : 0
+}
+
+function compareProviders(left: ProviderInfo, right: ProviderInfo, mode: ProviderSort): number {
+  switch (mode) {
+    case 'name-desc':
+      return -compareProviderIDs(left, right)
+    case 'models-desc':
+      return right.models - left.models || compareProviderIDs(left, right)
+    case 'models-asc':
+      return left.models - right.models || compareProviderIDs(left, right)
+    case 'enabled-first':
+      return Number(right.enabled) - Number(left.enabled) || compareProviderIDs(left, right)
+    case 'disabled-first':
+      return Number(left.enabled) - Number(right.enabled) || compareProviderIDs(left, right)
+    case 'priority':
+      return left.priority - right.priority || compareProviderIDs(left, right)
+    case 'name-asc':
+      return compareProviderIDs(left, right)
+  }
+}
+
 
 function ProvidersListView({ openDetail }: { openDetail(d: Detail): void }) {
   const toast = useToast()
   const { data: providers } = useProviders()
   const list = providers ?? []
+  const [query, setQuery] = useState('')
+  const [enabledFilter, setEnabledFilter] = useState<EnabledFilter>('all')
+  const [sortMode, setSortMode] = useState<ProviderSort>('name-asc')
+
 
   // Usage backend — inherited from the removed Usage detection page.
   const [backend, setBackend] = useState<Backend | null>(null)
@@ -291,6 +328,62 @@ function ProvidersListView({ openDetail }: { openDetail(d: Detail): void }) {
     },
     [list],
   )
+  const normalizedQuery = query.trim().toLowerCase()
+  const visibleList = useMemo(
+    () =>
+      list
+        .filter(
+          (provider) =>
+            provider.id.toLowerCase().includes(normalizedQuery) &&
+            (enabledFilter === 'all' ||
+              (enabledFilter === 'enabled' ? provider.enabled : !provider.enabled)),
+        )
+        .sort((left, right) => compareProviders(left, right, sortMode)),
+    [enabledFilter, list, normalizedQuery, sortMode],
+  )
+  const canReorder =
+    sortMode === 'priority' && enabledFilter === 'all' && normalizedQuery.length === 0
+  const listKicker = canReorder
+    ? LIST_KICKER
+    : `${visibleList.length} of ${list.length} provider${list.length === 1 ? '' : 's'}`
+  const providerItems = visibleList.map((provider) => ({
+    id: provider.id,
+    node: (
+      <span
+        className={styles.card}
+        data-provider-id={provider.id}
+        data-model-count={provider.models}
+        onClick={() => openDetail({ kind: 'provider', id: provider.id })}
+        onContextMenu={(e) => {
+          e.preventDefault()
+          setMenu({ id: provider.id, x: e.clientX, y: e.clientY })
+        }}
+      >
+        <ProviderUsageRow
+          provider={provider}
+          on={provider.enabled}
+          onToggle={(on) => handleToggle(provider.id, on)}
+          live={provider.enabled}
+          offLabel="not enabled"
+          leading={<span className={cx('mono', styles.order)}>{provider.priority}</span>}
+          trailing={
+            <span
+              className={styles.openCell}
+              title={`${provider.models} models; ${provider.routes_on} of ${provider.routes_total} routes enabled`}
+            >
+              <span className={cx('mono', styles.routes)}>
+                {provider.models} {provider.models === 1 ? 'model' : 'models'}
+              </span>
+              <span className={styles.chevron}>
+                <ChevronIcon />
+              </span>
+            </span>
+          }
+        />
+      </span>
+    ),
+  }))
+
 
 
 
@@ -361,41 +454,63 @@ function ProvidersListView({ openDetail }: { openDetail(d: Detail): void }) {
         </div>
       ) : null}
 
-      <span className={cx('mono', styles.kicker)}>{LIST_KICKER}</span>
+      <div className={styles.controls}>
+        <span className={styles.searchInput}>
+          <Input
+            type="search"
+            value={query}
+            onChange={setQuery}
+            placeholder="Search providers"
+            aria-label="Search providers"
+          />
+        </span>
+        <SegmentedControl
+          className={styles.enabledFilter}
+          options={[
+            { value: 'all', label: 'all' },
+            { value: 'enabled', label: 'enabled' },
+            { value: 'disabled', label: 'disabled' },
+          ]}
+          value={enabledFilter}
+          onChange={(value) => setEnabledFilter(value as EnabledFilter)}
+        />
+        <label className={styles.sortControl}>
+          <span className={styles.sortLabel}>Sort</span>
+          <select
+            className="wmsel"
+            aria-label="Sort providers"
+            value={sortMode}
+            onChange={(event) => setSortMode(event.target.value as ProviderSort)}
+          >
+            <option value="name-asc">Name A–Z</option>
+            <option value="name-desc">Name Z–A</option>
+            <option value="models-desc">Models high–low</option>
+            <option value="models-asc">Models low–high</option>
+            <option value="enabled-first">Enabled first</option>
+            <option value="disabled-first">Disabled first</option>
+            <option value="priority">Priority (drag)</option>
+          </select>
+        </label>
+      </div>
 
-      <DragList
-        rowClassName={styles.dragRow}
-        onReorder={handleReorder}
-        items={list.map((p: ProviderInfo, i) => ({
-          id: p.id,
-          node: (
-            <span
-              className={styles.card}
-              onClick={() => openDetail({ kind: 'provider', id: p.id })}
-              onContextMenu={(e) => {
-                e.preventDefault()
-                setMenu({ id: p.id, x: e.clientX, y: e.clientY })
-              }}
-            >
-              <ProviderUsageRow
-                provider={p}
-                on={p.enabled}
-                onToggle={(on) => handleToggle(p.id, on)}
-                live={p.enabled}
-                offLabel="not enabled"
-                leading={<span className={cx('mono', styles.order)}>{i + 1}</span>}
-                trailing={
-                  <span className={styles.openCell} title={`${p.routes_on} of ${p.routes_total} routes enabled`}>
-                    <span className={styles.chevron}>
-                      <ChevronIcon />
-                    </span>
-                  </span>
-                }
-              />
-            </span>
-          ),
-        }))}
-      />
+
+      <span className={cx('mono', styles.kicker)}>{listKicker}</span>
+
+      {canReorder ? (
+        <DragList
+          rowClassName={styles.dragRow}
+          onReorder={handleReorder}
+          items={providerItems}
+        />
+      ) : (
+        <div className={styles.staticList}>
+          {providerItems.map((item) => (
+            <div className={cx(styles.dragRow, styles.staticRow)} key={item.id}>
+              {item.node}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* The list is DERIVED (internal/service providerUniverseLocked unions
           [providers.*] config keys, every registered usage provider, and every
@@ -404,6 +519,10 @@ function ProvidersListView({ openDetail }: { openDetail(d: Detail): void }) {
       {list.length === 0 ? (
         <div className={styles.empty}>
           <EmptyState text="No providers yet. Run `which-model routes refresh` in a terminal to build the route table from the model catalogue." />
+        </div>
+      ) : visibleList.length === 0 ? (
+        <div className={styles.empty}>
+          <EmptyState text="No providers match these filters." />
         </div>
       ) : null}
 

@@ -204,6 +204,7 @@
  * @property {string} id
  * @property {boolean} enabled
  * @property {number} priority - 1-based display order
+ * @property {number} models - distinct model ids available through this provider
  * @property {string} auth - e.g. "oauth", "device flow", "" when unknown
  * @property {string} limits_line - human summary or "not enabled"
  * @property {number} routes_on

@@ -9,7 +9,8 @@ export interface InputProps {
   mono?: boolean // default true (.wminput); false → font-body
   disabled?: boolean
   className?: string // on the .input wrapper
-  type?: 'text' | 'password'
+  type?: 'text' | 'password' | 'search'
+  'aria-label'?: string
   onFocus?: () => void
   /** Commit-on-blur editors (the mockup's inline rename fields, demo.dc.html
    *  462) need the counterpart to onFocus. */
@@ -25,6 +26,7 @@ export function Input({
   disabled = false,
   className,
   type = 'text',
+  'aria-label': ariaLabel,
   onFocus,
   onBlur,
   onKeyDown,
@@ -37,6 +39,7 @@ export function Input({
         value={value}
         placeholder={placeholder}
         disabled={disabled}
+        aria-label={ariaLabel}
         onChange={(e) => onChange(e.target.value)}
         onFocus={onFocus}
         onBlur={onBlur}

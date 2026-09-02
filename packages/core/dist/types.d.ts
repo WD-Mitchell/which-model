@@ -39,6 +39,8 @@ export interface ProviderInfo {
     id: string;
     enabled: boolean;
     priority: number;
+    /** Distinct model IDs available through this provider. */
+    models: number;
     auth: string;
     limits_line: string;
     routes_on: number;

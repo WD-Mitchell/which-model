@@ -143,13 +143,17 @@ source_preference = ["live"]
 		WithRoutes(tableWithExtraProviders()),
 	)
 	useTempUsageCache(t, svc)
+	seedModelsDev(t, svc, `[
+		{"Provider":"anthropic","ModelID":"claude-opus-5","Name":"Claude Opus 5"},
+		{"Provider":"anthropic","ModelID":"claude-haiku-4","Name":"Claude Haiku 4"}
+	]`)
 
 	list, err := svc.Providers().List(context.Background())
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
 
-	wantIDs := []string{"extra", "zeta", "codex", "claude"} // priorities: extra=0, zeta=0, codex=1, claude=2; 0-tie broken by id asc
+	wantIDs := []string{"anthropic", "extra", "zeta", "codex", "claude"} // priority 0 ties are id ascending, then configured priorities 1 and 2
 	gotIDs := make([]string, 0, len(list))
 	for i, info := range list {
 		gotIDs = append(gotIDs, info.ID)
@@ -177,6 +181,19 @@ source_preference = ["live"]
 	}
 	if zeta.RoutesTotal != 1 {
 		t.Fatalf("zeta RoutesTotal = %d, want 1", zeta.RoutesTotal)
+	}
+
+	if extra.Models != 0 {
+		t.Fatalf("extra Models = %d, want 0", extra.Models)
+	}
+	if zeta.Models != 1 {
+		t.Fatalf("zeta Models = %d, want 1", zeta.Models)
+	}
+	if anthropicModels := infoByID(t, list, "anthropic").Models; anthropicModels != 2 {
+		t.Fatalf("anthropic Models = %d, want 2 catalogue model ids", anthropicModels)
+	}
+	if claudeModels := infoByID(t, list, "claude").Models; claudeModels != 3 {
+		t.Fatalf("claude Models = %d, want 3 distinct catalogue and routed model ids", claudeModels)
 	}
 
 	// providers present in both config and table are enabled.
@@ -399,6 +416,19 @@ priority = 1
 	rel = reloadConfig(t, svc)
 	if !rel.Providers["claude"].Enabled {
 		t.Fatal("claude.enabled should be true on disk")
+	}
+}
+func TestProviderSetEnabled_CatalogueOnly(t *testing.T) {
+	svc, rec := newTestServices(t)
+	useTempUsageCache(t, svc)
+	seedModelsDev(t, svc, `[{"Provider":"alibaba","ModelID":"qwen3-max","Name":"Qwen3 Max"}]`)
+
+	if err := svc.Providers().SetEnabled(context.Background(), "alibaba", true); err != nil {
+		t.Fatalf("SetEnabled catalogue-only provider: %v", err)
+	}
+	assertConfigChanged(t, rec, "providers")
+	if !reloadConfig(t, svc).Providers["alibaba"].Enabled {
+		t.Fatal("alibaba.enabled should be true on disk")
 	}
 }
 
