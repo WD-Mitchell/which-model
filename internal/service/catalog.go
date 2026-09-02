@@ -268,6 +268,11 @@ func (s *Services) catalogModelsLocked() []CatalogModel {
 		if len(ids) > 0 {
 			modelID = ids[0]
 		}
+		provs := make([]string, 0, len(a.providers))
+		for p := range a.providers {
+			provs = append(provs, p)
+		}
+		sort.Strings(provs)
 		out = append(out, CatalogModel{
 			ModelName:     name,
 			ModelID:       modelID,
@@ -276,9 +281,41 @@ func (s *Services) catalogModelsLocked() []CatalogModel {
 			Cost:          a.cost,
 			Speed:         a.speed,
 			ProviderCount: len(a.providers),
+			Maker:         extractMaker(name),
+			Providers:     provs,
 		})
 	}
 	return out
+}
+
+func extractMaker(name string) string {
+	lower := strings.ToLower(name)
+	switch {
+	case strings.HasPrefix(lower, "claude"):
+		return "Anthropic"
+	case strings.HasPrefix(lower, "gpt") || strings.HasPrefix(lower, "o1") || strings.HasPrefix(lower, "o3") || strings.HasPrefix(lower, "o4") || strings.HasPrefix(lower, "chatgpt"):
+		return "OpenAI"
+	case strings.HasPrefix(lower, "gemini") || strings.HasPrefix(lower, "gemma"):
+		return "Google"
+	case strings.HasPrefix(lower, "qwen"):
+		return "Qwen"
+	case strings.HasPrefix(lower, "deepseek"):
+		return "DeepSeek"
+	case strings.HasPrefix(lower, "grok"):
+		return "xAI"
+	case strings.HasPrefix(lower, "llama"):
+		return "Meta"
+	case strings.HasPrefix(lower, "mistral") || strings.HasPrefix(lower, "codestral") || strings.HasPrefix(lower, "pixtral") || strings.HasPrefix(lower, "ministral"):
+		return "Mistral"
+	case strings.HasPrefix(lower, "command"):
+		return "Cohere"
+	default:
+		fields := strings.Fields(name)
+		if len(fields) > 0 {
+			return fields[0]
+		}
+		return "Other"
+	}
 }
 
 // Model returns the catalog card for one scores-CSV display name: identity

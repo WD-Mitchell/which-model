@@ -40,6 +40,7 @@ export interface MockProvider {
     credits: string;
     resets: string;
 }
+export declare function extractMaker(name: string): string;
 export declare function createMockEngineHost(overrides?: Partial<MockData>): EngineHost & {
     data: MockData;
 };
