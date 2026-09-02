@@ -28,8 +28,8 @@ Depends on: U02, U07. Inherits `specs/desktop/global/*` (D00) and `specs/desktop
    | Copy launch command instead | `copy_command_instead` |
    | Close popover after launching | `close_popover_after_launch` |
    | Install updates automatically | `auto_update` |
+   | Only show and recommend enabled providers | `only_enabled_providers` |
    Row label colour is bright when on, muted when off (mockup `g.fg`).
-
 4. **Check for updates.** Next grid cell: label "Check for updates" and a `.wmsel` native `<select>` with options Hourly/Daily/Weekly/Monthly (values `hourly`/`daily`/`weekly`/`monthly`) bound to `auto_update_frequency`. When `auto_update` is false the WHOLE row is dimmed to opacity `.38`; per the mockup the select stays operable while dimmed.
 
 5. **"results display" section.** Second uppercase label `results display`. Three rows:

@@ -224,6 +224,8 @@ export interface GUISettings {
   catalog_repo: string
   /** When true, collect scores with a local Artificial Analysis API key instead of catalog_repo. */
   use_local_aa: boolean
+  /** Restrict catalog display and recommendations to models from enabled providers. */
+  only_enabled_providers: boolean
   /** Write-only. Get always returns "". Set a new key, or "-" to clear. */
   aa_api_key: string
   /** True when a local AA API key is stored. */

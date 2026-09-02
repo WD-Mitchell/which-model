@@ -76,6 +76,7 @@ type GUIConfig struct {
 	ShellAlias              bool   `toml:"shell_alias"`
 	CatalogRepo             string `toml:"catalog_repo"`
 	UseLocalAA              bool   `toml:"use_local_aa"`
+	OnlyEnabledProviders    bool   `toml:"only_enabled_providers"`
 }
 
 // guiConfigTOML is the pointered decode mirror of GUIConfig: each key falls
@@ -97,6 +98,7 @@ type guiConfigTOML struct {
 	ShellAlias              *bool   `toml:"shell_alias"`
 	CatalogRepo             *string `toml:"catalog_repo"`
 	UseLocalAA              *bool   `toml:"use_local_aa"`
+	OnlyEnabledProviders    *bool   `toml:"only_enabled_providers"`
 }
 
 // DefaultGUIConfig returns the [gui] per-key defaults (CONTRACTS §4).
@@ -120,6 +122,7 @@ func DefaultGUIConfig() GUIConfig {
 		ShellAlias:              false,
 		CatalogRepo:             DefaultCatalogRepo,
 		UseLocalAA:              false,
+		OnlyEnabledProviders:    false,
 	}
 }
 
@@ -190,6 +193,9 @@ func (c *Config) LoadGUI() (GUIConfig, error) {
 	}
 	if mirror.UseLocalAA != nil {
 		gui.UseLocalAA = *mirror.UseLocalAA
+	}
+	if mirror.OnlyEnabledProviders != nil {
+		gui.OnlyEnabledProviders = *mirror.OnlyEnabledProviders
 	}
 	if strings.TrimSpace(gui.CatalogRepo) == "" {
 		gui.CatalogRepo = DefaultCatalogRepo
@@ -307,6 +313,7 @@ func (c *Config) SetGUI(g GUIConfig) error {
 		"shell_alias":                g.ShellAlias,
 		"catalog_repo":               g.CatalogRepo,
 		"use_local_aa":               g.UseLocalAA,
+		"only_enabled_providers":     g.OnlyEnabledProviders,
 	})
 	return nil
 }

@@ -140,6 +140,7 @@ function seedSettings() {
         use_keychain: true,
         catalog_repo: 'WD-Mitchell/which-model',
         use_local_aa: false,
+        only_enabled_providers: false,
         aa_api_key: '',
         aa_api_key_set: false,
         config_path: '~/Library/Application Support/which-model/config.toml',
@@ -560,9 +561,11 @@ export function createMockEngineHost(overrides) {
             },
             async models() {
                 const byName = new Map();
+                const onProviders = new Set(data.providers.filter((p) => p.on).map((p) => p.id));
                 for (const m of data.models) {
                     const rank = EFFORT_ORDER.indexOf(collapseReasoning(m.reasoning));
                     let acc = byName.get(m.name);
+                    const mProviders = m.providers.filter((p) => onProviders.has(p));
                     if (acc === undefined) {
                         byName.set(m.name, {
                             name: m.name,
@@ -571,14 +574,14 @@ export function createMockEngineHost(overrides) {
                             intel: m.core.intelligence,
                             cost: m.core.cost,
                             speed: m.core.speed,
-                            providers: new Set(m.providers),
+                            providers: new Set(mProviders),
                             topRank: rank,
                         });
                         continue;
                     }
                     if (!acc.reasoning.includes(m.reasoning))
                         acc.reasoning.push(m.reasoning);
-                    for (const provider of m.providers)
+                    for (const provider of mProviders)
                         acc.providers.add(provider);
                     if (rank >= acc.topRank) {
                         acc.topRank = rank;
@@ -589,6 +592,8 @@ export function createMockEngineHost(overrides) {
                     }
                 }
                 for (const p of data.providers) {
+                    if (!p.on)
+                        continue;
                     for (const pm of providerModels(p.id)) {
                         const acc = byName.get(pm.model_name);
                         if (acc) {
@@ -598,7 +603,7 @@ export function createMockEngineHost(overrides) {
                         }
                     }
                 }
-                return [...byName.values()]
+                const list = [...byName.values()]
                     .sort((a, b) => a.name.localeCompare(b.name))
                     .map((a) => ({
                     model_name: a.name,
@@ -609,6 +614,10 @@ export function createMockEngineHost(overrides) {
                     speed: a.speed,
                     provider_count: a.providers.size,
                 }));
+                if (data.settings.only_enabled_providers) {
+                    return list.filter((m) => m.provider_count > 0);
+                }
+                return list;
             },
             async model(name) {
                 const rows = data.models.filter((m) => m.name === name);

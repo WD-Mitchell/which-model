@@ -153,6 +153,9 @@ func decodeGUISettings(d any) service.GUISettings {
 	if b, ok := m["show_menu_bar_icon"].(bool); ok {
 		g.ShowMenuBarIcon = b
 	}
+	if b, ok := m["only_enabled_providers"].(bool); ok {
+		g.OnlyEnabledProviders = b
+	}
 	return g
 }
 
