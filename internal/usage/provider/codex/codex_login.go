@@ -27,8 +27,9 @@ const (
 )
 
 const (
-	defaultPollInterval = 5 * time.Second
-	deviceAuthTimeout   = 15 * time.Minute
+	defaultPollInterval    = 5 * time.Second
+	deviceAuthTimeout      = 15 * time.Minute
+	maxPollIntervalSeconds = uint64(1<<63-1) / uint64(time.Second)
 )
 
 // Tokens is the subset of a Codex OAuth response we persist.
@@ -139,6 +140,9 @@ func parseInterval(raw json.RawMessage) time.Duration {
 	}
 	var n float64
 	if json.Unmarshal(raw, &n) == nil {
+		if n <= 0 || n > float64(maxPollIntervalSeconds) {
+			return 0
+		}
 		return time.Duration(n) * time.Second
 	}
 	var s string
@@ -148,7 +152,7 @@ func parseInterval(raw json.RawMessage) time.Duration {
 			return 0
 		}
 		v, err := strconv.ParseUint(s, 10, 64)
-		if err != nil {
+		if err != nil || v > maxPollIntervalSeconds {
 			return 0
 		}
 		return time.Duration(v) * time.Second

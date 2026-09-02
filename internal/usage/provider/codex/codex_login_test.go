@@ -56,6 +56,27 @@ func TestDeviceLoginHappyPath(t *testing.T) {
 	}
 }
 
+func TestParseIntervalRejectsOverflow(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+		want time.Duration
+	}{
+		{name: "valid string seconds", raw: `"1"`, want: time.Second},
+		{name: "maximum duration", raw: `"9223372036"`, want: 9223372036 * time.Second},
+		{name: "duration overflow", raw: `"9223372037"`, want: 0},
+		{name: "uint64 overflow", raw: `"18446744073709551615"`, want: 0},
+		{name: "numeric duration overflow", raw: `9223372037`, want: 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := parseInterval(json.RawMessage(tt.raw)); got != tt.want {
+				t.Fatalf("parseInterval(%s) = %s, want %s", tt.raw, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestDeviceLoginUsercodeNotEnabled(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
