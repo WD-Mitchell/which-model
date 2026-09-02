@@ -15,6 +15,10 @@ function clampIndex(i: number, length: number): number {
   return Math.max(0, Math.min(i, length - 1))
 }
 
+function formatScore(n: number | null | undefined): string {
+  if (n == null) return '—'
+  return Number.isInteger(n) ? String(n) : n.toFixed(1)
+}
 export function RankCarousel({ items, index, onIndex }: RankCarouselProps) {
   const idx = clampIndex(index, items.length)
   const model = items[idx]
@@ -64,8 +68,25 @@ export function RankCarousel({ items, index, onIndex }: RankCarouselProps) {
           <span className={styles.rank}>{rankLine}</span>
           <span className={styles.name}>{nameLine}</span>
           <span className={styles.meta}>{metaLine}</span>
+          {model && (model.intelligence != null || model.cost != null || model.speed != null) ? (
+            <span className={styles.ratings}>
+              <span className={styles.ratingItem}>
+                <span className={styles.ratingLabel}>intel</span>{' '}
+                <span className={styles.ratingValue}>{formatScore(model.intelligence)}</span>
+              </span>
+              <span className={styles.ratingDot}>·</span>
+              <span className={styles.ratingItem}>
+                <span className={styles.ratingLabel}>cost</span>{' '}
+                <span className={styles.ratingValue}>{formatScore(model.cost)}</span>
+              </span>
+              <span className={styles.ratingDot}>·</span>
+              <span className={styles.ratingItem}>
+                <span className={styles.ratingLabel}>speed</span>{' '}
+                <span className={styles.ratingValue}>{formatScore(model.speed)}</span>
+              </span>
+            </span>
+          ) : null}
         </span>
-
         <button
           type="button"
           aria-label="next rank"

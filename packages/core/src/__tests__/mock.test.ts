@@ -252,11 +252,11 @@ describe('createMockEngineHost — event firing', () => {
 
 describe('createMockEngineHost — rank', () => {
   const golden: RankedModel[] = [
-    { rank: 1, model_id: 'claude-sonnet-5.2', model_name: 'Claude Sonnet 5.2', provider: 'claude', reasoning: 'high', score: 88.42, route_key: 'claude/claude-sonnet-5.2@high' },
-    { rank: 2, model_id: 'grok-5-fast', model_name: 'Grok 5 Fast', provider: 'copilot', reasoning: 'medium', score: 85.77, route_key: 'copilot/grok-5-fast@medium' },
-    { rank: 3, model_id: 'gpt-5.6-sol', model_name: 'GPT-5.6 Sol', provider: 'codex', reasoning: 'high', score: 85.42, route_key: 'codex/gpt-5.6-sol@high' },
-    { rank: 4, model_id: 'gpt-5.6-luna', model_name: 'GPT-5.6 Luna', provider: 'codex', reasoning: 'max', score: 83.85, route_key: 'codex/gpt-5.6-luna@max' },
-    { rank: 5, model_id: 'claude-opus-5', model_name: 'Claude Opus 5', provider: 'claude', reasoning: 'max', score: 80.5, route_key: 'claude/claude-opus-5@max' },
+    { rank: 1, model_id: 'claude-sonnet-5.2', model_name: 'Claude Sonnet 5.2', provider: 'claude', reasoning: 'high', score: 88.42, route_key: 'claude/claude-sonnet-5.2@high', intelligence: 4.2, cost: 4.4, speed: 4.6 },
+    { rank: 2, model_id: 'grok-5-fast', model_name: 'Grok 5 Fast', provider: 'copilot', reasoning: 'medium', score: 85.77, route_key: 'copilot/grok-5-fast@medium', intelligence: 3.8, cost: 4.7, speed: 5 },
+    { rank: 3, model_id: 'gpt-5.6-sol', model_name: 'GPT-5.6 Sol', provider: 'codex', reasoning: 'high', score: 85.42, route_key: 'codex/gpt-5.6-sol@high', intelligence: 4.4, cost: 4, speed: 4.4 },
+    { rank: 4, model_id: 'gpt-5.6-luna', model_name: 'GPT-5.6 Luna', provider: 'codex', reasoning: 'max', score: 83.85, route_key: 'codex/gpt-5.6-luna@max', intelligence: 5, cost: 3, speed: 3.5 },
+    { rank: 5, model_id: 'claude-opus-5', model_name: 'Claude Opus 5', provider: 'claude', reasoning: 'max', score: 80.5, route_key: 'claude/claude-opus-5@max', intelligence: 4.9, cost: 2.6, speed: 3.2 },
   ]
 
   it('is deterministic and matches the golden fixture (2dp scores)', async () => {
