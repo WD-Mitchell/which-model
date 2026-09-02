@@ -624,9 +624,9 @@ func validateGUI(g GUIConfig) error {
 		return invalidValue("gui.weight_control", `must be "step", "bar" or "slider"`)
 	}
 	switch g.Holds {
-	case 3, 5, 10:
+	case 1, 3, 5:
 	default:
-		return invalidValue("gui.holds", "must be 3, 5 or 10")
+		return invalidValue("gui.holds", "must be 1, 3 or 5")
 	}
 	switch g.Shortcut {
 	case "alt+space", "ctrl+space", "cmd+shift+m":

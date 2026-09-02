@@ -25,8 +25,7 @@ const SHORTCUT_OPTS: ReadonlyArray<{ value: GUISettings['shortcut']; label: stri
 ]
 
 /** Ranks-held options (mockup L1530 `holdOpts`). */
-const HOLD_OPTS = [3, 5, 10] as const
-
+const HOLD_OPTS = [1, 3, 5] as const
 /** Update-frequency options (mockup L618-621) — capitalised labels, lowercase
  *  values, matching GUISettings['auto_update_frequency']. */
 const FREQ_OPTS: ReadonlyArray<{ value: GUISettings['auto_update_frequency']; label: string }> = [

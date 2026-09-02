@@ -210,7 +210,7 @@ func (s *Services) tier2AllowedSet() (map[string]bool, error) {
 }
 
 // effectiveHolds returns the candidate cap: reqHolds 0 => [gui].holds,
-// otherwise reqHolds must be one of {3, 5, 10} -> else errValidation
+// otherwise reqHolds must be one of {1, 3, 5} -> else errValidation
 // (SPEC §2.8).
 func (s *Services) effectiveHolds(reqHolds int) (int, error) {
 	holds := reqHolds
@@ -221,8 +221,8 @@ func (s *Services) effectiveHolds(reqHolds int) (int, error) {
 		}
 		holds = gui.Holds
 	}
-	if holds != 3 && holds != 5 && holds != 10 {
-		return 0, fmt.Errorf("%w: holds %d must be 3, 5 or 10", errValidation, holds)
+	if holds != 1 && holds != 3 && holds != 5 {
+		return 0, fmt.Errorf("%w: holds %d must be 1, 3 or 5", errValidation, holds)
 	}
 	return holds, nil
 }

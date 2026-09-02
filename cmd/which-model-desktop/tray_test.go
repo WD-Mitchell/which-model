@@ -149,9 +149,9 @@ func TestTrayLabelGapIsThinSpace(t *testing.T) {
 // refresh silently blanks the label (internal/service/pick.go:224).
 func TestTrayLabelHoldsIsLegal(t *testing.T) {
 	switch trayLabelHolds {
-	case 3, 5, 10:
+	case 1, 3, 5:
 	default:
-		t.Fatalf("trayLabelHolds = %d, must be 3, 5 or 10", trayLabelHolds)
+		t.Fatalf("trayLabelHolds = %d, must be 1, 3 or 5", trayLabelHolds)
 	}
 }
 

@@ -195,7 +195,7 @@ describe('createMockEngineHost — event firing', () => {
     expect(take()).toEqual({ event: 'config:changed', payload: { section: 'favourites' } })
 
     // settings.set → settings:changed (new GUISettings)
-    const settings: GUISettings = { ...(await host.settings.get()), holds: 10 }
+    const settings: GUISettings = { ...(await host.settings.get()), holds: 3 }
     fired.splice(0)
     await host.settings.set(settings)
     const settingsEvt = take()
@@ -271,7 +271,7 @@ describe('createMockEngineHost — rank', () => {
   it('disabling provider codex reroutes gpt-5.6-luna to copilot', async () => {
     const host = createMockEngineHost()
     await host.providers.setEnabled('codex', false)
-    const res = await host.pick.rank({ profile_slug: 'balanced_implementation', holds: 10 })
+    const res = await host.pick.rank({ profile_slug: 'balanced_implementation', holds: 5 })
     const luna = res.candidates.find((c) => c.model_id === 'gpt-5.6-luna')!
     expect(luna.provider).toBe('copilot')
     expect(luna.route_key).toBe('copilot/gpt-5.6-luna@max')
@@ -279,9 +279,9 @@ describe('createMockEngineHost — rank', () => {
 
   it("disabling a model's only route drops it and decrements total", async () => {
     const host = createMockEngineHost()
-    const before = await host.pick.rank({ profile_slug: 'balanced_implementation', holds: 10 })
+    const before = await host.pick.rank({ profile_slug: 'balanced_implementation', holds: 5 })
     await host.providers.setRouteEnabled('claude', 'claude-opus-5', 'max', false)
-    const after = await host.pick.rank({ profile_slug: 'balanced_implementation', holds: 10 })
+    const after = await host.pick.rank({ profile_slug: 'balanced_implementation', holds: 5 })
     expect(after.total).toBe(before.total - 1)
     expect(after.candidates.map((c) => c.model_id)).not.toContain('claude-opus-5')
   })
@@ -302,7 +302,7 @@ describe('createMockEngineHost — rank', () => {
       host.pick.rank({ profile_slug: 'balanced_implementation', holds: 50 }),
     ).rejects.toMatchObject({
       code: 'validation_failed',
-      message: 'holds 50 must be 3, 5 or 10',
+      message: 'holds 50 must be 1, 3 or 5',
     })
   })
 
