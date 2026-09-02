@@ -334,6 +334,7 @@ const PROVIDER_CATALOGUE: Record<string, { id: string; name: string; levels: str
     { id: 'gpt-5.6-sol', name: 'GPT-5.6 Sol', levels: ['low', 'medium', 'high'] },
   ],
   copilot: [
+    { id: 'claude-opus-5', name: 'Claude Opus 5', levels: ['low', 'medium', 'high', 'max'] },
     { id: 'claude-sonnet-5.2', name: 'Claude Sonnet 5.2', levels: ['low', 'medium', 'high'] },
     { id: 'gpt-5.6-luna', name: 'GPT-5.6 Luna', levels: ['low', 'medium', 'high', 'max'] },
     { id: 'gpt-5.6-sol', name: 'GPT-5.6 Sol', levels: ['low', 'medium', 'high'] },
@@ -716,12 +717,21 @@ export function createMockEngineHost(
             acc.speed = m.core.speed
           }
         }
+        for (const p of data.providers) {
+          for (const pm of providerModels(p.id)) {
+            const acc = byName.get(pm.model_name)
+            if (acc) {
+              for (const lvl of pm.levels) acc.reasoning.push(lvl.reasoning)
+              acc.providers.add(p.id)
+            }
+          }
+        }
         return [...byName.values()]
           .sort((a, b) => a.name.localeCompare(b.name))
           .map((a) => ({
             model_name: a.name,
             model_id: a.id,
-            reasoning: [...a.reasoning].sort((x, y) => (reasoningLess(x, y) ? -1 : 1)),
+            reasoning: [...new Set(a.reasoning)].sort((x, y) => (reasoningLess(x, y) ? -1 : 1)),
             intelligence: a.intel,
             cost: a.cost,
             speed: a.speed,
@@ -736,25 +746,43 @@ export function createMockEngineHost(
             (EFFORT_ORDER as readonly string[]).indexOf(collapseReasoning(b.reasoning)) -
             (EFFORT_ORDER as readonly string[]).indexOf(collapseReasoning(a.reasoning)),
         )[0]!
-        const reasoning = [...new Set(rows.map((m) => m.reasoning))].sort((x, y) =>
-          reasoningLess(x, y) ? -1 : 1,
-        )
-        const enabled = new Set(data.providers.filter((p) => p.on).map((p) => p.id))
-        type Acc = { provider: string; model_id: string; reasoning: string[]; keys: string[] }
+        const allReasoning = new Set<string>(rows.map((m) => m.reasoning))
+        const enabledProviders = data.providers.filter((p) => p.on)
+        type Acc = { provider: string; model_id: string; reasoning: Set<string>; keys: Set<string> }
         const groups = new Map<string, Acc>()
-        for (const m of rows) {
-          for (const provider of m.providers) {
-            if (!enabled.has(provider)) continue
-            const join = `${provider}|${m.id}`
-            let acc = groups.get(join)
-            if (acc === undefined) {
-              acc = { provider, model_id: m.id, reasoning: [], keys: [] }
-              groups.set(join, acc)
+        for (const p of enabledProviders) {
+          for (const pm of providerModels(p.id)) {
+            if (pm.model_name === name || pm.model_id === top.id) {
+              const join = `${p.id}|${pm.model_id}`
+              let acc = groups.get(join)
+              if (acc === undefined) {
+                acc = { provider: p.id, model_id: pm.model_id, reasoning: new Set(), keys: new Set() }
+                groups.set(join, acc)
+              }
+              for (const level of pm.levels) {
+                const collapsed = collapseReasoning(level.reasoning)
+                acc.reasoning.add(collapsed)
+                allReasoning.add(collapsed)
+                acc.keys.add(formatRouteKey(p.id, pm.model_id, collapsed))
+              }
             }
-            const level = collapseReasoning(m.reasoning)
-            if (!acc.reasoning.includes(level)) acc.reasoning.push(level)
-            const key = formatRouteKey(provider, m.id, level)
-            if (!acc.keys.includes(key)) acc.keys.push(key)
+          }
+        }
+
+        for (const m of rows) {
+          for (const p of enabledProviders) {
+            if (m.providers.includes(p.id)) {
+              const join = `${p.id}|${m.id}`
+              let acc = groups.get(join)
+              if (acc === undefined) {
+                acc = { provider: p.id, model_id: m.id, reasoning: new Set(), keys: new Set() }
+                groups.set(join, acc)
+              }
+              const collapsed = collapseReasoning(m.reasoning)
+              acc.reasoning.add(collapsed)
+              allReasoning.add(collapsed)
+              acc.keys.add(formatRouteKey(p.id, m.id, collapsed))
+            }
           }
         }
         const providers = [...groups.values()]
@@ -773,7 +801,7 @@ export function createMockEngineHost(
         return {
           model_name: top.name,
           model_id: top.id,
-          reasoning,
+          reasoning: [...allReasoning].sort((x, y) => (reasoningLess(x, y) ? -1 : 1)),
           intelligence: top.core.intelligence,
           cost: top.core.cost,
           speed: top.core.speed,

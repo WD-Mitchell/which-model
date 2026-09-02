@@ -200,6 +200,25 @@ func (s *Services) catalogModelsLocked() []CatalogModel {
 			a.providers[route.Provider] = struct{}{}
 		}
 	}
+	for _, pID := range s.providerUniverseLocked() {
+		for _, pm := range s.Providers().providerModelsLocked(pID) {
+			cleaned := identity.CleanModelName(pm.ModelName)
+			if a := byName[cleaned]; a != nil {
+				for _, lvl := range pm.Levels {
+					level := identity.CollapseReasoning(lvl.Reasoning)
+					if level != "" {
+						a.reasoning[level] = struct{}{}
+					}
+				}
+				if pm.ModelID != "" {
+					a.ids[pm.ModelID] = struct{}{}
+				}
+				if pID != "" {
+					a.providers[pID] = struct{}{}
+				}
+			}
+		}
+	}
 	names := make([]string, 0, len(byName))
 	for name := range byName {
 		names = append(names, name)
@@ -260,12 +279,53 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 	if base == nil {
 		return CatalogModelDetail{}, fmt.Errorf("%w: no model %q", errNotFound, name)
 	}
+	allReasoning := make(map[string]struct{})
+	for _, lvl := range base.Reasoning {
+		allReasoning[lvl] = struct{}{}
+	}
 	type acc struct {
 		provider, modelID string
 		reasoning         map[string]struct{}
 		keys              map[string]struct{}
 	}
 	byKey := map[string]*acc{}
+
+	// 1. Scan enabled providers for all models and reasoning levels they offer matching this model.
+	for _, pID := range s.providerUniverseLocked() {
+		pcfg, ok := s.cfg.Providers[pID]
+		if !ok || !pcfg.Enabled {
+			continue
+		}
+		for _, pm := range s.Providers().providerModelsLocked(pID) {
+			cleaned := identity.CleanModelName(pm.ModelName)
+			if cleaned != base.ModelName && pm.ModelName != base.ModelName && (base.ModelID == "" || pm.ModelID != base.ModelID) {
+				continue
+			}
+			join := pID + "|" + pm.ModelID
+			a := byKey[join]
+			if a == nil {
+				a = &acc{
+					provider:  pID,
+					modelID:   pm.ModelID,
+					reasoning: map[string]struct{}{},
+					keys:      map[string]struct{}{},
+				}
+				byKey[join] = a
+			}
+			for _, lvl := range pm.Levels {
+				level := identity.CollapseReasoning(lvl.Reasoning)
+				if level != "" {
+					a.reasoning[level] = struct{}{}
+					allReasoning[level] = struct{}{}
+					if pID != "" && pm.ModelID != "" {
+						a.keys[FormatRouteKey(pID, pm.ModelID, level)] = struct{}{}
+					}
+				}
+			}
+		}
+	}
+
+	// 2. Also check any routes for this model from enabled providers.
 	for _, route := range s.routes.Routes {
 		if route.Model != base.ModelName {
 			continue
@@ -286,9 +346,12 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 			byKey[join] = a
 		}
 		level := identity.CollapseReasoning(route.Reasoning)
-		a.reasoning[level] = struct{}{}
-		if route.Provider != "" && route.ModelID != "" && level != "" {
-			a.keys[FormatRouteKey(route.Provider, route.ModelID, level)] = struct{}{}
+		if level != "" {
+			a.reasoning[level] = struct{}{}
+			allReasoning[level] = struct{}{}
+			if route.Provider != "" && route.ModelID != "" {
+				a.keys[FormatRouteKey(route.Provider, route.ModelID, level)] = struct{}{}
+			}
 		}
 	}
 	type costPair struct{ in, out *float64 }
@@ -328,10 +391,17 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 			OutputCostUSDPerM: pair.out,
 		})
 	}
+	reasoningList := make([]string, 0, len(allReasoning))
+	for lvl := range allReasoning {
+		reasoningList = append(reasoningList, lvl)
+	}
+	sort.SliceStable(reasoningList, func(i, j int) bool {
+		return reasoningLess(reasoningList[i], reasoningList[j])
+	})
 	return CatalogModelDetail{
 		ModelName:     base.ModelName,
 		ModelID:       base.ModelID,
-		Reasoning:     append([]string(nil), base.Reasoning...),
+		Reasoning:     reasoningList,
 		Intelligence:  base.Intelligence,
 		Cost:          base.Cost,
 		Speed:         base.Speed,

@@ -224,8 +224,8 @@ func TestCatalogModels(t *testing.T) {
 	if opus.ModelID != "claude-opus-5" {
 		t.Errorf("Opus ModelID = %q, want claude-opus-5", opus.ModelID)
 	}
-	if !reflect.DeepEqual(opus.Reasoning, []string{"max"}) {
-		t.Errorf("Opus reasoning = %v, want [max]", opus.Reasoning)
+	if !reflect.DeepEqual(opus.Reasoning, []string{"high", "max"}) {
+		t.Errorf("Opus reasoning = %v, want [high max]", opus.Reasoning)
 	}
 	if opus.Intelligence == nil || *opus.Intelligence != 100 {
 		t.Errorf("Opus intelligence = %v, want 100", opus.Intelligence)
