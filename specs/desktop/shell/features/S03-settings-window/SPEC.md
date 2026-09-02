@@ -25,10 +25,14 @@ Depends on: S01 (scaffold, entries). Inherits D00, S00 (§2.3 windows, §2.6 alp
 
 5. **Close = hide.** The window is created once and never destroyed while the app runs. The native close action (traffic-light close, Cmd-W, system menu) is intercepted via the alpha's window close/closing event hook: the handler cancels the close and calls `Hide()`. Webview state (mounted React tree, scroll positions, unsaved field focus) therefore survives across open/close cycles (S00 §4 decision "Settings close = hide").
 
-6. **Open/reopen.** `showSettings()` = `ensureSettingsWindow` → `Show()` → `Focus()` (un-minimise first if the alpha reports a minimised state). `hideSettings()` hides if the window exists, and is a no-op (no creation) when it does not. Both are idempotent.
+6. **Open/reopen.** `showSettings()` = `setDockIconVisible(true)` → `ensureSettingsWindow` → `Show()` → `Focus()` (un-minimise first if the alpha reports a minimised state). `hideSettings()` = `setDockIconVisible(false)` → hides if the window exists, and is a no-op (no creation) otherwise. Both are idempotent.
 
 7. **Quit path.** App quit tears the window down through normal application shutdown; the close-intercept hook must not block `app.Quit()` (the hook cancels only user-initiated window closes — verify the alpha distinguishes these; if it cannot, the quit path sets a `quitting` flag the hook checks before cancelling).
 
+8. **Activation policy & Dock / taskbar presence.** which-model runs as a menu-bar app (`ActivationPolicyAccessory` on macOS) by default. While the Settings window is visible:
+   - macOS: the app dynamically transitions to `NSApplicationActivationPolicyRegular`, causing the which-model Dock icon to appear, enabling Cmd-Tab window cycling to reach Settings, and focusing Settings when the Dock icon is clicked.
+   - Windows/Linux: Settings has a standard taskbar button while visible.
+   When Settings is hidden (via native close, Escape, or `closeSettings`), macOS transitions back to `NSApplicationActivationPolicyAccessory` (removing the Dock icon), leaving the menu-bar tray as the always-on interface.
 ## 3. Error behaviour
 
 - Window creation failure (webview init error) is non-fatal: log host-side; `showSettings()` retries creation on the next call (the `sync.Once` is only marked done on success — implement as a mutex + nil check rather than a literal `sync.Once` if the alpha can fail without panic).
