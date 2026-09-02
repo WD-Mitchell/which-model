@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Button, useToast } from '@which-model/ui'
 import type { ErrorDTO, ProfileDetail, RankedModel } from '@which-model/core'
 import {
@@ -95,13 +95,7 @@ export function PopoverApp() {
     }
   }, [scale, activeSlug])
 
-  // Default harness = first listed (SPEC §2.9; reverts on relaunch).
-  useEffect(() => {
-    if (harnessSlug === undefined && harnesses.length > 0) {
-      setHarnessSlug(harnesses[0].slug)
-    }
-  }, [harnesses, harnessSlug])
-
+  // Default harness selection is managed per-model by supportedHarnesses effect.
   // Close the harness menu when clicking outside the launch pill.
   useEffect(() => {
     if (!harnessMenuOpen) return
@@ -158,6 +152,23 @@ export function PopoverApp() {
   const candidates = rankQuery.data?.candidates ?? []
   const pickIndex = candidates.length === 0 ? 0 : Math.min(selectedIndex, candidates.length - 1)
   const pick = candidates[pickIndex]
+
+  // Harnesses supported by the active pick's provider.
+  const supportedHarnesses = useMemo(() => {
+    if (!pick) return harnesses
+    return harnesses.filter((h) => h.providers[pick.provider] === true)
+  }, [harnesses, pick?.provider])
+
+  // Sync active harness selection to the supported list.
+  useEffect(() => {
+    if (supportedHarnesses.length === 0) {
+      setHarnessSlug(undefined)
+      return
+    }
+    if (!harnessSlug || !supportedHarnesses.some((h) => h.slug === harnessSlug)) {
+      setHarnessSlug(supportedHarnesses[0].slug)
+    }
+  }, [supportedHarnesses, harnessSlug])
 
   // Keep the menu bar showing what the popover shows. The host ranks for the
   // menu bar itself at startup, but the active profile and the ephemeral weight
@@ -314,7 +325,7 @@ export function PopoverApp() {
       {/* Tab-independent: Settings + Launch stay put on both tabs. Only the
           content area above changes. */}
       <PopoverFooter
-        harnesses={harnesses}
+        harnesses={supportedHarnesses}
         harnessSlug={harnessSlug}
         harnessMenuOpen={harnessMenuOpen}
         onToggleHarnessMenu={() => setHarnessMenuOpen((v) => !v)}

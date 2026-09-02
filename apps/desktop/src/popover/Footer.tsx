@@ -27,6 +27,7 @@ export function PopoverFooter({
   onLaunch,
   onCopy,
 }: PopoverFooterProps) {
+  const hasHarnesses = harnesses.length > 0
   const harness =
     harnesses.find((h) => h.slug === harnessSlug) ?? harnesses[0]
   const harnessName = harness?.name ?? ''
@@ -45,11 +46,12 @@ export function PopoverFooter({
       </Button>
       <span className="pf-launchWrap" data-launch-pill>
         <SplitButton
-          label={`Launch in ${harnessName}`}
+          label={hasHarnesses ? `Launch in ${harnessName}` : 'No supported harness'}
+          disabled={!hasHarnesses}
           onMain={onLaunch ?? (() => {})}
           menuItems={menuItems}
           onPick={(key) => onPickHarness?.(key)}
-          open={harnessMenuOpen}
+          open={hasHarnesses && harnessMenuOpen}
           onOpenChange={onToggleHarnessMenu ?? (() => {})}
         />
       </span>

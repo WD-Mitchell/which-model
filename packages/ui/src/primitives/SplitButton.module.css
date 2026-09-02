@@ -17,6 +17,17 @@
   background: color-mix(in srgb, var(--color-accent) 14%, transparent);
 }
 
+.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-color: color-mix(in srgb, var(--color-text) 20%, transparent);
+}
+.disabled .label,
+.disabled .chevron {
+  cursor: not-allowed;
+  color: color-mix(in srgb, var(--color-text) 50%, transparent);
+}
+
 .label {
   display: inline-flex;
   align-items: center;

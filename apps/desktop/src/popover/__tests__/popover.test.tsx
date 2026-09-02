@@ -243,15 +243,59 @@ describe('popover landing', () => {
     const saveSpy = vi.spyOn(host.harnesses, 'save')
     renderApp()
     await settle()
+    await screen.findByText(/^rank \d+ of \d+$/)
+
+    // Rank 1 is claude. Navigate to Rank 3 (GPT-5.6 Sol, provider: codex)
+    // which supports both Claude Code and Codex CLI.
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'next rank' }))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'next rank' }))
+    })
+    expect(await screen.findByText('GPT-5.6 Sol (high)')).toBeTruthy()
 
     const chevron = document.querySelector('[data-launch-pill] [role="button"]') as HTMLElement
     expect(chevron).toBeTruthy()
     fireEvent.click(chevron)
     fireEvent.click(await screen.findByText('Codex CLI'))
 
-    expect(await screen.findByText('Launch in Codex CLI')).toBeTruthy()
+    await waitFor(() => {
+      expect(screen.getByText('Launch in Codex CLI')).toBeTruthy()
+    })
     expect(setSpy).not.toHaveBeenCalled()
     expect(saveSpy).not.toHaveBeenCalled()
+  })
+
+  it('scopes launch harnesses to the active model provider and updates on navigation', async () => {
+    renderApp()
+    await settle()
+    await screen.findByText(/^rank \d+ of \d+$/)
+
+    // Rank 1 model is Claude Sonnet 5.2 (provider: claude) -> only Claude Code supported
+    const chevron = document.querySelector('[data-launch-pill] [role="button"]') as HTMLElement
+    expect(chevron).toBeTruthy()
+    fireEvent.click(chevron)
+    expect(screen.getByText('Claude Code')).toBeTruthy()
+    expect(screen.queryByText('Codex CLI')).toBeNull()
+    expect(screen.queryByText('Copilot CLI')).toBeNull()
+    expect(screen.queryByText('Cursor')).toBeNull()
+
+    // Close menu
+    fireEvent.click(chevron)
+
+    // Navigate to next rank in carousel (Grok 5 Fast, provider: copilot)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'next rank' }))
+    })
+    expect(await screen.findByText('Grok 5 Fast (medium)')).toBeTruthy()
+
+    // For copilot: Claude Code, Codex CLI, Copilot CLI are supported
+    fireEvent.click(chevron)
+    expect(await screen.findByText('Copilot CLI')).toBeTruthy()
+    expect(screen.getByText('Codex CLI')).toBeTruthy()
+    expect(screen.getByText('Claude Code')).toBeTruthy()
+    expect(screen.queryByText('Cursor')).toBeNull()
   })
 
   it('event invalidation: config:changed and settings:changed refetch by map', async () => {
