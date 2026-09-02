@@ -38,8 +38,6 @@ export type SettingsPageName =
   | 'Favourites'
   | 'Providers'
   | 'Harnesses'
-  | 'Agent integration'
-
 export type SettingsPageComponent = React.ComponentType<PageComponentProps>
 
 export interface SettingsAppProps {
@@ -73,7 +71,7 @@ export const NAV_GROUPS: ReadonlyArray<
   // list itself.
   ['app', ['General']],
   ['ranking', ['Profiles', 'Benchmark groups', 'Models', 'Favourites']],
-  ['routing', ['Providers', 'Harnesses', 'Agent integration']],
+  ['routing', ['Providers', 'Harnesses']],
 ] as const
 
 /** name → lazy page component; one line per page, import path fixed here. */
@@ -88,7 +86,6 @@ export const PAGE_REGISTRY: Record<
   Models: React.lazy(() => import('./pages/Models/ModelsPage')),
   Providers: React.lazy(() => import('./pages/Providers/ProvidersPage')),
   Harnesses: React.lazy(() => import('./pages/Harnesses/HarnessesPage')),
-  'Agent integration': React.lazy(() => import('./pages/Agent/AgentPage')),
 }
 
 /** PAGE_META verbatim from U07 CONTRACTS §5 ([title, blurb, actionLabel|null]). */
@@ -132,10 +129,5 @@ export const PAGE_META: Record<
     // Deliberate addition over the mockup (user request): custom providers can
     // be registered here; they route nothing until routes are declared.
     'Add provider',
-  ],
-  'Agent integration': [
-    'Agent integration',
-    'How coding agents reach which-model without the popover.',
-    null,
   ],
 }

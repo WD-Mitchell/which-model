@@ -121,7 +121,7 @@ func DefaultGUIConfig() GUIConfig {
 		AutoUpdateFrequency:     "daily",
 		MCPServer:               false,
 		ClaudeMDHint:            false,
-		ShellAlias:              false,
+		ShellAlias:              true,
 		CatalogRepo:             DefaultCatalogRepo,
 		UseLocalAA:              false,
 		BenchmarkCheckFrequency: "6h",

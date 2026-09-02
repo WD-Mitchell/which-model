@@ -92,6 +92,11 @@ const TOGGLES: ReadonlyArray<{
     read: (s) => s.only_enabled_providers,
     patch: (on) => ({ only_enabled_providers: on }),
   },
+  {
+    name: 'Expose as an MCP server',
+    read: (s) => s.mcp_server,
+    patch: (on) => ({ mcp_server: on }),
+  },
 ]
 
 export function GeneralPage(_props: PageComponentProps) {
