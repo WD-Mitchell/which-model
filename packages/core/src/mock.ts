@@ -184,10 +184,11 @@ function mkHarness(
   command: string,
   installed: boolean,
   providersOn: string[],
+  enabled: boolean = installed,
 ): HarnessInfo {
   const providers: Record<string, boolean> = {}
   for (const id of PROVIDER_IDS) providers[id] = providersOn.includes(id)
-  return { slug, name, command, builtin: true, installed, providers }
+  return { slug, name, command, builtin: true, installed, enabled, providers }
 }
 
 function seedHarnesses(): HarnessInfo[] {
@@ -196,6 +197,9 @@ function seedHarnesses(): HarnessInfo[] {
     mkHarness('codex', 'Codex CLI', 'codex -m {model_id} -c reasoning={reasoning}', true, ['codex', 'copilot']),
     mkHarness('copilot', 'Copilot CLI', 'copilot --model {model_id}', true, ['copilot', 'cursor']),
     mkHarness('cursor', 'Cursor', 'cursor --model {model_id}', false, ['cursor']),
+    mkHarness('aider', 'Aider', 'aider --model {model_id}', true, ['claude', 'codex', 'copilot', 'cursor']),
+    mkHarness('goose', 'Goose', 'goose session --model {model_id}', false, ['claude', 'codex', 'copilot']),
+    mkHarness('windsurf', 'Windsurf', 'windsurf --model {model_id}', false, ['claude', 'codex', 'copilot', 'cursor']),
   ]
 }
 
@@ -982,6 +986,11 @@ export function createMockEngineHost(
     harnesses: {
       async list() {
         return clone(data.harnesses)
+      },
+      async setEnabled(slug, enabled) {
+        const h = requireHarness(slug)
+        h.enabled = enabled
+        emit('config:changed', { section: 'harnesses' })
       },
       async save(h) {
         if (!SLUG_RE.test(h.slug)) {

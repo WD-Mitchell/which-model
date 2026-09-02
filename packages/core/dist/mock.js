@@ -94,11 +94,11 @@ function seedProfiles() {
     ];
 }
 const PROVIDER_IDS = ['claude', 'codex', 'copilot', 'cursor'];
-function mkHarness(slug, name, command, installed, providersOn) {
+function mkHarness(slug, name, command, installed, providersOn, enabled = installed) {
     const providers = {};
     for (const id of PROVIDER_IDS)
         providers[id] = providersOn.includes(id);
-    return { slug, name, command, builtin: true, installed, providers };
+    return { slug, name, command, builtin: true, installed, enabled, providers };
 }
 function seedHarnesses() {
     return [
@@ -106,6 +106,9 @@ function seedHarnesses() {
         mkHarness('codex', 'Codex CLI', 'codex -m {model_id} -c reasoning={reasoning}', true, ['codex', 'copilot']),
         mkHarness('copilot', 'Copilot CLI', 'copilot --model {model_id}', true, ['copilot', 'cursor']),
         mkHarness('cursor', 'Cursor', 'cursor --model {model_id}', false, ['cursor']),
+        mkHarness('aider', 'Aider', 'aider --model {model_id}', true, ['claude', 'codex', 'copilot', 'cursor']),
+        mkHarness('goose', 'Goose', 'goose session --model {model_id}', false, ['claude', 'codex', 'copilot']),
+        mkHarness('windsurf', 'Windsurf', 'windsurf --model {model_id}', false, ['claude', 'codex', 'copilot', 'cursor']),
     ];
 }
 const MOCK_COSTS = {
@@ -832,6 +835,11 @@ export function createMockEngineHost(overrides) {
         harnesses: {
             async list() {
                 return clone(data.harnesses);
+            },
+            async setEnabled(slug, enabled) {
+                const h = requireHarness(slug);
+                h.enabled = enabled;
+                emit('config:changed', { section: 'harnesses' });
             },
             async save(h) {
                 if (!SLUG_RE.test(h.slug)) {

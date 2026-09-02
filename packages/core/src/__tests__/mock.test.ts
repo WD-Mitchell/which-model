@@ -370,7 +370,7 @@ describe('createMockEngineHost — clock determinism and overrides merge', () =>
 describe('createMockEngineHost — remaining surfaces', () => {
   it('catalogLine reflects live data', async () => {
     const host = createMockEngineHost()
-    expect(await host.pick.catalogLine()).toEqual({ models: 8, providers_on: 3, harnesses: 4 })
+    expect(await host.pick.catalogLine()).toEqual({ models: 8, providers_on: 3, harnesses: 7 })
     await host.providers.setEnabled('cursor', true)
     expect((await host.pick.catalogLine()).providers_on).toBe(4)
   })

@@ -54,14 +54,17 @@ const providersFixture = "[providers.claude]\nenabled = true\n" +
 func TestHarnessListSeedsBuiltins(t *testing.T) {
 	svc, rec := newTestServices(t)
 	list := mustListHarnesses(t, svc)
-	if len(list) != 4 {
-		t.Fatalf("List len = %d, want 4 (seeded)", len(list))
+	if len(list) != 7 {
+		t.Fatalf("List len = %d, want 7 (seeded)", len(list))
 	}
 	want := []HarnessInfo{
+		{Slug: "aider", Name: "Aider", Command: "aider --model {model_id}", Builtin: true},
 		{Slug: "claude", Name: "Claude Code", Command: "claude --model {model_id} --reasoning {reasoning}", Builtin: true},
 		{Slug: "codex", Name: "Codex CLI", Command: "codex -m {model_id} -c reasoning={reasoning}", Builtin: true},
 		{Slug: "copilot", Name: "Copilot CLI", Command: "copilot --model {model_id}", Builtin: true},
 		{Slug: "cursor", Name: "Cursor", Command: "cursor --model {model_id}", Builtin: true},
+		{Slug: "goose", Name: "Goose", Command: "goose session --model {model_id}", Builtin: true},
+		{Slug: "windsurf", Name: "Windsurf", Command: "windsurf --model {model_id}", Builtin: true},
 	}
 	for i, w := range want {
 		g := list[i]
@@ -76,13 +79,13 @@ func TestHarnessListSeedsBuiltins(t *testing.T) {
 		t.Fatalf("events after first List = %d, want 1", got)
 	}
 	cfg := harnessCfgFile(t, svc)
-	for _, slug := range []string{"claude", "codex", "copilot", "cursor"} {
+	for _, slug := range []string{"aider", "claude", "codex", "copilot", "cursor", "goose", "windsurf"} {
 		if !strings.Contains(cfg, "[harnesses."+slug+"]") {
 			t.Fatalf("config missing [harnesses.%s]\n%s", slug, cfg)
 		}
 	}
-	if strings.Count(cfg, "builtin = true") != 4 {
-		t.Fatalf("expected 4 builtin = true, got:\n%s", cfg)
+	if strings.Count(cfg, "builtin = true") != 7 {
+		t.Fatalf("expected 7 builtin = true, got:\n%s", cfg)
 	}
 
 	// Second List emits nothing.
@@ -278,8 +281,8 @@ func TestHarnessDeleteAny(t *testing.T) {
 
 	// Deleted builtin does not re-seed (section still non-empty, §2.2).
 	list := mustListHarnesses(t, svc)
-	if len(list) != 3 {
-		t.Fatalf("after delete List len = %d, want 3 (no re-seed)", len(list))
+	if len(list) != 6 {
+		t.Fatalf("after delete List len = %d, want 6 (no re-seed)", len(list))
 	}
 	for _, h := range list {
 		if h.Slug == "claude" {
@@ -526,4 +529,36 @@ func TestHarnessConfigRoundTrip(t *testing.T) {
 	if _, err := config.LoadFile(tmp); err != nil {
 		t.Fatalf("seeded config fails to reload: %v", err)
 	}
+}
+
+func TestHarnessSetEnabled(t *testing.T) {
+	svc, rec := newTestServices(t)
+	ctx := context.Background()
+	mustListHarnesses(t, svc)
+
+	if err := svc.Harnesses().SetEnabled(ctx, "claude", false); err != nil {
+		t.Fatalf("SetEnabled: %v", err)
+	}
+	list, err := svc.Harnesses().List(ctx)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	for _, h := range list {
+		if h.Slug == "claude" && h.Enabled {
+			t.Fatalf("claude.Enabled = true, want false")
+		}
+	}
+	if err := svc.Harnesses().SetEnabled(ctx, "claude", true); err != nil {
+		t.Fatalf("SetEnabled true: %v", err)
+	}
+	list, err = svc.Harnesses().List(ctx)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	for _, h := range list {
+		if h.Slug == "claude" && !h.Enabled {
+			t.Fatalf("claude.Enabled = false, want true")
+		}
+	}
+	_ = rec
 }

@@ -95,6 +95,7 @@ export interface HarnessInfo {
   command: string
   builtin: boolean
   installed: boolean
+  enabled: boolean
   providers: Record<string, boolean>
 }
 

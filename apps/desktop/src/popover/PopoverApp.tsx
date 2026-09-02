@@ -153,10 +153,11 @@ export function PopoverApp() {
   const pickIndex = candidates.length === 0 ? 0 : Math.min(selectedIndex, candidates.length - 1)
   const pick = candidates[pickIndex]
 
-  // Harnesses supported by the active pick's provider.
+  // Harnesses enabled and supported by the active pick's provider.
   const supportedHarnesses = useMemo(() => {
-    if (!pick) return harnesses
-    return harnesses.filter((h) => h.providers[pick.provider] === true)
+    const enabled = harnesses.filter((h) => h.enabled)
+    if (!pick) return enabled
+    return enabled.filter((h) => h.providers[pick.provider] === true)
   }, [harnesses, pick?.provider])
 
   // Sync active harness selection to the supported list.

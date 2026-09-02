@@ -406,7 +406,7 @@ func TestPickCatalogLine(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CatalogLine: %v", err)
 	}
-	want := CatalogSummary{Models: 4, ProvidersOn: 2, Harnesses: 4}
+	want := CatalogSummary{Models: 4, ProvidersOn: 2, Harnesses: 7}
 	if line != want {
 		t.Errorf("CatalogLine = %v, want %v", line, want)
 	}

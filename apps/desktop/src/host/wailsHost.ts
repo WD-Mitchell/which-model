@@ -93,6 +93,7 @@ export function createWailsHost(): EngineHost {
       list: () => call(HarnessesAPI.List() as Cancellable<unknown>, (r) => r as never),
       save: (h) => call(HarnessesAPI.Save(h) as Cancellable<void>, () => {}),
       delete: (slug: string) => call(HarnessesAPI.Delete(slug) as Cancellable<void>, () => {}),
+      setEnabled: (slug: string, enabled: boolean) => call(HarnessesAPI.SetEnabled(slug, enabled) as Cancellable<void>, () => {}),
       setProvider: (slug: string, provider: string, on: boolean) => call(HarnessesAPI.SetProvider(slug, provider, on) as Cancellable<void>, () => {}),
       setAllProviders: (slug: string, on: boolean) => call(HarnessesAPI.SetAllProviders(slug, on) as Cancellable<void>, () => {}),
       launch: (slug: string, routeKey: string, profileSlug: string) => call(HarnessesAPI.Launch(slug, routeKey, profileSlug) as Cancellable<unknown>, (r) => r as never),

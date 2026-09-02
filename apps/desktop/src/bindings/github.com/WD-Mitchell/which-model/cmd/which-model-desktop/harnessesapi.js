@@ -48,6 +48,15 @@ export function Save(h) {
     return $Call.ByName("main.HarnessesAPI.Save", h);
 }
 
+
+/**
+ * @param {string} slug
+ * @param {boolean} enabled
+ * @returns {$CancellablePromise<void>}
+ */
+export function SetEnabled(slug, enabled) {
+    return $Call.ByName("main.HarnessesAPI.SetEnabled", slug, enabled);
+}
 /**
  * @param {string} slug
  * @param {boolean} on
