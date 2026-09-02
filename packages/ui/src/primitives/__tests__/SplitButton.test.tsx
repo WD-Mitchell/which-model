@@ -50,4 +50,12 @@ describe('SplitButton', () => {
     const selected = getByText('Claude Code')
     expect(selected.className).toContain(styles.itemSelected)
   })
+
+  it('does not fire onMain or onOpenChange when disabled', () => {
+    const { getByText, getByRole, onMain, onOpenChange } = setup({ disabled: true })
+    fireEvent.click(getByText('Launch in Claude Code'))
+    expect(onMain).not.toHaveBeenCalled()
+    fireEvent.click(getByRole('button'))
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
 })

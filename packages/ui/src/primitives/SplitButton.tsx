@@ -15,6 +15,7 @@ export interface SplitButtonProps {
   onPick: (key: string) => void
   open: boolean // controlled
   onOpenChange: (open: boolean) => void
+  disabled?: boolean
 }
 
 export function SplitButton({
@@ -24,16 +25,20 @@ export function SplitButton({
   onPick,
   open,
   onOpenChange,
+  disabled = false,
 }: SplitButtonProps) {
   return (
     <span className={styles.root}>
-      <span className={cx(styles.pill, open && styles.openBg)}>
-        <span className={styles.label} onClick={onMain}>
+      <span className={cx(styles.pill, open && styles.openBg, disabled && styles.disabled)}>
+        <span
+          className={styles.label}
+          onClick={disabled ? undefined : onMain}
+        >
           {label}
         </span>
         <span
           className={styles.chevron}
-          onClick={() => onOpenChange(!open)}
+          onClick={disabled ? undefined : () => onOpenChange(!open)}
           aria-expanded={open}
           role="button"
         >
@@ -50,7 +55,7 @@ export function SplitButton({
           </svg>
         </span>
       </span>
-      {open && (
+      {open && !disabled && (
         <span className={styles.surface}>
           {menuItems.map((item) => (
             <span
