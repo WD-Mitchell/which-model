@@ -14,6 +14,7 @@ import {
   ProviderUsageRow,
   SnippetPreview,
   Tag,
+  Toggle,
   useToast,
 } from '@which-model/ui'
 import type { HarnessInfo } from '@which-model/core'
@@ -128,6 +129,17 @@ function HarnessesListView({ openDetail }: { openDetail(d: Detail): void }) {
     [toast],
   )
 
+  const handleToggle = useCallback(
+    async (h: HarnessInfo, next: boolean) => {
+      try {
+        await getHost().harnesses.setEnabled(h.slug, next)
+      } catch (e) {
+        toast.show((e as { message?: string }).message ?? 'update failed')
+      }
+    },
+    [toast],
+  )
+
   return (
     <div className={styles.page}>
       <DetailHeader
@@ -183,12 +195,24 @@ function HarnessesListView({ openDetail }: { openDetail(d: Detail): void }) {
             onClick={() => openDetail({ kind: 'harness', id: h.slug })}
           >
             <span className={styles.nameCell}>
+              <span onClick={(e) => e.stopPropagation()}>
+                <Toggle
+                  on={h.enabled}
+                  onToggle={(next) => void handleToggle(h, next)}
+                  aria-label={`Enable ${h.name}`}
+                />
+              </span>
               <span
-                className={cx('mono', styles.name, !h.installed && styles.nameOff)}
+                className={cx('mono', styles.name, (!h.installed || !h.enabled) && styles.nameOff)}
                 title={h.installed ? h.slug : `${h.slug} — not detected on this Mac`}
               >
                 {h.name}
               </span>
+              {h.installed ? (
+                <Tag variant="neutral" size="badge" className={styles.badge}>
+                  installed
+                </Tag>
+              ) : null}
               {/* demo.dc.html 504 — only user-added harnesses are badged. */}
               {h.builtin ? null : (
                 <Tag variant="neutral" size="badge" className={styles.badge}>

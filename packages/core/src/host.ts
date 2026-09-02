@@ -80,6 +80,7 @@ export interface EngineHost {
     list(): Promise<HarnessInfo[]>
     save(h: HarnessInfo): Promise<void>
     delete(slug: string): Promise<void>
+    setEnabled(slug: string, enabled: boolean): Promise<void>
     setProvider(slug: string, provider: string, on: boolean): Promise<void>
     setAllProviders(slug: string, on: boolean): Promise<void>
     launch(slug: string, routeKey: string, profileSlug: string): Promise<LaunchResult>

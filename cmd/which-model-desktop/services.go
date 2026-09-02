@@ -143,6 +143,9 @@ func (a *HarnessesAPI) Delete(slug string) error {
 func (a *HarnessesAPI) SetProvider(slug, provider string, on bool) error {
 	return a.svc.Harnesses().SetProvider(ctx, slug, provider, on)
 }
+func (a *HarnessesAPI) SetEnabled(slug string, enabled bool) error {
+	return a.svc.Harnesses().SetEnabled(ctx, slug, enabled)
+}
 func (a *HarnessesAPI) SetAllProviders(slug string, on bool) error {
 	return a.svc.Harnesses().SetAllProviders(ctx, slug, on)
 }

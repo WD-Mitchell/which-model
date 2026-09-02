@@ -34,10 +34,13 @@ type harnessSeed struct {
 // harnessSeeds is the exact CONTRACTS §3 builtin seed table. Order matters
 // only for determinism; SetHarness writes each subtable, config sorts output.
 var harnessSeeds = []harnessSeed{
+	{"aider", "Aider", "aider --model {model_id}", []string{"claude", "codex", "copilot", "cursor"}},
 	{"claude", "Claude Code", "claude --model {model_id} --reasoning {reasoning}", []string{"claude", "codex", "copilot"}},
 	{"codex", "Codex CLI", "codex -m {model_id} -c reasoning={reasoning}", []string{"codex", "copilot"}},
 	{"copilot", "Copilot CLI", "copilot --model {model_id}", []string{"copilot", "cursor"}},
 	{"cursor", "Cursor", "cursor --model {model_id}", []string{"cursor"}},
+	{"goose", "Goose", "goose session --model {model_id}", []string{"claude", "codex", "copilot"}},
+	{"windsurf", "Windsurf", "windsurf --model {model_id}", []string{"claude", "codex", "copilot", "cursor"}},
 }
 
 // harnessTokenRe matches any {token} placeholder left after substitution;
@@ -74,12 +77,18 @@ func (h *HarnessService) List(ctx context.Context) ([]HarnessInfo, error) {
 	out := make([]HarnessInfo, 0, len(slugs))
 	for _, slug := range slugs {
 		ht := harnesses[slug]
+		inst := installed(ht.Command)
+		en := inst
+		if ht.Enabled != nil {
+			en = *ht.Enabled
+		}
 		out = append(out, HarnessInfo{
 			Slug:      slug,
 			Name:      ht.Name,
 			Command:   ht.Command,
 			Builtin:   ht.Builtin,
-			Installed: installed(ht.Command),
+			Installed: inst,
+			Enabled:   en,
 			Providers: providerMap(ht.Providers, providerSet),
 		})
 	}
@@ -241,6 +250,33 @@ func (h *HarnessService) SetAllProviders(ctx context.Context, slug string, on bo
 	next := *h.s.cfg
 	if err := next.SetHarness(slug, config.HarnessTOML{
 		Name: stored.Name, Command: stored.Command, Builtin: stored.Builtin, Providers: list,
+	}); err != nil {
+		h.s.mu.Unlock()
+		return err
+	}
+	return h.persist(&next)
+}
+
+// SetEnabled sets whether a harness is enabled. An explicit setting overrides
+// the default auto-detected (installed) state. Unknown slug -> errNotFound.
+// Emits config:changed{section:"harnesses"}.
+func (h *HarnessService) SetEnabled(ctx context.Context, slug string, on bool) error {
+	_ = ctx
+	h.s.mu.Lock()
+	harnesses, err := h.s.cfg.LoadHarnesses()
+	if err != nil {
+		h.s.mu.Unlock()
+		return err
+	}
+	stored, ok := harnesses[slug]
+	if !ok {
+		h.s.mu.Unlock()
+		return fmt.Errorf("%w: harness %q not found", errNotFound, slug)
+	}
+	next := *h.s.cfg
+	if err := next.SetHarness(slug, config.HarnessTOML{
+		Name: stored.Name, Command: stored.Command, Builtin: stored.Builtin,
+		Providers: stored.Providers, Enabled: &on,
 	}); err != nil {
 		h.s.mu.Unlock()
 		return err

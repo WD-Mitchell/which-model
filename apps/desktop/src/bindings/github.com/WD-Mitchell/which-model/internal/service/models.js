@@ -148,6 +148,7 @@
  * @property {string} command - template with {model_id}/{reasoning}
  * @property {boolean} builtin
  * @property {boolean} installed - argv[0] found on PATH
+ * @property {boolean} enabled - active in launcher; defaults to installed
  * @property {{ [_ in string]?: boolean } | null} providers - per-harness provider allow-map
  */
 

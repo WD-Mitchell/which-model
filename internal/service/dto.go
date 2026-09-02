@@ -144,6 +144,7 @@ type HarnessInfo struct {
 	Command   string          `json:"command"` // template with {model_id}/{reasoning}
 	Builtin   bool            `json:"builtin"`
 	Installed bool            `json:"installed"` // argv[0] found on PATH
+	Enabled   bool            `json:"enabled"`   // active in launcher; defaults to installed
 	Providers map[string]bool `json:"providers"` // per-harness provider allow-map
 }
 

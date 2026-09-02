@@ -38,6 +38,7 @@ type HarnessTOML struct {
 	Command   string   `toml:"command"`   // template; token semantics are B07's
 	Providers []string `toml:"providers"` // provider slugs
 	Builtin   bool     `toml:"builtin"`
+	Enabled   *bool    `toml:"enabled,omitempty"`
 }
 
 type HarnessesTOML map[string]HarnessTOML
@@ -352,12 +353,16 @@ func (c *Config) SetHarness(slug string, h HarnessTOML) error {
 	if err := validateHarness(slug, h); err != nil {
 		return err
 	}
-	c.setRaw("harnesses."+slug, map[string]any{
+	m := map[string]any{
 		"name":      h.Name,
 		"command":   h.Command,
 		"providers": stringList(h.Providers),
 		"builtin":   h.Builtin,
-	})
+	}
+	if h.Enabled != nil {
+		m["enabled"] = *h.Enabled
+	}
+	c.setRaw("harnesses."+slug, m)
 	return nil
 }
 

@@ -110,6 +110,7 @@ const harness: HarnessInfo = {
   command: 'claude --model {model_id} --reasoning {reasoning}',
   builtin: true,
   installed: true,
+  enabled: true,
   providers: { claude: true, codex: true, copilot: true, cursor: false },
 }
 
