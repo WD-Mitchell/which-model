@@ -123,6 +123,7 @@ func ensureSettingsWindow(app *application.App) (*application.WebviewWindow, err
 			return // allow teardown
 		}
 		event.Cancel()
+		setDockIconVisible(false)
 		w.Hide()
 	})
 
@@ -133,8 +134,10 @@ func ensureSettingsWindow(app *application.App) (*application.WebviewWindow, err
 // showSettings ensures the window exists, then Show + un-minimise + Focus.
 // Idempotent; creation failure is logged and swallowed (S03 SPEC §3).
 func showSettings(app *application.App) {
+	setDockIconVisible(true)
 	w, err := ensureSettingsWindow(app)
 	if err != nil {
+		setDockIconVisible(false)
 		log.Printf("settings: failed to create settings window: %v", err)
 		return
 	}
@@ -149,6 +152,7 @@ func showSettings(app *application.App) {
 func hideSettings() {
 	settingsMu.Lock()
 	defer settingsMu.Unlock()
+	setDockIconVisible(false)
 	if settingsWin != nil {
 		settingsWin.Hide()
 	}

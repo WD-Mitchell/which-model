@@ -13,7 +13,10 @@ Wails identifiers are **verify at implementation** against the pinned v3 alpha (
 
 | File | Contents |
 |---|---|
-| `cmd/which-model-desktop/settingswindow.go` | everything in §2; the only file S03 touches |
+| `cmd/which-model-desktop/settings.go` | everything in §2; lifecycle, options, close-intercept |
+| `cmd/which-model-desktop/dock_darwin.go` | macOS AppKit activation policy transition (Accessory <-> Regular) |
+| `cmd/which-model-desktop/dock_darwin.m` | AppKit NSApplication setActivationPolicy bridge |
+| `cmd/which-model-desktop/dock_other.go` | Non-macOS stubs for activation policy |
 
 Not owned: `main.go`/`tray.go`/`popover.go` (S02), `windowservice.go` and bindings (S04 — S04's `WindowService.OpenSettings/CloseSettings` call §2's functions), frontend entries (S01/U07).
 
@@ -42,6 +45,13 @@ func showSettings(app *application.App)
 
 // hideSettings hides the window if it exists; no-op (no creation) otherwise.
 func hideSettings()
+
+// setDockIconVisible transitions between Regular (visible=true, with Dock icon)
+// and Accessory (visible=false, menu-bar only) activation policy.
+func setDockIconVisible(visible bool)
+
+// dockIconVisible reports whether the activation policy is currently Regular.
+func dockIconVisible() bool
 ```
 
 S04 contract point: `WindowService.OpenSettings()` → `showSettings(app)`; `WindowService.CloseSettings()` → `hideSettings()`. No other package/file may touch `settingsWin`.
@@ -90,5 +100,6 @@ Manual checklist (macOS primary; run with S02 in place):
 4. Click the red close button: window disappears; process keeps running; tray still works.
 5. Re-open: same window returns (scroll/page state preserved once U07 lands), `Show`+`Focus` bring it frontmost over other apps; position from step 4 retained (not re-centred).
 6. Repeat close/open 5×: no duplicate windows, no leak in Activity Monitor window count.
-7. Quit the app while the settings window is open: app exits cleanly (close-intercept does not block quit).
-8. Windows/Linux (compile-level gate, D00 §2.9): `GOOS=windows go build ./cmd/which-model-desktop` compiles; native default frame acceptable.
+7. Dock icon lifecycle on macOS: Dock icon appears when Settings is shown, disappears when closed/hidden; clicking Dock icon while Settings is open brings Settings frontmost.
+8. Quit the app while the settings window is open: app exits cleanly (close-intercept does not block quit).
+9. Windows/Linux (compile-level gate, D00 §2.9): `GOOS=windows go build ./cmd/which-model-desktop` compiles; native default frame acceptable.
