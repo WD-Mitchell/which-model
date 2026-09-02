@@ -175,6 +175,8 @@ export interface CatalogModel {
   cost: number | null
   speed: number | null
   provider_count: number
+  maker?: string
+  providers?: string[]
 }
 
 /** One enabled provider that serves a catalog model. Costs are USD / 1M tokens. */

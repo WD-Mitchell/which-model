@@ -245,6 +245,8 @@ type CatalogModel struct {
 	Cost          *float64 `json:"cost"`
 	Speed         *float64 `json:"speed"`
 	ProviderCount int      `json:"provider_count"`
+	Maker         string   `json:"maker,omitempty"`
+	Providers     []string `json:"providers,omitempty"`
 }
 
 // CatalogModelProvider is one enabled provider that serves a catalog model.

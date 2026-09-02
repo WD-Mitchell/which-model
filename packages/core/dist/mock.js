@@ -62,6 +62,29 @@ function seedModels() {
         mkModel('Llama 5 405B', 'llama-5-405b', 'low', ['copilot'], [3.5, 5.0, 4.0], [3.5, 3.2, 3.6, 3.2, 3.4, 3.2, 3.2, 3.0, 3.2, 3.3, 3.1]),
     ];
 }
+export function extractMaker(name) {
+    const lower = name.toLowerCase();
+    if (lower.startsWith('claude'))
+        return 'Anthropic';
+    if (lower.startsWith('gpt') || lower.startsWith('o1') || lower.startsWith('o3') || lower.startsWith('o4'))
+        return 'OpenAI';
+    if (lower.startsWith('gemini') || lower.startsWith('gemma'))
+        return 'Google';
+    if (lower.startsWith('qwen'))
+        return 'Qwen';
+    if (lower.startsWith('deepseek'))
+        return 'DeepSeek';
+    if (lower.startsWith('grok'))
+        return 'xAI';
+    if (lower.startsWith('llama'))
+        return 'Meta';
+    if (lower.startsWith('mistral') || lower.startsWith('codestral'))
+        return 'Mistral';
+    if (lower.startsWith('command'))
+        return 'Cohere';
+    const first = name.split(/\s+/)[0];
+    return first || 'Other';
+}
 function mkProfile(slug, name, coreShare, [intelligence, cost, speed], tier2, picks, lastUsed) {
     return {
         slug,
@@ -122,6 +145,9 @@ function seedProviders() {
         { id: 'codex', on: true, priority: 2, auth: 'oauth', limits: 'session 12% · weekly 31% · 340 credits', session: 12, weekly: 31, monthly: 44, credits: '340 credits left', resets: 'weekly on Mon' },
         { id: 'copilot', on: true, priority: 3, auth: 'device flow', limits: 'monthly 1200 of 4800', session: 8, weekly: 25, monthly: 25, credits: '1200 of 4800 premium', resets: 'monthly on the 1st' },
         { id: 'cursor', on: false, priority: 4, auth: 'via codexbar', limits: 'not enabled', session: null, weekly: null, monthly: null, credits: 'no plan detected', resets: '—' },
+        { id: 'google', on: false, priority: 5, auth: 'custom', limits: 'not enabled', session: null, weekly: null, monthly: null, credits: 'no usage data', resets: '—' },
+        { id: 'mistral', on: false, priority: 6, auth: 'custom', limits: 'not enabled', session: null, weekly: null, monthly: null, credits: 'no usage data', resets: '—' },
+        { id: 'xai', on: false, priority: 7, auth: 'custom', limits: 'not enabled', session: null, weekly: null, monthly: null, credits: 'no usage data', resets: '—' },
     ];
 }
 function seedSettings() {
@@ -424,6 +450,9 @@ export function createMockEngineHost(overrides) {
             reasoning: c.m.reasoning,
             score: c.score,
             route_key: formatRouteKey(c.provider, c.m.id, c.m.reasoning),
+            intelligence: c.m.core.intelligence,
+            cost: c.m.core.cost,
+            speed: c.m.core.speed,
         }));
         return { candidates, total };
     }
@@ -617,6 +646,8 @@ export function createMockEngineHost(overrides) {
                     cost: a.cost,
                     speed: a.speed,
                     provider_count: a.providers.size,
+                    maker: extractMaker(a.name),
+                    providers: [...a.providers].sort(),
                 }));
                 if (data.settings.only_enabled_providers) {
                     return list.filter((m) => m.provider_count > 0);
@@ -744,9 +775,25 @@ export function createMockEngineHost(overrides) {
             },
         },
         providers: {
-            async add(_id) { },
+            async add(id) {
+                if (!data.providers.some((p) => p.id === id)) {
+                    data.providers.push({
+                        id,
+                        on: false,
+                        priority: data.providers.length + 1,
+                        auth: 'custom',
+                        limits: 'not enabled',
+                        session: null,
+                        weekly: null,
+                        monthly: null,
+                        credits: 'no usage data',
+                        resets: '—',
+                    });
+                    emit('config:changed', { section: 'providers' });
+                }
+            },
             async addable() {
-                return ['google', 'mistral', 'xai'];
+                return [];
             },
             async delete(_id) { },
             async duplicate(id) {

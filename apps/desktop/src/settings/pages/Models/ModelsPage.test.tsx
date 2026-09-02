@@ -102,6 +102,62 @@ describe('Models page', () => {
     fireEvent.click(screen.getByTitle('Back'))
     expect(await screen.findByText('enabled providers')).toBeDefined()
   })
+
+  it('filters the list by maker multi-select', async () => {
+    renderApp(host)
+    await openModels()
+
+    const makerBtn = await screen.findByRole('button', { name: 'Filter by maker' })
+    fireEvent.click(makerBtn)
+
+    const anthropicOption = await screen.findByText('Anthropic')
+    fireEvent.click(anthropicOption)
+
+    expect(await screen.findByText('Claude Opus 5')).toBeDefined()
+    expect(screen.getByText('Claude Sonnet 5.2')).toBeDefined()
+    expect(screen.queryByText('GPT-5.6 Luna')).toBeNull()
+    expect(screen.queryByText('Gemini 3.5 Ultra')).toBeNull()
+  })
+
+  it('filters the list by provider multi-select', async () => {
+    renderApp(host)
+    await openModels()
+
+    const provBtn = await screen.findByRole('button', { name: 'Filter by provider' })
+    fireEvent.click(provBtn)
+
+    const codexOption = await screen.findByText('codex')
+    fireEvent.click(codexOption)
+
+    expect(await screen.findByText('GPT-5.6 Luna')).toBeDefined()
+    expect(screen.getByText('GPT-5.6 Sol')).toBeDefined()
+    expect(screen.queryByText('Claude Opus 5')).toBeNull()
+  })
+
+  it('composes maker and provider filters and allows clearing them', async () => {
+    renderApp(host)
+    await openModels()
+
+    const makerBtn = await screen.findByRole('button', { name: 'Filter by maker' })
+    fireEvent.click(makerBtn)
+    fireEvent.click(await screen.findByText('OpenAI'))
+
+    const provBtn = await screen.findByRole('button', { name: 'Filter by provider' })
+    fireEvent.click(provBtn)
+    fireEvent.click(await screen.findByText('copilot'))
+
+    // Both GPT-5.6 Luna and GPT-5.6 Sol are OpenAI models available on copilot
+    expect(await screen.findByText('GPT-5.6 Luna')).toBeDefined()
+    expect(screen.getByText('GPT-5.6 Sol')).toBeDefined()
+    expect(screen.queryByText('Claude Opus 5')).toBeNull()
+
+    // Clear all filters
+    const clearBtn = await screen.findByRole('button', { name: 'Clear all' })
+    fireEvent.click(clearBtn)
+
+    expect(await screen.findByText('Claude Opus 5')).toBeDefined()
+    expect(screen.getByText('GPT-5.6 Luna')).toBeDefined()
+  })
 })
 
 describe('Models nav', () => {

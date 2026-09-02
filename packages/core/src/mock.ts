@@ -134,6 +134,21 @@ function seedModels(): MockModel[] {
   ]
 }
 
+export function extractMaker(name: string): string {
+  const lower = name.toLowerCase()
+  if (lower.startsWith('claude')) return 'Anthropic'
+  if (lower.startsWith('gpt') || lower.startsWith('o1') || lower.startsWith('o3') || lower.startsWith('o4')) return 'OpenAI'
+  if (lower.startsWith('gemini') || lower.startsWith('gemma')) return 'Google'
+  if (lower.startsWith('qwen')) return 'Qwen'
+  if (lower.startsWith('deepseek')) return 'DeepSeek'
+  if (lower.startsWith('grok')) return 'xAI'
+  if (lower.startsWith('llama')) return 'Meta'
+  if (lower.startsWith('mistral') || lower.startsWith('codestral')) return 'Mistral'
+  if (lower.startsWith('command')) return 'Cohere'
+  const first = name.split(/\s+/)[0]
+  return first || 'Other'
+}
+
 function mkProfile(
   slug: string,
   name: string,
@@ -751,6 +766,8 @@ export function createMockEngineHost(
             cost: a.cost,
             speed: a.speed,
             provider_count: a.providers.size,
+            maker: extractMaker(a.name),
+            providers: [...a.providers].sort(),
           }))
         if (data.settings.only_enabled_providers) {
           return list.filter((m) => m.provider_count > 0)

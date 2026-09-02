@@ -22,6 +22,9 @@ export interface RankedModel {
     reasoning: string;
     score: number;
     route_key: string;
+    intelligence?: number | null;
+    cost?: number | null;
+    speed?: number | null;
 }
 export interface RankResponse {
     candidates: RankedModel[];
@@ -154,6 +157,8 @@ export interface CatalogModel {
     cost: number | null;
     speed: number | null;
     provider_count: number;
+    maker?: string;
+    providers?: string[];
 }
 /** One enabled provider that serves a catalog model. Costs are USD / 1M tokens. */
 export interface CatalogModelProvider {
