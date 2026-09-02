@@ -234,3 +234,33 @@ describe('Providers page model levels and benchmarks', () => {
     expect(await screen.findByText('accounts')).toBeDefined()
   })
 })
+
+describe('Providers page custom provider adding', () => {
+  let host: EngineHost
+  beforeEach(() => {
+    host = createMockEngineHost()
+    resetHost(host)
+  })
+  it('adds a custom provider via the Add provider input', async () => {
+    const addSpy = vi.spyOn(host.providers, 'add')
+    renderApp(host)
+    await screen.findByText('which-model — Settings')
+    const nav = await screen.findAllByText('Providers')
+    const navBtn = nav.find((el) => el.tagName === 'BUTTON')
+    act(() => navBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+    await screen.findByText((_, el) => el?.tagName === 'SPAN' && el.textContent === 'copilot' && el.className.includes('id'))
+
+    const addBtn = await screen.findByRole('button', { name: 'Add provider' })
+    act(() => addBtn.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+
+    const input = await screen.findByPlaceholderText('custom-provider-id')
+    fireEvent.change(input, { target: { value: 'custom_vllm' } })
+
+    const submitBtn = await screen.findByRole('button', { name: 'Add' })
+    act(() => submitBtn.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+
+    await waitFor(() => {
+      expect(addSpy).toHaveBeenCalledWith('custom_vllm')
+    })
+  })
+})

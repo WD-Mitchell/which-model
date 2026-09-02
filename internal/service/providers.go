@@ -63,6 +63,17 @@ func (s *Services) providerUniverseLocked() []string {
 	for _, route := range s.routes.Routes {
 		seen[route.Provider] = struct{}{}
 	}
+	cachePath := filepath.Join(s.paths.CacheDir, "catalog", "modelsdev_providers.json")
+	if data, err := os.ReadFile(cachePath); err == nil {
+		var catalogue []modelsdev.ProviderModel
+		if err := json.Unmarshal(data, &catalogue); err == nil {
+			for _, m := range catalogue {
+				if m.Provider != "" {
+					seen[m.Provider] = struct{}{}
+				}
+			}
+		}
+	}
 	ids := make([]string, 0, len(seen))
 	for id := range seen {
 		ids = append(ids, id)

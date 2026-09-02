@@ -114,14 +114,14 @@ describe('SettingsShell close', () => {
     const spy = vi.spyOn(host.window, 'closeSettings').mockResolvedValue(undefined)
     renderApp(host)
     await screen.findByText('which-model — Settings')
-    // Open the Providers page and its add-provider Combobox (U07 §5 action
+    // Open the Favourites page and its add-model Combobox (U07 §5 action
     // label), then press Escape from the search input. The Combobox owns
     // Escape; the window must stay open.
-    const navProviders = await screen.findAllByText('Providers')
-    const navBtn = navProviders.find((el) => el.tagName === 'BUTTON')
+    const navFavourites = await screen.findAllByText('Favourites')
+    const navBtn = navFavourites.find((el) => el.tagName === 'BUTTON')
     act(() => navBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true })))
-    fireEvent.click(await screen.findByRole('button', { name: 'Add provider' }))
-    const input = await screen.findByPlaceholderText('search the model catalogue…')
+    fireEvent.click(await screen.findByRole('button', { name: 'Add model' }))
+    const input = await screen.findByPlaceholderText('type to find a model')
     fireEvent.input(input, { target: { value: 'zzz' } })
     fireEvent.keyDown(input, { key: 'Escape' })
     expect(spy).not.toHaveBeenCalled()

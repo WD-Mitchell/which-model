@@ -180,35 +180,28 @@ function ProvidersListView({ openDetail }: { openDetail(d: Detail): void }) {
     [backend, toast],
   )
 
-  // Add provider — ids come from the catalogue, never free text: only a
-  // models.dev slug can ever acquire routes.
+  // Add custom provider — registers a custom provider id not in the default catalogue.
   const [adding, setAdding] = useState(false)
-  const [query, setQuery] = useState('')
-  const [open, setOpen] = useState(false)
-  const [addable, setAddable] = useState<string[]>([])
-
-  useEffect(() => {
-    if (!adding) return
-    void getHost()
-      .providers.addable()
-      .then(setAddable)
-      .catch(() => setAddable([]))
-  }, [adding, list.length])
+  const [customId, setCustomId] = useState('')
 
   const handleAdd = useCallback(
     (id: string) => {
+      const trimmed = id.trim().toLowerCase()
+      if (!trimmed || !/^[a-z0-9_-]+$/.test(trimmed)) {
+        toast.show('invalid provider id — use lowercase letters, digits, - or _')
+        return
+      }
       void getHost()
-        .providers.add(id)
+        .providers.add(trimmed)
         .then(() => {
-          toast.show(`added ${id} — run \`which-model routes refresh\` for its routes`)
+          toast.show(`added ${trimmed} — declare routes via config or which-model routes add`)
           setAdding(false)
-          setQuery('')
+          setCustomId('')
         })
         .catch((e) => toast.show(errText(e, 'add failed')))
     },
     [toast],
   )
-
   const handleReorder = useCallback(
     (ids: string[]) => {
       void getHost()
@@ -299,8 +292,7 @@ function ProvidersListView({ openDetail }: { openDetail(d: Detail): void }) {
     [list],
   )
 
-  const q = query.trim().toLowerCase()
-  const matches = addable.filter((id) => !q || id.includes(q)).slice(0, 6)
+
 
   return (
     <div className={styles.page}>
@@ -335,29 +327,36 @@ function ProvidersListView({ openDetail }: { openDetail(d: Detail): void }) {
       {adding ? (
         <div className={styles.addRow}>
           <span className={styles.addId}>
-            <Combobox
-              items={matches.map((id) => ({ key: id, label: id, sub: 'models.dev' }))}
-              query={query}
-              onQuery={(v) => {
-                setQuery(v)
-                setOpen(true)
+            <Input
+              value={customId}
+              onChange={setCustomId}
+              placeholder="custom-provider-id"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleAdd(e.currentTarget.value || customId)
+                }
               }}
-              open={open}
-              onOpenChange={setOpen}
-              onPick={handleAdd}
-              emptyText={
-                addable.length === 0
-                  ? 'no catalogue yet — run `which-model routes refresh`'
-                  : 'no provider by that name'
-              }
-              placeholder="search the model catalogue…"
             />
           </span>
-          <Button variant="ghost" size="sm" onClick={() => setAdding(false)}>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => handleAdd(customId)}
+          >
+            Add
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setAdding(false)
+              setCustomId('')
+            }}
+          >
             Cancel
           </Button>
           <span className={styles.addNote}>
-            routes are built on the next `which-model routes refresh`
+            declare routes via config or `which-model routes add`
           </span>
         </div>
       ) : null}

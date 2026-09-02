@@ -161,7 +161,7 @@ describe('createMockEngineHost — event firing', () => {
     // provider mutations → config:changed {section:'providers'}
     await host.providers.setEnabled('cursor', true)
     expect(take()).toEqual({ event: 'config:changed', payload: { section: 'providers' } })
-    await host.providers.reorder(['codex', 'claude', 'copilot', 'cursor'])
+    await host.providers.reorder(['codex', 'claude', 'copilot', 'cursor', 'google', 'mistral', 'xai'])
     expect(take()).toEqual({ event: 'config:changed', payload: { section: 'providers' } })
     await host.providers.setRouteEnabled('claude', 'claude-opus-5', 'max', false)
     expect(take()).toEqual({ event: 'config:changed', payload: { section: 'providers' } })
