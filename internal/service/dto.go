@@ -244,6 +244,29 @@ type CatalogModel struct {
 	ProviderCount int      `json:"provider_count"`
 }
 
+// CatalogModelProvider is one enabled provider that serves a catalog model.
+// Costs are USD per 1M tokens from the models.dev cache; nil means no listed price.
+type CatalogModelProvider struct {
+	Provider          string   `json:"provider"`
+	ModelID           string   `json:"model_id"`
+	Reasoning         []string `json:"reasoning"`
+	RouteKeys         []string `json:"route_keys"`
+	InputCostUSDPerM  *float64 `json:"input_cost_usd_per_m"`
+	OutputCostUSDPerM *float64 `json:"output_cost_usd_per_m"`
+}
+
+// CatalogModelDetail is the model card: catalog identity plus enabled-provider rows.
+type CatalogModelDetail struct {
+	ModelName     string                 `json:"model_name"`
+	ModelID       string                 `json:"model_id"`
+	Reasoning     []string               `json:"reasoning"`
+	Intelligence  *float64               `json:"intelligence"`
+	Cost          *float64               `json:"cost"`
+	Speed         *float64               `json:"speed"`
+	ProviderCount int                    `json:"provider_count"`
+	Providers     []CatalogModelProvider `json:"providers"`
+}
+
 type Favourite struct {
 	RouteKey   string `json:"route_key"`
 	ModelName  string `json:"model_name"`

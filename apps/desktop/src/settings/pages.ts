@@ -19,7 +19,7 @@ export type Detail =
       modelName: string
       reasoning: string
     } // Providers; one model+reasoning combo's benchmarks
-  | { kind: 'model'; id: string } // Models page; id = catalog display name
+  | { kind: 'model'; id: string; fromProvider?: string } // Models page (or Providers click-through); id = catalog display name
   | { kind: 'harness'; id: string } // Harnesses; id = harness slug
 
 /** Props every registered page component receives — the ONLY interface

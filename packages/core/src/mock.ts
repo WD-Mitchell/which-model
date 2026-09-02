@@ -4,6 +4,7 @@ import type { EngineHost } from './host.js'
 import type {
   BenchmarkDetail,
   CatalogModel,
+  CatalogModelDetail,
   Favourite,
   GroupDetail,
   GUISettings,
@@ -196,6 +197,12 @@ function seedHarnesses(): HarnessInfo[] {
     mkHarness('copilot', 'Copilot CLI', 'copilot --model {model_id}', true, ['copilot', 'cursor']),
     mkHarness('cursor', 'Cursor', 'cursor --model {model_id}', false, ['cursor']),
   ]
+}
+
+const MOCK_COSTS: Record<string, { input: number; output: number }> = {
+  'claude/claude-opus-5': { input: 15, output: 75 },
+  'codex/gpt-5.6-luna': { input: 2.5, output: 10 },
+  'codex/gpt-5.6-sol': { input: 1.25, output: 10 },
 }
 
 function seedProviders(): MockProvider[] {
@@ -720,6 +727,59 @@ export function createMockEngineHost(
             speed: a.speed,
             provider_count: a.providers.size,
           }))
+      },
+      async model(name: string): Promise<CatalogModelDetail> {
+        const rows = data.models.filter((m) => m.name === name)
+        if (rows.length === 0) throw notFound('model', name)
+        const top = [...rows].sort(
+          (a, b) =>
+            (EFFORT_ORDER as readonly string[]).indexOf(collapseReasoning(b.reasoning)) -
+            (EFFORT_ORDER as readonly string[]).indexOf(collapseReasoning(a.reasoning)),
+        )[0]!
+        const reasoning = [...new Set(rows.map((m) => m.reasoning))].sort((x, y) =>
+          reasoningLess(x, y) ? -1 : 1,
+        )
+        const enabled = new Set(data.providers.filter((p) => p.on).map((p) => p.id))
+        type Acc = { provider: string; model_id: string; reasoning: string[]; keys: string[] }
+        const groups = new Map<string, Acc>()
+        for (const m of rows) {
+          for (const provider of m.providers) {
+            if (!enabled.has(provider)) continue
+            const join = `${provider}|${m.id}`
+            let acc = groups.get(join)
+            if (acc === undefined) {
+              acc = { provider, model_id: m.id, reasoning: [], keys: [] }
+              groups.set(join, acc)
+            }
+            const level = collapseReasoning(m.reasoning)
+            if (!acc.reasoning.includes(level)) acc.reasoning.push(level)
+            const key = formatRouteKey(provider, m.id, level)
+            if (!acc.keys.includes(key)) acc.keys.push(key)
+          }
+        }
+        const providers = [...groups.values()]
+          .sort((a, b) => a.provider.localeCompare(b.provider) || a.model_id.localeCompare(b.model_id))
+          .map((a) => {
+            const cost = MOCK_COSTS[`${a.provider}/${a.model_id}`]
+            return {
+              provider: a.provider,
+              model_id: a.model_id,
+              reasoning: [...a.reasoning].sort((x, y) => (reasoningLess(x, y) ? -1 : 1)),
+              route_keys: [...a.keys].sort(),
+              input_cost_usd_per_m: cost === undefined ? null : cost.input,
+              output_cost_usd_per_m: cost === undefined ? null : cost.output,
+            }
+          })
+        return {
+          model_name: top.name,
+          model_id: top.id,
+          reasoning,
+          intelligence: top.core.intelligence,
+          cost: top.core.cost,
+          speed: top.core.speed,
+          provider_count: new Set(rows.flatMap((m) => m.providers)).size,
+          providers,
+        }
       },
       async groups() {
         return data.groups.map((g) => ({

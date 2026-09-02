@@ -36,3 +36,35 @@ func TestParseProvidersTreeShape(t *testing.T) {
 		t.Errorf("parseProviders =\n%+v\nwant\n%+v", got, want)
 	}
 }
+
+func TestParseProvidersTreeCost(t *testing.T) {
+	body := []byte(`{
+		"anthropic": {"id": "anthropic", "models": {
+			"claude-opus-5": {"id": "claude-opus-5", "name": "Claude Opus 5",
+				"cost": {"input": 15, "output": 75, "cache_read": 1.5}},
+			"claude-haiku-1": {"id": "claude-haiku-1", "name": "Claude Haiku 1"}
+		}}
+	}`)
+	got, err := parseProviders(body)
+	if err != nil {
+		t.Fatalf("parseProviders: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("len = %d, want 2", len(got))
+	}
+	byID := map[string]ProviderModel{}
+	for _, m := range got {
+		byID[m.ModelID] = m
+	}
+	opus := byID["claude-opus-5"]
+	if opus.InputCostUSDPerM == nil || *opus.InputCostUSDPerM != 15 {
+		t.Errorf("opus input = %v, want 15", opus.InputCostUSDPerM)
+	}
+	if opus.OutputCostUSDPerM == nil || *opus.OutputCostUSDPerM != 75 {
+		t.Errorf("opus output = %v, want 75", opus.OutputCostUSDPerM)
+	}
+	haiku := byID["claude-haiku-1"]
+	if haiku.InputCostUSDPerM != nil || haiku.OutputCostUSDPerM != nil {
+		t.Errorf("haiku costs = %v/%v, want nil (no listed price)", haiku.InputCostUSDPerM, haiku.OutputCostUSDPerM)
+	}
+}

@@ -3,6 +3,7 @@ import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import type {
   BenchmarkDetail,
   CatalogModel,
+  CatalogModelDetail,
   CatalogSummary,
   Favourite,
   GroupDetail,
@@ -149,6 +150,14 @@ export function useModelScoreDetail(
 
 export function useCatalogModels(): UseQueryResult<CatalogModel[]> {
   return useQuery({ queryKey: ['catalog-models'], queryFn: () => getHost().catalog.models() })
+}
+
+export function useCatalogModel(name: string): UseQueryResult<CatalogModelDetail> {
+  return useQuery({
+    queryKey: ['catalog-model', name],
+    queryFn: () => getHost().catalog.model(name),
+    enabled: Boolean(name),
+  })
 }
 
 export function useProviders(): UseQueryResult<ProviderInfo[]> {

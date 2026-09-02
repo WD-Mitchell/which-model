@@ -40,6 +40,7 @@ import { getHost } from '../../../lib/host'
 import { DetailHeader } from '../../DetailHeader'
 import { PAGE_META } from '../../pages'
 import type { Detail, PageComponentProps } from '../../pages'
+import { ModelCard } from '../Models/ModelCard'
 import styles from './ProvidersPage.module.css'
 
 // demo.dc.html 735 — the kicker doubles as the drag affordance's label.
@@ -127,6 +128,16 @@ export function ProvidersPage({ detail, openDetail, closeDetail }: PageComponent
         modelName={detail.modelName}
         reasoning={detail.reasoning}
         onBack={closeDetail}
+      />
+    )
+  }
+  if (detail?.kind === 'model') {
+    return (
+      <ModelCard
+        name={detail.id}
+        backLabel={detail.fromProvider ?? 'Providers'}
+        onBack={closeDetail}
+        openDetail={openDetail}
       />
     )
   }
@@ -560,8 +571,16 @@ function ProviderDetailView({
           // L765
           <div key={m.model_id} className={styles.model}>
             <span className={styles.modelMeta}>
-              <span className={styles.modelName}>{m.model_name}</span>
-              <span className={cx('mono', styles.modelId)}>{m.model_id}</span>
+              <button
+                type="button"
+                className={styles.modelIdentity}
+                onClick={() =>
+                  openDetail({ kind: 'model', id: m.model_name, fromProvider: id })
+                }
+              >
+                <span className={styles.modelName}>{m.model_name}</span>
+                <span className={cx('mono', styles.modelId)}>{m.model_id}</span>
+              </button>
               {levels.length > 0 ? (
                 <Button
                   variant="ghost"
@@ -878,7 +897,7 @@ function AccountsSection({
 
 type BenchSortKey = 'name' | 'value' | 'score'
 
-function ModelBenchmarksView({
+export function ModelBenchmarksView({
   provider,
   modelName,
   reasoning,

@@ -21,6 +21,7 @@ import (
 	"github.com/WD-Mitchell/which-model/internal/config"
 	wdecimal "github.com/WD-Mitchell/which-model/internal/decimal"
 	"github.com/WD-Mitchell/which-model/internal/pick"
+	"github.com/WD-Mitchell/which-model/internal/routing"
 )
 
 // benchmarkNote is the fallback description written into every
@@ -234,6 +235,109 @@ func (s *Services) catalogModelsLocked() []CatalogModel {
 		})
 	}
 	return out
+}
+
+// Model returns the catalog card for one scores-CSV display name: identity
+// plus every enabled provider that actually routes to it, with models.dev
+// input/output prices when the cache lists them (B05 SPEC §2.15).
+func (c *CatalogService) Model(ctx context.Context, name string) (CatalogModelDetail, error) {
+	_ = ctx
+	cleaned := identity.CleanModelName(name)
+	c.s.mu.RLock()
+	defer c.s.mu.RUnlock()
+	return c.s.catalogModelLocked(cleaned)
+}
+
+func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
+	list := s.catalogModelsLocked()
+	var base *CatalogModel
+	for i := range list {
+		if list[i].ModelName == name {
+			base = &list[i]
+			break
+		}
+	}
+	if base == nil {
+		return CatalogModelDetail{}, fmt.Errorf("%w: no model %q", errNotFound, name)
+	}
+	type acc struct {
+		provider, modelID string
+		reasoning         map[string]struct{}
+		keys              map[string]struct{}
+	}
+	byKey := map[string]*acc{}
+	for _, route := range s.routes.Routes {
+		if route.Model != base.ModelName {
+			continue
+		}
+		pcfg, ok := s.cfg.Providers[route.Provider]
+		if !ok || !pcfg.Enabled {
+			continue
+		}
+		join := route.Provider + "|" + route.ModelID
+		a := byKey[join]
+		if a == nil {
+			a = &acc{
+				provider:  route.Provider,
+				modelID:   route.ModelID,
+				reasoning: map[string]struct{}{},
+				keys:      map[string]struct{}{},
+			}
+			byKey[join] = a
+		}
+		level := identity.CollapseReasoning(route.Reasoning)
+		a.reasoning[level] = struct{}{}
+		if route.Provider != "" && route.ModelID != "" && level != "" {
+			a.keys[FormatRouteKey(route.Provider, route.ModelID, level)] = struct{}{}
+		}
+	}
+	type costPair struct{ in, out *float64 }
+	costs := map[string]costPair{}
+	if cached, ok := readModelsDevCache(modelsDevCachePath(s.paths.CacheDir)); ok {
+		for _, rec := range cached {
+			costs[rec.Provider+"|"+rec.ModelID] = costPair{rec.InputCostUSDPerM, rec.OutputCostUSDPerM}
+		}
+	}
+	joins := make([]string, 0, len(byKey))
+	for join := range byKey {
+		joins = append(joins, join)
+	}
+	sort.Strings(joins)
+	providers := make([]CatalogModelProvider, 0, len(joins))
+	for _, join := range joins {
+		a := byKey[join]
+		levels := make([]string, 0, len(a.reasoning))
+		for level := range a.reasoning {
+			levels = append(levels, level)
+		}
+		sort.SliceStable(levels, func(i, j int) bool {
+			return reasoningLess(levels[i], levels[j])
+		})
+		routeKeys := make([]string, 0, len(a.keys))
+		for rk := range a.keys {
+			routeKeys = append(routeKeys, rk)
+		}
+		sort.Strings(routeKeys)
+		pair := costs[routing.CatalogueSlugFor(a.provider)+"|"+a.modelID]
+		providers = append(providers, CatalogModelProvider{
+			Provider:          a.provider,
+			ModelID:           a.modelID,
+			Reasoning:         levels,
+			RouteKeys:         routeKeys,
+			InputCostUSDPerM:  pair.in,
+			OutputCostUSDPerM: pair.out,
+		})
+	}
+	return CatalogModelDetail{
+		ModelName:     base.ModelName,
+		ModelID:       base.ModelID,
+		Reasoning:     append([]string(nil), base.Reasoning...),
+		Intelligence:  base.Intelligence,
+		Cost:          base.Cost,
+		Speed:         base.Speed,
+		ProviderCount: base.ProviderCount,
+		Providers:     providers,
+	}, nil
 }
 
 func (s *Services) groupsForBenchmarkLocked(name string) []string {

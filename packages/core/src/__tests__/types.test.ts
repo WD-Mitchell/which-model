@@ -3,6 +3,7 @@ import type {
   BenchmarkDetail,
   BenchRow,
   CatalogModel,
+  CatalogModelDetail,
   CatalogSummary,
   ErrorDTO,
   Favourite,
@@ -171,6 +172,26 @@ const catalogModel: CatalogModel = {
   cost: 0,
   speed: 12,
   provider_count: 1,
+}
+
+const catalogModelDetail: CatalogModelDetail = {
+  model_name: 'Claude Opus 5',
+  model_id: 'claude-opus-5',
+  reasoning: ['max'],
+  intelligence: 100,
+  cost: 0,
+  speed: 12,
+  provider_count: 1,
+  providers: [
+    {
+      provider: 'claude',
+      model_id: 'claude-opus-5',
+      reasoning: ['max'],
+      route_keys: ['claude/claude-opus-5@max'],
+      input_cost_usd_per_m: 15,
+      output_cost_usd_per_m: 75,
+    },
+  ],
 }
 
 const favourite: Favourite = {

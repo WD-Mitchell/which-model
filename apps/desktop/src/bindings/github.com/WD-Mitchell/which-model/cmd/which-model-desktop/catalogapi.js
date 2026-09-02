@@ -33,6 +33,14 @@ export function ModelDetail(model, reasoning) {
 }
 
 /**
+ * @param {string} name
+ * @returns {$CancellablePromise<service$0.CatalogModelDetail>}
+ */
+export function Model(name) {
+    return $Call.ByName("main.CatalogAPI.Model", name);
+}
+
+/**
  * @returns {$CancellablePromise<service$0.CatalogModel[] | null>}
  */
 export function Models() {

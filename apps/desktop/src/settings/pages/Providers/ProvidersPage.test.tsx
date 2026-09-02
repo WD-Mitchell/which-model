@@ -223,4 +223,14 @@ describe('Providers page model levels and benchmarks', () => {
     expect(await screen.findByRole('heading', { name: /Claude Haiku 4.*\(low\)/ })).toBeDefined()
     expect(await screen.findByText('No benchmarks for this model and reasoning level yet.')).toBeDefined()
   })
+
+  it('opens shared model summary when model name is clicked', async () => {
+    await openProviderDetail(host, 'claude')
+    fireEvent.click(await screen.findByText('Claude Opus 5'))
+    expect(await screen.findByText('catalog scores')).toBeDefined()
+    expect(screen.getByText('enabled providers')).toBeDefined()
+    expect(screen.getByText('$15 in / $75 out per 1M')).toBeDefined()
+    fireEvent.click(screen.getByTitle('Back'))
+    expect(await screen.findByText('accounts')).toBeDefined()
+  })
 })

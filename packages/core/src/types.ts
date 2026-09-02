@@ -173,6 +173,28 @@ export interface CatalogModel {
   provider_count: number
 }
 
+/** One enabled provider that serves a catalog model. Costs are USD / 1M tokens. */
+export interface CatalogModelProvider {
+  provider: string
+  model_id: string
+  reasoning: string[]
+  route_keys: string[]
+  input_cost_usd_per_m: number | null
+  output_cost_usd_per_m: number | null
+}
+
+/** Model card: catalog identity plus enabled-provider rows. */
+export interface CatalogModelDetail {
+  model_name: string
+  model_id: string
+  reasoning: string[]
+  intelligence: number | null
+  cost: number | null
+  speed: number | null
+  provider_count: number
+  providers: CatalogModelProvider[]
+}
+
 export interface Favourite {
   route_key: string
   model_name: string

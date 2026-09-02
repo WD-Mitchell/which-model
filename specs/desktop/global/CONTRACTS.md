@@ -188,6 +188,30 @@ type CatalogModel struct {
     ProviderCount int      `json:"provider_count"`
 }
 
+// CatalogModelProvider is one enabled provider offering a catalog model, with
+// reasoning levels, route keys, and models.dev pricing when listed (B05 §2.15).
+type CatalogModelProvider struct {
+    Provider          string   `json:"provider"`
+    ModelID           string   `json:"model_id"`
+    Reasoning         []string `json:"reasoning"`
+    RouteKeys         []string `json:"route_keys"`
+    InputCostUSDPerM  *float64 `json:"input_cost_usd_per_m"`
+    OutputCostUSDPerM *float64 `json:"output_cost_usd_per_m"`
+}
+
+// CatalogModelDetail is the full model card: identity, reasoning, scores,
+// and the list of enabled providers serving it.
+type CatalogModelDetail struct {
+    ModelName     string                 `json:"model_name"`
+    ModelID       string                 `json:"model_id"`
+    Reasoning     []string               `json:"reasoning"`
+    Intelligence  *float64               `json:"intelligence"`
+    Cost          *float64               `json:"cost"`
+    Speed         *float64               `json:"speed"`
+    ProviderCount int                    `json:"provider_count"`
+    Providers     []CatalogModelProvider `json:"providers"`
+}
+
 type Favourite struct {
     RouteKey   string `json:"route_key"`
     ModelName  string `json:"model_name"`
@@ -280,6 +304,7 @@ export interface EngineHost {
     benchmarkDetail(name: string): Promise<BenchmarkDetail>
     modelDetail(model: string, reasoning: string): Promise<ModelScoreDetail>
     models(): Promise<CatalogModel[]>
+    model(name: string): Promise<CatalogModelDetail>
     groups(): Promise<GroupSummary[]>
     groupDetail(slug: string): Promise<GroupDetail>
     saveGroup(slug: string, benchmarks: string[], renameTo?: string): Promise<void>

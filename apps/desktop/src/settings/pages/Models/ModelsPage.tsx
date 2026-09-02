@@ -5,11 +5,12 @@
 // here carries its own 22px gutter and `.row` hover tints bleed edge to edge.
 import { useMemo, useState } from 'react'
 import { Button, EmptyState, Input, Tag, cx } from '@which-model/ui'
-import type { CatalogModel } from '@which-model/core'
 import { useCatalogModels } from '../../../lib/queries'
 import { DetailHeader } from '../../DetailHeader'
 import { PAGE_META } from '../../pages'
 import type { Detail, PageComponentProps } from '../../pages'
+import { ModelBenchmarksView } from '../Providers/ProvidersPage'
+import { ModelCard } from './ModelCard'
 import styles from './ModelsPage.module.css'
 
 const LIST_KICKER = 'catalog models'
@@ -17,9 +18,6 @@ const FILTER_PLACEHOLDER = 'filter models'
 const EMPTY_CATALOG = 'no models in the catalog'
 const EMPTY_FILTER = 'no models match'
 const LOAD_ERROR = "couldn't load models"
-const MISSING_DETAIL = "couldn't load this model"
-const NO_ID = 'no provider id yet'
-const DETAIL_KICKER = 'catalog scores'
 
 function formatScore(n: number | null | undefined): string {
   if (n == null) return '—'
@@ -44,11 +42,27 @@ function ChevronIcon() {
 }
 
 export function ModelsPage({ detail, openDetail, closeDetail }: PageComponentProps) {
-  return detail?.kind === 'model' ? (
-    <ModelSummaryView name={detail.id} onBack={closeDetail} />
-  ) : (
-    <ModelsListView openDetail={openDetail} />
-  )
+  if (detail?.kind === 'provider-model') {
+    return (
+      <ModelBenchmarksView
+        provider={detail.provider}
+        modelName={detail.modelName}
+        reasoning={detail.reasoning}
+        onBack={closeDetail}
+      />
+    )
+  }
+  if (detail?.kind === 'model') {
+    return (
+      <ModelCard
+        name={detail.id}
+        backLabel={detail.fromProvider ?? 'Models'}
+        onBack={closeDetail}
+        openDetail={openDetail}
+      />
+    )
+  }
+  return <ModelsListView openDetail={openDetail} />
 }
 
 function ModelsListView({ openDetail }: { openDetail(d: Detail): void }) {
@@ -128,64 +142,6 @@ function ModelsListView({ openDetail }: { openDetail(d: Detail): void }) {
       )}
       </>
       )}
-    </div>
-  )
-}
-
-function ModelSummaryView({ name, onBack }: { name: string; onBack(): void }) {
-  const { data, isPending } = useCatalogModels()
-  const model: CatalogModel | undefined = (data ?? []).find((m) => m.model_name === name)
-
-  if (isPending) {
-    return (
-      <div className={styles.page}>
-        <DetailHeader title={name} blurb="" backLabel="Models" onBack={onBack} />
-        <div className={styles.loading}>loading…</div>
-      </div>
-    )
-  }
-
-  if (!model) {
-    return (
-      <div className={styles.page}>
-        <DetailHeader title={name} blurb="" backLabel="Models" onBack={onBack} />
-        <div className={styles.empty}>
-          <EmptyState text={MISSING_DETAIL} />
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className={styles.page}>
-      <DetailHeader
-        title={model.model_name}
-        blurb={model.model_id || NO_ID}
-        backLabel="Models"
-        onBack={onBack}
-      />
-      <span className={cx('mono', styles.kicker)}>{DETAIL_KICKER}</span>
-      <div className={styles.detailReasoning}>
-        {(model.reasoning ?? []).map((level) => (
-          <Tag key={level} variant="neutral" size="chip">
-            {level}
-          </Tag>
-        ))}
-      </div>
-      <div className={styles.detailScores}>
-        <span className={styles.detailScore}>
-          <span className={cx('mono', styles.detailLabel)}>intel</span>
-          <span className={cx('mono', styles.detailValue)}>{formatScore(model.intelligence)}</span>
-        </span>
-        <span className={styles.detailScore}>
-          <span className={cx('mono', styles.detailLabel)}>cost</span>
-          <span className={cx('mono', styles.detailValue)}>{formatScore(model.cost)}</span>
-        </span>
-        <span className={styles.detailScore}>
-          <span className={cx('mono', styles.detailLabel)}>speed</span>
-          <span className={cx('mono', styles.detailValue)}>{formatScore(model.speed)}</span>
-        </span>
-      </div>
     </div>
   )
 }

@@ -80,12 +80,27 @@ describe('Models page', () => {
     await openModels()
     fireEvent.click(await screen.findByText('Claude Opus 5'))
     expect(await screen.findByText('catalog scores')).toBeDefined()
-    expect(screen.getByText('claude-opus-5')).toBeDefined()
+    expect(screen.getAllByText('claude-opus-5').length).toBeGreaterThan(0)
+    expect(screen.getByText('enabled providers')).toBeDefined()
+    expect(screen.getByText('$15 in / $75 out per 1M')).toBeDefined()
     fireEvent.click(screen.getByTitle('Back'))
     await waitFor(() => {
       expect(screen.getByPlaceholderText('filter models')).toBeDefined()
     })
     expect(screen.getByText('GPT-5.6 Luna')).toBeDefined()
+  })
+
+  it('drills into benchmark scores from a provider reasoning chip and returns', async () => {
+    renderApp(host)
+    await openModels()
+    fireEvent.click(await screen.findByText('Claude Opus 5'))
+    expect(await screen.findByText('enabled providers')).toBeDefined()
+    const chips = screen.getAllByText('max')
+    const providerChip = chips[chips.length - 1]!
+    fireEvent.click(providerChip)
+    expect(await screen.findByText('benchmarks')).toBeDefined()
+    fireEvent.click(screen.getByTitle('Back'))
+    expect(await screen.findByText('enabled providers')).toBeDefined()
   })
 })
 

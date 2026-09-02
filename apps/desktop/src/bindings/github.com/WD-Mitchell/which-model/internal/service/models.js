@@ -51,6 +51,30 @@
  */
 
 /**
+ * CatalogModelProvider is one enabled provider that serves a catalog model.
+ * @typedef {Object} CatalogModelProvider
+ * @property {string} provider
+ * @property {string} model_id
+ * @property {string[] | null} reasoning
+ * @property {string[] | null} route_keys
+ * @property {number | null} input_cost_usd_per_m
+ * @property {number | null} output_cost_usd_per_m
+ */
+
+/**
+ * CatalogModelDetail is the model card.
+ * @typedef {Object} CatalogModelDetail
+ * @property {string} model_name
+ * @property {string} model_id
+ * @property {string[] | null} reasoning
+ * @property {number | null} intelligence
+ * @property {number | null} cost
+ * @property {number | null} speed
+ * @property {number} provider_count
+ * @property {CatalogModelProvider[] | null} providers
+ */
+
+/**
  * CatalogSummary counts the live catalog.
  * @typedef {Object} CatalogSummary
  * @property {number} models - distinct (model, reasoning) rows in scores CSV

@@ -13,6 +13,7 @@ import (
 	sdecimal "github.com/shopspring/decimal"
 
 	"github.com/WD-Mitchell/which-model/internal/catalog"
+	"github.com/WD-Mitchell/which-model/internal/catalog/fetch/modelsdev"
 	"github.com/WD-Mitchell/which-model/internal/config"
 )
 
@@ -278,6 +279,102 @@ func TestCatalogModelsTopReasoningScores(t *testing.T) {
 	}
 	if got[0].Intelligence == nil || *got[0].Intelligence != 90 {
 		t.Errorf("intelligence = %v, want 90 (max row)", got[0].Intelligence)
+	}
+}
+
+func TestCatalogModelCard(t *testing.T) {
+	svc, _ := newTestServices(t, WithConfigTOML(`
+[providers.claude]
+enabled = true
+`))
+	in, out := 15.0, 75.0
+	seedModelsDevCache(t, svc, []modelsdev.ProviderModel{{
+		Provider:          "anthropic",
+		ModelID:           "claude-opus-5",
+		Name:              "Claude Opus 5",
+		InputCostUSDPerM:  &in,
+		OutputCostUSDPerM: &out,
+	}})
+
+	if _, err := svc.Catalog().Model(catCtx(), "No Such Model"); !errors.Is(err, errNotFound) {
+		t.Fatalf("unknown: %v, want errNotFound", err)
+	}
+
+	got, err := svc.Catalog().Model(catCtx(), "Claude Opus 5")
+	if err != nil {
+		t.Fatalf("Model: %v", err)
+	}
+	if got.ModelName != "Claude Opus 5" || got.ModelID != "claude-opus-5" {
+		t.Fatalf("identity = %s/%s", got.ModelName, got.ModelID)
+	}
+	if got.Intelligence == nil || *got.Intelligence != 100 {
+		t.Errorf("intelligence = %v, want 100", got.Intelligence)
+	}
+	if len(got.Providers) != 1 {
+		t.Fatalf("providers = %+v, want 1 (claude enabled)", got.Providers)
+	}
+	row := got.Providers[0]
+	if row.Provider != "claude" || row.ModelID != "claude-opus-5" {
+		t.Errorf("provider row = %+v", row)
+	}
+	if !reflect.DeepEqual(row.Reasoning, []string{"high", "max"}) {
+		t.Errorf("reasoning = %v, want [high max]", row.Reasoning)
+	}
+	if !reflect.DeepEqual(row.RouteKeys, []string{"claude/claude-opus-5@high", "claude/claude-opus-5@max"}) {
+		t.Errorf("route keys = %v", row.RouteKeys)
+	}
+	if row.InputCostUSDPerM == nil || *row.InputCostUSDPerM != 15 {
+		t.Errorf("input cost = %v, want 15", row.InputCostUSDPerM)
+	}
+	if row.OutputCostUSDPerM == nil || *row.OutputCostUSDPerM != 75 {
+		t.Errorf("output cost = %v, want 75", row.OutputCostUSDPerM)
+	}
+
+	sol, err := svc.Catalog().Model(catCtx(), "GPT-5.6 Sol")
+	if err != nil {
+		t.Fatalf("Sol: %v", err)
+	}
+	if len(sol.Providers) != 0 {
+		t.Errorf("Sol providers = %+v, want none (codex not enabled)", sol.Providers)
+	}
+}
+
+func TestCatalogModelCardNoListedPrice(t *testing.T) {
+	svc, _ := newTestServices(t, WithConfigTOML(`
+[providers.claude]
+enabled = true
+`))
+	seedModelsDevCache(t, svc, []modelsdev.ProviderModel{{
+		Provider: "anthropic",
+		ModelID:  "claude-opus-5",
+		Name:     "Claude Opus 5",
+	}})
+	got, err := svc.Catalog().Model(catCtx(), "Claude Opus 5")
+	if err != nil {
+		t.Fatalf("Model: %v", err)
+	}
+	if len(got.Providers) != 1 {
+		t.Fatalf("providers = %+v", got.Providers)
+	}
+	if got.Providers[0].InputCostUSDPerM != nil || got.Providers[0].OutputCostUSDPerM != nil {
+		t.Errorf("costs = %v/%v, want nil (no listed price)", got.Providers[0].InputCostUSDPerM, got.Providers[0].OutputCostUSDPerM)
+	}
+}
+
+func TestCatalogModelCardDisabledOmitted(t *testing.T) {
+	svc, _ := newTestServices(t)
+	in := 15.0
+	seedModelsDevCache(t, svc, []modelsdev.ProviderModel{{
+		Provider:         "anthropic",
+		ModelID:          "claude-opus-5",
+		InputCostUSDPerM: &in,
+	}})
+	got, err := svc.Catalog().Model(catCtx(), "Claude Opus 5")
+	if err != nil {
+		t.Fatalf("Model: %v", err)
+	}
+	if len(got.Providers) != 0 {
+		t.Errorf("providers = %+v, want empty when claude is not enabled", got.Providers)
 	}
 }
 

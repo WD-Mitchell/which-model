@@ -1,4 +1,4 @@
-import type { BenchmarkDetail, CatalogSummary, Favourite, GroupDetail, GroupSummary, GUISettings, HarnessInfo, LaunchResult, CatalogModel, ModelScoreDetail, ProfileDetail, ProfileSummary, ProviderAccount, ProviderDetail, ProviderInfo, RankRequest, RankResponse, ShellSnippets, UsageDTO } from './types.js';
+import type { BenchmarkDetail, CatalogSummary, Favourite, GroupDetail, GroupSummary, GUISettings, HarnessInfo, LaunchResult, CatalogModel, CatalogModelDetail, ModelScoreDetail, ProfileDetail, ProfileSummary, ProviderAccount, ProviderDetail, ProviderInfo, RankRequest, RankResponse, ShellSnippets, UsageDTO } from './types.js';
 import type { EngineEvent } from './events.js';
 export interface EngineHost {
     profiles: {
@@ -21,6 +21,8 @@ export interface EngineHost {
         modelDetail(model: string, reasoning: string): Promise<ModelScoreDetail>;
         /** Distinct catalog models (scores CSV), name ascending. */
         models(): Promise<CatalogModel[]>;
+        /** Model card: identity plus enabled providers and per-provider prices. */
+        model(name: string): Promise<CatalogModelDetail>;
         groups(): Promise<GroupSummary[]>;
         groupDetail(slug: string): Promise<GroupDetail>;
         saveGroup(slug: string, benchmarks: string[], renameTo?: string): Promise<void>;

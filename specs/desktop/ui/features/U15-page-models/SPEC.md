@@ -25,13 +25,18 @@ Depends on: U02 (Input, EmptyState, Tag), U07 (shell, `DetailHeader`, page regis
 
 5. **Empty.** Pending query → nothing below the header (no spinner chrome). Zero models after filter → `EmptyState` text `no models match` when the query is non-empty, else `no models in the catalog`.
 
-6. **Detail.** `detail.kind === 'model'` renders the summary for that catalog name (looked up in `['catalog-models']`). `DetailHeader`: back `Models`, title = `model_name`, blurb = `model_id` or `no provider id yet`. Body: kicker `catalog scores`, reasoning tags, a three-column intel/cost/speed readout using the same formatting as the list. Back (`closeDetail`) returns to the list.
+6. **Detail.** `detail.kind === 'model'` renders the shared `ModelCard` for that catalog name via query `['catalog-model', name]` (`host.catalog.model(name)`). `DetailHeader`: back label (`fromProvider` or `Models`), title = `model_name`, blurb = `model_id` or `no provider id yet`. Body:
+   - Kicker `catalog scores`, reasoning tags, three-column intel/cost/speed scores.
+   - Kicker `enabled providers`: rows for each enabled provider offering the model, with provider id, native model id, reasoning level chips, and pricing (`$X in / $Y out per 1M` or `no listed price`). Empty state: `no enabled providers offer this model`.
+   - Clicking a reasoning chip on a provider row opens `{ kind: 'provider-model', provider, modelName, reasoning }` to drill into benchmarks.
+   - Back (`closeDetail`) returns to the parent list (Models page list, or Provider detail when opened from Providers).
 
-7. **Loading/missing detail.** While the list query is pending, render `loading…` under the header. If the id is not in the list after load, keep the header (title = id) and show `couldn't load this model`.
+7. **Loading/missing detail.** While the model query is pending, render `loading…` under the header. If the query errors, show `couldn't load this model` with ghost `Retry`.
 
 ## 3. Error behaviour
 
 - `['catalog-models']` rejection → inline `couldn't load models` with ghost `Retry` calling `refetch`.
+- `['catalog-model', name]` rejection → inline `couldn't load this model` with ghost `Retry` calling `refetch`.
 - Navigation is client state and cannot fail.
 
 ## 4. Decisions
@@ -39,7 +44,7 @@ Depends on: U02 (Input, EmptyState, Tag), U07 (shell, `DetailHeader`, page regis
 | Decision | Value | Rationale |
 |---|---|---|
 | Catalog source | Scores CSV identities via `catalog.models()`, not the models.dev universe | Ranking already treats the scores file as the catalog; models.dev is huge and provider-scoped |
-| Detail payload | Reuse the list DTO (no extra round-trip) | Summary fields are already on `CatalogModel`; per-provider cost is a follow-up |
+| Detail payload | Dedicated `CatalogModelDetail` from `catalog.model(name)` | Provides reachable enabled providers and per-provider pricing from models.dev |
 | Filter | Client-side | The catalog is small enough to fetch once; keeps the host API a single list call |
 | Score display | Integer when whole, else one decimal; `—` for null | Scores CSV values are 0–100; mock fixtures may be 0–5 |
 | Identity | `Detail.id` is the cleaned catalog display name | Scores and routes join on `route.Model` / `ScoreRow.Model`, not provider-native ids |
@@ -47,5 +52,4 @@ Depends on: U02 (Input, EmptyState, Tag), U07 (shell, `DetailHeader`, page regis
 ## 5. Out of scope
 
 - Enabled-providers-only clipping — issue #102.
-- Per-provider price table and Providers-page click-through — issue #101.
 - Benchmarks-for-one-combo (`catalog.modelDetail`) — already U10's `provider-model` detail.

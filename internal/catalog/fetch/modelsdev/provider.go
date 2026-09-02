@@ -35,6 +35,10 @@ type ProviderModel struct {
 	// deduplicated. Levels that are not a subset of identity.ReasoningLevels
 	// are a hard error.
 	EffortLevels []string
+	// Input/output prices in USD per 1M tokens (models.dev `cost.input` /
+	// `cost.output`). Nil when the record has no listed price — never inferred.
+	InputCostUSDPerM  *float64
+	OutputCostUSDPerM *float64
 }
 
 // providerRecord mirrors one element of the models.dev providers array.
@@ -47,6 +51,7 @@ type providerRecord struct {
 	ReasoningOptions *struct {
 		Values []string `json:"values"`
 	} `json:"reasoning_options"`
+	Cost *modelsDevCost `json:"cost"`
 }
 
 // FetchModelsDevProvidersFrom fetches and maps the models.dev providers
@@ -96,11 +101,13 @@ func parseProviders(body []byte) ([]ProviderModel, error) {
 			continue
 		}
 		m := ProviderModel{
-			Provider:  rec.Provider,
-			ModelID:   rec.ID,
-			Name:      identity.CleanModelName(rec.Name),
-			Status:    rec.Status,
-			BaseModel: rec.BaseModel,
+			Provider:          rec.Provider,
+			ModelID:           rec.ID,
+			Name:              identity.CleanModelName(rec.Name),
+			Status:            rec.Status,
+			BaseModel:         rec.BaseModel,
+			InputCostUSDPerM:  cloneFloat(rec.Cost.input()),
+			OutputCostUSDPerM: cloneFloat(rec.Cost.output()),
 		}
 		if rec.ReasoningOptions != nil {
 			efforts, err := normalizeEfforts(rec.ReasoningOptions.Values)
@@ -127,6 +134,35 @@ type treeModel struct {
 		Type   string   `json:"type"`
 		Values []string `json:"values"`
 	} `json:"reasoning_options"`
+	Cost *modelsDevCost `json:"cost"`
+}
+
+// modelsDevCost is models.dev's `cost` object. Values are USD per 1M tokens.
+type modelsDevCost struct {
+	Input  *float64 `json:"input"`
+	Output *float64 `json:"output"`
+}
+
+func (c *modelsDevCost) input() *float64 {
+	if c == nil {
+		return nil
+	}
+	return c.Input
+}
+
+func (c *modelsDevCost) output() *float64 {
+	if c == nil {
+		return nil
+	}
+	return c.Output
+}
+
+func cloneFloat(p *float64) *float64 {
+	if p == nil {
+		return nil
+	}
+	v := *p
+	return &v
 }
 
 func parseProviderTree(body []byte) ([]ProviderModel, error) {
@@ -163,11 +199,13 @@ func parseProviderTree(body []byte) ([]ProviderModel, error) {
 				modelID = id
 			}
 			m := ProviderModel{
-				Provider:  slug,
-				ModelID:   modelID,
-				Name:      identity.CleanModelName(rec.Name),
-				Status:    rec.Status,
-				BaseModel: rec.Family,
+				Provider:          slug,
+				ModelID:           modelID,
+				Name:              identity.CleanModelName(rec.Name),
+				Status:            rec.Status,
+				BaseModel:         rec.Family,
+				InputCostUSDPerM:  cloneFloat(rec.Cost.input()),
+				OutputCostUSDPerM: cloneFloat(rec.Cost.output()),
 			}
 			var efforts []string
 			for _, opt := range rec.ReasoningOptions {
