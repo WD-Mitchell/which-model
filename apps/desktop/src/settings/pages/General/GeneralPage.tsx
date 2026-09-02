@@ -192,42 +192,70 @@ export function GeneralPage(_props: PageComponentProps) {
           />
         </div>
 
-        <span className={`mono ${styles.kicker} ${styles.kickerNext}`}>catalogue</span>
+        <span className={`mono ${styles.kicker} ${styles.kickerNext}`}>benchmarks</span>
 
         <div className={styles.row}>
           <span className={styles.labelBlock}>
-            <span className={styles.label}>Data source repo</span>
+            <span className={styles.label}>Data source</span>
             <span className={styles.note}>
-              Benchmarks are pulled from this GitHub repository. Default is the main which-model
-              repo.
+              Where benchmark data and pre-computed scores are obtained.
             </span>
           </span>
-          <Input
-            className={styles.catalogInput}
-            value={repoDraft ?? current.catalog_repo}
-            placeholder="WD-Mitchell/which-model"
-            onChange={setRepoDraft}
-            onBlur={() => {
-              const next = (repoDraft ?? current.catalog_repo).trim() || 'WD-Mitchell/which-model'
-              setRepoDraft(null)
-              if (next !== current.catalog_repo) set({ catalog_repo: next })
+          <select
+            className="wmsel"
+            aria-label="Data source"
+            value={
+              current.use_local_aa
+                ? 'local'
+                : current.catalog_repo && current.catalog_repo !== 'WD-Mitchell/which-model'
+                  ? 'self-hosted'
+                  : 'official'
+            }
+            onChange={(e) => {
+              const val = e.target.value
+              if (val === 'official') {
+                set({ use_local_aa: false, catalog_repo: 'WD-Mitchell/which-model' })
+              } else if (val === 'self-hosted') {
+                set({
+                  use_local_aa: false,
+                  catalog_repo:
+                    current.catalog_repo === 'WD-Mitchell/which-model'
+                      ? ''
+                      : current.catalog_repo,
+                })
+              } else if (val === 'local') {
+                set({ use_local_aa: true })
+              }
             }}
-          />
+          >
+            <option value="official">Official</option>
+            <option value="self-hosted">Self-Hosted</option>
+            <option value="local">Local Only</option>
+          </select>
         </div>
 
-        <div className={styles.row}>
-          <span className={styles.labelBlock}>
-            <span className={styles.label}>Collect locally</span>
-            <span className={styles.note}>
-              Optional. Use your own Artificial Analysis API key instead of the repo.
+        {!current.use_local_aa &&
+        current.catalog_repo !== 'WD-Mitchell/which-model' ? (
+          <div className={styles.row}>
+            <span className={styles.labelBlock}>
+              <span className={styles.label}>Self-hosted repo</span>
+              <span className={styles.note}>
+                GitHub repository to pull pre-computed benchmarks and scores from.
+              </span>
             </span>
-          </span>
-          <Toggle
-            on={current.use_local_aa}
-            onToggle={(on) => set({ use_local_aa: on })}
-            aria-label="Collect locally"
-          />
-        </div>
+            <Input
+              className={styles.catalogInput}
+              value={repoDraft ?? current.catalog_repo}
+              placeholder="owner/repo"
+              onChange={setRepoDraft}
+              onBlur={() => {
+                const next = (repoDraft ?? current.catalog_repo).trim() || 'WD-Mitchell/which-model'
+                setRepoDraft(null)
+                if (next !== current.catalog_repo) set({ catalog_repo: next })
+              }}
+            />
+          </div>
+        ) : null}
 
         {current.use_local_aa ? (
           <div className={styles.row}>

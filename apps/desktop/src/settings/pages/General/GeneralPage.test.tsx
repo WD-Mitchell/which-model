@@ -24,25 +24,34 @@ function renderApp(host: EngineHost) {
   )
 }
 
-describe('GeneralPage catalogue source', () => {
+describe('GeneralPage benchmarks data source', () => {
   let host: EngineHost
   beforeEach(() => {
     host = createMockEngineHost()
     resetHost(host)
   })
 
-  it('defaults the data source repo to the main which-model repository', async () => {
+  it('defaults the data source to Official (hiding custom repo and API key inputs)', async () => {
     renderApp(host)
-    const input = (await screen.findByPlaceholderText(
-      'WD-Mitchell/which-model',
-    )) as HTMLInputElement
-    expect(input.value).toBe('WD-Mitchell/which-model')
+    const select = (await screen.findByRole('combobox', { name: 'Data source' })) as HTMLSelectElement
+    expect(select.value).toBe('official')
+    expect(screen.queryByPlaceholderText('owner/repo')).toBeNull()
     expect(screen.queryByPlaceholderText('ARTIFICIAL_ANALYSIS_API')).toBeNull()
   })
 
-  it('shows the AA key field only when collect locally is on', async () => {
+  it('shows the self-hosted repo field when Self-Hosted is selected', async () => {
     renderApp(host)
-    fireEvent.click(await screen.findByRole('switch', { name: 'Collect locally' }))
+    const select = await screen.findByRole('combobox', { name: 'Data source' })
+    fireEvent.change(select, { target: { value: 'self-hosted' } })
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('owner/repo')).toBeDefined()
+    })
+  })
+
+  it('shows the AA key field when Local Only is selected', async () => {
+    renderApp(host)
+    const select = await screen.findByRole('combobox', { name: 'Data source' })
+    fireEvent.change(select, { target: { value: 'local' } })
     await waitFor(() => {
       expect(screen.getByPlaceholderText('ARTIFICIAL_ANALYSIS_API')).toBeDefined()
     })
