@@ -2,22 +2,33 @@ name: npm-release
 on:
   push:
     tags: ["v*"]
-  # Manual re-run path: dispatch this workflow with `--ref <tag>` so
-  # GITHUB_REF_NAME is the version tag, exactly as a tag push provides it.
-  # Needed because the release steps are idempotent by design (immutable
-  # release detection + `npm publish` skip) and a release must be
-  # re-drivable when a tag push event is lost or a downstream job fails.
+  # A manual run creates the requested tag only after tests and builds pass,
+  # then publishes the release in the same run. This avoids publishing an
+  # assetless draft merely to create its tag, which immutable releases lock.
   workflow_dispatch:
+    inputs:
+      version:
+        description: Release tag (for example, v2.4.1)
+        required: true
+        type: string
 permissions:
   contents: read
+env:
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
 concurrency:
-  group: npm-release-${{ github.ref }}
+  group: npm-release-${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
   cancel-in-progress: false
 jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - name: Validate release tag
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+            printf 'Invalid release tag: %s\n' "$RELEASE_TAG" >&2
+            exit 1
+          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
@@ -48,7 +59,7 @@ jobs:
           go-version-file: go.mod
           cache: true
       - name: Build release binaries
-        run: bash scripts/build-release.sh "${GITHUB_REF_NAME#v}"
+        run: bash scripts/build-release.sh "${RELEASE_TAG#v}"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-assets
@@ -62,6 +73,20 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Create release tag for manual run
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if git fetch origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}" 2>/dev/null; then
+            existing_commit="$(git rev-list -n 1 "$RELEASE_TAG")"
+            if [ "$existing_commit" != "$GITHUB_SHA" ]; then
+              printf 'Tag %s already points to %s, not %s\n' \
+                "$RELEASE_TAG" "$existing_commit" "$GITHUB_SHA" >&2
+              exit 1
+            fi
+          else
+            git tag "$RELEASE_TAG" "$GITHUB_SHA"
+            git push origin "refs/tags/$RELEASE_TAG"
+          fi
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: release-assets
@@ -70,9 +95,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          release_is_draft="$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft 2>/dev/null || true)"
+          release_is_draft="$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft 2>/dev/null || true)"
           if [ "$release_is_draft" = "false" ]; then
-            release_assets="$(gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name')"
+            release_assets="$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')"
             missing_assets=()
             for asset in dist/*; do
               asset_name="${asset##*/}"
@@ -82,23 +107,23 @@ jobs:
             done
             if [ "${#missing_assets[@]}" -ne 0 ]; then
               printf 'Release %s is immutable and missing assets: %s\n' \
-                "$GITHUB_REF_NAME" "${missing_assets[*]}" >&2
+                "$RELEASE_TAG" "${missing_assets[*]}" >&2
               printf 'Publish a new version tag; immutable release assets cannot be repaired.\n' >&2
               exit 1
             fi
-            echo "Release $GITHUB_REF_NAME is already published with all expected assets."
+            echo "Release $RELEASE_TAG is already published with all expected assets."
             exit 0
           fi
           if [ -z "$release_is_draft" ]; then
-            gh release create "$GITHUB_REF_NAME" --draft --generate-notes --verify-tag
+            gh release create "$RELEASE_TAG" --draft --generate-notes --verify-tag
           fi
-          gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          gh release upload "$RELEASE_TAG" dist/* --clobber
           # Prerelease tags (contain '-') get the prerelease flag and do NOT
           # become "Latest"; stable releases do.
-          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
-            gh release edit "$GITHUB_REF_NAME" --draft=false --prerelease --latest=false
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            gh release edit "$RELEASE_TAG" --draft=false --prerelease --latest=false
           else
-            gh release edit "$GITHUB_REF_NAME" --draft=false --latest
+            gh release edit "$RELEASE_TAG" --draft=false --latest
           fi
 
   publish:
@@ -135,7 +160,7 @@ jobs:
           cp dist/which-model-windows-x64.exe   npm/which-model-windows-x64/which-model.exe
           chmod +x npm/which-model-darwin-arm64/which-model npm/which-model-darwin-x64/which-model npm/which-model-linux-arm64/which-model npm/which-model-linux-x64/which-model
       - name: Stamp versions
-        run: node npm/scripts/sync-version.js "${GITHUB_REF_NAME#v}"
+        run: node npm/scripts/sync-version.js "${RELEASE_TAG#v}"
       - name: Publish (npm Trusted Publishing)
         run: |
           # OIDC-capable npm is required for tokenless publishing.

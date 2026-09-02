@@ -11,5 +11,6 @@ export interface SplitButtonProps {
     onPick: (key: string) => void;
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    disabled?: boolean;
 }
-export declare function SplitButton({ label, onMain, menuItems, onPick, open, onOpenChange, }: SplitButtonProps): React.JSX.Element;
+export declare function SplitButton({ label, onMain, menuItems, onPick, open, onOpenChange, disabled, }: SplitButtonProps): React.JSX.Element;
