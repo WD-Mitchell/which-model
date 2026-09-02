@@ -70,6 +70,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
+      actions: write
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -125,9 +126,17 @@ jobs:
           else
             gh release edit "$RELEASE_TAG" --draft=false --latest
           fi
+      # The Publish environment only admits v* tags. A manual branch run
+      # creates the release, then queues the idempotent npm phase at that tag.
+      - name: Continue npm publish from release tag
+        if: github.event_name == 'workflow_dispatch' && github.ref_type != 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run npm-release.yml --repo "$GITHUB_REPOSITORY" --ref "$RELEASE_TAG" -f version="$RELEASE_TAG"
 
   publish:
     needs: release
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: Publish
