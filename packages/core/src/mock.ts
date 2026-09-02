@@ -645,8 +645,8 @@ export function createMockEngineHost(
       async rank(req) {
         const profile = req.overrides ?? requireProfile(req.profile_slug)
         const holds = req.holds !== 0 ? req.holds : data.settings.holds
-        if (holds !== 3 && holds !== 5 && holds !== 10) {
-          throw new EngineError('validation_failed', `holds ${holds} must be 3, 5 or 10`)
+        if (holds !== 1 && holds !== 3 && holds !== 5) {
+          throw new EngineError('validation_failed', `holds ${holds} must be 1, 3 or 5`)
         }
         return clone(computeRank(profile, holds))
       },

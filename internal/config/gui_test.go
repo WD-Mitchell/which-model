@@ -183,7 +183,7 @@ func TestLoadValidationErrors(t *testing.T) {
 			name:    "U3 holds",
 			file:    "[gui]\nholds = 7\n",
 			load:    func(c *Config) error { _, err := c.LoadGUI(); return err },
-			wantErr: "config: invalid value for gui.holds: must be 3, 5 or 10",
+			wantErr: "config: invalid value for gui.holds: must be 1, 3 or 5",
 		},
 		{
 			name:    "U4 shortcut",
@@ -446,7 +446,7 @@ func TestSetLoadRoundTrip(t *testing.T) {
 		cfg := Default()
 		g := DefaultGUIConfig()
 		g.Layout = "list"
-		g.Holds = 10
+		g.Holds = 3
 		g.OnlyEnabledProviders = true
 		if err := cfg.SetGUI(g); err != nil {
 			t.Fatalf("SetGUI: %v", err)

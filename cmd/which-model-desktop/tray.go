@@ -24,12 +24,9 @@ import (
 
 // trayLabelProfile and trayLabelHolds pin the default landing profile the
 // label mirrors (S02 SPEC Decisions "Label profile": balanced_implementation).
-// Holds is 3, not the SPEC's 1, because service.effectiveHolds rejects
-// anything outside {3,5,10} (internal/service/pick.go:224) — 3 is the smallest
-// legal request and we only ever read Candidates[0].
 const (
 	trayLabelProfile = "balanced_implementation"
-	trayLabelHolds   = 3
+	trayLabelHolds   = 1
 )
 
 // trayLabelGap is a U+2009 THIN SPACE between the glyph and the label on the

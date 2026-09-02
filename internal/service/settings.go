@@ -149,8 +149,8 @@ func validateGUISettings(g GUISettings) error {
 	if g.WeightControl != "step" && g.WeightControl != "bar" && g.WeightControl != "slider" {
 		return fmt.Errorf("%w: gui: weight_control must be \"step\", \"bar\", or \"slider\", got %q", errValidation, g.WeightControl)
 	}
-	if g.Holds != 3 && g.Holds != 5 && g.Holds != 10 {
-		return fmt.Errorf("%w: gui: holds must be 3, 5, or 10, got %d", errValidation, g.Holds)
+	if g.Holds != 1 && g.Holds != 3 && g.Holds != 5 {
+		return fmt.Errorf("%w: gui: holds must be 1, 3, or 5, got %d", errValidation, g.Holds)
 	}
 	if g.Shortcut != "alt+space" && g.Shortcut != "ctrl+space" && g.Shortcut != "cmd+shift+m" {
 		return fmt.Errorf("%w: gui: shortcut must be \"alt+space\", \"ctrl+space\", or \"cmd+shift+m\", got %q", errValidation, g.Shortcut)
