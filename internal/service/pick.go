@@ -81,6 +81,11 @@ func (s *Services) Rank(ctx context.Context, req RankRequest) (RankResponse, err
 			Reasoning: ms.Reasoning,
 			Score:     round2(ms.Total),
 		}
+		if row, ok := s.scoreRow(ms.Model, ms.Reasoning); ok {
+			cand.Intelligence = tier1ScorePtr(row, pick.AxisIntelligence)
+			cand.Cost = tier1ScorePtr(row, pick.AxisCost)
+			cand.Speed = tier1ScorePtr(row, pick.AxisSpeed)
+		}
 		if route, ok := s.resolveRoute(ms.Model, ms.Reasoning); ok {
 			cand.Provider = route.Provider
 			cand.ModelID = route.ModelID
@@ -276,6 +281,15 @@ func (s *Services) resolveRoute(model, reasoning string) (routing.Route, bool) {
 		return matches[i].route.Provider < matches[j].route.Provider
 	})
 	return matches[0].route, true
+}
+
+func (s *Services) scoreRow(model, reasoning string) (catalog.ScoreRow, bool) {
+	for _, row := range s.scores {
+		if strings.EqualFold(row.Model, model) && strings.EqualFold(row.Reasoning, reasoning) {
+			return row, true
+		}
+	}
+	return catalog.ScoreRow{}, false
 }
 
 // routeEnabled reports whether a route is an availability member: its

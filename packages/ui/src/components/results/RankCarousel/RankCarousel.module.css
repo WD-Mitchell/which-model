@@ -64,3 +64,34 @@
   margin-top: 4px;
   color: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
+
+.ratings {
+  composes: mono;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 10px;
+  margin-top: 5px;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+
+.ratingItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.ratingLabel {
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+  text-transform: lowercase;
+}
+
+.ratingValue {
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.ratingDot {
+  color: color-mix(in srgb, var(--color-text) 30%, transparent);
+}

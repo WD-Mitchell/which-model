@@ -28,6 +28,9 @@ export interface RankedModel {
   reasoning: string
   score: number
   route_key: string
+  intelligence?: number | null
+  cost?: number | null
+  speed?: number | null
 }
 
 export interface RankResponse {

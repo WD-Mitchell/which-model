@@ -60,6 +60,8 @@ func fixtureRoutes() routing.Table {
 		},
 	}
 }
+func fptr(f float64) *float64 { return &f }
+
 
 // fixtureServices builds a Services with the B04 §5 fixture tree.
 func fixtureServices(t *testing.T, opts ...TestOption) (*Services, *emitRecorder) {
@@ -84,10 +86,10 @@ func TestPickRankGolden(t *testing.T) {
 	want := RankResponse{
 		Total: 4,
 		Candidates: []RankedModel{
-			{Rank: 1, ModelID: "beta-1", ModelName: "beta", Provider: "claude", Reasoning: "high", Score: 77.50, RouteKey: "claude/beta-1@high"},
-			{Rank: 2, ModelID: "alpha-1", ModelName: "alpha", Provider: "claude", Reasoning: "high", Score: 77.00, RouteKey: "claude/alpha-1@high"},
-			{Rank: 3, ModelID: "gamma-1", ModelName: "gamma", Provider: "codex", Reasoning: "medium", Score: 77.00, RouteKey: "codex/gamma-1@medium"},
-			{Rank: 4, ModelID: "alpha-1", ModelName: "alpha", Provider: "claude", Reasoning: "low", Score: 73.20, RouteKey: "claude/alpha-1@low"},
+			{Rank: 1, ModelID: "beta-1", ModelName: "beta", Provider: "claude", Reasoning: "high", Score: 77.50, RouteKey: "claude/beta-1@high", Intelligence: fptr(85), Cost: fptr(70), Speed: fptr(75)},
+			{Rank: 2, ModelID: "alpha-1", ModelName: "alpha", Provider: "claude", Reasoning: "high", Score: 77.00, RouteKey: "claude/alpha-1@high", Intelligence: fptr(90), Cost: fptr(60), Speed: fptr(70)},
+			{Rank: 3, ModelID: "gamma-1", ModelName: "gamma", Provider: "codex", Reasoning: "medium", Score: 77.00, RouteKey: "codex/gamma-1@medium", Intelligence: fptr(90), Cost: fptr(60), Speed: fptr(70)},
+			{Rank: 4, ModelID: "alpha-1", ModelName: "alpha", Provider: "claude", Reasoning: "low", Score: 73.20, RouteKey: "claude/alpha-1@low", Intelligence: fptr(70), Cost: fptr(90), Speed: fptr(90)},
 		},
 	}
 	if !reflect.DeepEqual(first, want) {

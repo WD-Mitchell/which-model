@@ -56,15 +56,17 @@ type RankRequest struct {
 
 // RankedModel is one ranked candidate.
 type RankedModel struct {
-	Rank      int     `json:"rank"` // 1-based
-	ModelID   string  `json:"model_id"`
-	ModelName string  `json:"model_name"`
-	Provider  string  `json:"provider"`
-	Reasoning string  `json:"reasoning"`
-	Score     float64 `json:"score"` // already rounded to 2dp
-	RouteKey  string  `json:"route_key"`
+	Rank         int      `json:"rank"` // 1-based
+	ModelID      string   `json:"model_id"`
+	ModelName    string   `json:"model_name"`
+	Provider     string   `json:"provider"`
+	Reasoning    string   `json:"reasoning"`
+	Score        float64  `json:"score"` // already rounded to 2dp
+	RouteKey     string   `json:"route_key"`
+	Intelligence *float64 `json:"intelligence,omitempty"`
+	Cost         *float64 `json:"cost,omitempty"`
+	Speed        *float64 `json:"speed,omitempty"`
 }
-
 // RankResponse is a ranked result set.
 type RankResponse struct {
 	Candidates []RankedModel `json:"candidates"` // top Holds, rank ascending

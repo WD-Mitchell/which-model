@@ -534,6 +534,9 @@ export function createMockEngineHost(
       reasoning: c.m.reasoning,
       score: c.score,
       route_key: formatRouteKey(c.provider, c.m.id, c.m.reasoning),
+      intelligence: c.m.core.intelligence,
+      cost: c.m.core.cost,
+      speed: c.m.core.speed,
     }))
     return { candidates, total }
   }
