@@ -12,10 +12,11 @@ project: which-model-desktop
 | File | Contents |
 |---|---|
 | `apps/desktop/src/settings/pages/Models/ModelsPage.tsx` | list + summary detail |
+| `apps/desktop/src/settings/pages/Models/listState.ts` | U15-owned Zustand store for the list controls (SPEC §2.3): state `{ query, selectedMakers, selectedProviders }`, actions `setQuery` / `toggleMaker` / `toggleProvider` / `clearFilters`, exported `MODELS_LIST_INITIAL` defaults. Session lifetime — never persisted to storage or config; pure state, no host imports (U06 `overrides.ts` pattern) |
 | `apps/desktop/src/settings/pages/Models/ModelsPage.module.css` | list/detail styles |
 | `apps/desktop/src/settings/pages/Models/ModelsPage.test.tsx` | §4 fixtures |
 
-Plus the `Models` registry line in U07 `pages.ts`. Imports: `Input`, `EmptyState`, `Tag`, `Button`, `cx` from `@which-model/ui`; `CatalogModel` from `@which-model/core`; `PageComponentProps` / `Detail` / `PAGE_META` / `DetailHeader` from U07. Query hook `useCatalogModels` lives in U05 `queries.ts`.
+Plus the `Models` registry line in U07 `pages.ts`. Imports: `Input`, `EmptyState`, `Tag`, `Button`, `cx` from `@which-model/ui`; `CatalogModel` from `@which-model/core`; `PageComponentProps` / `Detail` / `PAGE_META` / `DetailHeader` from U07; `zustand` in `listState.ts` only. Query hook `useCatalogModels` lives in U05 `queries.ts`.
 
 ## 2. Exports
 
