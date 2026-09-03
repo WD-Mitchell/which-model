@@ -35,6 +35,11 @@ import {
 import type { MenuItem } from '@which-model/ui'
 import type { ProviderAccount, ProviderDetail, ProviderInfo } from '@which-model/core'
 import { useModelScoreDetail, useProviderDetail, useProviders } from '../../../lib/queries'
+import {
+  useProvidersListStore,
+  type EnabledFilter,
+  type ProviderSort,
+} from '../../../lib/listState'
 import { getHost } from '../../../lib/host'
 import { DetailHeader } from '../../DetailHeader'
 import { PAGE_META } from '../../pages'
@@ -149,15 +154,6 @@ export function ProvidersPage({ detail, openDetail, closeDetail }: PageComponent
 // ——— provider list (mockup L734-755) —————————————————————————————————————
 
 type Backend = 'off' | 'native' | 'codexbar'
-type EnabledFilter = 'all' | 'enabled' | 'disabled'
-type ProviderSort =
-  | 'name-asc'
-  | 'name-desc'
-  | 'models-desc'
-  | 'models-asc'
-  | 'enabled-first'
-  | 'disabled-first'
-  | 'priority'
 
 function compareProviderIDs(left: ProviderInfo, right: ProviderInfo): number {
   return left.id < right.id ? -1 : left.id > right.id ? 1 : 0
@@ -187,9 +183,10 @@ function ProvidersListView({ openDetail }: { openDetail(d: Detail): void }) {
   const toast = useToast()
   const { data: providers } = useProviders()
   const list = providers ?? []
-  const [query, setQuery] = useState('')
-  const [enabledFilter, setEnabledFilter] = useState<EnabledFilter>('all')
-  const [sortMode, setSortMode] = useState<ProviderSort>('enabled-first')
+  // List controls live in the module-level store (lib/listState) so they
+  // survive the detail-view round-trip that unmounts this view (#142).
+  const { query, setQuery, enabledFilter, setEnabledFilter, sortMode, setSortMode } =
+    useProvidersListStore()
 
 
   // Usage backend — inherited from the removed Usage detection page.
