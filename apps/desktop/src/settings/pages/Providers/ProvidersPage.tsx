@@ -189,7 +189,7 @@ function ProvidersListView({ openDetail }: { openDetail(d: Detail): void }) {
   const list = providers ?? []
   const [query, setQuery] = useState('')
   const [enabledFilter, setEnabledFilter] = useState<EnabledFilter>('all')
-  const [sortMode, setSortMode] = useState<ProviderSort>('name-asc')
+  const [sortMode, setSortMode] = useState<ProviderSort>('enabled-first')
 
 
   // Usage backend — inherited from the removed Usage detection page.
