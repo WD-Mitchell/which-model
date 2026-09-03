@@ -20,6 +20,13 @@ checkout's three entry points must remain one source of truth.
   branch protection, or merge controls. A green check or successful external
   write is evidence, not approval.
 - This repo is implemented **spec-as-source**. The specs are the source of truth; `docs/plan/` is the design record they were distilled from.
+- A PR that intentionally changes behaviour MUST amend the governing spec in the
+  same PR: the feature's `SPEC.md` (and `CONTRACTS.md`, including any pinned
+  test rows) must describe the new behaviour before the PR can merge, with a
+  Deviations/correction note where the spec is superseded rather than corrected.
+  Never merge a PR whose spec contradicts the code it ships; if the spec itself
+  is wrong, say so in the PR and update it there, citing the decision that
+  redefines the intended behaviour.
 
 ## Start here
 
