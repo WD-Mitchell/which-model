@@ -143,6 +143,7 @@ Events: success ⇒ `catalog:changed` `{}`; derive-phase failure ⇒ `config:cha
 | `TestCatalogModelCardUnscoredProviderModel` | unscored provider model returns synthesized `CatalogModelDetail` with `InCatalog: false`, `Intelligence/Cost/Speed: nil`, enabled providers, and models.dev pricing; lookup by `ModelID` resolves |
 | `TestCatalogModelCardUnscoredDisabledProvider` | unscored model on disabled provider returns `InCatalog: false`, `ProviderCount: 0`, and empty providers |
 | `TestCatalogModelCardLookupByModelID` | scored model lookup by its model ID resolves with full scores and `InCatalog: true` |
+| `TestCatalogModelCardProviderIDResolvesScoredModel` | provider model ID whose name matches a scored model directly resolves to that scored model with `InCatalog: true` and full scores |
 | `TestBuiltinMutationRejected` | SaveGroup/DeleteGroup on a builtin slug → `builtin_readonly`; config untouched; zero events; DuplicateGroup on the same slug succeeds as `<slug>_copy` |
 | `TestDeriveFailurePersistsGroup` | raw CSV removed: SaveGroup → `io_error` naming the raw path; `[groups.<slug>]` persisted; catalog cache unchanged; `config:changed` emitted, no `catalog:changed` |
 
