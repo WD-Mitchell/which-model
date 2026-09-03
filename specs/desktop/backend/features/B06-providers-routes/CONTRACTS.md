@@ -82,8 +82,18 @@ func parseAntigravityModelList(output string) ([]routing.ModelEntry, error)
 
 - Cursor accepts `Available models`, skips `auto - ...` and `Tip:` lines, and parses every other non-empty line as `<model-id> - <display-name>`.
 - Antigravity skips `Fetching available models...` and parses every other non-empty line as `<model-id>\t<display-name>`.
-- Model ids match `^[A-Za-z0-9._-]+$` and must be unique. Any invalid row rejects the complete listing.
-- Effort comes from the terminal id suffix after optional `-fast`: `minimal`, `low`, `medium`, `high`, `xhigh`, `max`, `extra-high`→`xhigh`, `none`→`default`. Display names pass through `identity.CleanModelName`, then remove provider presentation suffixes (`Fast`, `Thinking`, the matched effort label, `1M`) and Cursor's redundant leading `Cursor `.
+- Model ids match `^[A-Za-z0-9._-]+$`. Duplicate identical raw rows or any row with invalid format or characters rejects the complete listing.
+- Each provider lists each model exactly once. Raw model lines representing variants of the same base model (such as reasoning effort levels, thinking mode, fast mode, and context-window variants) merge into a single `routing.ModelEntry` with deduplicated reasoning levels sorted in canonical ladder order (`identity.EffortOrder`).
+- Provider variant and effort normalization:
+  - Cursor:
+    - Suffix `-fast` denotes fast mode and is stripped.
+    - Suffix `-thinking` denotes thinking mode and is stripped from the base model ID.
+    - Suffix `-max` denotes maximum context window (e.g. `1M Max`), NOT a reasoning level. It is stripped from the base model ID and does not create a separate entry or appear as a reasoning level.
+    - Suffix effort levels: `-extra-high`→`xhigh`, `-xhigh`→`xhigh`, `-high`→`high`, `-medium`→`medium`, `-low`→`low`, `-minimal`→`minimal`, `-none`→`default`.
+    - Display names pass through `identity.CleanModelName`, then remove provider presentation suffixes (`Fast`, `Thinking`, `1M`, `Max`, `Maximum`, the matched effort label) and Cursor's redundant leading `Cursor `.
+    - When a model has no explicit reasoning suffix (e.g. `claude-fable-5-max`), its reasoning list is empty, allowing it to adopt catalog reasoning during route derivation.
+  - Antigravity:
+    - Effort comes from the terminal id suffix after optional `-fast`: `minimal`, `low`, `medium`, `high`, `xhigh`, `max`, `extra-high`→`xhigh`, `none`→`default`. Display names pass through `identity.CleanModelName`, then remove provider presentation suffixes (`Fast`, `Thinking`, the matched effort label).
 - Command failure, timeout, empty output, output beyond 1 MiB, malformed data, or an unsupported provider returns nil. No raw command output is returned, logged, or embedded in an error.
 
 ## 4. Config keys owned
@@ -147,7 +157,7 @@ Default fixture: routes table with providers `claude`,`codex` (≥2 models × �
 | `TestProvidersReorder_RejectsWrongSet` | golden messages §6 rows 1–3 in order (dup, unknown, missing); config untouched, zero events |
 | `TestProviderDetail_LevelsAndDefault` | Levels = table's levels only, ascending ladder order; Default on exactly the top rung; `"default"` reasoning collapses to `high` before comparison |
 | `TestProviderRoutes_DisabledArithmetic` | SetRouteEnabled off adds sorted+deduped entry; RoutesOn = RoutesTotal − matched entries; unmatched stale entry subtracts nothing and survives writes; SetAllRoutes(true) deletes the key; SetAllRoutes(false) writes the full sorted list. (Rank-side exclusion is B04's cross-feature test.) |
-| `TestParseCursorModelList`, `TestParseAntigravityModelList` | real CLI row formats become exact model ids, cleaned names, and reasoning levels |
+| `TestParseCursorModelList`, `TestParseAntigravityModelList` | real CLI row formats become exact model ids, cleaned names, and reasoning levels; Cursor model variants (-thinking, -fast, -max context window, reasoning suffixes) merge into single model entries with aggregated reasoning levels |
 | `TestProviderModelListRejectsMalformedOutput`, `TestProviderModelOutputCapsBytes`, `TestDiscoverLiveProviderModelsFailsClosed` | strict parsing, bounded output, and every command failure degrade to a nil provider-local live source |
 | `TestDiscoverLiveProviderModelsUsesProviderCommandsAndFallback` | fixed Cursor command and Antigravity primary/fallback order; parsed results use provider-live identities |
 | `TestRefreshRoutesDiscoversCursorAndAntigravityWithoutOpencodeAmbiguity`, `TestRefreshRoutesLiveDiscoveryFailureIsProviderLocal` | end-to-end service refresh adds scored Cursor/Antigravity detail models, explicit models.dev effort disambiguates OpenCode Kimi K3, and one missing live source does not suppress other providers |

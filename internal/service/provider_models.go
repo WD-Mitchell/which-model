@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os/exec"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -102,81 +103,218 @@ func (w *providerModelOutput) Write(data []byte) (int, error) {
 }
 
 func parseCursorModelList(output string) ([]routing.ModelEntry, error) {
-	return parseProviderModelLines(output, func(line string) (id, name string, skip bool, ok bool) {
-		switch {
-		case line == "Available models", strings.HasPrefix(line, "Tip:"):
-			return "", "", true, true
-		}
-		id, name, ok = strings.Cut(line, " - ")
-		if !ok {
-			return "", "", false, false
-		}
-		if strings.TrimSpace(id) == "auto" {
-			return "", "", true, true
-		}
-		return id, name, false, true
-	})
+	return parseProviderModelLines(
+		output,
+		parseCursorLine,
+		parseCursorModelEntry,
+	)
 }
 
 func parseAntigravityModelList(output string) ([]routing.ModelEntry, error) {
-	return parseProviderModelLines(output, func(line string) (id, name string, skip bool, ok bool) {
-		if line == "Fetching available models..." {
-			return "", "", true, true
+	return parseProviderModelLines(
+		output,
+		parseAntigravityLine,
+		parseAntigravityModelEntry,
+	)
+}
+
+func parseCursorLine(line string) (id, name string, skip bool, ok bool) {
+	switch {
+	case line == "Available models", strings.HasPrefix(line, "Tip:"):
+		return "", "", true, true
+	}
+	id, name, ok = strings.Cut(line, " - ")
+	if !ok {
+		return "", "", false, false
+	}
+	if strings.TrimSpace(id) == "auto" {
+		return "", "", true, true
+	}
+	return id, name, false, true
+}
+
+func parseAntigravityLine(line string) (id, name string, skip bool, ok bool) {
+	if line == "Fetching available models..." {
+		return "", "", true, true
+	}
+	id, name, ok = strings.Cut(line, "\t")
+	return id, name, false, ok
+}
+
+type providerModelAccumulator struct {
+	order      []string
+	models     map[string]*accumulatedProviderModel
+	seenRawIDs map[string]struct{}
+}
+
+type accumulatedProviderModel struct {
+	baseID     string
+	name       string
+	levels     []string
+	seenLevels map[string]struct{}
+}
+
+func newProviderModelAccumulator() *providerModelAccumulator {
+	return &providerModelAccumulator{
+		order:      make([]string, 0),
+		models:     make(map[string]*accumulatedProviderModel),
+		seenRawIDs: make(map[string]struct{}),
+	}
+}
+
+func (a *providerModelAccumulator) add(rawID, baseID, name, effort string) error {
+	if _, duplicate := a.seenRawIDs[rawID]; duplicate {
+		return errProviderModelOutput
+	}
+	a.seenRawIDs[rawID] = struct{}{}
+
+	m, exists := a.models[baseID]
+	if !exists {
+		m = &accumulatedProviderModel{
+			baseID:     baseID,
+			name:       name,
+			seenLevels: make(map[string]struct{}),
 		}
-		id, name, ok = strings.Cut(line, "\t")
-		return id, name, false, ok
-	})
+		a.models[baseID] = m
+		a.order = append(a.order, baseID)
+	} else if m.name == "" && name != "" {
+		m.name = name
+	}
+
+	if effort != "" {
+		if _, hasLevel := m.seenLevels[effort]; !hasLevel {
+			m.seenLevels[effort] = struct{}{}
+			m.levels = append(m.levels, effort)
+		}
+	}
+	return nil
+}
+
+func (a *providerModelAccumulator) entries() []routing.ModelEntry {
+	entries := make([]routing.ModelEntry, 0, len(a.order))
+	for _, baseID := range a.order {
+		m := a.models[baseID]
+		sort.SliceStable(m.levels, func(i, j int) bool {
+			return reasoningLess(m.levels[i], m.levels[j])
+		})
+		entry := routing.ModelEntry{
+			ModelID: m.baseID,
+			Name:    m.name,
+		}
+		if len(m.levels) > 0 {
+			entry.Reasoning = m.levels
+		}
+		entries = append(entries, entry)
+	}
+	return entries
 }
 
 func parseProviderModelLines(
 	output string,
 	parseLine func(string) (id, name string, skip bool, ok bool),
+	normalize func(rawID, rawName string) (baseID, cleanName, effort string, ok bool),
 ) ([]routing.ModelEntry, error) {
 	scanner := bufio.NewScanner(strings.NewReader(output))
-	models := make([]routing.ModelEntry, 0)
-	seen := make(map[string]struct{})
+	acc := newProviderModelAccumulator()
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
 			continue
 		}
-		id, name, skip, ok := parseLine(line)
+		rawID, rawName, skip, ok := parseLine(line)
 		if !ok {
 			return nil, errProviderModelOutput
 		}
 		if skip {
 			continue
 		}
-		entry, ok := providerModelEntry(strings.TrimSpace(id), strings.TrimSpace(name))
+		rawID = strings.TrimSpace(rawID)
+		rawName = strings.TrimSpace(rawName)
+		baseID, cleanName, effort, ok := normalize(rawID, rawName)
 		if !ok {
 			return nil, errProviderModelOutput
 		}
-		if _, duplicate := seen[entry.ModelID]; duplicate {
-			return nil, errProviderModelOutput
+		if err := acc.add(rawID, baseID, cleanName, effort); err != nil {
+			return nil, err
 		}
-		seen[entry.ModelID] = struct{}{}
-		models = append(models, entry)
 	}
-	if scanner.Err() != nil || len(models) == 0 {
+	if scanner.Err() != nil || len(acc.order) == 0 {
 		return nil, errProviderModelOutput
 	}
-	return models, nil
+	return acc.entries(), nil
 }
 
-func providerModelEntry(id, displayName string) (routing.ModelEntry, bool) {
-	if !providerModelIDPattern.MatchString(id) {
-		return routing.ModelEntry{}, false
+func parseCursorModelEntry(rawID, displayName string) (baseID, name, effort string, ok bool) {
+	if !providerModelIDPattern.MatchString(rawID) {
+		return "", "", "", false
 	}
-	level, hasLevel := providerModelEffort(id)
-	name := normalizeProviderModelName(id, displayName, level)
+	baseID, effort, ok = parseCursorModelID(rawID)
+	if !ok {
+		return "", "", "", false
+	}
+	name = normalizeProviderModelName(baseID, displayName, effort)
 	if name == "" {
-		return routing.ModelEntry{}, false
+		return "", "", "", false
 	}
-	entry := routing.ModelEntry{ModelID: id, Name: name}
-	if hasLevel {
-		entry.Reasoning = []string{level}
+	return baseID, name, effort, true
+}
+
+func parseCursorModelID(rawID string) (baseID, effort string, ok bool) {
+	lower := strings.ToLower(rawID)
+	id := strings.TrimSuffix(lower, "-fast")
+	id = strings.TrimSuffix(id, "-thinking")
+	if strings.HasSuffix(id, "-max") {
+		id = strings.TrimSuffix(id, "-max")
+		id = strings.TrimSuffix(id, "-thinking")
 	}
-	return entry, true
+
+	level := ""
+	if strings.HasSuffix(id, "-extra-high") {
+		level = "xhigh"
+		id = strings.TrimSuffix(id, "-extra-high")
+	} else {
+		for _, suffix := range []struct {
+			text  string
+			level string
+		}{
+			{"-minimal", "minimal"},
+			{"-low", "low"},
+			{"-medium", "medium"},
+			{"-high", "high"},
+			{"-xhigh", "xhigh"},
+			{"-none", "default"},
+		} {
+			if strings.HasSuffix(id, suffix.text) {
+				level = suffix.level
+				id = strings.TrimSuffix(id, suffix.text)
+				break
+			}
+		}
+	}
+
+	id = strings.TrimSuffix(id, "-thinking")
+	if strings.HasSuffix(id, "-max") {
+		id = strings.TrimSuffix(id, "-max")
+		id = strings.TrimSuffix(id, "-thinking")
+	}
+
+	if id == "" {
+		return "", "", false
+	}
+	baseID = rawID[:len(id)]
+	return baseID, level, true
+}
+
+func parseAntigravityModelEntry(id, displayName string) (baseID, name, effort string, ok bool) {
+	if !providerModelIDPattern.MatchString(id) {
+		return "", "", "", false
+	}
+	level, _ := providerModelEffort(id)
+	cleanName := normalizeProviderModelName(id, displayName, level)
+	if cleanName == "" {
+		return "", "", "", false
+	}
+	return id, cleanName, level, true
 }
 
 func providerModelEffort(id string) (string, bool) {
@@ -209,6 +347,9 @@ func normalizeProviderModelName(id, displayName, level string) string {
 		before := name
 		name = trimSuffixFold(name, " Fast")
 		name = trimSuffixFold(name, " Thinking")
+		name = trimSuffixFold(name, " Max")
+		name = trimSuffixFold(name, " Maximum")
+		name = trimSuffixFold(name, " 1M")
 		switch level {
 		case "minimal":
 			name = trimSuffixFold(name, " Minimal")
@@ -227,7 +368,6 @@ func normalizeProviderModelName(id, displayName, level string) string {
 		case "default":
 			name = trimSuffixFold(name, " None")
 		}
-		name = trimSuffixFold(name, " 1M")
 		if name == before {
 			break
 		}
