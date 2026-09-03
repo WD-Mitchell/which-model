@@ -144,6 +144,7 @@ Events: success ⇒ `catalog:changed` `{}`; derive-phase failure ⇒ `config:cha
 | `TestCatalogModelCardUnscoredDisabledProvider` | unscored model on disabled provider returns `InCatalog: false`, `ProviderCount: 0`, and empty providers |
 | `TestCatalogModelCardLookupByModelID` | scored model lookup by its model ID resolves with full scores and `InCatalog: true` |
 | `TestCatalogModelCardProviderIDResolvesScoredModel` | provider model ID whose name matches a scored model directly resolves to that scored model with `InCatalog: true` and full scores |
+| `TestCatalogModelCardDisabledLevelStillExposed` | a level disabled via `[routes.disabled]` remains in the provider row's `Reasoning` and `RouteKeys` (SPEC §2.15: exposure, not enablement, governs levels); provider-level enablement is still filtered |
 | `TestBuiltinMutationRejected` | SaveGroup/DeleteGroup on a builtin slug → `builtin_readonly`; config untouched; zero events; DuplicateGroup on the same slug succeeds as `<slug>_copy` |
 | `TestDeriveFailurePersistsGroup` | raw CSV removed: SaveGroup → `io_error` naming the raw path; `[groups.<slug>]` persisted; catalog cache unchanged; `config:changed` emitted, no `catalog:changed` |
 

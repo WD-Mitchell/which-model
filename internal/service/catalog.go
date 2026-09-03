@@ -635,23 +635,22 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 	}
 	type costPair struct{ in, out *float64 }
 	costs := map[string]costPair{}
-	if cached, ok := readModelsDevCache(modelsDevCachePath(s.paths.CacheDir)); ok {
-		for _, rec := range cached {
-			if rec.InputCostUSDPerM != nil || rec.OutputCostUSDPerM != nil {
-				pair := costPair{rec.InputCostUSDPerM, rec.OutputCostUSDPerM}
-				costs[rec.Provider+"|"+rec.ModelID] = pair
-				if rec.Name != "" {
-					costs[rec.Provider+"|"+identity.CleanModelName(rec.Name)] = pair
-				}
-				if _, exists := costs[rec.ModelID]; !exists {
-					costs[rec.ModelID] = pair
-				}
-				if rec.Name != "" {
-					cleanedName := identity.CleanModelName(rec.Name)
-					if _, exists := costs[cleanedName]; !exists {
-						costs[cleanedName] = pair
-					}
-				}
+	// Costs come from the same models.dev cache already loaded and indexed
+	// above; re-reading the file here would parse it a second time.
+	for _, rec := range devCatalogue {
+		if rec.InputCostUSDPerM == nil && rec.OutputCostUSDPerM == nil {
+			continue
+		}
+		pair := costPair{rec.InputCostUSDPerM, rec.OutputCostUSDPerM}
+		costs[rec.Provider+"|"+rec.ModelID] = pair
+		if _, exists := costs[rec.ModelID]; !exists {
+			costs[rec.ModelID] = pair
+		}
+		if rec.Name != "" {
+			cleanedName := identity.CleanModelName(rec.Name)
+			costs[rec.Provider+"|"+cleanedName] = pair
+			if _, exists := costs[cleanedName]; !exists {
+				costs[cleanedName] = pair
 			}
 		}
 	}

@@ -514,6 +514,37 @@ func TestCatalogModelCardProviderIDResolvesScoredModel(t *testing.T) {
 	}
 }
 
+// TestCatalogModelCardDisabledLevelStillExposed pins B05 SPEC §2.15: the model
+// card lists every effort level the provider EXPOSES, including levels switched
+// off under [routes.disabled]. The card is a navigation surface into per-combo
+// benchmarks and the Providers page owns the toggles, so a disabled level must
+// still be reachable here. Provider-level enablement IS filtered (§2.15) and is
+// covered by TestCatalogModelCardDisabledOmitted.
+func TestCatalogModelCardDisabledLevelStillExposed(t *testing.T) {
+	svc, _ := newTestServices(t, WithConfigTOML(`
+[providers.claude]
+enabled = true
+
+[routes.disabled]
+claude = ["claude-opus-5@max"]
+`))
+
+	got, err := svc.Catalog().Model(catCtx(), "Claude Opus 5")
+	if err != nil {
+		t.Fatalf("Model(Claude Opus 5): %v", err)
+	}
+	if len(got.Providers) != 1 {
+		t.Fatalf("providers = %+v, want 1 (claude enabled)", got.Providers)
+	}
+	row := got.Providers[0]
+	if !reflect.DeepEqual(row.Reasoning, []string{"high", "max"}) {
+		t.Errorf("reasoning = %v, want [high max] (max disabled but still exposed)", row.Reasoning)
+	}
+	if !stringInSlice(row.RouteKeys, "claude/claude-opus-5@max") {
+		t.Errorf("route keys = %v, want the disabled max combo still addressable", row.RouteKeys)
+	}
+}
+
 func TestCatalogGroupsList(t *testing.T) {
 	svc, _ := newTestServices(t)
 	got, err := svc.Catalog().Groups(catCtx())
