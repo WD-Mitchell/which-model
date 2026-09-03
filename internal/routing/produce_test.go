@@ -22,14 +22,14 @@ func TestProduceRoutes(t *testing.T) {
 	}
 
 	tests := []struct {
-		name string
+		name  string
 		input Input
 		check func(t *testing.T, result BuildResult, err error)
 	}{
 		{
 			name: "models dev route",
 			input: Input{
-				Providers: []ProviderInput{{Provider: "p", Kind: usage.KindSubscription, ModelsDev: []ModelEntry{entry("m1", "M1")}}},
+				Providers:   []ProviderInput{{Provider: "p", Kind: usage.KindSubscription, ModelsDev: []ModelEntry{entry("m1", "M1")}}},
 				CatalogRows: []identity.Identity{row("M1", "high")},
 			},
 			check: func(t *testing.T, result BuildResult, err error) {
@@ -45,7 +45,7 @@ func TestProduceRoutes(t *testing.T) {
 		{
 			name: "live upgrades models dev",
 			input: Input{
-				Providers: []ProviderInput{{Provider: "p", Kind: usage.KindSubscription, ModelsDev: []ModelEntry{entry("m1", "M1")}, LiveModels: []ModelEntry{entry("m1", "M1")}}},
+				Providers:   []ProviderInput{{Provider: "p", Kind: usage.KindSubscription, ModelsDev: []ModelEntry{entry("m1", "M1")}, LiveModels: []ModelEntry{entry("m1", "M1")}}},
 				CatalogRows: []identity.Identity{row("M1", "high")},
 			},
 			check: func(t *testing.T, result BuildResult, err error) {
@@ -79,7 +79,7 @@ func TestProduceRoutes(t *testing.T) {
 		{
 			name: "live only",
 			input: Input{
-				Providers: []ProviderInput{{Provider: "p", Kind: usage.KindSubscription, LiveModels: []ModelEntry{entry("m2", "M2")}}},
+				Providers:   []ProviderInput{{Provider: "p", Kind: usage.KindSubscription, LiveModels: []ModelEntry{entry("m2", "M2")}}},
 				CatalogRows: []identity.Identity{row("M2", "high")},
 			},
 			check: func(t *testing.T, result BuildResult, err error) {
@@ -94,7 +94,7 @@ func TestProduceRoutes(t *testing.T) {
 		{
 			name: "excluded auto model",
 			input: Input{
-				Providers: []ProviderInput{{Provider: "p", Kind: usage.KindSubscription, ExcludedModelIDs: []string{"m1"}, ModelsDev: []ModelEntry{entry("m1", "M1")}, LiveModels: []ModelEntry{entry("m1", "M1")}}},
+				Providers:   []ProviderInput{{Provider: "p", Kind: usage.KindSubscription, ExcludedModelIDs: []string{"m1"}, ModelsDev: []ModelEntry{entry("m1", "M1")}, LiveModels: []ModelEntry{entry("m1", "M1")}}},
 				CatalogRows: []identity.Identity{row("M1", "high")},
 			},
 			check: func(t *testing.T, result BuildResult, err error) {
@@ -106,7 +106,7 @@ func TestProduceRoutes(t *testing.T) {
 		{
 			name: "excluded model declared",
 			input: Input{
-				Providers: []ProviderInput{{Provider: "p", Kind: usage.KindSubscription, ExcludedModelIDs: []string{"m1"}, ModelsDev: []ModelEntry{entry("m1", "M1")}, UserDeclared: []UserDeclaredRoute{declared("p", "m1", "M1", "default")}}},
+				Providers:   []ProviderInput{{Provider: "p", Kind: usage.KindSubscription, ExcludedModelIDs: []string{"m1"}, ModelsDev: []ModelEntry{entry("m1", "M1")}, UserDeclared: []UserDeclaredRoute{declared("p", "m1", "M1", "default")}}},
 				CatalogRows: []identity.Identity{row("M1", "high")},
 			},
 			check: func(t *testing.T, result BuildResult, err error) {
@@ -118,7 +118,7 @@ func TestProduceRoutes(t *testing.T) {
 		{
 			name: "gateway declaration only",
 			input: Input{
-				Providers: []ProviderInput{{Provider: "p", Kind: usage.KindGateway, ModelsDev: []ModelEntry{entry("m1", "M1")}, UserDeclared: []UserDeclaredRoute{declared("p", "manual", "Manual", "default")}}},
+				Providers:   []ProviderInput{{Provider: "p", Kind: usage.KindGateway, ModelsDev: []ModelEntry{entry("m1", "M1")}, UserDeclared: []UserDeclaredRoute{declared("p", "manual", "Manual", "default")}}},
 				CatalogRows: []identity.Identity{row("M1", "high")},
 			},
 			check: func(t *testing.T, result BuildResult, err error) {
@@ -167,6 +167,75 @@ func TestProduceRoutes(t *testing.T) {
 			check: func(t *testing.T, result BuildResult, err error) {
 				if err != nil || len(result.Routes) != 0 || len(result.Unrouted) != 0 || len(result.Warnings) != 0 || result.Errors != nil {
 					t.Fatalf("ProduceRoutes = %#v, error %v", result, err)
+				}
+			},
+		},
+		{
+			name: "explicit effort selects its matching scored identity",
+			input: Input{
+				Providers: []ProviderInput{{
+					Provider: "opencode",
+					Kind:     usage.KindSubscription,
+					ModelsDev: []ModelEntry{{
+						ModelID:   "kimi-k3",
+						Name:      "Kimi K3",
+						Reasoning: []string{"max"},
+					}},
+				}},
+				CatalogRows: []identity.Identity{
+					row("Kimi K3", "low"),
+					row("Kimi K3", "max"),
+				},
+			},
+			check: func(t *testing.T, result BuildResult, err error) {
+				if err != nil {
+					t.Fatalf("ProduceRoutes error = %v", err)
+				}
+				want := []Route{{
+					Provider:   "opencode",
+					ModelID:    "kimi-k3",
+					Model:      "Kimi K3",
+					Reasoning:  "max",
+					WindowIDs:  []string{},
+					Provenance: ProvenanceModelsDev,
+				}}
+				if !reflect.DeepEqual(result.Routes, want) {
+					t.Fatalf("Routes = %#v, want %#v", result.Routes, want)
+				}
+				if result.Errors != nil {
+					t.Fatalf("Errors = %#v, want nil", result.Errors)
+				}
+			},
+		},
+		{
+			name: "effortless model adopts its sole scored identity",
+			input: Input{
+				Providers: []ProviderInput{{
+					Provider: "copilot",
+					Kind:     usage.KindSubscription,
+					ModelsDev: []ModelEntry{{
+						ModelID: "gpt-5.4-nano",
+						Name:    "GPT-5.4 nano",
+					}},
+				}},
+				CatalogRows: []identity.Identity{
+					row("GPT-5.4 nano", "xhigh"),
+				},
+			},
+			check: func(t *testing.T, result BuildResult, err error) {
+				if err != nil {
+					t.Fatalf("ProduceRoutes error = %v", err)
+				}
+				want := []Route{{
+					Provider:   "copilot",
+					ModelID:    "gpt-5.4-nano",
+					Model:      "GPT-5.4 nano",
+					Reasoning:  "xhigh",
+					WindowIDs:  []string{},
+					Provenance: ProvenanceModelsDev,
+				}}
+				if !reflect.DeepEqual(result.Routes, want) {
+					t.Fatalf("Routes = %#v, want %#v", result.Routes, want)
 				}
 			},
 		},

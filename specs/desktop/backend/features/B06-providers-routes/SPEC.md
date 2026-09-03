@@ -35,12 +35,15 @@ Depends on: B02. Inherits: D00, B00 (order/enabled/availability invariants §6.1
 
 10. **Events.** Every mutation emits exactly one `config:changed`: `SetEnabled`/`Reorder` with payload `{"section":"providers"}`; `SetRouteEnabled`/`SetAllRoutes` with `{"section":"routes"}`. Write mechanics follow B00 §2.2 verbatim.
 
+11. **Provider-native model refresh.** `RefreshRoutes` augments models.dev with credentialed local CLI discovery for enabled `cursor` and `antigravity` providers when usage is enabled. Cursor runs `cursor-agent --list-models`; Antigravity runs `agy models`, then falls back to `antigravity models`. Each successful listing becomes `routing.ProviderInput.LiveModels`, so scored models that have no models.dev provider slug can still appear in `Detail`. Discovery is fail-closed and provider-local: a missing executable, command failure, timeout, empty/oversized output, or malformed/duplicate row yields no live models for that provider and does not prevent other provider sources from rebuilding. Commands have a 15-second ceiling, stdout is capped at 1 MiB, and output is never included in errors or logs.
+
 ## 3. Error behaviour
 
 - Validation failures (`Reorder`) and unknown ids (`SetEnabled`, `Detail`, `SetRouteEnabled`, `SetAllRoutes` → `not_found`) are checked BEFORE any lock-write; a rejected call performs no write and emits no event (B00 §6.5).
 - Reorder validation follows the fixed order in CONTRACTS §6 so messages are golden-testable.
 - `List`/`Detail` never fail because usage is off or the cache is empty — usage fields degrade per §2.3/§2.4 (B00 §2.7).
 - Cache-file corruption is invisible: `OfflineRead` never errors; the fallback snapshot's `Failure` triggers the "no usable snapshot" path.
+- `RefreshRoutes` treats failed provider CLI discovery as that provider's unavailable live source; it continues with models.dev and every other provider. Routing ambiguity retains F18's provider-local hard-error semantics.
 
 ## 4. Decisions
 
@@ -54,6 +57,8 @@ Depends on: B02. Inherits: D00, B00 (order/enabled/availability invariants §6.1
 | Unrouted models in Detail | union the full models.dev catalogue; empty `EffortLevels` → single `default` | The detail view answers "what does this provider offer", not "what is benchmarked"; models.dev is the naming authority; no fetch, cache-only (§2.3 posture) |
 | Disabled-list hygiene | dedup + sort on every write; unmatched entries preserved but inert | Deterministic TOML diffs; a stale entry revives correctly when the route returns |
 | `SetAllRoutes(true)` | delete the key, not an empty array | Keeps config.toml minimal; absence = nothing disabled |
+| Provider-native discovery | Enabled Cursor: `cursor-agent --list-models`; enabled Antigravity: `agy models` then `antigravity models`; feed parsed rows through F18 `LiveModels` | Neither provider has a reliable same-named models.dev catalogue slug, while the installed authenticated CLI is authoritative for models the user can launch |
+| Discovery failure | Return no live source for only the failed provider; 15-second timeout, 1 MiB stdout cap, strict all-row parsing, no output in diagnostics | A broken or hostile executable must not block unrelated routes, exhaust memory, or leak provider output |
 
 ## 5. Out of scope
 

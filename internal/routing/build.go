@@ -28,18 +28,18 @@ type UserDeclaredRoute struct {
 
 type ProviderInput struct {
 	Provider         string
-	Kind             usage.Kind           // from the F11 descriptor
-	ModelsDev        []ModelEntry         // models.dev catalogue records (F08)
-	LiveModels       []ModelEntry         // live enumeration; nil = no credentialed enumeration exists for this provider
+	Kind             usage.Kind   // from the F11 descriptor
+	ModelsDev        []ModelEntry // models.dev catalogue records (F08)
+	LiveModels       []ModelEntry // live enumeration; nil = no credentialed enumeration exists for this provider
 	UserDeclared     []UserDeclaredRoute
-	ExcludedModelIDs []string             // providers.toml excluded_models
-	Windows          []usage.WindowSpec   // descriptor windows (F11) for BindWindowIDs
+	ExcludedModelIDs []string           // providers.toml excluded_models
+	Windows          []usage.WindowSpec // descriptor windows (F11) for BindWindowIDs
 }
 
 type Input struct {
 	Providers   []ProviderInput
-	CatalogRows []identity.Identity      // every scores-CSV identity (Model already cleaned, Reasoning already collapsed)
-	Degraded    bool                     // usage disabled at any level: live source skipped, one warning (SPEC §2.13)
+	CatalogRows []identity.Identity // every scores-CSV identity (Model already cleaned, Reasoning already collapsed)
+	Degraded    bool                // usage disabled at any level: live source skipped, one warning (SPEC §2.13)
 }
 
 // UnroutedModel is one provider-native model (or level) skipped because no
@@ -47,16 +47,16 @@ type Input struct {
 type UnroutedModel struct {
 	Provider  string
 	ModelID   string
-	Name      string     // cleaned catalog name
-	Reasoning string     // level that failed; "" when the whole model failed
-	Reason    string     // always "no_catalog_row"
+	Name      string // cleaned catalog name
+	Reasoning string // level that failed; "" when the whole model failed
+	Reason    string // always "no_catalog_row"
 }
 
 type BuildResult struct {
 	Routes   []Route
 	Unrouted []UnroutedModel
-	Warnings []string          // exact strings below
-	Errors   map[string]error  // provider id -> hard error; nil when no provider errored
+	Warnings []string         // exact strings below
+	Errors   map[string]error // provider id -> hard error; nil when no provider errored
 }
 
 // AmbiguityError is the fail-loud result of an unresolvable catalog match
@@ -64,7 +64,7 @@ type BuildResult struct {
 type AmbiguityError struct {
 	Provider   string
 	ModelID    string
-	Name       string               // cleaned catalog name that matched
+	Name       string // cleaned catalog name that matched
 	Candidates []identity.Identity
 }
 
@@ -130,6 +130,7 @@ func (e *AmbiguityError) Error() string {
 		strings.Join(candidates, ", "),
 	)
 }
+
 // ProduceRoutes derives the route table for every configured provider.
 func ProduceRoutes(in Input) (BuildResult, error) {
 	result := BuildResult{}
@@ -243,7 +244,11 @@ func ProduceRoutes(in Input) (BuildResult, error) {
 				))
 				continue
 			}
-			if !coversAllCandidates(levels, candidates) {
+			// Explicit effort levels disambiguate the identities the provider
+			// actually serves; score rows for other efforts are not candidates
+			// for that provider-native model. Effort-less entries retain the
+			// fail-loud all-candidates rule because the source cannot choose.
+			if len(source.entry.Reasoning) == 0 && !coversAllCandidates(levels, candidates) {
 				providerErr = &AmbiguityError{
 					Provider:   provider.Provider,
 					ModelID:    modelID,
@@ -268,7 +273,7 @@ func ProduceRoutes(in Input) (BuildResult, error) {
 					ModelID:   modelID,
 					Name:      clean,
 					Reasoning: level,
-					Reason:     "no_catalog_row",
+					Reason:    "no_catalog_row",
 				})
 				result.Warnings = append(result.Warnings, fmt.Sprintf(
 					"unrouted provider model %s/%s (%s, %s): no catalog row matches",

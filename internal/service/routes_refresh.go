@@ -57,7 +57,16 @@ func (p *ProviderService) RefreshRoutes(ctx context.Context) error {
 		return toErrorDTO(fmt.Errorf("refresh models: %w", err))
 	}
 	p.s.mu.RLock()
-	input := p.routeProductionInputLocked(catalogue)
+	liveProviderIDs := p.liveModelProviderIDsLocked()
+	p.s.mu.RUnlock()
+	liveModels := make(map[string][]routing.ModelEntry, len(liveProviderIDs))
+	for _, id := range liveProviderIDs {
+		if models := discoverLiveProviderModels(ctx, id); len(models) > 0 {
+			liveModels[id] = models
+		}
+	}
+	p.s.mu.RLock()
+	input := p.routeProductionInputLocked(catalogue, liveModels)
 	existing := p.s.routes
 	p.s.mu.RUnlock()
 
@@ -134,7 +143,7 @@ func writeModelsDevCache(path string, catalogue []modelsdev.ProviderModel) error
 	return os.WriteFile(path, data, 0o644)
 }
 
-func (p *ProviderService) routeProductionInputLocked(catalogue []modelsdev.ProviderModel) routing.Input {
+func (p *ProviderService) routeProductionInputLocked(catalogue []modelsdev.ProviderModel, liveModels map[string][]routing.ModelEntry) routing.Input {
 	bySlug := make(map[string][]routing.ModelEntry, len(catalogue))
 	for _, m := range catalogue {
 		bySlug[m.Provider] = append(bySlug[m.Provider], routing.ModelEntry{
@@ -161,10 +170,11 @@ func (p *ProviderService) routeProductionInputLocked(catalogue []modelsdev.Provi
 		known[id] = struct{}{}
 		slug := routing.CatalogueSlugFor(id)
 		input.Providers = append(input.Providers, routing.ProviderInput{
-			Provider:  id,
-			Kind:      desc.Kind,
-			Windows:   desc.Windows,
-			ModelsDev: bySlug[slug],
+			Provider:   id,
+			Kind:       desc.Kind,
+			Windows:    desc.Windows,
+			ModelsDev:  bySlug[slug],
+			LiveModels: liveModels[id],
 		})
 	}
 	if p.s.cfg != nil {
@@ -173,13 +183,14 @@ func (p *ProviderService) routeProductionInputLocked(catalogue []modelsdev.Provi
 				continue
 			}
 			entries := bySlug[routing.CatalogueSlugFor(id)]
-			if len(entries) == 0 {
+			if len(entries) == 0 && len(liveModels[id]) == 0 {
 				continue
 			}
 			input.Providers = append(input.Providers, routing.ProviderInput{
-				Provider:  id,
-				Kind:      usage.KindSubscription,
-				ModelsDev: entries,
+				Provider:   id,
+				Kind:       usage.KindSubscription,
+				ModelsDev:  entries,
+				LiveModels: liveModels[id],
 			})
 		}
 		enabled, _ := toggle.ResolveUsageEnabled(false, p.s.cfg)
@@ -202,4 +213,21 @@ func (p *ProviderService) routeProductionInputLocked(catalogue []modelsdev.Provi
 		})
 	}
 	return input
+}
+func (p *ProviderService) liveModelProviderIDsLocked() []string {
+	if p.s.cfg == nil {
+		return nil
+	}
+	enabled, _ := toggle.ResolveUsageEnabled(false, p.s.cfg)
+	if !enabled {
+		return nil
+	}
+	ids := make([]string, 0, 2)
+	for _, id := range []string{"antigravity", "cursor"} {
+		provider, ok := p.s.cfg.Providers[id]
+		if ok && provider.Enabled {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }

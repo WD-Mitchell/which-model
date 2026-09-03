@@ -13,3 +13,5 @@ var discoverBackendProviderIDs = func(backend config.UsageBackend) []string {
 	}
 	return codexbar.SupportedProviders()
 }
+
+var discoverLiveProviderModels = discoverLiveProviderModelsDefault

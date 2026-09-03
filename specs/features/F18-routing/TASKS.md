@@ -131,8 +131,8 @@ Algorithm, exactly:
 - `clean` = `identity.CleanModelName(entry.Name)`.
 - `candidates` = every row in `rows` (order preserved) whose `identity.CleanModelName(row.Model) == clean`.
 - For each level in `declared`, in order: `collapsed` = `identity.CollapseReasoning(level)`; find the first row whose cleaned Model equals `clean` AND `identity.CollapseReasoning(row.Reasoning) == collapsed`. Found -> append `joinedLevel{level, row}`; not found -> append the level to `unmatched`. Distinct levels may match the same row (e.g. declared `["default","high"]` both collapse to `high`); each yields its own `joinedLevel`.
-- Track which candidate indices were covered by at least one matched level. After all levels: ambiguity holds when `len(candidates) > 0` AND fewer than `len(candidates)` distinct candidates were covered. The `candidates` return value always holds EVERY matched identity (the ambiguity list), in catalog order.
-- The single-level default route for a non-reasoning model: `entry.Reasoning` empty -> `declared == ["default"]`, and `CollapseReasoning("default") == "high"` matches a catalog `"high"` row (SPEC §2.6).
+- The `candidates` return value always holds EVERY cleaned-name match in catalog order. `joinModel` does not decide whether that set is ambiguous; `ProduceRoutes` applies the source-capability rule in F18-T3. When `entry.Reasoning` is empty and exactly one candidate exists but `"default"` does not match its reasoning, append `joinedLevel{candidate.Reasoning, candidate}` and clear `unmatched`: the sole identity is deterministic.
+- The ordinary non-reasoning default route remains unchanged: `entry.Reasoning` empty uses `declared == ["default"]`, and `CollapseReasoning("default") == "high"` matches a catalog `"high"` row (SPEC §2.6).
 
 5. Implement the error text, exact format from `specs/features/F18-routing/CONTRACTS.md §3`:
 
@@ -152,12 +152,12 @@ Format: `ambiguous route for %s/%s: %s matches catalog identities [%s] that decl
 | 2 | `entry{Name:"Claude Opus 5 (2025-11-01)", Reasoning:nil}`, rows `[(Claude Opus 5, high)]` | same as case 1 (name cleaned by `CleanModelName`) |
 | 3 | `entry{Reasoning:[low,medium,high]}`, rows `(x,low),(x,medium),(x,high)` | levels in declaration order low, medium, high; candidates all three; unmatched `[]` |
 | 4 | `entry{Reasoning:[low,medium,high]}`, rows `(x,low),(x,high)` | levels low then high; unmatched `[medium]`; not ambiguous |
-| 5 | `entry{Reasoning:nil}`, rows `(x,low),(x,medium),(x,high)` | levels `[]`, candidates all three, unmatched `[]` (ambiguous: no declared level covers low/medium) |
-| 6 | `entry{Reasoning:[low,high]}`, rows `(x,low),(x,medium),(x,high)` | levels low, high; candidates all three (ambiguous: medium uncovered) |
-| 7 | `entry{Reasoning:["default"]}`, rows `[(x, high)]` | levels `[{default, (x, high)}]` (collapse `default`->`high`), candidates `[(x, high)]`, unmatched `[]` |
+| 5 | `entry{Reasoning:nil}`, rows `(x,low),(x,medium),(x,high)` | level `default` matched to high; candidates all three (F18-T3 classifies the effort-less multi-candidate result as ambiguous) |
+| 6 | `entry{Reasoning:[low,high]}`, rows `(x,low),(x,medium),(x,high)` | levels low, high; candidates all three; explicit efforts select those two identities and medium is outside provider capability |
+| 7 | `entry{Reasoning:["default"]}`, rows `[(x, high)]` | levels `[{default, (x, high)}]` (collapse `default`→`high`), candidates `[(x, high)]`, unmatched `[]` |
 | 8 | `entry{Reasoning:nil}`, rows `[]` | levels `[]`, candidates `[]`, unmatched `[default]` (absent) |
-| 9 | `entry{Reasoning:[low]}`, rows `[(x, medium)]` | levels `[]`, candidates `[(x, medium)]`, unmatched `[low]` (ambiguous) |
-| 10 | `entry{Reasoning:nil}`, rows `[(y, low), (x, high)]` with `y != x` | candidates `[(x, high)]` only; levels `[{default, (x, high)}]`; unmatched `[]` |
+| 9 | `entry{Reasoning:[low]}`, rows `[(x, medium)]` | levels `[]`, candidates `[(x, medium)]`, unmatched `[low]` (absent declared level, not ambiguity) |
+| 10 | `entry{Reasoning:nil}`, rows `[(y, low), (x, xhigh)]` with `y != x` | candidates `[(x, xhigh)]` only; levels `[{xhigh, (x, xhigh)}]`; unmatched `[]` |
 
 **Acceptance criteria:**
 - [ ] `go build ./internal/routing/...` succeeds
@@ -191,7 +191,7 @@ Follow this recipe exactly:
   - Pass 2 — derive: `providerErr := error(nil)`; `autoRoutes := []Route{}`; `providerUnrouted := []UnroutedModel{}`. For each `modelID` in `order`:
     - `levels, candidates, unmatched := joinModel(seen[modelID].entry, in.CatalogRows)`; `clean := identity.CleanModelName(seen[modelID].entry.Name)`.
     - `len(candidates) == 0` (absent, SPEC §2.7): append `UnroutedModel{Provider, modelID, clean, "", "no_catalog_row"}` and the warning `unrouted provider model <provider>/<modelID> (<clean>): no catalog row matches`; continue.
-    - ambiguous (fewer candidates covered than matched, per F18-T2 step 4): `providerErr = &AmbiguityError{Provider, modelID, clean, candidates}`; BREAK out of pass 2 (this provider's auto routes so far are discarded — SPEC §2.8).
+    - ambiguous: only when `entry.Reasoning` is empty and fewer same-name candidates are covered than matched; set `providerErr = &AmbiguityError{Provider, modelID, clean, candidates}` and BREAK out of pass 2 (this provider's auto routes so far are discarded — SPEC §2.8). Explicit declared efforts select their matching identities; undeclared score efforts are not provider candidates.
     - else: for each `joinedLevel` in `levels`: append `Route{Provider, modelID, clean, level, BindWindowIDs(provider.Windows, modelID, clean), seen[modelID].src}`.
     - for each level in `unmatched`: append `UnroutedModel{Provider, modelID, clean, level, "no_catalog_row"}` and the warning `unrouted provider model <provider>/<modelID> (<clean>, <level>): no catalog row matches`.
   - Pass 3 — user-declared (SPEC §2.3 precedence, §2.10): iterate `provider.UserDeclared` in order. `declaredSeen` = set of `(Provider, ModelID)`. Duplicate -> warning `duplicate user-declared route for <provider>/<modelID>; keeping first` and skip. Else: `windows := declared.WindowIDs`; when empty, `windows = BindWindowIDs(provider.Windows, declared.ModelID, declared.Model)`; append `Route{Provider, declared.ModelID, declared.Model, declared.Reasoning, windows, ProvenanceUserDeclared}` to `declaredRoutes`.
@@ -215,6 +215,8 @@ Follow this recipe exactly:
 | 9 | provider A (`ModelsDev [m1, m2]`), provider B (`ModelsDev [m3]`), all matched | route order: A's `m1`, `m2`, then B's `m3` |
 | 10 | `Input{}` (no providers, no rows) | empty result, nil error, nil `Errors` |
 | 11 | provider A ambiguous (its model `m2`'s cleaned name matches two catalog rows, no declared levels), provider B clean | error non-nil and an `*AmbiguityError` for A; `Errors` has A; A's auto routes absent; B's routes present; A's `UserDeclared` routes present |
+| 12 | provider `opencode` model `kimi-k3` declares `[max]`, catalog rows are `(Kimi K3, low)` and `(Kimi K3, max)` | one `max` route, nil error; the undeclared `low` score identity is not ambiguous |
+| 13 | effort-less model has exactly one same-name catalog row at `xhigh` | one route carrying `xhigh`, nil error |
 
 **Acceptance criteria:**
 - [ ] `go build ./internal/routing/...` succeeds
