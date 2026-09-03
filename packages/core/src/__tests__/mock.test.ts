@@ -124,6 +124,20 @@ describe('createMockEngineHost — EngineError codes', () => {
       'validation_failed',
     )
   })
+  it('catalog.model resolves case-insensitively for display name and model id', async () => {
+    const host = createMockEngineHost()
+    const byLowerName = await host.catalog.model('claude opus 5')
+    expect(byLowerName.model_name).toBe('Claude Opus 5')
+    expect(byLowerName.in_catalog).toBe(true)
+
+    const byUpperID = await host.catalog.model('CLAUDE-OPUS-5')
+    expect(byUpperID.model_name).toBe('Claude Opus 5')
+    expect(byUpperID.in_catalog).toBe(true)
+
+    const unscoredLower = await host.catalog.model('claude haiku 4')
+    expect(unscoredLower.model_name).toBe('Claude Haiku 4')
+    expect(unscoredLower.in_catalog).toBe(false)
+  })
 })
 
 describe('createMockEngineHost — event firing', () => {

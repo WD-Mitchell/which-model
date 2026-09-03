@@ -15,8 +15,12 @@ const EMPTY_PROVIDERS = 'no enabled providers offer this model'
 const NO_PRICE = 'no listed price'
 function isNotFoundError(err: unknown): boolean {
   if (!err || typeof err !== 'object') return false
-  if ('code' in err && err.code === 'not_found') return true
-  if ('message' in err && typeof err.message === 'string' && err.message.includes('not found')) return true
+  if ('code' in err && typeof err.code === 'string') {
+    return err.code === 'not_found'
+  }
+  if ('message' in err && typeof err.message === 'string') {
+    return err.message.toLowerCase().includes('not found')
+  }
   return false
 }
 function formatScore(n: number | null | undefined): string {

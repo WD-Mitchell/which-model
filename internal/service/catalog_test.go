@@ -490,6 +490,29 @@ func TestCatalogModelCardLookupByModelID(t *testing.T) {
 		t.Errorf("intelligence = %v, want 100", got.Intelligence)
 	}
 }
+func TestCatalogModelCardProviderIDResolvesScoredModel(t *testing.T) {
+	svc, _ := newTestServices(t)
+	seedModelsDevCache(t, svc, []modelsdev.ProviderModel{{
+		Provider:     "copilot",
+		ModelID:      "custom-opus",
+		Name:         "Claude Opus 5",
+		EffortLevels: []string{"high"},
+	}})
+
+	got, err := svc.Catalog().Model(catCtx(), "custom-opus")
+	if err != nil {
+		t.Fatalf("Model(custom-opus): %v", err)
+	}
+	if got.ModelName != "Claude Opus 5" {
+		t.Errorf("ModelName = %q, want Claude Opus 5", got.ModelName)
+	}
+	if !got.InCatalog {
+		t.Errorf("InCatalog = false, want true for scored model resolved via provider ID")
+	}
+	if got.Intelligence == nil || *got.Intelligence != 100 {
+		t.Errorf("intelligence = %v, want 100", got.Intelligence)
+	}
+}
 
 func TestCatalogGroupsList(t *testing.T) {
 	svc, _ := newTestServices(t)

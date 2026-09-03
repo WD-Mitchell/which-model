@@ -379,13 +379,58 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 		}
 	}
 
+	devCatalogue := loadModelsDevCatalogue(s.paths.CacheDir)
+	providerIDs := s.providerUniverseFromCatalogueLocked(devCatalogue)
+	devBySlug := make(map[string]map[string]modelsDevEntry)
+	for _, m := range devCatalogue {
+		byModel := devBySlug[m.Provider]
+		if byModel == nil {
+			byModel = make(map[string]modelsDevEntry)
+			devBySlug[m.Provider] = byModel
+		}
+		devByModelLevels := append([]string(nil), m.EffortLevels...)
+		byModel[m.ModelID] = modelsDevEntry{name: m.Name, levels: devByModelLevels}
+	}
+	// 4b. Try matching name against models.dev catalogue entries that map to a scored model.
+	if base == nil {
+		for _, m := range devCatalogue {
+			if strings.EqualFold(m.ModelID, name) || strings.EqualFold(m.Name, name) || strings.EqualFold(identity.CleanModelName(m.Name), name) {
+				for i := range list {
+					if strings.EqualFold(list[i].ModelName, m.Name) || strings.EqualFold(identity.CleanModelName(list[i].ModelName), m.Name) {
+						base = &list[i]
+						break
+					}
+				}
+				if base != nil {
+					break
+				}
+			}
+		}
+	}
+
 	// 5. Try matching name against provider models that map to a catalog model.
 	if base == nil {
-		for _, pID := range s.providerUniverseLocked() {
-			for _, pm := range s.Providers().providerModelsLocked(pID) {
+		for _, pID := range providerIDs {
+			cat := devBySlug[routing.CatalogueSlugFor(pID)]
+			if cat == nil {
+				cat = devBySlug[pID]
+			}
+			pmList := s.Providers().providerModelsFromMapLocked(pID, cat)
+			for _, pm := range pmList {
 				if strings.EqualFold(pm.ModelName, name) || strings.EqualFold(identity.CleanModelName(pm.ModelName), name) || (pm.ModelID != "" && strings.EqualFold(pm.ModelID, name)) {
+					// Directly match pm.ModelName against scored list
+					for i := range list {
+						if strings.EqualFold(list[i].ModelName, pm.ModelName) || strings.EqualFold(identity.CleanModelName(list[i].ModelName), pm.ModelName) {
+							base = &list[i]
+							break
+						}
+					}
+					if base != nil {
+						break
+					}
+					// Check routes scoped to this provider
 					for _, route := range s.routes.Routes {
-						if strings.EqualFold(route.ModelID, pm.ModelID) || strings.EqualFold(route.Model, pm.ModelName) {
+						if route.Provider == pID && (strings.EqualFold(route.ModelID, pm.ModelID) || strings.EqualFold(route.Model, pm.ModelName)) {
 							for i := range list {
 								if strings.EqualFold(list[i].ModelName, route.Model) {
 									base = &list[i]
@@ -416,8 +461,13 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 			foundIDs  []string
 			reasonSet = make(map[string]struct{})
 		)
-		for _, pID := range s.providerUniverseLocked() {
-			for _, pm := range s.Providers().providerModelsLocked(pID) {
+		for _, pID := range providerIDs {
+			cat := devBySlug[routing.CatalogueSlugFor(pID)]
+			if cat == nil {
+				cat = devBySlug[pID]
+			}
+			pmList := s.Providers().providerModelsFromMapLocked(pID, cat)
+			for _, pm := range pmList {
 				if strings.EqualFold(pm.ModelName, name) || strings.EqualFold(identity.CleanModelName(pm.ModelName), name) || (pm.ModelID != "" && strings.EqualFold(pm.ModelID, name)) {
 					if foundName == "" {
 						foundName = pm.ModelName
@@ -450,7 +500,7 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 				}
 			}
 		}
-		for _, m := range loadModelsDevCatalogue(s.paths.CacheDir) {
+		for _, m := range devCatalogue {
 			if strings.EqualFold(m.Name, name) || strings.EqualFold(identity.CleanModelName(m.Name), name) || (m.ModelID != "" && strings.EqualFold(m.ModelID, name)) {
 				if foundName == "" {
 					foundName = m.Name
@@ -509,12 +559,17 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 	byKey := map[string]*acc{}
 
 	// 1. Scan enabled providers for all models and reasoning levels they offer matching this model.
-	for _, pID := range s.providerUniverseLocked() {
+	for _, pID := range providerIDs {
 		pcfg, ok := s.cfg.Providers[pID]
 		if !ok || !pcfg.Enabled {
 			continue
 		}
-		for _, pm := range s.Providers().providerModelsLocked(pID) {
+		cat := devBySlug[routing.CatalogueSlugFor(pID)]
+		if cat == nil {
+			cat = devBySlug[pID]
+		}
+		pmList := s.Providers().providerModelsFromMapLocked(pID, cat)
+		for _, pm := range pmList {
 			cleaned := identity.CleanModelName(pm.ModelName)
 			match := strings.EqualFold(cleaned, base.ModelName) ||
 				strings.EqualFold(pm.ModelName, base.ModelName) ||

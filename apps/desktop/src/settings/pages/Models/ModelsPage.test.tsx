@@ -263,6 +263,28 @@ describe('Models page', () => {
     expect(screen.getByText('Retry')).toBeDefined()
   })
 
+  it('renders error state with Retry for structured io_error with "not found" message', async () => {
+    const client = makeClient()
+    const failHost = createMockEngineHost()
+    failHost.catalog.model = () => Promise.reject({ code: 'io_error', message: 'catalog file not found' })
+    resetHost(failHost)
+    render(
+      <QueryClientProvider client={client}>
+        <ToastProvider>
+          <ModelCard
+            name="Claude Opus 5"
+            backLabel="Models"
+            onBack={() => {}}
+            openDetail={() => {}}
+          />
+        </ToastProvider>
+      </QueryClientProvider>,
+    )
+    expect(await screen.findByText("couldn't load this model")).toBeDefined()
+    expect(screen.getByText('Retry')).toBeDefined()
+    expect(screen.queryByText('not yet in catalog')).toBeNull()
+  })
+
   it('opens unscored provider model profile from Providers page detail', async () => {
     renderApp(host)
     await screen.findByText('which-model — Settings')

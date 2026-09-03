@@ -48,7 +48,7 @@ No other frontmatter keys are used.
 | `generic` (default) | `<repo>/.agents/skills/<name>/` | not allowed (exit 2) |
 | `claude` | `<repo>/.claude/skills/<name>/` | `~/.claude/skills/<name>/` |
 
-Each install writes `SKILL.md` and `agents/openai.yaml` under that directory. Repo root = nearest ancestor of cwd containing `.git/`, or `--repo <path>`.
+Each install writes `SKILL.md` and `agents/openai.yaml` under that directory. Repo root = nearest ancestor of cwd containing `.git/` (directory or worktree file), or `--repo <path>`.
 
 ## 2. `internal/schema` (new package)
 
@@ -122,7 +122,7 @@ const (
 var Names = []string{"model-selection", "provider-usage", "usage-aware-dispatch"}
 
 // RepoRoot walks upward from cwd to the nearest ancestor containing ".git"
-// (or returns repoDir from --repo). Error when neither exists.
+// (directory or git worktree file, or returns repoDir from --repo). Error when neither exists.
 func RepoRoot() (string, error)
 
 // Install copies skills/<name>/SKILL.md and skills/<name>/agents/openai.yaml

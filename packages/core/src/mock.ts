@@ -779,7 +779,8 @@ export function createMockEngineHost(
         return list
       },
       async model(name: string): Promise<CatalogModelDetail> {
-        const rows = data.models.filter((m) => m.name === name || m.id === name)
+        const eq = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: 'accent' }) === 0
+        const rows = data.models.filter((m) => eq(m.name, name) || eq(m.id, name))
         const enabledProviders = data.providers.filter((p) => p.on)
         type Acc = { provider: string; model_id: string; reasoning: Set<string>; keys: Set<string> }
         const groups = new Map<string, Acc>()
@@ -789,59 +790,67 @@ export function createMockEngineHost(
           const matchingProviderModels: { provider: string; model: ProviderModel }[] = []
           for (const p of data.providers) {
             for (const pm of providerModels(p.id)) {
-              if (pm.model_name === name || pm.model_id === name) {
+              if (eq(pm.model_name, name) || eq(pm.model_id, name)) {
+                const scoredMatch = data.models.filter((m) => eq(m.name, pm.model_name))
+                if (scoredMatch.length > 0) {
+                  rows.push(...scoredMatch)
+                  break
+                }
                 matchingProviderModels.push({ provider: p.id, model: pm })
                 for (const level of pm.levels) {
                   allReasoning.add(collapseReasoning(level.reasoning))
                 }
               }
             }
+            if (rows.length > 0) break
           }
-          if (matchingProviderModels.length === 0) {
+          if (rows.length === 0 && matchingProviderModels.length === 0) {
             throw notFound('model', name)
           }
-          for (const p of enabledProviders) {
-            for (const pm of providerModels(p.id)) {
-              if (pm.model_name === name || pm.model_id === name) {
-                const join = `${p.id}|${pm.model_id}`
-                let acc = groups.get(join)
-                if (acc === undefined) {
-                  acc = { provider: p.id, model_id: pm.model_id, reasoning: new Set(), keys: new Set() }
-                  groups.set(join, acc)
-                }
-                for (const level of pm.levels) {
-                  const collapsed = collapseReasoning(level.reasoning)
-                  acc.reasoning.add(collapsed)
-                  allReasoning.add(collapsed)
-                  acc.keys.add(formatRouteKey(p.id, pm.model_id, collapsed))
+          if (rows.length === 0) {
+            for (const p of enabledProviders) {
+              for (const pm of providerModels(p.id)) {
+                if (eq(pm.model_name, name) || eq(pm.model_id, name)) {
+                  const join = `${p.id}|${pm.model_id}`
+                  let acc = groups.get(join)
+                  if (acc === undefined) {
+                    acc = { provider: p.id, model_id: pm.model_id, reasoning: new Set(), keys: new Set() }
+                    groups.set(join, acc)
+                  }
+                  for (const level of pm.levels) {
+                    const collapsed = collapseReasoning(level.reasoning)
+                    acc.reasoning.add(collapsed)
+                    allReasoning.add(collapsed)
+                    acc.keys.add(formatRouteKey(p.id, pm.model_id, collapsed))
+                  }
                 }
               }
             }
-          }
-          const providers = [...groups.values()]
-            .sort((a, b) => a.provider.localeCompare(b.provider) || a.model_id.localeCompare(b.model_id))
-            .map((a) => {
-              const cost = MOCK_COSTS[`${a.provider}/${a.model_id}`]
-              return {
-                provider: a.provider,
-                model_id: a.model_id,
-                reasoning: [...a.reasoning].sort((x, y) => (reasoningLess(x, y) ? -1 : 1)),
-                route_keys: [...a.keys].sort(),
-                input_cost_usd_per_m: cost === undefined ? null : cost.input,
-                output_cost_usd_per_m: cost === undefined ? null : cost.output,
-              }
-            })
-          const first = matchingProviderModels[0]!.model
-          return {
-            model_name: first.model_name,
-            model_id: first.model_id,
-            reasoning: [...allReasoning].sort((x, y) => (reasoningLess(x, y) ? -1 : 1)),
-            intelligence: null,
-            cost: null,
-            speed: null,
-            provider_count: new Set(providers.map((pr) => pr.provider)).size,
-            in_catalog: false,
-            providers,
+            const providers = [...groups.values()]
+              .sort((a, b) => a.provider.localeCompare(b.provider) || a.model_id.localeCompare(b.model_id))
+              .map((a) => {
+                const cost = MOCK_COSTS[`${a.provider}/${a.model_id}`]
+                return {
+                  provider: a.provider,
+                  model_id: a.model_id,
+                  reasoning: [...a.reasoning].sort((x, y) => (reasoningLess(x, y) ? -1 : 1)),
+                  route_keys: [...a.keys].sort(),
+                  input_cost_usd_per_m: cost === undefined ? null : cost.input,
+                  output_cost_usd_per_m: cost === undefined ? null : cost.output,
+                }
+              })
+            const first = matchingProviderModels[0]!.model
+            return {
+              model_name: first.model_name,
+              model_id: first.model_id,
+              reasoning: [...allReasoning].sort((x, y) => (reasoningLess(x, y) ? -1 : 1)),
+              intelligence: null,
+              cost: null,
+              speed: null,
+              provider_count: new Set(providers.map((pr) => pr.provider)).size,
+              in_catalog: false,
+              providers,
+            }
           }
         }
 
@@ -855,7 +864,7 @@ export function createMockEngineHost(
         )[0]!
         for (const p of enabledProviders) {
           for (const pm of providerModels(p.id)) {
-            if (pm.model_name === name || pm.model_id === top.id) {
+            if (eq(pm.model_name, top.name) || eq(pm.model_id, top.id)) {
               const join = `${p.id}|${pm.model_id}`
               let acc = groups.get(join)
               if (acc === undefined) {

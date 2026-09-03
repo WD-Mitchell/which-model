@@ -394,6 +394,10 @@ func addReasoningLevel(model *modelData, reasoning string) {
 // every reasoning level the provider currently exposes. Caller holds RLock
 // or Lock.
 func (p *ProviderService) providerModelsLocked(id string) []ProviderModel {
+	return p.providerModelsFromMapLocked(id, p.modelsDevCatalogueLocked(id))
+}
+
+func (p *ProviderService) providerModelsFromMapLocked(id string, devCatalogue map[string]modelsDevEntry) []ProviderModel {
 	disabled := p.s.disabledRouteSetLocked(id)
 	models := make(map[string]*modelData)
 	for _, route := range p.s.routes.Routes {
@@ -409,7 +413,7 @@ func (p *ProviderService) providerModelsLocked(id string) []ProviderModel {
 		}
 		addReasoningLevel(model, route.Reasoning)
 	}
-	for modelID, entry := range p.modelsDevCatalogueLocked(id) {
+	for modelID, entry := range devCatalogue {
 		model := models[modelID]
 		if model == nil {
 			model = &modelData{name: entry.name}
