@@ -6,7 +6,7 @@
 
 ## How this fits together
 
-<!-- Required: describe the real runtime/data flow. Do not list changed files. Replace the placeholder graph with grounded nodes and edges. Prefer a taller-than-wide layout: no horizontal row may contain more than four boxes, and three is preferred. -->
+<!-- Required: describe the real runtime/data flow. Do not list changed files. Replace the placeholder graph with grounded nodes and edges. Avoid bloat: omit nodes and edges that do not change a reader's understanding of the flow. Prefer a taller-than-wide layout: no horizontal row may contain more than four boxes, and three is preferred. -->
 ```mermaid
 flowchart TD
   source[Real input or trigger]

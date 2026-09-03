@@ -68,11 +68,12 @@ For code, model inputs, decisions, components, and outputs. For documentation,
 model the information flow—source or trigger, documentation decision or
 transformation, reader/consumer, and resulting outcome. For specifications,
 model the requirement/contract flow into the behavior it governs. Every required
-Mermaid diagram MUST prefer a taller-than-wide layout: no horizontal row may
-contain more than four boxes, and three is preferred. Never draw a file
-inventory, use speculative nodes, or retain an obsolete graph. Every edge
-endpoint must be declared, and the fence must begin with `flowchart` or `graph`
-plus a direction.
+Mermaid diagram MUST omit nodes and edges that do not change a reader's
+understanding of the real flow. It MUST prefer a taller-than-wide layout: no
+horizontal row may contain more than four boxes, and three is preferred. Never
+draw a file inventory, use speculative nodes, or retain an obsolete graph. Every
+edge endpoint must be declared, and the fence must begin with `flowchart` or
+`graph` plus a direction.
 
 The repository provides separate templates for code, documentation,
 specification, and maintenance PRs. Select the closest template; do not use a

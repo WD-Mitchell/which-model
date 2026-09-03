@@ -6,7 +6,7 @@
 
 ## How this fits together
 
-<!-- Required: show how requirements/contracts flow into governed behavior. Do not list changed files. Prefer a taller-than-wide layout: no horizontal row may contain more than four boxes, and three is preferred. -->
+<!-- Required: show how requirements/contracts flow into governed behavior. Do not list changed files. Avoid bloat: omit nodes and edges that do not change a reader's understanding of the flow. Prefer a taller-than-wide layout: no horizontal row may contain more than four boxes, and three is preferred. -->
 ```mermaid
 flowchart TD
   request[Approved product outcome]

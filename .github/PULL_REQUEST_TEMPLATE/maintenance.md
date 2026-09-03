@@ -6,7 +6,7 @@
 
 ## How this fits together
 
-<!-- If execution, data, or documentation flow changes, include a grounded Mermaid diagram. Prefer a taller-than-wide layout: no horizontal row may contain more than four boxes, and three is preferred. For a purely mechanical change, explain why a graph adds no truthful information. -->
+<!-- If execution, data, or documentation flow changes, include a grounded Mermaid diagram. Avoid bloat: omit nodes and edges that do not change a reader's understanding of the flow. Prefer a taller-than-wide layout: no horizontal row may contain more than four boxes, and three is preferred. For a purely mechanical change, explain why a graph adds no truthful information. -->
 
 ## Affected behaviour
 

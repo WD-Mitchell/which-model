@@ -6,7 +6,7 @@
 
 ## How this fits together
 
-<!-- Required: show the information flow, not a list of changed files. Replace the placeholder graph with the real source, editorial decision, reader, and outcome. Prefer a taller-than-wide layout: no horizontal row may contain more than four boxes, and three is preferred. -->
+<!-- Required: show the information flow, not a list of changed files. Replace the placeholder graph with the real source, editorial decision, reader, and outcome. Avoid bloat: omit nodes and edges that do not change a reader's understanding of the flow. Prefer a taller-than-wide layout: no horizontal row may contain more than four boxes, and three is preferred. -->
 ```mermaid
 flowchart TD
   source[Real source or trigger]
