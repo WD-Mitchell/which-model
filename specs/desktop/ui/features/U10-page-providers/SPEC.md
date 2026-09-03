@@ -51,7 +51,7 @@ Depends on: U02 (Toggle, Button, DragList, useToast), U07 (settings shell, `Deta
 | Per-model label rule | `anyOn ⇒ Disable all` else `Enable all` | mockup `allLabel` line 1154 |
 | No optimistic updates | Mutate → event-driven invalidation | U00 SPEC §2.7 owns invalidation; avoids double bookkeeping |
 | Order number | Render `ProviderInfo.priority` in every view | filtered and derived sorts retain the provider's true fallback position |
-| Default sort | `enabled-first`, id ascending within each group | Enabled providers are the active backends — the page's primary answer; alphabetical remains one select away. Supersedes the mockup-era A–Z default (issue #140); view state also survives detail navigation per the deviation note below |
+| Default sort | `enabled-first`, id ascending within each group | Enabled providers are the active backends — the page's primary answer; alphabetical remains one select away. Supersedes the mockup-era A–Z default (issue #140) |
 | Spec sync | Spec text amended in the same PR as its intentional behaviour change | Spec-as-source requires the spec to describe shipped behaviour, never trail it (issue #140) |
 | Sort ties | Provider id ascending | deterministic results for equal model counts or enabled state |
 | Drag availability | Full-universe priority view only | `providers.reorder` rejects subsets; static views avoid misleading handles |
