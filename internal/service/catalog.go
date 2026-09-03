@@ -558,28 +558,16 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 	}
 	byKey := map[string]*acc{}
 
-	// Provider-native model ids are provider-scoped, so a bare id match can
-	// otherwise join two unrelated models that share a generic id such as
-	// "default". Reject an id-only match whose display name is itself a
-	// DIFFERENT catalog identity; that name is authoritative and proves the
-	// two entries are distinct models. Name variants that are not separate
-	// catalog identities still join, which is the case the id clause exists
-	// for (provider display names normalising differently from the CSV).
-	scoredNames := make(map[string]struct{}, len(list))
-	for i := range list {
-		scoredNames[strings.ToLower(list[i].ModelName)] = struct{}{}
-	}
-	baseLower := strings.ToLower(base.ModelName)
-	namesOtherIdentity := func(candidate string) bool {
-		lower := strings.ToLower(candidate)
-		if lower == baseLower {
-			return false
-		}
-		_, ok := scoredNames[lower]
-		return ok
-	}
-
-	// 1. Scan enabled providers for all models and reasoning levels they offer matching this model.
+	// Provider-native model ids are provider-scoped (route keys encode
+	// provider/model@effort), so a bare id match can join two unrelated models
+	// that share a generic id such as "default". The id clause exists only to
+	// catch entries whose DISPLAY NAME normalises differently from the catalog
+	// while being the same model on the same provider. Aggregation therefore
+	// runs in two passes: pass 1 matches by name and records which providers
+	// genuinely serve this model; pass 2 admits id-only matches solely from
+	// those providers. A global name heuristic cannot work here — two UNSCORED
+	// models sharing an id have no catalog identity to distinguish them.
+	enabledPMs := make(map[string][]ProviderModel, len(providerIDs))
 	for _, pID := range providerIDs {
 		pcfg, ok := s.cfg.Providers[pID]
 		if !ok || !pcfg.Enabled {
@@ -589,57 +577,34 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 		if cat == nil {
 			cat = devBySlug[pID]
 		}
-		pmList := s.Providers().providerModelsFromMapLocked(pID, cat)
-		for _, pm := range pmList {
-			cleaned := identity.CleanModelName(pm.ModelName)
-			nameMatch := strings.EqualFold(cleaned, base.ModelName) ||
-				strings.EqualFold(pm.ModelName, base.ModelName)
-			idMatch := base.ModelID != "" &&
-				strings.EqualFold(pm.ModelID, base.ModelID) &&
-				!namesOtherIdentity(cleaned) &&
-				!namesOtherIdentity(pm.ModelName)
-			if !nameMatch && !idMatch {
+		enabledPMs[pID] = s.Providers().providerModelsFromMapLocked(pID, cat)
+	}
+
+	addProviderModel := func(pID string, pm ProviderModel) {
+		join := pID + "|" + pm.ModelID
+		a := byKey[join]
+		if a == nil {
+			a = &acc{
+				provider:  pID,
+				modelID:   pm.ModelID,
+				reasoning: map[string]struct{}{},
+				keys:      map[string]struct{}{},
+			}
+			byKey[join] = a
+		}
+		for _, lvl := range pm.Levels {
+			level := identity.CollapseReasoning(lvl.Reasoning)
+			if level == "" {
 				continue
 			}
-			join := pID + "|" + pm.ModelID
-			a := byKey[join]
-			if a == nil {
-				a = &acc{
-					provider:  pID,
-					modelID:   pm.ModelID,
-					reasoning: map[string]struct{}{},
-					keys:      map[string]struct{}{},
-				}
-				byKey[join] = a
-			}
-			for _, lvl := range pm.Levels {
-				level := identity.CollapseReasoning(lvl.Reasoning)
-				if level != "" {
-					a.reasoning[level] = struct{}{}
-					allReasoning[level] = struct{}{}
-					if pID != "" && pm.ModelID != "" {
-						a.keys[FormatRouteKey(pID, pm.ModelID, level)] = struct{}{}
-					}
-				}
+			a.reasoning[level] = struct{}{}
+			allReasoning[level] = struct{}{}
+			if pID != "" && pm.ModelID != "" {
+				a.keys[FormatRouteKey(pID, pm.ModelID, level)] = struct{}{}
 			}
 		}
 	}
-
-	// 2. Also check any routes for this model from enabled providers.
-	for _, route := range s.routes.Routes {
-		nameMatch := strings.EqualFold(route.Model, base.ModelName) ||
-			strings.EqualFold(identity.CleanModelName(route.Model), base.ModelName)
-		idMatch := base.ModelID != "" &&
-			strings.EqualFold(route.ModelID, base.ModelID) &&
-			!namesOtherIdentity(route.Model) &&
-			!namesOtherIdentity(identity.CleanModelName(route.Model))
-		if !nameMatch && !idMatch {
-			continue
-		}
-		pcfg, ok := s.cfg.Providers[route.Provider]
-		if !ok || !pcfg.Enabled {
-			continue
-		}
+	addRoute := func(route routing.Route) {
 		join := route.Provider + "|" + route.ModelID
 		a := byKey[join]
 		if a == nil {
@@ -652,11 +617,58 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 			byKey[join] = a
 		}
 		level := identity.CollapseReasoning(route.Reasoning)
-		if level != "" {
-			a.reasoning[level] = struct{}{}
-			allReasoning[level] = struct{}{}
-			if route.Provider != "" && route.ModelID != "" {
-				a.keys[FormatRouteKey(route.Provider, route.ModelID, level)] = struct{}{}
+		if level == "" {
+			return
+		}
+		a.reasoning[level] = struct{}{}
+		allReasoning[level] = struct{}{}
+		if route.Provider != "" && route.ModelID != "" {
+			a.keys[FormatRouteKey(route.Provider, route.ModelID, level)] = struct{}{}
+		}
+	}
+	routeEnabled := func(provider string) bool {
+		pcfg, ok := s.cfg.Providers[provider]
+		return ok && pcfg.Enabled
+	}
+
+	// Pass 1 — name matches. idScope collects the providers proven to serve
+	// this model, which is the only scope in which its id is meaningful.
+	idScope := make(map[string]struct{})
+	for _, pID := range providerIDs {
+		for _, pm := range enabledPMs[pID] {
+			if strings.EqualFold(identity.CleanModelName(pm.ModelName), base.ModelName) ||
+				strings.EqualFold(pm.ModelName, base.ModelName) {
+				idScope[pID] = struct{}{}
+				addProviderModel(pID, pm)
+			}
+		}
+	}
+	for _, route := range s.routes.Routes {
+		if !strings.EqualFold(route.Model, base.ModelName) &&
+			!strings.EqualFold(identity.CleanModelName(route.Model), base.ModelName) {
+			continue
+		}
+		idScope[route.Provider] = struct{}{}
+		if routeEnabled(route.Provider) {
+			addRoute(route)
+		}
+	}
+
+	// Pass 2 — id-only matches, restricted to providers from pass 1.
+	if base.ModelID != "" {
+		for pID := range idScope {
+			for _, pm := range enabledPMs[pID] {
+				if strings.EqualFold(pm.ModelID, base.ModelID) {
+					addProviderModel(pID, pm)
+				}
+			}
+		}
+		for _, route := range s.routes.Routes {
+			if _, inScope := idScope[route.Provider]; !inScope {
+				continue
+			}
+			if strings.EqualFold(route.ModelID, base.ModelID) && routeEnabled(route.Provider) {
+				addRoute(route)
 			}
 		}
 	}

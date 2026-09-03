@@ -685,6 +685,55 @@ enabled = true
 	}
 }
 
+// TestCatalogModelCardTwoUnscoredShareModelID is the case a scored-name
+// heuristic cannot catch: BOTH models are unscored, so neither display name
+// appears in the scores CSV and there is no catalog identity to arbitrate.
+// Only provider scoping — an id is meaningful solely within the provider that
+// serves the model by name — keeps the two cards apart.
+func TestCatalogModelCardTwoUnscoredShareModelID(t *testing.T) {
+	svc, _ := newTestServices(t, WithConfigTOML(`
+[providers.cursor]
+enabled = true
+
+[providers.antigravity]
+enabled = true
+`))
+	seedModelsDevCache(t, svc, []modelsdev.ProviderModel{
+		{Provider: "cursor", ModelID: "default", Name: "Alpha 1.0", EffortLevels: []string{"high"}},
+		{Provider: "antigravity", ModelID: "default", Name: "Beta 9.9", EffortLevels: []string{"low"}},
+	})
+
+	for _, tc := range []struct {
+		name     string
+		provider string
+		level    string
+		otherLvl string
+	}{
+		{"Alpha 1.0", "cursor", "high", "low"},
+		{"Beta 9.9", "antigravity", "low", "high"},
+	} {
+		got, err := svc.Catalog().Model(catCtx(), tc.name)
+		if err != nil {
+			t.Fatalf("Model(%s): %v", tc.name, err)
+		}
+		if got.InCatalog {
+			t.Errorf("%s InCatalog = true, want false (unscored)", tc.name)
+		}
+		if len(got.Providers) != 1 || got.Providers[0].Provider != tc.provider {
+			t.Fatalf("%s providers = %+v, want only %s", tc.name, got.Providers, tc.provider)
+		}
+		if got.ProviderCount != 1 {
+			t.Errorf("%s ProviderCount = %d, want 1", tc.name, got.ProviderCount)
+		}
+		if !stringInSlice(got.Reasoning, tc.level) {
+			t.Errorf("%s reasoning = %v, want its own %s level", tc.name, got.Reasoning, tc.level)
+		}
+		if stringInSlice(got.Reasoning, tc.otherLvl) {
+			t.Errorf("%s reasoning = %v, leaked the other model's %s level", tc.name, got.Reasoning, tc.otherLvl)
+		}
+	}
+}
+
 func TestCatalogGroupsList(t *testing.T) {
 	svc, _ := newTestServices(t)
 	got, err := svc.Catalog().Groups(catCtx())
