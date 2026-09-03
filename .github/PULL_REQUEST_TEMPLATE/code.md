@@ -6,14 +6,16 @@
 
 ## How this fits together
 
-<!-- Required: describe the real runtime/data flow. Do not list changed files. Replace the placeholder graph with grounded nodes and edges. Avoid bloat: omit nodes and edges that do not change a reader's understanding of the flow. Prefer a taller-than-wide layout: no horizontal row may contain more than four boxes, and three is preferred. -->
+<!-- Required: describe the real runtime/data flow. Do not list changed files. Replace the placeholder graph with grounded nodes and edges. Avoid bloat: omit nodes and edges that do not change a reader's understanding of the flow. Use available space in both dimensions when the real flow permits it; do not default to a single chain. A horizontal row has a hard cap of four boxes, with three preferred; vertical depth has no hard cap. -->
 ```mermaid
 flowchart TD
-  source[Real input or trigger]
-  change[Real decision or changed component]
+  input[Real input or trigger]
+  state[Relevant state or dependency]
+  decision[Real decision or changed component]
   outcome[Observed output or outcome]
-  source --> change
-  change --> outcome
+  input --> decision
+  state --> decision
+  decision --> outcome
 ```
 
 ## Affected behaviour

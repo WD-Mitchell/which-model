@@ -6,13 +6,15 @@
 
 ## How this fits together
 
-<!-- Required: show how requirements/contracts flow into governed behavior. Do not list changed files. Avoid bloat: omit nodes and edges that do not change a reader's understanding of the flow. Prefer a taller-than-wide layout: no horizontal row may contain more than four boxes, and three is preferred. -->
+<!-- Required: show how requirements/contracts flow into governed behavior. Do not list changed files. Avoid bloat: omit nodes and edges that do not change a reader's understanding of the flow. Use available space in both dimensions when the real flow permits it; do not default to a single chain. A horizontal row has a hard cap of four boxes, with three preferred; vertical depth has no hard cap. -->
 ```mermaid
 flowchart TD
   request[Approved product outcome]
+  scope[Affected specification scope]
   contract[Requirement or contract]
   behavior[Governed behavior and acceptance]
   request --> contract
+  scope --> contract
   contract --> behavior
 ```
 
