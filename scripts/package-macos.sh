@@ -71,6 +71,8 @@ cat > "$CONTENTS/Info.plist" <<PLIST
     <string>which-model</string>
     <key>CFBundleDisplayName</key>
     <string>which-model</string>
+    <key>CFBundleIconFile</key>
+    <string>which-model.icns</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleVersion</key>
@@ -89,13 +91,27 @@ cat > "$CONTENTS/Info.plist" <<PLIST
 </plist>
 PLIST
 
-# Copy tray icon as a resource.
+# Copy the application icon supplied for native bundles. The tray icon remains
+# a separate monochrome template resource and is not used by the Dock.
+cp "$ROOT/icons/which-model.icns" "$RESOURCES/which-model.icns"
 if [ -f "$ROOT/cmd/which-model-desktop/assets/tray-icon.svg" ]; then
   cp "$ROOT/cmd/which-model-desktop/assets/tray-icon.svg" "$RESOURCES/"
 fi
 
 # Clean up the embedded frontend copy from the source tree.
 rm -rf "$ROOT/cmd/which-model-desktop/frontend"
+
+# Packaging contract: a regular activation-policy transition only gains the
+# intended Dock icon when the bundle declares and ships its .icns resource.
+if [ ! -s "$RESOURCES/which-model.icns" ]; then
+  echo "error: packaged app is missing Contents/Resources/which-model.icns" >&2
+  exit 1
+fi
+BUNDLE_ICON="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$CONTENTS/Info.plist" 2>/dev/null || true)"
+if [ "$BUNDLE_ICON" != "which-model.icns" ]; then
+  echo "error: CFBundleIconFile is '$BUNDLE_ICON', want 'which-model.icns'" >&2
+  exit 1
+fi
 
 echo "==> Packaged: $APP"
 

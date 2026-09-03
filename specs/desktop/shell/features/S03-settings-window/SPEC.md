@@ -33,6 +33,9 @@ Depends on: S01 (scaffold, entries). Inherits D00, S00 (§2.3 windows, §2.6 alp
    - macOS: the app dynamically transitions to `NSApplicationActivationPolicyRegular`, causing the which-model Dock icon to appear, enabling Cmd-Tab window cycling to reach Settings, and focusing Settings when the Dock icon is clicked.
    - Windows/Linux: Settings has a standard taskbar button while visible.
    When Settings is hidden (via native close, Escape, or `closeSettings`), macOS transitions back to `NSApplicationActivationPolicyAccessory` (removing the Dock icon), leaving the menu-bar tray as the always-on interface.
+
+9. **Packaged application icon.** The macOS bundle copies `icons/which-model.icns` to `Contents/Resources/which-model.icns` and declares that exact filename as `CFBundleIconFile`. This colour application artwork is independent of S02's monochrome menu-bar template icon. Packaging fails before installation if either the resource or plist declaration is absent.
+
 ## 3. Error behaviour
 
 - Window creation failure (webview init error) is non-fatal: log host-side; `showSettings()` retries creation on the next call (the `sync.Once` is only marked done on success — implement as a mutex + nil check rather than a literal `sync.Once` if the alpha can fail without panic).
@@ -47,4 +50,5 @@ Depends on: S01 (scaffold, entries). Inherits D00, S00 (§2.3 windows, §2.6 alp
 | Lifecycle | create-once, hide-on-close, Show+Focus on reopen | macOS settings-window convention; cheap re-open; preserves in-page state |
 | Creation timing | lazy, on first open | Most sessions never open Settings; saves a webview at startup |
 | Titlebar | hidden-inset on macOS, native default elsewhere | Traffic lights over the web sidebar per mockup; non-mac polish out of scope (D00 §2.9) |
+| macOS application icon | `icons/which-model.icns`; bundle resource and `CFBundleIconFile` both `which-model.icns` | A Regular activation-policy transition otherwise exposes macOS's generic executable icon; the tray template artwork is intentionally unsuitable for the Dock |
 | Wails API verification | NOT verified — module absent from the local cache and not fetchable offline (`go doc` failed). `Window.NewWithOptions` / `WebviewWindowOptions` / `Mac.TitleBar` / close-event hook names follow the published v3 alpha surface; **verify at implementation** | Same constraint recorded in S02 SPEC §4 |

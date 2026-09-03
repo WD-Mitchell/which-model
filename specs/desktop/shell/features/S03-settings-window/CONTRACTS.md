@@ -17,6 +17,8 @@ Wails identifiers are **verify at implementation** against the pinned v3 alpha (
 | `cmd/which-model-desktop/dock_darwin.go` | macOS AppKit activation policy transition (Accessory <-> Regular) |
 | `cmd/which-model-desktop/dock_darwin.m` | AppKit NSApplication setActivationPolicy bridge |
 | `cmd/which-model-desktop/dock_other.go` | Non-macOS stubs for activation policy |
+| `icons/which-model.icns` | colour native application artwork used by the macOS bundle |
+| `scripts/package-macos.sh` | copies the icon, declares `CFBundleIconFile`, and verifies both before installation |
 
 Not owned: `main.go`/`tray.go`/`popover.go` (S02), `windowservice.go` and bindings (S04 — S04's `WindowService.OpenSettings/CloseSettings` call §2's functions), frontend entries (S01/U07).
 
@@ -91,7 +93,7 @@ None. S03 reads no config and emits no events; visibility commands arrive only t
 
 ## 6. Verification
 
-Automated: `go build ./...` and `go vet ./...` green (S03 compiles even before S04 wires callers — functions may be temporarily invoked from a debug tray menu item, removed by S04, or left referenced-only with `var _ = showSettings`-style keep-alives; implementer records the choice in a Deviations note if a temporary caller ships).
+Automated: `go build ./...` and `go vet ./...` green (S03 compiles even before S04 wires callers — functions may be temporarily invoked from a debug tray menu item, removed by S04, or left referenced-only with `var _ = showSettings`-style keep-alives; implementer records the choice in a Deviations note if a temporary caller ships). `bash scripts/package-macos.sh` MUST fail before installation unless `Contents/Resources/which-model.icns` is non-empty and `Info.plist` declares `CFBundleIconFile = which-model.icns`.
 
 Manual checklist (macOS primary; run with S02 in place):
 1. App starts with NO settings window in the Window menu / Mission Control (lazy: nothing created yet).
@@ -100,6 +102,6 @@ Manual checklist (macOS primary; run with S02 in place):
 4. Click the red close button: window disappears; process keeps running; tray still works.
 5. Re-open: same window returns (scroll/page state preserved once U07 lands), `Show`+`Focus` bring it frontmost over other apps; position from step 4 retained (not re-centred).
 6. Repeat close/open 5×: no duplicate windows, no leak in Activity Monitor window count.
-7. Dock icon lifecycle on macOS: Dock icon appears when Settings is shown, disappears when closed/hidden; clicking Dock icon while Settings is open brings Settings frontmost.
+7. Dock icon lifecycle on macOS: Dock icon appears when Settings is shown, uses `icons/which-model.icns` (question-mark/provider-picker artwork, not the tray glyph or generic executable icon), disappears when closed/hidden, and brings Settings frontmost when clicked.
 8. Quit the app while the settings window is open: app exits cleanly (close-intercept does not block quit).
 9. Windows/Linux (compile-level gate, D00 §2.9): `GOOS=windows go build ./cmd/which-model-desktop` compiles; native default frame acceptable.
