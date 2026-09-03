@@ -493,7 +493,7 @@ func TestCatalogModelCardLookupByModelID(t *testing.T) {
 func TestCatalogModelCardProviderIDResolvesScoredModel(t *testing.T) {
 	svc, _ := newTestServices(t)
 	seedModelsDevCache(t, svc, []modelsdev.ProviderModel{{
-		Provider:     "copilot",
+		Provider:     "github-copilot",
 		ModelID:      "custom-opus",
 		Name:         "Claude Opus 5",
 		EffortLevels: []string{"high"},
