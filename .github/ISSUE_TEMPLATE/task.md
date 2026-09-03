@@ -39,4 +39,4 @@ type: Task
 ## BDD Scenarios
 
 <!-- Write high-priority user-visible Given/When/Then scenarios, or write `None` when there is no user-observable behavior. -->
-<!-- Tracking fields: add this issue to project 82. If it is paired with a PR, set the issue project item to `In review` and assign the issue to the PR uploader. Associate the PR through GitHub's Development/linked-issue field rather than adding a body section. -->
+<!-- Tracking fields: when paired with a PR, the issue is assigned to the PR uploader, and the PR associates this issue through the Development/linked-issue field. These are fields, not body sections. -->
