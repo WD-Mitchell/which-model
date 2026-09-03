@@ -182,7 +182,9 @@ describe('Models page', () => {
     expect(screen.queryByText('Claude Opus 5')).toBeNull()
     expect(screen.getByText('GPT-5.6 Luna')).toBeDefined()
 
-    // A provider multi-select survives the same way.
+    // Both maker and provider multi-selects survive the same way.
+    fireEvent.click(screen.getByRole('button', { name: 'Filter by maker' }))
+    fireEvent.click(await screen.findByText('OpenAI'))
     fireEvent.click(screen.getByRole('button', { name: 'Filter by provider' }))
     fireEvent.click(await screen.findByText('copilot'))
     fireEvent.click(await screen.findByText('GPT-5.6 Luna'))
@@ -190,6 +192,9 @@ describe('Models page', () => {
     fireEvent.click(screen.getByTitle('Back'))
     await screen.findByPlaceholderText('filter models')
 
+    expect(
+      screen.getByRole('button', { name: 'Filter by maker' }).textContent,
+    ).toContain('(1)')
     expect(
       screen.getByRole('button', { name: 'Filter by provider' }).textContent,
     ).toContain('(1)')
