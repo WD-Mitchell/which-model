@@ -152,8 +152,8 @@ func TestParseAntigravityModelList(t *testing.T) {
 		// Antigravity normalization removes only Fast, Thinking, and the label
 		// matching the ID's own effort suffix: a "-max" ID is an effort max
 		// (name "Max" trimmed), while display names carrying Max/Maximum with
-		// no matching effort suffix survive intact. ("1M" trims only in the
-		// Cursor normalizer; Antigravity keeps it — main behavior, pinned.)
+		// no matching effort suffix survive intact — including "1M", which
+		// this PR scoped OUT of Antigravity cleanup (it stays Cursor-only).
 		{ModelID: "gemini-3.6-promax", Name: "Gemini 3.6 Pro Max"},
 		{ModelID: "gemini-3.1-pro", Name: "Gemini 3.1 Pro 1M"},
 	}
