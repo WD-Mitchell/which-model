@@ -320,14 +320,14 @@ describe('Providers page list controls', () => {
     ])
   })
 
-  it('defaults to provider name A–Z and filters by a case-insensitive search', async () => {
+  it('defaults to enabled providers first and filters by a case-insensitive search', async () => {
     await openProvidersList(host)
     expect(providerOrder()).toEqual([
-      'antigravity',
       'claude',
       'codex',
-      'commandcode',
       'copilot',
+      'antigravity',
+      'commandcode',
       'cursor',
       'google',
       'mistral',

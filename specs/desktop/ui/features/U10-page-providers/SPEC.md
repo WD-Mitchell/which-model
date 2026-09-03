@@ -15,7 +15,7 @@ Depends on: U02 (Toggle, Button, DragList, useToast), U07 (settings shell, `Deta
 
 ## 2. Behaviour
 
-1. **List data and controls.** `ProvidersPage` fetches `providers.list()` under query key `['providers']`. A search input filters provider ids case-insensitively as the user types. An enabled-state select has `all`, `enabled`, and `disabled`. A sort select defaults to `name-asc` and offers `name-desc`, `models-desc`, `models-asc`, `enabled-first`, `disabled-first`, and `priority`; every tie is provider id ascending. Filtering runs before sorting. The section label is `{visible} of {total} providers`, except the unfiltered `priority` view, where it is `providers · drag to set fallback order`.
+1. **List data and controls.** `ProvidersPage` fetches `providers.list()` under query key `['providers']`. A search input filters provider ids case-insensitively as the user types. An enabled-state select has `all`, `enabled`, and `disabled`. A sort select defaults to `enabled-first` and offers `name-asc`, `name-desc`, `models-desc`, `models-asc`, `disabled-first`, and `priority`; every tie is provider id ascending. Filtering runs before sorting. The section label is `{visible} of {total} providers`, except the unfiltered `priority` view, where it is `providers · drag to set fallback order`.
 
 2. **Rows.** Each visible row is keyed by `ProviderInfo.id` and shows the provider's 1-based `priority`, enable toggle, provider id, live limits, distinct-model count (`{models} model[s]`), and chevron. Clicking the card except its toggle opens detail. The unfiltered `priority` view renders the full provider universe inside U02 `DragList`; every other view is static and omits the drag handle so a filtered or derived order can never submit a partial reorder.
 
@@ -51,7 +51,8 @@ Depends on: U02 (Toggle, Button, DragList, useToast), U07 (settings shell, `Deta
 | Per-model label rule | `anyOn ⇒ Disable all` else `Enable all` | mockup `allLabel` line 1154 |
 | No optimistic updates | Mutate → event-driven invalidation | U00 SPEC §2.7 owns invalidation; avoids double bookkeeping |
 | Order number | Render `ProviderInfo.priority` in every view | filtered and derived sorts retain the provider's true fallback position |
-| Default sort | Provider id A–Z | catalogues remain scannable independent of fallback priority |
+| Default sort | `enabled-first`, id ascending within each group | Enabled providers are the active backends — the page's primary answer; alphabetical remains one select away. Supersedes the mockup-era A–Z default (issue #140) |
+| Spec sync | Spec text amended in the same PR as its intentional behaviour change | Spec-as-source requires the spec to describe shipped behaviour, never trail it (issue #140) |
 | Sort ties | Provider id ascending | deterministic results for equal model counts or enabled state |
 | Drag availability | Full-universe priority view only | `providers.reorder` rejects subsets; static views avoid misleading handles |
 | OAuth availability | Backend `ProviderDetail.oauth_supported` only | Unsupported providers must never present a dead sign-in choice |
@@ -64,3 +65,7 @@ Depends on: U02 (Toggle, Button, DragList, useToast), U07 (settings shell, `Deta
 - Shell, `DetailHeader`, PAGE_META rendering, detail-stack navigation — U07.
 - The Go side of `providers.*` and what `limits_line`/route counting mean — backend features; `MockEngineHost` (U01) suffices for tests.
 - Usage meters (Providers rows show only the textual limits line) — U11/U13 render meters.
+
+## Deviations
+
+- **Default sort (§2.1, §4):** changed from provider id A–Z (`name-asc`) to `enabled-first` in PR #146 (issue #140). The mockup has no settings-page provider list to carry a default, so A–Z was a planning assumption, not a mockup norm; the project owner defined the intended behaviour in #140 ("default sorting for provider should be enabled -> disabled"). This section amends the spec in the same change set as the behaviour, per the spec-sync decision above.
