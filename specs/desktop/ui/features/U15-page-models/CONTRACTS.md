@@ -41,9 +41,10 @@ Queries: `['catalog-models']` → `host.catalog.models()`.
 | Detail blurb fallback | `no provider id yet` |
 | Detail kicker | `catalog scores` |
 | Score labels | `intel`, `cost`, `speed` |
-| Missing detail | `couldn't load this model` |
+| Missing detail (not found / not in catalog) | `not yet in catalog` |
+| Detail load error (transient / IO) | `couldn't load this model` / `Retry` |
+| Unscored model scores state | `not yet in catalog` |
 | Null score cell | `—` |
-
 ## 4. Test fixtures (vitest + `createMockEngineHost`)
 
 - Sidebar `Models` is present under ranking; clicking it shows PAGE_META blurb and one row per distinct mock model name (8).
@@ -51,5 +52,9 @@ Queries: `['catalog-models']` → `host.catalog.models()`.
 - Clicking Claude Opus 5 opens a detail titled `Claude Opus 5` with back `Models`; back returns to the list.
 - Empty filter-miss shows `no models match`.
 - Search `GPT` then open GPT-5.6 Luna's detail and return: the query, narrowed rows, and picked maker/provider multi-selects (buttons show `Maker (1)` and `Provider (1)`) all survive the round-trip (SPEC §2.3).
+- Unscored provider model (`Claude Haiku 4`) renders `not yet in catalog` under `catalog scores` and lists enabled providers offering it.
+- A model query rejecting with `not_found` renders the `not yet in catalog` empty state without a retry button.
+- A structured non-not_found error (e.g. `{ code: 'io_error', message: 'catalog file not found' }`) renders `couldn't load this model` with ghost `Retry`.
+- Opening an unscored provider model from the Providers page detail (`Claude Haiku 4`) navigates to `ModelCard` with `not yet in catalog` under `catalog scores`.
 
 Verify: `pnpm --filter desktop test -- ModelsPage` (plus `pnpm -r typecheck`).

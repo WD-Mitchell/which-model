@@ -211,7 +211,7 @@ type CatalogModelProvider struct {
 }
 
 // CatalogModelDetail is the full model card: identity, reasoning, scores,
-// and the list of enabled providers serving it.
+// catalog inclusion status, and the list of enabled providers serving it.
 type CatalogModelDetail struct {
     ModelName     string                 `json:"model_name"`
     ModelID       string                 `json:"model_id"`
@@ -220,6 +220,7 @@ type CatalogModelDetail struct {
     Cost          *float64               `json:"cost"`
     Speed         *float64               `json:"speed"`
     ProviderCount int                    `json:"provider_count"`
+    InCatalog     bool                   `json:"in_catalog"`
     Providers     []CatalogModelProvider `json:"providers"`
 }
 

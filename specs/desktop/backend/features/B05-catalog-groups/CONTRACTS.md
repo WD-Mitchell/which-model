@@ -14,7 +14,7 @@ project: which-model-desktop
 | `internal/service/catalog.go` | all §2 methods + unexported helpers (§3) |
 | `internal/service/catalog_test.go` | §7 tests |
 
-DTOs (`GroupSummary`, `GroupDetail`, `GroupBenchmark`, `BenchmarkDetail`, `BenchRow`) are D00 CONTRACTS §2 — referenced, never redefined. Extra imports beyond B00's boundary: `internal/catalog/identity` (BenchmarkKey), `internal/decimal` (RoundHalfUp).
+DTOs (`GroupSummary`, `GroupDetail`, `GroupBenchmark`, `BenchmarkDetail`, `BenchRow`, `CatalogModelDetail`, `CatalogModelProvider`) are D00 CONTRACTS §2 — referenced, never redefined. Extra imports beyond B00's boundary: `internal/catalog/identity` (BenchmarkKey, CleanModelName), `internal/decimal` (RoundHalfUp).
 
 ## 2. Exported API (methods on `*Services`)
 
@@ -36,6 +36,10 @@ func (s *Services) ModelDetail(ctx context.Context, model, reasoning string) (Mo
 // sorted name ascending (SPEC §2.14).
 func (s *Services) Models(ctx context.Context) ([]CatalogModel, error)
 
+// Model returns the full model card for a display name or model ID:
+// identity, reasoning levels, scores (nil for unscored provider models),
+// in_catalog inclusion status, and enabled provider rows with pricing (SPEC §2.15).
+func (s *Services) Model(ctx context.Context, name string) (CatalogModelDetail, error)
 // Groups returns builtins (benchmarks.toml order) then customs (slug asc);
 // InProfiles counts builtin+custom profiles weighting the slug (SPEC §2.5).
 func (s *Services) Groups(ctx context.Context) ([]GroupSummary, error)
@@ -118,6 +122,7 @@ Events: success ⇒ `catalog:changed` `{}`; derive-phase failure ⇒ `config:cha
 | `BenchmarkDetail.Note` (always, v1) | `Carried in the model data export. No description recorded for this benchmark yet.` |
 | SaveGroup/DeleteGroup on builtin slug | `group %q is built-in and read-only` → `builtin_readonly` |
 | unknown group / benchmark name lookup | `no group %q` / `no benchmark %q` → `not_found` |
+| unknown model name lookup | `no model %q` → `not_found` |
 | SaveGroup unknown member (first offender) | `unknown benchmark %q in group %q` → `validation_failed` |
 | rename collision | `group %q already exists` → `conflict` |
 | derive-phase failure | message contains the failing path → `io_error` |
@@ -134,10 +139,20 @@ Events: success ⇒ `catalog:changed` `{}`; derive-phase failure ⇒ `config:cha
 | `TestRenameRewritesProfileWeights` | `renameTo` sanitised (`"My Group! "` → `my_group`); tier2 key moved in every referencing custom profile in the same config write; collision → `conflict`, no write, no event |
 | `TestDeleteStripsWeights` | `[groups.<slug>]` gone; tier2 key stripped from custom profiles; re-derive ran; one `catalog:changed` |
 | `TestCatalogModels` | golden scores CSV → 3 models (Claude Opus 5, GPT-5.6 Sol, Kimi K2.7 Code); Opus has id `claude-opus-5`, intel 100, provider_count 1; Kimi has empty id and provider_count 0 |
+| `TestCatalogModelCard` | scored model lookup returns full scores, identity, enabled providers, and `InCatalog: true`; unknown name returns `not_found` |
+| `TestCatalogModelCardUnscoredProviderModel` | unscored provider model returns synthesized `CatalogModelDetail` with `InCatalog: false`, `Intelligence/Cost/Speed: nil`, enabled providers, and models.dev pricing; lookup by `ModelID` resolves |
+| `TestCatalogModelCardUnscoredDisabledProvider` | unscored model on disabled provider returns `InCatalog: false`, `ProviderCount: 0`, and empty providers |
+| `TestCatalogModelCardLookupByModelID` | scored model lookup by its model ID resolves with full scores and `InCatalog: true` |
+| `TestCatalogModelCardProviderIDResolvesScoredModel` | provider model ID whose name matches a scored model directly resolves to that scored model with `InCatalog: true` and full scores |
+| `TestCatalogModelCardDisabledLevelStillExposed` | a level disabled via `[routes.disabled]` remains in the provider row's `Reasoning` and `RouteKeys` (SPEC §2.15: exposure, not enablement, governs levels); provider-level enablement is still filtered |
+| `TestCatalogModelsProviderListingContributes` | an ENABLED provider's models.dev listing with no route raises `ProviderCount` 0→1 and sets `ModelID` (SPEC §2.14 source (b)) |
+| `TestCatalogModelsDisabledProviderListingIgnored` | the same listing under a DISABLED provider contributes nothing; `ProviderCount` stays 0 and `ModelID` empty |
+| `TestCatalogModelCardSharedModelIDNoCrossProviderLeak` | two unrelated models sharing a generic provider id (`default`) do not cross-join: the unscored card keeps one provider row and the scored neighbour is unaffected |
+| `TestCatalogModelCardTwoUnscoredShareModelID` | two UNSCORED models sharing `default` across providers keep separate cards in both directions; provider scoping, not a scored-name heuristic, arbitrates |
 | `TestBuiltinMutationRejected` | SaveGroup/DeleteGroup on a builtin slug → `builtin_readonly`; config untouched; zero events; DuplicateGroup on the same slug succeeds as `<slug>_copy` |
 | `TestDeriveFailurePersistsGroup` | raw CSV removed: SaveGroup → `io_error` naming the raw path; `[groups.<slug>]` persisted; catalog cache unchanged; `config:changed` emitted, no `catalog:changed` |
 
-Verify: `go test ./internal/service/ -run 'TestBenchmark|TestCoverage|TestGroups|TestSaveGroup|TestRename|TestDelete|TestBuiltin|TestDerive'`.
+Verify: `go test ./internal/service/ -run 'TestBenchmark|TestCoverage|TestGroups|TestSaveGroup|TestRename|TestDelete|TestBuiltin|TestDerive|TestCatalogModel'`.
 
 ## 8. External symbols referenced
 

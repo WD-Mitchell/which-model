@@ -332,12 +332,218 @@ func (c *CatalogService) Model(ctx context.Context, name string) (CatalogModelDe
 func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 	list := s.catalogModelsLocked()
 	var base *CatalogModel
+	inCatalog := true
+
+	// 1. Try exact ModelName match in catalogModelsLocked.
 	for i := range list {
 		if list[i].ModelName == name {
 			base = &list[i]
 			break
 		}
 	}
+
+	// 2. Try case-insensitive ModelName match.
+	if base == nil {
+		for i := range list {
+			if strings.EqualFold(list[i].ModelName, name) || strings.EqualFold(identity.CleanModelName(list[i].ModelName), name) {
+				base = &list[i]
+				break
+			}
+		}
+	}
+
+	// 3. Try matching against catalog ModelID.
+	if base == nil {
+		for i := range list {
+			if list[i].ModelID != "" && strings.EqualFold(list[i].ModelID, name) {
+				base = &list[i]
+				break
+			}
+		}
+	}
+
+	// 4. Try matching name against routes that map to a catalog model.
+	if base == nil {
+		for _, route := range s.routes.Routes {
+			if route.ModelID != "" && (strings.EqualFold(route.ModelID, name) || strings.EqualFold(route.Model, name) || strings.EqualFold(identity.CleanModelName(route.Model), name)) {
+				for i := range list {
+					if strings.EqualFold(list[i].ModelName, route.Model) || strings.EqualFold(identity.CleanModelName(list[i].ModelName), route.Model) {
+						base = &list[i]
+						break
+					}
+				}
+				if base != nil {
+					break
+				}
+			}
+		}
+	}
+
+	devCatalogue := loadModelsDevCatalogue(s.paths.CacheDir)
+	providerIDs := s.providerUniverseFromCatalogueLocked(devCatalogue)
+	devBySlug := make(map[string]map[string]modelsDevEntry)
+	for _, m := range devCatalogue {
+		byModel := devBySlug[m.Provider]
+		if byModel == nil {
+			byModel = make(map[string]modelsDevEntry)
+			devBySlug[m.Provider] = byModel
+		}
+		devByModelLevels := append([]string(nil), m.EffortLevels...)
+		byModel[m.ModelID] = modelsDevEntry{name: m.Name, levels: devByModelLevels}
+	}
+	// 4b. Try matching name against models.dev catalogue entries that map to a scored model.
+	if base == nil {
+		for _, m := range devCatalogue {
+			if strings.EqualFold(m.ModelID, name) || strings.EqualFold(m.Name, name) || strings.EqualFold(identity.CleanModelName(m.Name), name) {
+				for i := range list {
+					if strings.EqualFold(list[i].ModelName, m.Name) || strings.EqualFold(identity.CleanModelName(list[i].ModelName), m.Name) {
+						base = &list[i]
+						break
+					}
+				}
+				if base != nil {
+					break
+				}
+			}
+		}
+	}
+
+	// 5. Try matching name against provider models that map to a catalog model.
+	if base == nil {
+		for _, pID := range providerIDs {
+			cat := devBySlug[routing.CatalogueSlugFor(pID)]
+			if cat == nil {
+				cat = devBySlug[pID]
+			}
+			pmList := s.Providers().providerModelsFromMapLocked(pID, cat)
+			for _, pm := range pmList {
+				if strings.EqualFold(pm.ModelName, name) || strings.EqualFold(identity.CleanModelName(pm.ModelName), name) || (pm.ModelID != "" && strings.EqualFold(pm.ModelID, name)) {
+					// Directly match pm.ModelName against scored list
+					for i := range list {
+						if strings.EqualFold(list[i].ModelName, pm.ModelName) || strings.EqualFold(identity.CleanModelName(list[i].ModelName), pm.ModelName) {
+							base = &list[i]
+							break
+						}
+					}
+					if base != nil {
+						break
+					}
+					// Check routes scoped to this provider
+					for _, route := range s.routes.Routes {
+						if route.Provider == pID && (strings.EqualFold(route.ModelID, pm.ModelID) || strings.EqualFold(route.Model, pm.ModelName)) {
+							for i := range list {
+								if strings.EqualFold(list[i].ModelName, route.Model) {
+									base = &list[i]
+									break
+								}
+							}
+							if base != nil {
+								break
+							}
+						}
+					}
+					if base != nil {
+						break
+					}
+				}
+			}
+			if base != nil {
+				break
+			}
+		}
+	}
+
+	// 6. If still nil, the model is not in the scores catalog. Look for it as a provider-listed model,
+	// route model, or models.dev entry and synthesize a CatalogModel so its profile can be viewed.
+	if base == nil {
+		var (
+			foundName string
+			foundIDs  []string
+			reasonSet = make(map[string]struct{})
+		)
+		for _, pID := range providerIDs {
+			cat := devBySlug[routing.CatalogueSlugFor(pID)]
+			if cat == nil {
+				cat = devBySlug[pID]
+			}
+			pmList := s.Providers().providerModelsFromMapLocked(pID, cat)
+			for _, pm := range pmList {
+				if strings.EqualFold(pm.ModelName, name) || strings.EqualFold(identity.CleanModelName(pm.ModelName), name) || (pm.ModelID != "" && strings.EqualFold(pm.ModelID, name)) {
+					if foundName == "" {
+						foundName = pm.ModelName
+					}
+					if pm.ModelID != "" {
+						foundIDs = append(foundIDs, pm.ModelID)
+					}
+					for _, lvl := range pm.Levels {
+						collapsed := identity.CollapseReasoning(lvl.Reasoning)
+						if collapsed != "" {
+							reasonSet[collapsed] = struct{}{}
+						}
+					}
+				}
+			}
+		}
+		for _, route := range s.routes.Routes {
+			if strings.EqualFold(route.Model, name) || strings.EqualFold(identity.CleanModelName(route.Model), name) || (route.ModelID != "" && strings.EqualFold(route.ModelID, name)) {
+				if foundName == "" {
+					foundName = route.Model
+				}
+				if route.ModelID != "" {
+					foundIDs = append(foundIDs, route.ModelID)
+				}
+				if route.Reasoning != "" {
+					collapsed := identity.CollapseReasoning(route.Reasoning)
+					if collapsed != "" {
+						reasonSet[collapsed] = struct{}{}
+					}
+				}
+			}
+		}
+		for _, m := range devCatalogue {
+			if strings.EqualFold(m.Name, name) || strings.EqualFold(identity.CleanModelName(m.Name), name) || (m.ModelID != "" && strings.EqualFold(m.ModelID, name)) {
+				if foundName == "" {
+					foundName = m.Name
+				}
+				if m.ModelID != "" {
+					foundIDs = append(foundIDs, m.ModelID)
+				}
+				for _, lvl := range m.EffortLevels {
+					collapsed := identity.CollapseReasoning(lvl)
+					if collapsed != "" {
+						reasonSet[collapsed] = struct{}{}
+					}
+				}
+			}
+		}
+
+		if foundName != "" || len(foundIDs) > 0 {
+			if foundName == "" {
+				foundName = name
+			}
+			sort.Strings(foundIDs)
+			var modelID string
+			if len(foundIDs) > 0 {
+				modelID = foundIDs[0]
+			}
+			levels := make([]string, 0, len(reasonSet))
+			for r := range reasonSet {
+				levels = append(levels, r)
+			}
+			sort.SliceStable(levels, func(i, j int) bool {
+				return reasoningLess(levels[i], levels[j])
+			})
+			synthetic := CatalogModel{
+				ModelName: foundName,
+				ModelID:   modelID,
+				Reasoning: levels,
+				Maker:     extractMaker(foundName),
+			}
+			base = &synthetic
+			inCatalog = false
+		}
+	}
+
 	if base == nil {
 		return CatalogModelDetail{}, fmt.Errorf("%w: no model %q", errNotFound, name)
 	}
@@ -352,50 +558,53 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 	}
 	byKey := map[string]*acc{}
 
-	// 1. Scan enabled providers for all models and reasoning levels they offer matching this model.
-	for _, pID := range s.providerUniverseLocked() {
+	// Provider-native model ids are provider-scoped (route keys encode
+	// provider/model@effort), so a bare id match can join two unrelated models
+	// that share a generic id such as "default". The id clause exists only to
+	// catch entries whose DISPLAY NAME normalises differently from the catalog
+	// while being the same model on the same provider. Aggregation therefore
+	// runs in two passes: pass 1 matches by name and records which providers
+	// genuinely serve this model; pass 2 admits id-only matches solely from
+	// those providers. A global name heuristic cannot work here — two UNSCORED
+	// models sharing an id have no catalog identity to distinguish them.
+	enabledPMs := make(map[string][]ProviderModel, len(providerIDs))
+	for _, pID := range providerIDs {
 		pcfg, ok := s.cfg.Providers[pID]
 		if !ok || !pcfg.Enabled {
 			continue
 		}
-		for _, pm := range s.Providers().providerModelsLocked(pID) {
-			cleaned := identity.CleanModelName(pm.ModelName)
-			if cleaned != base.ModelName && pm.ModelName != base.ModelName && (base.ModelID == "" || pm.ModelID != base.ModelID) {
+		cat := devBySlug[routing.CatalogueSlugFor(pID)]
+		if cat == nil {
+			cat = devBySlug[pID]
+		}
+		enabledPMs[pID] = s.Providers().providerModelsFromMapLocked(pID, cat)
+	}
+
+	addProviderModel := func(pID string, pm ProviderModel) {
+		join := pID + "|" + pm.ModelID
+		a := byKey[join]
+		if a == nil {
+			a = &acc{
+				provider:  pID,
+				modelID:   pm.ModelID,
+				reasoning: map[string]struct{}{},
+				keys:      map[string]struct{}{},
+			}
+			byKey[join] = a
+		}
+		for _, lvl := range pm.Levels {
+			level := identity.CollapseReasoning(lvl.Reasoning)
+			if level == "" {
 				continue
 			}
-			join := pID + "|" + pm.ModelID
-			a := byKey[join]
-			if a == nil {
-				a = &acc{
-					provider:  pID,
-					modelID:   pm.ModelID,
-					reasoning: map[string]struct{}{},
-					keys:      map[string]struct{}{},
-				}
-				byKey[join] = a
-			}
-			for _, lvl := range pm.Levels {
-				level := identity.CollapseReasoning(lvl.Reasoning)
-				if level != "" {
-					a.reasoning[level] = struct{}{}
-					allReasoning[level] = struct{}{}
-					if pID != "" && pm.ModelID != "" {
-						a.keys[FormatRouteKey(pID, pm.ModelID, level)] = struct{}{}
-					}
-				}
+			a.reasoning[level] = struct{}{}
+			allReasoning[level] = struct{}{}
+			if pID != "" && pm.ModelID != "" {
+				a.keys[FormatRouteKey(pID, pm.ModelID, level)] = struct{}{}
 			}
 		}
 	}
-
-	// 2. Also check any routes for this model from enabled providers.
-	for _, route := range s.routes.Routes {
-		if route.Model != base.ModelName {
-			continue
-		}
-		pcfg, ok := s.cfg.Providers[route.Provider]
-		if !ok || !pcfg.Enabled {
-			continue
-		}
+	addRoute := func(route routing.Route) {
 		join := route.Provider + "|" + route.ModelID
 		a := byKey[join]
 		if a == nil {
@@ -408,33 +617,79 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 			byKey[join] = a
 		}
 		level := identity.CollapseReasoning(route.Reasoning)
-		if level != "" {
-			a.reasoning[level] = struct{}{}
-			allReasoning[level] = struct{}{}
-			if route.Provider != "" && route.ModelID != "" {
-				a.keys[FormatRouteKey(route.Provider, route.ModelID, level)] = struct{}{}
+		if level == "" {
+			return
+		}
+		a.reasoning[level] = struct{}{}
+		allReasoning[level] = struct{}{}
+		if route.Provider != "" && route.ModelID != "" {
+			a.keys[FormatRouteKey(route.Provider, route.ModelID, level)] = struct{}{}
+		}
+	}
+	routeEnabled := func(provider string) bool {
+		pcfg, ok := s.cfg.Providers[provider]
+		return ok && pcfg.Enabled
+	}
+
+	// Pass 1 — name matches. idScope collects the providers proven to serve
+	// this model, which is the only scope in which its id is meaningful.
+	idScope := make(map[string]struct{})
+	for _, pID := range providerIDs {
+		for _, pm := range enabledPMs[pID] {
+			if strings.EqualFold(identity.CleanModelName(pm.ModelName), base.ModelName) ||
+				strings.EqualFold(pm.ModelName, base.ModelName) {
+				idScope[pID] = struct{}{}
+				addProviderModel(pID, pm)
+			}
+		}
+	}
+	for _, route := range s.routes.Routes {
+		if !strings.EqualFold(route.Model, base.ModelName) &&
+			!strings.EqualFold(identity.CleanModelName(route.Model), base.ModelName) {
+			continue
+		}
+		idScope[route.Provider] = struct{}{}
+		if routeEnabled(route.Provider) {
+			addRoute(route)
+		}
+	}
+
+	// Pass 2 — id-only matches, restricted to providers from pass 1.
+	if base.ModelID != "" {
+		for pID := range idScope {
+			for _, pm := range enabledPMs[pID] {
+				if strings.EqualFold(pm.ModelID, base.ModelID) {
+					addProviderModel(pID, pm)
+				}
+			}
+		}
+		for _, route := range s.routes.Routes {
+			if _, inScope := idScope[route.Provider]; !inScope {
+				continue
+			}
+			if strings.EqualFold(route.ModelID, base.ModelID) && routeEnabled(route.Provider) {
+				addRoute(route)
 			}
 		}
 	}
 	type costPair struct{ in, out *float64 }
 	costs := map[string]costPair{}
-	if cached, ok := readModelsDevCache(modelsDevCachePath(s.paths.CacheDir)); ok {
-		for _, rec := range cached {
-			if rec.InputCostUSDPerM != nil || rec.OutputCostUSDPerM != nil {
-				pair := costPair{rec.InputCostUSDPerM, rec.OutputCostUSDPerM}
-				costs[rec.Provider+"|"+rec.ModelID] = pair
-				if rec.Name != "" {
-					costs[rec.Provider+"|"+identity.CleanModelName(rec.Name)] = pair
-				}
-				if _, exists := costs[rec.ModelID]; !exists {
-					costs[rec.ModelID] = pair
-				}
-				if rec.Name != "" {
-					cleanedName := identity.CleanModelName(rec.Name)
-					if _, exists := costs[cleanedName]; !exists {
-						costs[cleanedName] = pair
-					}
-				}
+	// Costs come from the same models.dev cache already loaded and indexed
+	// above; re-reading the file here would parse it a second time.
+	for _, rec := range devCatalogue {
+		if rec.InputCostUSDPerM == nil && rec.OutputCostUSDPerM == nil {
+			continue
+		}
+		pair := costPair{rec.InputCostUSDPerM, rec.OutputCostUSDPerM}
+		costs[rec.Provider+"|"+rec.ModelID] = pair
+		if _, exists := costs[rec.ModelID]; !exists {
+			costs[rec.ModelID] = pair
+		}
+		if rec.Name != "" {
+			cleanedName := identity.CleanModelName(rec.Name)
+			costs[rec.Provider+"|"+cleanedName] = pair
+			if _, exists := costs[cleanedName]; !exists {
+				costs[cleanedName] = pair
 			}
 		}
 	}
@@ -491,6 +746,14 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 	sort.SliceStable(reasoningList, func(i, j int) bool {
 		return reasoningLess(reasoningList[i], reasoningList[j])
 	})
+	distinctProviders := make(map[string]struct{})
+	for _, p := range providers {
+		distinctProviders[p.Provider] = struct{}{}
+	}
+	providerCount := len(distinctProviders)
+	if base.ProviderCount > providerCount {
+		providerCount = base.ProviderCount
+	}
 	return CatalogModelDetail{
 		ModelName:     base.ModelName,
 		ModelID:       base.ModelID,
@@ -498,7 +761,8 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 		Intelligence:  base.Intelligence,
 		Cost:          base.Cost,
 		Speed:         base.Speed,
-		ProviderCount: base.ProviderCount,
+		ProviderCount: providerCount,
+		InCatalog:     inCatalog,
 		Providers:     providers,
 	}, nil
 }

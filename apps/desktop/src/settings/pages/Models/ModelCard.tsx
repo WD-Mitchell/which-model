@@ -8,11 +8,21 @@ import styles from './ModelsPage.module.css'
 const NO_ID = 'no provider id yet'
 const DETAIL_KICKER = 'catalog scores'
 const PROVIDERS_KICKER = 'enabled providers'
-const MISSING_DETAIL = "couldn't load this model"
+const MISSING_DETAIL = 'not yet in catalog'
 const LOAD_ERROR = "couldn't load this model"
+const NOT_YET_IN_CATALOG = 'not yet in catalog'
 const EMPTY_PROVIDERS = 'no enabled providers offer this model'
 const NO_PRICE = 'no listed price'
-
+function isNotFoundError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false
+  if ('code' in err && typeof err.code === 'string') {
+    return err.code === 'not_found'
+  }
+  if ('message' in err && typeof err.message === 'string') {
+    return err.message.toLowerCase().includes('not found')
+  }
+  return false
+}
 function formatScore(n: number | null | undefined): string {
   if (n == null) return '—'
   return Number.isInteger(n) ? String(n) : n.toFixed(1)
@@ -40,7 +50,7 @@ export function ModelCard({
   onBack(): void
   openDetail(d: Detail): void
 }) {
-  const { data: model, isPending, isError, refetch } = useCatalogModel(name)
+  const { data: model, isPending, isError, error, refetch } = useCatalogModel(name)
 
   if (isPending) {
     return (
@@ -52,25 +62,26 @@ export function ModelCard({
   }
 
   if (isError || !model) {
+    const isNotFound = isNotFoundError(error)
+
     return (
       <div className={styles.page}>
         <DetailHeader title={name} blurb="" backLabel={backLabel} onBack={onBack} />
         <div className={styles.empty}>
-          {isError ? (
+          {isNotFound || (!isError && !model) ? (
+            <EmptyState text={NOT_YET_IN_CATALOG} />
+          ) : (
             <>
               <span>{LOAD_ERROR}</span>
               <Button variant="ghost" size="xs" onClick={() => void refetch()}>
                 Retry
               </Button>
             </>
-          ) : (
-            <EmptyState text={MISSING_DETAIL} />
           )}
         </div>
       </div>
     )
   }
-
   return (
     <div className={styles.page}>
       <DetailHeader
@@ -87,20 +98,26 @@ export function ModelCard({
           </Tag>
         ))}
       </div>
-      <div className={styles.detailScores}>
-        <span className={styles.detailScore}>
-          <span className={cx('mono', styles.detailLabel)}>intel</span>
-          <span className={cx('mono', styles.detailValue)}>{formatScore(model.intelligence)}</span>
-        </span>
-        <span className={styles.detailScore}>
-          <span className={cx('mono', styles.detailLabel)}>cost</span>
-          <span className={cx('mono', styles.detailValue)}>{formatScore(model.cost)}</span>
-        </span>
-        <span className={styles.detailScore}>
-          <span className={cx('mono', styles.detailLabel)}>speed</span>
-          <span className={cx('mono', styles.detailValue)}>{formatScore(model.speed)}</span>
-        </span>
-      </div>
+      {!model.in_catalog ? (
+        <div className={styles.empty}>
+          <EmptyState text={NOT_YET_IN_CATALOG} />
+        </div>
+      ) : (
+        <div className={styles.detailScores}>
+          <span className={styles.detailScore}>
+            <span className={cx('mono', styles.detailLabel)}>intel</span>
+            <span className={cx('mono', styles.detailValue)}>{formatScore(model.intelligence)}</span>
+          </span>
+          <span className={styles.detailScore}>
+            <span className={cx('mono', styles.detailLabel)}>cost</span>
+            <span className={cx('mono', styles.detailValue)}>{formatScore(model.cost)}</span>
+          </span>
+          <span className={styles.detailScore}>
+            <span className={cx('mono', styles.detailLabel)}>speed</span>
+            <span className={cx('mono', styles.detailValue)}>{formatScore(model.speed)}</span>
+          </span>
+        </div>
+      )}
       <span className={cx('mono', styles.kicker)}>{PROVIDERS_KICKER}</span>
       {(model.providers ?? []).length === 0 ? (
         <div className={styles.empty}>

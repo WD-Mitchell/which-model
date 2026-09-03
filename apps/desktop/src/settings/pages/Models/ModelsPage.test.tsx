@@ -10,6 +10,7 @@ import { resetHost } from '../../../lib/host'
 import { MODELS_LIST_INITIAL, useModelsListStore } from './listState'
 import { SettingsApp } from '../../SettingsApp'
 
+import { ModelCard } from './ModelCard'
 // List control state is module-level now; reset it per test so cases stay
 // isolated the way unmount-on-cleanup used to guarantee.
 beforeEach(() => {
@@ -199,6 +200,109 @@ describe('Models page', () => {
       screen.getByRole('button', { name: 'Filter by provider' }).textContent,
     ).toContain('(1)')
     expect(screen.getByText('GPT-5.6 Sol')).toBeDefined()
+  })
+
+  it('renders "not yet in catalog" under catalog scores for unscored provider models', async () => {
+    const client = makeClient()
+    render(
+      <QueryClientProvider client={client}>
+        <ToastProvider>
+          <ModelCard
+            name="Claude Haiku 4"
+            backLabel="Providers"
+            onBack={() => {}}
+            openDetail={() => {}}
+          />
+        </ToastProvider>
+      </QueryClientProvider>,
+    )
+    expect(await screen.findByText('catalog scores')).toBeDefined()
+    expect(screen.getByText('Claude Haiku 4')).toBeDefined()
+    expect(screen.getByText('not yet in catalog')).toBeDefined()
+    expect(screen.getByText('enabled providers')).toBeDefined()
+    expect(screen.getAllByText('claude-haiku-4').length).toBeGreaterThan(0)
+  })
+
+  it('renders "not yet in catalog" empty state when model lookup returns not_found', async () => {
+    const client = makeClient()
+    render(
+      <QueryClientProvider client={client}>
+        <ToastProvider>
+          <ModelCard
+            name="NonExistent Model"
+            backLabel="Models"
+            onBack={() => {}}
+            openDetail={() => {}}
+          />
+        </ToastProvider>
+      </QueryClientProvider>,
+    )
+    expect(await screen.findByText('not yet in catalog')).toBeDefined()
+    expect(screen.queryByText("couldn't load this model")).toBeNull()
+    expect(screen.queryByText('Retry')).toBeNull()
+  })
+
+  it('renders error state with Retry button on non-not-found failures', async () => {
+    const client = makeClient()
+    const failHost = createMockEngineHost()
+    failHost.catalog.model = () => Promise.reject({ code: 'io_error', message: 'disk read failure' })
+    resetHost(failHost)
+    render(
+      <QueryClientProvider client={client}>
+        <ToastProvider>
+          <ModelCard
+            name="Claude Opus 5"
+            backLabel="Models"
+            onBack={() => {}}
+            openDetail={() => {}}
+          />
+        </ToastProvider>
+      </QueryClientProvider>,
+    )
+    expect(await screen.findByText("couldn't load this model")).toBeDefined()
+    expect(screen.getByText('Retry')).toBeDefined()
+  })
+
+  it('renders error state with Retry for structured io_error with "not found" message', async () => {
+    const client = makeClient()
+    const failHost = createMockEngineHost()
+    failHost.catalog.model = () => Promise.reject({ code: 'io_error', message: 'catalog file not found' })
+    resetHost(failHost)
+    render(
+      <QueryClientProvider client={client}>
+        <ToastProvider>
+          <ModelCard
+            name="Claude Opus 5"
+            backLabel="Models"
+            onBack={() => {}}
+            openDetail={() => {}}
+          />
+        </ToastProvider>
+      </QueryClientProvider>,
+    )
+    expect(await screen.findByText("couldn't load this model")).toBeDefined()
+    expect(screen.getByText('Retry')).toBeDefined()
+    expect(screen.queryByText('not yet in catalog')).toBeNull()
+  })
+
+  it('opens unscored provider model profile from Providers page detail', async () => {
+    renderApp(host)
+    await screen.findByText('which-model — Settings')
+    const nav = await screen.findAllByText('Providers')
+    const navBtn = nav.find((el) => el.tagName === 'BUTTON')
+    fireEvent.click(navBtn!)
+    const claudeCard = await screen.findByText((_, el) => el?.tagName === 'SPAN' && el.textContent === 'claude' && el.className.includes('id'))
+    fireEvent.click(claudeCard)
+    await screen.findByText('Accounts')
+
+    // Claude Haiku 4 is listed under claude provider
+    const haikuBtn = await screen.findByText('Claude Haiku 4')
+    fireEvent.click(haikuBtn)
+
+    // Opens model card for Claude Haiku 4
+    expect(await screen.findByText('catalog scores')).toBeDefined()
+    expect(screen.getByText('not yet in catalog')).toBeDefined()
+    expect(screen.getByText('enabled providers')).toBeDefined()
   })
 })
 

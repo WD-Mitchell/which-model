@@ -324,6 +324,9 @@ enabled = true
 	if got.ModelName != "Claude Opus 5" || got.ModelID != "claude-opus-5" {
 		t.Fatalf("identity = %s/%s", got.ModelName, got.ModelID)
 	}
+	if !got.InCatalog {
+		t.Errorf("InCatalog = false, want true for scored model")
+	}
 	if got.Intelligence == nil || *got.Intelligence != 100 {
 		t.Errorf("intelligence = %v, want 100", got.Intelligence)
 	}
@@ -392,6 +395,342 @@ func TestCatalogModelCardDisabledOmitted(t *testing.T) {
 	}
 	if len(got.Providers) != 0 {
 		t.Errorf("providers = %+v, want empty when claude is not enabled", got.Providers)
+	}
+}
+func TestCatalogModelCardUnscoredProviderModel(t *testing.T) {
+	svc, _ := newTestServices(t, WithConfigTOML(`
+[providers.cursor]
+enabled = true
+`))
+	in, out := 2.5, 10.0
+	seedModelsDevCache(t, svc, []modelsdev.ProviderModel{{
+		Provider:          "cursor",
+		ModelID:           "fable-5.1",
+		Name:              "Fable 5.1",
+		EffortLevels:      []string{"default", "high"},
+		InputCostUSDPerM:  &in,
+		OutputCostUSDPerM: &out,
+	}})
+
+	got, err := svc.Catalog().Model(catCtx(), "Fable 5.1")
+	if err != nil {
+		t.Fatalf("Model(Fable 5.1): %v", err)
+	}
+	if got.ModelName != "Fable 5.1" || got.ModelID != "fable-5.1" {
+		t.Fatalf("identity = %s/%s, want Fable 5.1/fable-5.1", got.ModelName, got.ModelID)
+	}
+	if got.Intelligence != nil || got.Cost != nil || got.Speed != nil {
+		t.Errorf("expected nil scores for unscored model, got intel=%v, cost=%v, speed=%v", got.Intelligence, got.Cost, got.Speed)
+	}
+	if got.InCatalog {
+		t.Errorf("InCatalog = true, want false for unscored model")
+	}
+	if got.ProviderCount != 1 {
+		t.Errorf("ProviderCount = %d, want 1", got.ProviderCount)
+	}
+	if len(got.Providers) != 1 {
+		t.Fatalf("providers = %+v, want 1 (cursor enabled)", got.Providers)
+	}
+	p := got.Providers[0]
+	if p.Provider != "cursor" || p.ModelID != "fable-5.1" {
+		t.Errorf("provider row = %+v, want cursor/fable-5.1", p)
+	}
+	if p.InputCostUSDPerM == nil || *p.InputCostUSDPerM != 2.5 {
+		t.Errorf("input cost = %v, want 2.5", p.InputCostUSDPerM)
+	}
+	if p.OutputCostUSDPerM == nil || *p.OutputCostUSDPerM != 10.0 {
+		t.Errorf("output cost = %v, want 10.0", p.OutputCostUSDPerM)
+	}
+
+	// Also verify lookup by ModelID works for unscored model
+	gotByID, err := svc.Catalog().Model(catCtx(), "fable-5.1")
+	if err != nil {
+		t.Fatalf("Model(fable-5.1): %v", err)
+	}
+	if gotByID.ModelName != "Fable 5.1" {
+		t.Errorf("gotByID.ModelName = %q, want Fable 5.1", gotByID.ModelName)
+	}
+}
+
+func TestCatalogModelCardUnscoredDisabledProvider(t *testing.T) {
+	svc, _ := newTestServices(t) // cursor not enabled
+	seedModelsDevCache(t, svc, []modelsdev.ProviderModel{{
+		Provider:     "cursor",
+		ModelID:      "fable-5.1",
+		Name:         "Fable 5.1",
+		EffortLevels: []string{"default"},
+	}})
+
+	got, err := svc.Catalog().Model(catCtx(), "Fable 5.1")
+	if err != nil {
+		t.Fatalf("Model(Fable 5.1): %v", err)
+	}
+	if got.ModelName != "Fable 5.1" {
+		t.Fatalf("modelName = %s, want Fable 5.1", got.ModelName)
+	}
+	if got.ProviderCount != 0 {
+		t.Errorf("ProviderCount = %d, want 0 (provider disabled)", got.ProviderCount)
+	}
+	if len(got.Providers) != 0 {
+		t.Errorf("providers = %+v, want empty when provider is disabled", got.Providers)
+	}
+}
+
+func TestCatalogModelCardLookupByModelID(t *testing.T) {
+	svc, _ := newTestServices(t)
+	// Claude Opus 5 is in scores CSV; lookup by its model ID "claude-opus-5"
+	got, err := svc.Catalog().Model(catCtx(), "claude-opus-5")
+	if err != nil {
+		t.Fatalf("Model(claude-opus-5): %v", err)
+	}
+	if got.ModelName != "Claude Opus 5" {
+		t.Errorf("ModelName = %q, want Claude Opus 5", got.ModelName)
+	}
+	if got.Intelligence == nil || *got.Intelligence != 100 {
+		t.Errorf("intelligence = %v, want 100", got.Intelligence)
+	}
+}
+func TestCatalogModelCardProviderIDResolvesScoredModel(t *testing.T) {
+	svc, _ := newTestServices(t)
+	seedModelsDevCache(t, svc, []modelsdev.ProviderModel{{
+		Provider:     "github-copilot",
+		ModelID:      "custom-opus",
+		Name:         "Claude Opus 5",
+		EffortLevels: []string{"high"},
+	}})
+
+	got, err := svc.Catalog().Model(catCtx(), "custom-opus")
+	if err != nil {
+		t.Fatalf("Model(custom-opus): %v", err)
+	}
+	if got.ModelName != "Claude Opus 5" {
+		t.Errorf("ModelName = %q, want Claude Opus 5", got.ModelName)
+	}
+	if !got.InCatalog {
+		t.Errorf("InCatalog = false, want true for scored model resolved via provider ID")
+	}
+	if got.Intelligence == nil || *got.Intelligence != 100 {
+		t.Errorf("intelligence = %v, want 100", got.Intelligence)
+	}
+}
+
+// TestCatalogModelCardDisabledLevelStillExposed pins B05 SPEC §2.15: the model
+// card lists every effort level the provider EXPOSES, including levels switched
+// off under [routes.disabled]. The card is a navigation surface into per-combo
+// benchmarks and the Providers page owns the toggles, so a disabled level must
+// still be reachable here. Provider-level enablement IS filtered (§2.15) and is
+// covered by TestCatalogModelCardDisabledOmitted.
+func TestCatalogModelCardDisabledLevelStillExposed(t *testing.T) {
+	svc, _ := newTestServices(t, WithConfigTOML(`
+[providers.claude]
+enabled = true
+
+[routes.disabled]
+claude = ["claude-opus-5@max"]
+`))
+
+	got, err := svc.Catalog().Model(catCtx(), "Claude Opus 5")
+	if err != nil {
+		t.Fatalf("Model(Claude Opus 5): %v", err)
+	}
+	if len(got.Providers) != 1 {
+		t.Fatalf("providers = %+v, want 1 (claude enabled)", got.Providers)
+	}
+	row := got.Providers[0]
+	if !reflect.DeepEqual(row.Reasoning, []string{"high", "max"}) {
+		t.Errorf("reasoning = %v, want [high max] (max disabled but still exposed)", row.Reasoning)
+	}
+	if !stringInSlice(row.RouteKeys, "claude/claude-opus-5@max") {
+		t.Errorf("route keys = %v, want the disabled max combo still addressable", row.RouteKeys)
+	}
+}
+
+// TestCatalogModelsProviderListingContributes pins B05 SPEC §2.14: ProviderCount
+// and ModelID are a UNION of (a) every route carrying the name, regardless of
+// provider enablement, and (b) the model listings of ENABLED providers, which
+// include models.dev catalogue entries that have no route yet. Kimi K2.7 Code
+// has no route in the fixture, so it isolates contribution (b): without it a
+// user who enables a provider but has not run `routes refresh` would see a
+// scored model reported as reachable from nowhere.
+func TestCatalogModelsProviderListingContributes(t *testing.T) {
+	base, _ := newTestServices(t)
+	before, err := base.Catalog().Models(catCtx())
+	if err != nil {
+		t.Fatalf("Models (baseline): %v", err)
+	}
+	var baseKimi *CatalogModel
+	for i := range before {
+		if before[i].ModelName == "Kimi K2.7 Code" {
+			baseKimi = &before[i]
+		}
+	}
+	if baseKimi == nil {
+		t.Fatal("Kimi K2.7 Code missing from baseline catalog")
+	}
+	if baseKimi.ProviderCount != 0 || baseKimi.ModelID != "" {
+		t.Fatalf("baseline Kimi = count %d id %q, want 0 and empty (no routes)", baseKimi.ProviderCount, baseKimi.ModelID)
+	}
+
+	svc, _ := newTestServices(t, WithConfigTOML(`
+[providers.cursor]
+enabled = true
+`))
+	seedModelsDevCache(t, svc, []modelsdev.ProviderModel{{
+		Provider:     "cursor",
+		ModelID:      "kimi-k2.7-code",
+		Name:         "Kimi K2.7 Code",
+		EffortLevels: []string{"high"},
+	}})
+	got, err := svc.Catalog().Models(catCtx())
+	if err != nil {
+		t.Fatalf("Models: %v", err)
+	}
+	var kimi *CatalogModel
+	for i := range got {
+		if got[i].ModelName == "Kimi K2.7 Code" {
+			kimi = &got[i]
+		}
+	}
+	if kimi == nil {
+		t.Fatal("Kimi K2.7 Code missing after seeding the provider listing")
+	}
+	if kimi.ProviderCount != 1 {
+		t.Errorf("ProviderCount = %d, want 1 from the enabled provider listing alone", kimi.ProviderCount)
+	}
+	if kimi.ModelID != "kimi-k2.7-code" {
+		t.Errorf("ModelID = %q, want kimi-k2.7-code from the provider listing", kimi.ModelID)
+	}
+	if !reflect.DeepEqual(kimi.Providers, []string{"cursor"}) {
+		t.Errorf("Providers = %v, want [cursor]", kimi.Providers)
+	}
+}
+
+// TestCatalogModelsDisabledProviderListingIgnored is the negative half of
+// §2.14(b): the listing contribution is gated on provider enablement, so the
+// same seed with cursor disabled leaves Kimi at zero.
+func TestCatalogModelsDisabledProviderListingIgnored(t *testing.T) {
+	svc, _ := newTestServices(t) // cursor not enabled
+	seedModelsDevCache(t, svc, []modelsdev.ProviderModel{{
+		Provider:     "cursor",
+		ModelID:      "kimi-k2.7-code",
+		Name:         "Kimi K2.7 Code",
+		EffortLevels: []string{"high"},
+	}})
+	got, err := svc.Catalog().Models(catCtx())
+	if err != nil {
+		t.Fatalf("Models: %v", err)
+	}
+	for _, m := range got {
+		if m.ModelName != "Kimi K2.7 Code" {
+			continue
+		}
+		if m.ProviderCount != 0 || m.ModelID != "" {
+			t.Errorf("Kimi = count %d id %q, want 0 and empty (cursor disabled)", m.ProviderCount, m.ModelID)
+		}
+		return
+	}
+	t.Fatal("Kimi K2.7 Code missing from catalog")
+}
+
+// TestCatalogModelCardSharedModelIDNoCrossProviderLeak is the aggregation-phase
+// counterpart to the provider-scoped lookup fix. Provider-native ids are
+// provider-scoped, so two unrelated models can share a generic id such as
+// "default". Before the guard, synthesising the unscored "Alpha 1.0" card
+// (base.ModelID "default") matched anthropic's "Claude Opus 5" purely on that
+// bare id, leaking a second provider row and a "max" chip that drilled into the
+// wrong benchmarks. The display name is authoritative: an id-only match whose
+// name is a DIFFERENT catalog identity must be rejected.
+func TestCatalogModelCardSharedModelIDNoCrossProviderLeak(t *testing.T) {
+	svc, _ := newTestServices(t, WithConfigTOML(`
+[providers.cursor]
+enabled = true
+
+[providers.claude]
+enabled = true
+`))
+	seedModelsDevCache(t, svc, []modelsdev.ProviderModel{
+		{Provider: "cursor", ModelID: "default", Name: "Alpha 1.0", EffortLevels: []string{"high"}},
+		{Provider: "anthropic", ModelID: "default", Name: "Claude Opus 5", EffortLevels: []string{"max"}},
+	})
+
+	got, err := svc.Catalog().Model(catCtx(), "Alpha 1.0")
+	if err != nil {
+		t.Fatalf("Model(Alpha 1.0): %v", err)
+	}
+	if got.ModelName != "Alpha 1.0" || got.InCatalog {
+		t.Fatalf("identity = %q inCatalog=%v, want Alpha 1.0 and false", got.ModelName, got.InCatalog)
+	}
+	if len(got.Providers) != 1 || got.Providers[0].Provider != "cursor" {
+		t.Fatalf("providers = %+v, want only the cursor row", got.Providers)
+	}
+	if got.ProviderCount != 1 {
+		t.Errorf("ProviderCount = %d, want 1", got.ProviderCount)
+	}
+	if stringInSlice(got.Reasoning, "max") {
+		t.Errorf("reasoning = %v, leaked Claude Opus 5's max level via the shared id", got.Reasoning)
+	}
+
+	// The scored neighbour must remain intact and unaffected by the guard.
+	opus, err := svc.Catalog().Model(catCtx(), "Claude Opus 5")
+	if err != nil {
+		t.Fatalf("Model(Claude Opus 5): %v", err)
+	}
+	if !opus.InCatalog {
+		t.Errorf("Claude Opus 5 InCatalog = false, want true")
+	}
+	for _, p := range opus.Providers {
+		if p.Provider == "cursor" {
+			t.Errorf("Alpha 1.0's cursor row leaked onto the Claude Opus 5 card: %+v", p)
+		}
+	}
+}
+
+// TestCatalogModelCardTwoUnscoredShareModelID is the case a scored-name
+// heuristic cannot catch: BOTH models are unscored, so neither display name
+// appears in the scores CSV and there is no catalog identity to arbitrate.
+// Only provider scoping — an id is meaningful solely within the provider that
+// serves the model by name — keeps the two cards apart.
+func TestCatalogModelCardTwoUnscoredShareModelID(t *testing.T) {
+	svc, _ := newTestServices(t, WithConfigTOML(`
+[providers.cursor]
+enabled = true
+
+[providers.antigravity]
+enabled = true
+`))
+	seedModelsDevCache(t, svc, []modelsdev.ProviderModel{
+		{Provider: "cursor", ModelID: "default", Name: "Alpha 1.0", EffortLevels: []string{"high"}},
+		{Provider: "antigravity", ModelID: "default", Name: "Beta 9.9", EffortLevels: []string{"low"}},
+	})
+
+	for _, tc := range []struct {
+		name     string
+		provider string
+		level    string
+		otherLvl string
+	}{
+		{"Alpha 1.0", "cursor", "high", "low"},
+		{"Beta 9.9", "antigravity", "low", "high"},
+	} {
+		got, err := svc.Catalog().Model(catCtx(), tc.name)
+		if err != nil {
+			t.Fatalf("Model(%s): %v", tc.name, err)
+		}
+		if got.InCatalog {
+			t.Errorf("%s InCatalog = true, want false (unscored)", tc.name)
+		}
+		if len(got.Providers) != 1 || got.Providers[0].Provider != tc.provider {
+			t.Fatalf("%s providers = %+v, want only %s", tc.name, got.Providers, tc.provider)
+		}
+		if got.ProviderCount != 1 {
+			t.Errorf("%s ProviderCount = %d, want 1", tc.name, got.ProviderCount)
+		}
+		if !stringInSlice(got.Reasoning, tc.level) {
+			t.Errorf("%s reasoning = %v, want its own %s level", tc.name, got.Reasoning, tc.level)
+		}
+		if stringInSlice(got.Reasoning, tc.otherLvl) {
+			t.Errorf("%s reasoning = %v, leaked the other model's %s level", tc.name, got.Reasoning, tc.otherLvl)
+		}
 	}
 }
 

@@ -24,30 +24,6 @@ export function BenchmarkDetail(name) {
 }
 
 /**
- * @param {string} model
- * @param {string} reasoning
- * @returns {$CancellablePromise<service$0.ModelScoreDetail>}
- */
-export function ModelDetail(model, reasoning) {
-    return $Call.ByName("main.CatalogAPI.ModelDetail", model, reasoning);
-}
-
-/**
- * @param {string} name
- * @returns {$CancellablePromise<service$0.CatalogModelDetail>}
- */
-export function Model(name) {
-    return $Call.ByName("main.CatalogAPI.Model", name);
-}
-
-/**
- * @returns {$CancellablePromise<service$0.CatalogModel[] | null>}
- */
-export function Models() {
-    return $Call.ByName("main.CatalogAPI.Models");
-}
-
-/**
  * @returns {$CancellablePromise<string[] | null>}
  */
 export function Benchmarks() {
@@ -83,6 +59,30 @@ export function GroupDetail(slug) {
  */
 export function Groups() {
     return $Call.ByName("main.CatalogAPI.Groups");
+}
+
+/**
+ * @param {string} name
+ * @returns {$CancellablePromise<service$0.CatalogModelDetail>}
+ */
+export function Model(name) {
+    return $Call.ByName("main.CatalogAPI.Model", name);
+}
+
+/**
+ * @param {string} model
+ * @param {string} reasoning
+ * @returns {$CancellablePromise<service$0.ModelScoreDetail>}
+ */
+export function ModelDetail(model, reasoning) {
+    return $Call.ByName("main.CatalogAPI.ModelDetail", model, reasoning);
+}
+
+/**
+ * @returns {$CancellablePromise<service$0.CatalogModel[] | null>}
+ */
+export function Models() {
+    return $Call.ByName("main.CatalogAPI.Models");
 }
 
 /**

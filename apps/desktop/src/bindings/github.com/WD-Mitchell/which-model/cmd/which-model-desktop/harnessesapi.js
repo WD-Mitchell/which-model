@@ -48,6 +48,14 @@ export function Save(h) {
     return $Call.ByName("main.HarnessesAPI.Save", h);
 }
 
+/**
+ * @param {string} slug
+ * @param {boolean} on
+ * @returns {$CancellablePromise<void>}
+ */
+export function SetAllProviders(slug, on) {
+    return $Call.ByName("main.HarnessesAPI.SetAllProviders", slug, on);
+}
 
 /**
  * @param {string} slug
@@ -56,14 +64,6 @@ export function Save(h) {
  */
 export function SetEnabled(slug, enabled) {
     return $Call.ByName("main.HarnessesAPI.SetEnabled", slug, enabled);
-}
-/**
- * @param {string} slug
- * @param {boolean} on
- * @returns {$CancellablePromise<void>}
- */
-export function SetAllProviders(slug, on) {
-    return $Call.ByName("main.HarnessesAPI.SetAllProviders", slug, on);
 }
 
 /**

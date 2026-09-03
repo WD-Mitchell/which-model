@@ -182,6 +182,7 @@ export interface CatalogModelDetail {
     cost: number | null;
     speed: number | null;
     provider_count: number;
+    in_catalog: boolean;
     providers: CatalogModelProvider[];
 }
 export interface Favourite {

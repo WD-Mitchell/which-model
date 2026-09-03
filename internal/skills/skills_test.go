@@ -62,6 +62,28 @@ func TestRepoRoot(t *testing.T) {
 	if got != repo {
 		t.Errorf("RepoRoot() = %q, want %q", got, repo)
 	}
+	// Test 2b: worktree checkout with .git file -> RepoRoot() == worktree.
+	worktree := t.TempDir()
+	if err := os.WriteFile(filepath.Join(worktree, ".git"), []byte("gitdir: /fake/path\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	worktree, err = filepath.EvalSymlinks(worktree)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(worktree); err != nil {
+		t.Fatal(err)
+	}
+	gotWorktree, err := RepoRoot()
+	if err != nil {
+		t.Fatalf("RepoRoot() from worktree dir: %v", err)
+	}
+	if gotWorktree != worktree {
+		t.Errorf("RepoRoot() worktree = %q, want %q", gotWorktree, worktree)
+	}
+	if err := os.Chdir(repo); err != nil {
+		t.Fatal(err)
+	}
 
 	// Test 3: cwd in a nested subdir -> upward walk still finds repo.
 	sub := filepath.Join(repo, "nonexistent-subdir")

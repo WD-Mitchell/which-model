@@ -256,7 +256,7 @@ graph TD
            return "", err
        }
        for {
-           if fi, err := os.Stat(filepath.Join(dir, ".git")); err == nil && fi.IsDir() {
+           if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
                return dir, nil
            }
            parent := filepath.Dir(dir)
@@ -274,7 +274,7 @@ graph TD
    ```
 2. Create `internal/skills/skills_test.go`, `package skills`:
    - Test 1: `Names` == `["model-selection", "provider-usage", "usage-aware-dispatch"]`.
-   - Tests 2–4 use `t.TempDir()`: create `<tmp>/.git/` (directory) and a file `<tmp>/marker.txt`; `SetRepoDir("")`, `os.Chdir(<tmp>)` (save and restore cwd via `t.Cleanup`), then `RepoRoot()` returns `<tmp>`. Then `os.Chdir(<tmp>/nonexistent-subdir)` (create it) and `RepoRoot()` still returns `<tmp>` (upward walk). Then `os.Chdir(t.TempDir())` (no `.git` ancestor) → `RepoRoot()` errors with message containing `--repo`. Finally `SetRepoDir(<tmp2>)` → `RepoRoot()` returns `<tmp2>` even from a `.git`-less cwd; `SetRepoDir("")` at the end (cleanup).
+   - Tests 2–4 use `t.TempDir()`: create `<tmp>/.git/` (directory or worktree file) and a file `<tmp>/marker.txt`; `SetRepoDir("")`, `os.Chdir(<tmp>)` (save and restore cwd via `t.Cleanup`), then `RepoRoot()` returns `<tmp>`. Then `os.Chdir(<tmp>/nonexistent-subdir)` (create it) and `RepoRoot()` still returns `<tmp>` (upward walk). Then `os.Chdir(t.TempDir())` (no `.git` ancestor) → `RepoRoot()` errors with message containing `--repo`. Finally `SetRepoDir(<tmp2>)` → `RepoRoot()` returns `<tmp2>` even from a `.git`-less cwd; `SetRepoDir("")` at the end (cleanup).
    - Test 5: `TargetGeneric`/`TargetClaude` string values `"generic"`/`"claude"`.
 
 **Test cases (write these first):**

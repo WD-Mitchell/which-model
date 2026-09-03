@@ -272,6 +272,7 @@ type CatalogModelDetail struct {
 	Cost          *float64               `json:"cost"`
 	Speed         *float64               `json:"speed"`
 	ProviderCount int                    `json:"provider_count"`
+	InCatalog     bool                   `json:"in_catalog"`
 	Providers     []CatalogModelProvider `json:"providers"`
 }
 
