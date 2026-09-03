@@ -65,6 +65,9 @@ func (s *Services) providerUniverseFromCatalogueLocked(catalogue []modelsdev.Pro
 	for _, id := range usage.IDs() {
 		seen[id] = struct{}{}
 	}
+	for _, id := range discoverBackendProviderIDs(s.cfg.Usage.Backend) {
+		seen[id] = struct{}{}
+	}
 	for _, route := range s.routes.Routes {
 		seen[route.Provider] = struct{}{}
 	}
@@ -184,7 +187,7 @@ func (p *ProviderService) listLocked() ([]ProviderInfo, error) {
 			Enabled:  provider.Enabled,
 			Priority: index + 1,
 			Accounts: len(provider.Accounts),
-			Builtin:  providerBuiltin(id),
+			Builtin:  p.providerBuiltinLocked(id),
 		}
 
 		routesTotal := 0
@@ -363,18 +366,12 @@ func (p *ProviderService) Detail(ctx context.Context, id string) (ProviderDetail
 	for _, account := range p.s.cfg.Providers[id].Accounts {
 		accounts = append(accounts, ProviderAccountDTO{Name: account.Name, Kind: account.Kind, Ref: account.Ref})
 	}
-	if len(accounts) == 0 && providerBuiltin(id) {
-		name := id
-		if desc, err := usage.Get(id); err == nil && desc.DisplayName != "" {
-			name = desc.DisplayName
-		}
-		accounts = []ProviderAccountDTO{{Name: name, Kind: AccountKindOAuth, Ref: ""}}
-	}
 	return ProviderDetail{
-		ID:       id,
-		Accounts: accounts,
-		Builtin:  providerBuiltin(id),
-		Models:   p.providerModelsLocked(id),
+		ID:             id,
+		Accounts:       accounts,
+		OAuthSupported: providerOAuthSupported(id),
+		Builtin:        p.providerBuiltinLocked(id),
+		Models:         p.providerModelsLocked(id),
 	}, nil
 }
 
@@ -528,10 +525,27 @@ func (p *ProviderService) providerKnownLocked(id string) bool {
 			return true
 		}
 	}
+	for _, backendID := range discoverBackendProviderIDs(p.s.cfg.Usage.Backend) {
+		if backendID == id {
+			return true
+		}
+	}
 	// Keep catalogue-only providers writable as well as listable. Otherwise a
 	// provider such as Alibaba appears in List but SetEnabled rejects it.
 	for _, model := range loadModelsDevCatalogue(p.s.paths.CacheDir) {
 		if model.Provider == id {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *ProviderService) providerBuiltinLocked(id string) bool {
+	if providerBuiltin(id) {
+		return true
+	}
+	for _, backendID := range discoverBackendProviderIDs(p.s.cfg.Usage.Backend) {
+		if backendID == id {
 			return true
 		}
 	}
@@ -670,10 +684,9 @@ func (p *ProviderService) Addable(ctx context.Context) ([]string, error) {
 	return out, nil
 }
 
-// providerBuiltin reports whether id ships a usage adapter in this binary.
-// Builtins are always in the universe (providerUniverseLocked seeds it from
-// usage.IDs), so deleting their config entry would not remove them — Delete
-// refuses instead of doing something that looks like a no-op.
+// providerBuiltin reports whether id ships a native usage adapter in this
+// binary. ProviderService.providerBuiltinLocked additionally includes the
+// configured backend's provider roster because those rows are also permanent.
 func providerBuiltin(id string) bool {
 	for _, registered := range usage.IDs() {
 		if registered == id {
@@ -691,10 +704,11 @@ func providerBuiltin(id string) bool {
 // look broken.
 func (p *ProviderService) Delete(ctx context.Context, id string) error {
 	_ = ctx
-	if providerBuiltin(id) {
-		return fmt.Errorf("%w: providers: %q ships with which-model and cannot be deleted; disable it instead", errValidation, id)
-	}
 	p.s.mu.Lock()
+	if p.providerBuiltinLocked(id) {
+		p.s.mu.Unlock()
+		return fmt.Errorf("%w: providers: %q ships with which-model or its configured usage backend and cannot be deleted; disable it instead", errValidation, id)
+	}
 	if !p.providerKnownLocked(id) {
 		p.s.mu.Unlock()
 		return fmt.Errorf("%w: providers: unknown provider %q", errNotFound, id)
@@ -785,7 +799,9 @@ func (p *ProviderService) Duplicate(ctx context.Context, id string) (string, err
 // covers add, rename, re-kind and remove, so the UI never has to sequence
 // several calls and half-apply on failure.
 func (p *ProviderService) SetAccounts(ctx context.Context, id string, accounts []ProviderAccountDTO) error {
-	_ = ctx
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	seen := make(map[string]struct{}, len(accounts))
 	for _, account := range accounts {
 		name := strings.TrimSpace(account.Name)
@@ -808,6 +824,7 @@ func (p *ProviderService) SetAccounts(ctx context.Context, id string, accounts [
 		p.s.mu.Unlock()
 		return fmt.Errorf("%w: providers: unknown provider %q", errNotFound, id)
 	}
+	previousAccounts := p.s.cfg.Providers[id].Accounts
 	copyCfg, cleanup, err := cloneConfigForProviders(p.s.cfg)
 	if err == nil {
 		if copyCfg.Providers == nil {
@@ -823,18 +840,45 @@ func (p *ProviderService) SetAccounts(ctx context.Context, id string, accounts [
 			})
 		}
 		copyCfg.Providers[id] = provider
+	}
+
+	var rollbackCredential func() error
+	if err == nil &&
+		hasProviderAccountRef(previousAccounts, managedOAuthRef) &&
+		!hasProviderAccountRef(copyCfg.Providers[id].Accounts, managedOAuthRef) {
+		store, storeErr := p.s.managedStoreLocked()
+		if storeErr != nil {
+			err = storeErr
+		} else {
+			rollbackCredential, err = removeManagedCredential(ctx, store, id)
+		}
+	}
+	if err == nil {
 		err = p.persistConfigLocked(copyCfg)
+	}
+	if err != nil && rollbackCredential != nil {
+		if rollbackErr := rollbackCredential(); rollbackErr != nil {
+			err = fmt.Errorf("%w; managed credential restoration failed: %w", err, rollbackErr)
+		}
 	}
 	if cleanup != nil {
 		cleanup()
 	}
+	p.s.mu.Unlock()
 	if err != nil {
-		p.s.mu.Unlock()
 		return err
 	}
-	p.s.mu.Unlock()
 	p.s.emit(EventConfigChanged, map[string]string{"section": "providers"})
 	return nil
+}
+
+func hasProviderAccountRef(accounts []config.ProviderAccount, ref string) bool {
+	for _, account := range accounts {
+		if strings.TrimSpace(account.Ref) == ref {
+			return true
+		}
+	}
+	return false
 }
 
 // providerIDPattern bounds custom provider ids to config-key-safe slugs.

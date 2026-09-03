@@ -6,6 +6,9 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +24,17 @@ import (
 // auth source pointing at the given test server URLs. Registered at most
 // once per id (usage.Register panics on duplicates and the registry has no
 // removal), so the server URLs are swapped atomically per test instead.
+
+func clearTestSignInFlow(provider string) {
+	signInMu.Lock()
+	if active, ok := signInFlows[provider]; ok {
+		if active.cancel != nil {
+			active.cancel()
+		}
+		delete(signInFlows, provider)
+	}
+	signInMu.Unlock()
+}
 
 const testFlowProviderID = "wm-test-signin"
 
@@ -104,11 +118,14 @@ func TestSignInStartHappyPath(t *testing.T) {
 	newFlowTestTargets(t, `{"device_code":"abc123","user_code":"WDML-TEST","verification_uri":"https://github.com/login/device","expires_in":900}`, tokenBodies)
 
 	svc, _ := newTestServices(t, WithConfigTOML("[usage]\nbackend = \"native\"\n\n[providers."+testFlowProviderID+"]\nenabled = true\n"))
+	t.Cleanup(func() { clearTestSignInFlow(testFlowProviderID) })
 	start, err := svc.SignIn().Start(context.Background(), testFlowProviderID)
 	if err != nil {
 		t.Fatalf("Start() error = %v", err)
 	}
-	if start.UserCode != "WDML-TEST" || start.VerificationURI != "https://github.com/login/device" {
+	if start.UserCode != "WDML-TEST" ||
+		start.VerificationURI != "https://github.com/login/device" ||
+		start.PasteRequired {
 		t.Fatalf("Start() = %+v", start)
 	}
 	signInMu.Lock()
@@ -116,6 +133,201 @@ func TestSignInStartHappyPath(t *testing.T) {
 	signInMu.Unlock()
 	if !active {
 		t.Fatal("no active flow recorded after Start")
+	}
+}
+
+func TestSignInFlowIDRejectsStaleOperationsAndDuplicateStart(t *testing.T) {
+	registerTestDeviceFlowProvider(t)
+	tokenBodies := make(chan string, 1)
+	newFlowTestTargets(t, `{"device_code":"abc123","user_code":"WDML-TEST","verification_uri":"https://github.com/login/device","expires_in":900}`, tokenBodies)
+	svc, _ := newTestServices(t, WithConfigTOML("[usage]\nbackend = \"native\"\n\n[providers."+testFlowProviderID+"]\nenabled = true\n"))
+
+	started, err := svc.SignIn().Start(context.Background(), testFlowProviderID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if started.FlowID == "" {
+		t.Fatal("Start returned an empty flow id")
+	}
+	if _, err := svc.SignIn().Start(context.Background(), testFlowProviderID); err == nil {
+		t.Fatal("duplicate Start error = nil")
+	}
+	if err := svc.SignIn().Confirm(context.Background(), testFlowProviderID, "stale-flow", "Stale"); err == nil {
+		t.Fatal("Confirm accepted a stale flow id")
+	}
+	if err := svc.SignIn().Cancel(testFlowProviderID, "stale-flow"); err == nil {
+		t.Fatal("Cancel accepted a stale flow id")
+	}
+	signInMu.Lock()
+	active := signInFlows[testFlowProviderID]
+	signInMu.Unlock()
+	if active.id != started.FlowID {
+		t.Fatal("stale operation replaced or removed the active flow")
+	}
+	if err := svc.SignIn().Cancel(testFlowProviderID, started.FlowID); err != nil {
+		t.Fatalf("Cancel(active flow): %v", err)
+	}
+}
+
+func TestSignInCancelledFlowCannotCommitAfterReplacement(t *testing.T) {
+	oldStart := startCursorLogin
+	t.Cleanup(func() {
+		startCursorLogin = oldStart
+		clearTestSignInFlow("cursor")
+	})
+	firstWaitStarted := make(chan struct{})
+	releaseFirst := make(chan struct{})
+	startCount := 0
+	startCursorLogin = func(context.Context) (*cursorSignIn, error) {
+		startCount++
+		if startCount == 1 {
+			return &cursorSignIn{
+				verificationURL: "https://cursor.com/oauth/authorize",
+				wait: func(context.Context) error {
+					close(firstWaitStarted)
+					<-releaseFirst
+					return nil
+				},
+			}, nil
+		}
+		return &cursorSignIn{
+			verificationURL: "https://cursor.com/oauth/authorize",
+			wait: func(ctx context.Context) error {
+				<-ctx.Done()
+				return ctx.Err()
+			},
+		}, nil
+	}
+	stubModelsDevFetch(t, nil)
+	svc, _ := newTestServices(t, WithConfigTOML("[usage]\nbackend = \"codexbar\"\n\n[auth]\nuse_keychain = false\n\n[providers.cursor]\nenabled = true\n"))
+
+	first, err := svc.SignIn().Start(context.Background(), "cursor")
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		done <- svc.SignIn().Confirm(context.Background(), "cursor", first.FlowID, "Stale")
+	}()
+	<-firstWaitStarted
+	if err := svc.SignIn().Cancel("cursor", first.FlowID); err != nil {
+		t.Fatal(err)
+	}
+	replacement, err := svc.SignIn().Start(context.Background(), "cursor")
+	if err != nil {
+		t.Fatal(err)
+	}
+	close(releaseFirst)
+	if err := <-done; err == nil {
+		t.Fatal("cancelled Confirm committed after a replacement Start")
+	}
+	detail, err := svc.Providers().Detail(context.Background(), "cursor")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(detail.Accounts) != 0 {
+		t.Fatalf("cancelled Confirm recorded accounts: %+v", detail.Accounts)
+	}
+	if err := svc.SignIn().Cancel("cursor", replacement.FlowID); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCursorOAuthSignInUsesProviderClientAndRecordsAccount(t *testing.T) {
+	oldStart := startCursorLogin
+	t.Cleanup(func() {
+		startCursorLogin = oldStart
+		clearTestSignInFlow("cursor")
+	})
+	waited := false
+	startCursorLogin = func(context.Context) (*cursorSignIn, error) {
+		return &cursorSignIn{
+			verificationURL: "https://cursor.com/oauth/authorize",
+			wait: func(context.Context) error {
+				waited = true
+				return nil
+			},
+		}, nil
+	}
+	stubModelsDevFetch(t, nil)
+	svc, _ := newTestServices(t, WithConfigTOML("[usage]\nbackend = \"codexbar\"\n\n[auth]\nuse_keychain = false\n\n[providers.cursor]\nenabled = true\n"))
+
+	started, err := svc.SignIn().Start(context.Background(), "cursor")
+	if err != nil {
+		t.Fatalf("Start(cursor): %v", err)
+	}
+	if started.VerificationURI != "https://cursor.com/oauth/authorize" ||
+		started.UserCode != "" ||
+		started.PasteRequired {
+		t.Fatalf("Start(cursor) = %+v", started)
+	}
+	if err := svc.SignIn().Confirm(context.Background(), "cursor", started.FlowID, "Work"); err != nil {
+		t.Fatalf("Confirm(cursor): %v", err)
+	}
+	if !waited {
+		t.Fatal("Confirm(cursor) did not wait for Cursor Agent")
+	}
+	detail, err := svc.Providers().Detail(context.Background(), "cursor")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !detail.OAuthSupported || len(detail.Accounts) != 1 || detail.Accounts[0].Ref != cursorOAuthRef {
+		t.Fatalf("cursor detail after sign-in = %+v", detail)
+	}
+	store, err := svc.managedStoreFor("cursor")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := store.Resolve(context.Background(), "cursor"); err == nil {
+		t.Fatal("Cursor sign-in wrote a sentinel to the managed credential store")
+	}
+}
+
+func TestAntigravityOAuthSignInStoresCredentialAndRecordsAccount(t *testing.T) {
+	oldStart := startAntigravityLogin
+	t.Cleanup(func() {
+		startAntigravityLogin = oldStart
+		clearTestSignInFlow("antigravity")
+	})
+	startAntigravityLogin = func(context.Context) (*antigravitySignIn, error) {
+		return &antigravitySignIn{
+			verificationURL: "https://accounts.google.com/o/oauth2/v2/auth?state=test",
+			wait: func(context.Context) (string, error) {
+				return "antigravity-oauth.test-credential", nil
+			},
+		}, nil
+	}
+	stubModelsDevFetch(t, nil)
+	svc, _ := newTestServices(t, WithConfigTOML("[usage]\nbackend = \"codexbar\"\n\n[auth]\nuse_keychain = false\n\n[providers.antigravity]\nenabled = true\n"))
+
+	started, err := svc.SignIn().Start(context.Background(), "antigravity")
+	if err != nil {
+		t.Fatalf("Start(antigravity): %v", err)
+	}
+	if !strings.HasPrefix(started.VerificationURI, "https://accounts.google.com/") ||
+		started.PasteRequired {
+		t.Fatalf("Start(antigravity) = %+v", started)
+	}
+	if err := svc.SignIn().Confirm(context.Background(), "antigravity", started.FlowID, "Google"); err != nil {
+		t.Fatalf("Confirm(antigravity): %v", err)
+	}
+	store, err := svc.managedStoreFor("antigravity")
+	if err != nil {
+		t.Fatal(err)
+	}
+	credential, _, err := store.Resolve(context.Background(), "antigravity")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if credential.Token != "antigravity-oauth.test-credential" {
+		t.Fatal("Confirm(antigravity) did not persist the OAuth credential")
+	}
+	detail, err := svc.Providers().Detail(context.Background(), "antigravity")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !detail.OAuthSupported || len(detail.Accounts) != 1 || detail.Accounts[0].Ref != managedOAuthRef {
+		t.Fatalf("antigravity detail after sign-in = %+v", detail)
 	}
 }
 
@@ -133,10 +345,11 @@ func TestSignInConfirmSavesCredential(t *testing.T) {
 	newFlowTestTargets(t, `{"device_code":"abc123","user_code":"WDML-TEST","verification_uri":"https://github.com/login/device","expires_in":900}`, tokenBodies)
 	tokenBodies <- `{"access_token":"tok-confirm-1","token_type":"bearer"}`
 
-	if _, err := svc.SignIn().Start(context.Background(), testFlowProviderID); err != nil {
+	started, err := svc.SignIn().Start(context.Background(), testFlowProviderID)
+	if err != nil {
 		t.Fatalf("Start() error = %v", err)
 	}
-	if err := svc.SignIn().Confirm(context.Background(), testFlowProviderID); err != nil {
+	if err := svc.SignIn().Confirm(context.Background(), testFlowProviderID, started.FlowID, "GitHub"); err != nil {
 		t.Fatalf("Confirm() error = %v", err)
 	}
 	store, err := svc.managedStoreFor(testFlowProviderID)
@@ -173,8 +386,124 @@ func TestSignInConfirmSavesCredential(t *testing.T) {
 		t.Fatalf("events after Confirm = %+v, want config:changed and usage:updated", rec.Events())
 	}
 	// Flow is consumed: a second Confirm has nothing to poll.
-	if err := svc.SignIn().Confirm(context.Background(), testFlowProviderID); err == nil {
+	if err := svc.SignIn().Confirm(context.Background(), testFlowProviderID, started.FlowID, "GitHub"); err == nil {
 		t.Fatal("second Confirm error = nil, want validation failure")
+	}
+}
+
+func TestSignInSaveAPIKeyStoresSecretOutsideConfig(t *testing.T) {
+	const secret = "sk-managed-canary-123"
+	svc, rec := newTestServices(t, WithConfigTOML("[auth]\nuse_keychain = false\n\n[providers.claude]\nenabled = true\n"))
+
+	if err := svc.SignIn().SaveAPIKey(context.Background(), "claude", "Production", secret); err != nil {
+		t.Fatalf("SaveAPIKey: %v", err)
+	}
+	detail, err := svc.Providers().Detail(context.Background(), "claude")
+	if err != nil {
+		t.Fatalf("Detail: %v", err)
+	}
+	wantAccounts := []ProviderAccountDTO{{
+		Name: "Production",
+		Kind: AccountKindToken,
+		Ref:  managedOAuthRef,
+	}}
+	if !reflect.DeepEqual(detail.Accounts, wantAccounts) {
+		t.Fatalf("accounts = %+v, want %+v", detail.Accounts, wantAccounts)
+	}
+	data, err := os.ReadFile(svc.paths.UserConfigFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), secret) {
+		t.Fatal("config.toml contains the API key")
+	}
+	store, err := svc.managedStoreFor("claude")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cred, _, err := store.Resolve(context.Background(), "claude")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cred.Token != secret || cred.Source != usage.AuthEnvVar {
+		t.Fatalf("stored credential = %s", cred.String())
+	}
+	var sawConfig, sawUsage bool
+	for _, event := range rec.Events() {
+		sawConfig = sawConfig || event.Event == EventConfigChanged
+		sawUsage = sawUsage || event.Event == EventUsageUpdated
+	}
+	if !sawConfig || !sawUsage {
+		t.Fatalf("events = %+v, want config and usage invalidation", rec.Events())
+	}
+}
+
+func blockSignInConfigWrite(t *testing.T, svc *Services) {
+	t.Helper()
+	original := svc.paths.UserConfigFile
+	blocker := filepath.Join(t.TempDir(), "config-target")
+	if err := os.Mkdir(blocker, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	svc.paths.UserConfigFile = blocker
+	t.Cleanup(func() { svc.paths.UserConfigFile = original })
+}
+
+func TestSignInConfirmRestoresCredentialWhenConfigWriteFails(t *testing.T) {
+	oldStart := startAntigravityLogin
+	t.Cleanup(func() {
+		startAntigravityLogin = oldStart
+		clearTestSignInFlow("antigravity")
+	})
+	startAntigravityLogin = func(context.Context) (*antigravitySignIn, error) {
+		return &antigravitySignIn{
+			verificationURL: "https://accounts.google.com/o/oauth2/v2/auth?state=test",
+			wait: func(context.Context) (string, error) {
+				return "replacement-managed-token", nil
+			},
+		}, nil
+	}
+	svc, _ := newTestServices(t, WithConfigTOML("[usage]\nbackend = \"codexbar\"\n\n[auth]\nuse_keychain = false\n\n[providers.antigravity]\nenabled = true\n"))
+	store, err := svc.managedStoreFor("antigravity")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Save("antigravity", "original-managed-token"); err != nil {
+		t.Fatal(err)
+	}
+	started, err := svc.SignIn().Start(context.Background(), "antigravity")
+	if err != nil {
+		t.Fatal(err)
+	}
+	blockSignInConfigWrite(t, svc)
+
+	if err := svc.SignIn().Confirm(context.Background(), "antigravity", started.FlowID, "Google"); err == nil {
+		t.Fatal("Confirm error = nil, want config persistence failure")
+	}
+	restored, _, err := store.Resolve(context.Background(), "antigravity")
+	if err != nil || restored.Token != "original-managed-token" {
+		t.Fatalf("credential after failed Confirm = %s, %v", restored.String(), err)
+	}
+}
+
+func TestSignInSaveAPIKeyRestoresCredentialWhenConfigWriteFails(t *testing.T) {
+	svc, _ := newTestServices(t, WithConfigTOML("[auth]\nuse_keychain = false\n\n[providers.claude]\nenabled = true\n"))
+	store, err := svc.managedStoreFor("claude")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Save("claude", "original-managed-token"); err != nil {
+		t.Fatal(err)
+	}
+	blockSignInConfigWrite(t, svc)
+
+	if err := svc.SignIn().SaveAPIKey(context.Background(), "claude", "Production", "replacement-api-key"); err == nil {
+		t.Fatal("SaveAPIKey error = nil, want config persistence failure")
+	}
+	restored, _, err := store.Resolve(context.Background(), "claude")
+	if err != nil || restored.Token != "original-managed-token" ||
+		restored.Source != usage.AuthOAuthDeviceFlow {
+		t.Fatalf("credential after failed SaveAPIKey = %s, %v", restored.String(), err)
 	}
 }
 
@@ -226,12 +555,12 @@ func TestSignInStartNoDeviceFlowSource(t *testing.T) {
 func TestSignInConfirmWithoutStart(t *testing.T) {
 	registerTestDeviceFlowProvider(t)
 	svc, _ := newTestServices(t, WithConfigTOML("[usage]\nbackend = \"native\"\n\n[providers."+testFlowProviderID+"]\nenabled = true\n"))
-	err := svc.SignIn().Confirm(context.Background(), testFlowProviderID)
+	err := svc.SignIn().Confirm(context.Background(), testFlowProviderID, "missing-flow", "Account")
 	if err == nil {
 		t.Fatal("Confirm without Start error = nil, want error")
 	}
-	if !strings.Contains(err.Error(), "no sign-in in progress") {
-		t.Fatalf("err = %v, want no-flow message", err)
+	if !strings.Contains(err.Error(), "no matching sign-in in progress") {
+		t.Fatalf("err = %v, want no-matching-flow message", err)
 	}
 }
 
@@ -241,10 +570,11 @@ func TestSignInCancelClearsFlow(t *testing.T) {
 	newFlowTestTargets(t, `{"device_code":"abc123","user_code":"WDML-TEST","verification_uri":"https://github.com/login/device","expires_in":900}`, tokenBodies)
 
 	svc, _ := newTestServices(t, WithConfigTOML("[usage]\nbackend = \"native\"\n\n[providers."+testFlowProviderID+"]\nenabled = true\n"))
-	if _, err := svc.SignIn().Start(context.Background(), testFlowProviderID); err != nil {
+	started, err := svc.SignIn().Start(context.Background(), testFlowProviderID)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.SignIn().Cancel(testFlowProviderID); err != nil {
+	if err := svc.SignIn().Cancel(testFlowProviderID, started.FlowID); err != nil {
 		t.Fatalf("Cancel() error = %v", err)
 	}
 	signInMu.Lock()
@@ -254,7 +584,7 @@ func TestSignInCancelClearsFlow(t *testing.T) {
 		t.Fatal("flow still active after Cancel")
 	}
 	// Cancelling again is success.
-	if err := svc.SignIn().Cancel(testFlowProviderID); err != nil {
+	if err := svc.SignIn().Cancel(testFlowProviderID, started.FlowID); err != nil {
 		t.Fatalf("double Cancel error = %v", err)
 	}
 }
@@ -266,12 +596,13 @@ func TestSignInCancelAbortsConfirm(t *testing.T) {
 	newFlowTestTargets(t, `{"device_code":"abc123","user_code":"WDML-TEST","verification_uri":"https://github.com/login/device","expires_in":900}`, tokenBodies)
 
 	svc, _ := newTestServices(t, WithConfigTOML("[usage]\nbackend = \"native\"\n\n[providers."+testFlowProviderID+"]\nenabled = true\n"))
-	if _, err := svc.SignIn().Start(context.Background(), testFlowProviderID); err != nil {
+	started, err := svc.SignIn().Start(context.Background(), testFlowProviderID)
+	if err != nil {
 		t.Fatal(err)
 	}
 	done := make(chan error, 1)
 	go func() {
-		done <- svc.SignIn().Confirm(context.Background(), testFlowProviderID)
+		done <- svc.SignIn().Confirm(context.Background(), testFlowProviderID, started.FlowID, "Account")
 	}()
 	deadline := time.Now().Add(2 * time.Second)
 	for {
@@ -286,10 +617,10 @@ func TestSignInCancelAbortsConfirm(t *testing.T) {
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	if err := svc.SignIn().Cancel(testFlowProviderID); err != nil {
+	if err := svc.SignIn().Cancel(testFlowProviderID, started.FlowID); err != nil {
 		t.Fatalf("Cancel() error = %v", err)
 	}
-	err := <-done
+	err = <-done
 	if err == nil {
 		t.Fatal("Confirm after Cancel error = nil, want cancellation")
 	}
@@ -359,15 +690,19 @@ func TestSignInClaudeSubmitCodeThenConfirm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if started.UserCode != "" || !strings.Contains(started.VerificationURI, "oauth/authorize") {
-		t.Fatalf("Start = %+v, want authorize URL and empty user_code", started)
+	if started.UserCode != "" ||
+		!started.PasteRequired ||
+		!strings.Contains(started.VerificationURI, "oauth/authorize") {
+		t.Fatalf("Start = %+v, want authorize URL with pasted-code completion", started)
 	}
 	done := make(chan error, 1)
-	go func() { done <- svc.SignIn().Confirm(context.Background(), "claude") }()
+	go func() {
+		done <- svc.SignIn().Confirm(context.Background(), "claude", started.FlowID, "Claude")
+	}()
 	if login == nil {
 		t.Fatal("claude login was not started")
 	}
-	if err := svc.SignIn().SubmitCode("claude", "the-code#"+login.State); err != nil {
+	if err := svc.SignIn().SubmitCode("claude", started.FlowID, "the-code#"+login.State); err != nil {
 		t.Fatalf("SubmitCode: %v", err)
 	}
 	if err := <-done; err != nil {
@@ -429,10 +764,12 @@ func TestSignInCodexDeviceSavesCredential(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Start: %v", err)
 	}
-	if started.UserCode != "WDML-CDX" || !strings.Contains(started.VerificationURI, "/codex/device") {
+	if started.UserCode != "WDML-CDX" ||
+		started.PasteRequired ||
+		!strings.Contains(started.VerificationURI, "/codex/device") {
 		t.Fatalf("Start = %+v", started)
 	}
-	if err := svc.SignIn().Confirm(context.Background(), "codex"); err != nil {
+	if err := svc.SignIn().Confirm(context.Background(), "codex", started.FlowID, "Codex"); err != nil {
 		t.Fatalf("Confirm: %v", err)
 	}
 	store, err := svc.managedStoreFor("codex")

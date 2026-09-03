@@ -16,6 +16,7 @@ import (
 	"github.com/WD-Mitchell/which-model/internal/routing"
 	"github.com/WD-Mitchell/which-model/internal/usage"
 	"github.com/WD-Mitchell/which-model/internal/usage/cache"
+	"github.com/WD-Mitchell/which-model/internal/usage/credential"
 )
 
 // providersFloatPtr returns a pointer to v for snapshot windows.
@@ -432,6 +433,36 @@ func TestProviderSetEnabled_CatalogueOnly(t *testing.T) {
 	}
 }
 
+func TestProviderListIncludesCodexBarProviders(t *testing.T) {
+	oldDiscover := discoverBackendProviderIDs
+	t.Cleanup(func() { discoverBackendProviderIDs = oldDiscover })
+	discoverBackendProviderIDs = func(backend config.UsageBackend) []string {
+		if backend != config.UsageBackendCodexBar {
+			t.Fatalf("backend = %q, want codexbar", backend)
+		}
+		return []string{"antigravity", "commandcode", "cursor"}
+	}
+	svc, _ := newTestServices(t, WithConfigTOML("[usage]\nbackend = \"codexbar\"\n"))
+	useTempUsageCache(t, svc)
+
+	list := mustProviderList(t, svc)
+	got := make(map[string]bool, len(list))
+	for _, provider := range list {
+		got[provider.ID] = true
+	}
+	for _, id := range []string{"antigravity", "commandcode", "cursor"} {
+		if !got[id] {
+			t.Errorf("List missing CodexBar provider %q", id)
+		}
+	}
+	if err := svc.Providers().SetEnabled(context.Background(), "antigravity", true); err != nil {
+		t.Fatalf("SetEnabled CodexBar provider: %v", err)
+	}
+	if !reloadConfig(t, svc).Providers["antigravity"].Enabled {
+		t.Fatal("antigravity.enabled should be true on disk")
+	}
+}
+
 func TestProviderSetEnabled_Unknown(t *testing.T) {
 	svc, rec := newTestServices(t)
 	useTempUsageCache(t, svc)
@@ -521,9 +552,10 @@ func TestProviderDetail_LevelsAndDefault(t *testing.T) {
 		t.Fatalf("Detail.ID = %q", detail.ID)
 	}
 	want := ProviderDetail{
-		ID:       "claude",
-		Builtin:  true,
-		Accounts: []ProviderAccountDTO{{Name: "Claude", Kind: AccountKindOAuth, Ref: ""}},
+		ID:             "claude",
+		Builtin:        true,
+		OAuthSupported: true,
+		Accounts:       []ProviderAccountDTO{},
 		Models: []ProviderModel{
 			{ModelID: "claude-eco", ModelName: "Claude Eco", Levels: []RouteLevel{
 				// low then default (collapsed to high = the top present rung).
@@ -891,6 +923,9 @@ priority = 1
 	if detail.Builtin {
 		t.Error("myprov must not report as builtin")
 	}
+	if detail.OAuthSupported {
+		t.Error("custom provider must not advertise OAuth")
+	}
 
 	// Duplicate carries the accounts but never the enabled state.
 	copyID, err := ps.Duplicate(ctx, "myprov")
@@ -918,6 +953,65 @@ priority = 1
 	}
 	if len(rec.Events()) == 0 {
 		t.Error("expected config:changed emissions")
+	}
+}
+
+func TestProviderSetAccountsRemovesManagedCredentialWithLastManagedAccount(t *testing.T) {
+	svc, rec := newTestServices(t, WithConfigTOML(`
+[auth]
+use_keychain = false
+
+[providers.myprov]
+enabled = true
+
+[[providers.myprov.accounts]]
+name = "Production"
+kind = "token"
+ref = "which-model"
+`))
+	ctx := context.Background()
+	store := credential.ManagedStore{StateDir: svc.paths.StateDir, UseKeychain: false}
+	if err := store.SaveAPIKey("myprov", "sk-managed-provider-test"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := svc.Providers().SetAccounts(ctx, "myprov", nil); err != nil {
+		t.Fatalf("SetAccounts(remove managed account): %v", err)
+	}
+	if _, _, err := store.Resolve(ctx, "myprov"); !errors.Is(err, credential.ErrNotFound) {
+		t.Fatalf("managed credential still resolves after account removal: %v", err)
+	}
+	if accounts := reloadConfig(t, svc).Providers["myprov"].Accounts; len(accounts) != 0 {
+		t.Fatalf("accounts after removal = %+v", accounts)
+	}
+	assertConfigChanged(t, rec, "providers")
+}
+
+func TestProviderSetAccountsDoesNotDeleteCursorOwnedCredential(t *testing.T) {
+	svc, _ := newTestServices(t, WithConfigTOML(`
+[auth]
+use_keychain = false
+
+[providers.cursor]
+enabled = true
+
+[[providers.cursor.accounts]]
+name = "Team"
+kind = "oauth"
+ref = "cursor-agent"
+`))
+	ctx := context.Background()
+	store := credential.ManagedStore{StateDir: svc.paths.StateDir, UseKeychain: false}
+	if err := store.Save("cursor", "unrelated-managed-test-token"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := svc.Providers().SetAccounts(ctx, "cursor", nil); err != nil {
+		t.Fatalf("SetAccounts(remove Cursor account): %v", err)
+	}
+	managed, _, err := store.Resolve(ctx, "cursor")
+	if err != nil || managed.Token != "unrelated-managed-test-token" {
+		t.Fatalf("Cursor-owned removal changed managed credential: %#v, %v", managed, err)
 	}
 }
 

@@ -14,6 +14,8 @@ import (
 	"github.com/WD-Mitchell/which-model/internal/config"
 	"github.com/WD-Mitchell/which-model/internal/usage"
 	"github.com/WD-Mitchell/which-model/internal/usage/cache"
+	"github.com/WD-Mitchell/which-model/internal/usage/credential"
+	"github.com/WD-Mitchell/which-model/internal/usage/provider/antigravity"
 )
 
 // B06's Providers list reads usage from the cache only (OfflineRead, never a
@@ -69,6 +71,75 @@ func TestFetchAllCodexBarWritesCache(t *testing.T) {
 	if len(cached.Windows) != 1 || cached.Windows[0].ID != "weekly" ||
 		cached.Windows[0].UsedPercent == nil || *cached.Windows[0].UsedPercent != 42 {
 		t.Fatalf("cached windows = %#v", cached.Windows)
+	}
+}
+
+func TestFetchAllCodexBarOfflineNeverLoadsCredentialsOrRunsProvider(t *testing.T) {
+	stateDir := t.TempDir()
+	managed, err := antigravity.EncodeCredential(antigravity.Credentials{
+		AccessToken:  "managed-access",
+		RefreshToken: "managed-refresh",
+		ExpiryDate:   1_800_000_000_000,
+		ClientID:     "client-id",
+		ClientSecret: "client-secret",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	credentialStore := credential.ManagedStore{StateDir: stateDir, UseKeychain: false}
+	if err := credentialStore.Save("antigravity", managed); err != nil {
+		t.Fatal(err)
+	}
+
+	cacheDir := t.TempDir()
+	cacheStore := cache.Store{Dir: cacheDir}
+	if err := cacheStore.Write("antigravity", usage.Snapshot{
+		Provider: "antigravity",
+		Account:  "private@example.com",
+		Plan:     "pro",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	oldFetch := codexbarFetch
+	oldFetchEnvironment := codexbarFetchEnvironment
+	t.Cleanup(func() {
+		codexbarFetch = oldFetch
+		codexbarFetchEnvironment = oldFetchEnvironment
+	})
+	codexbarFetch = func(context.Context, string, usage.Source) (usage.Snapshot, error) {
+		t.Fatal("offline CodexBar fetch ran the provider subprocess")
+		return usage.Snapshot{}, nil
+	}
+	codexbarFetchEnvironment = func(context.Context, string, usage.Source, map[string]string) (usage.Snapshot, error) {
+		t.Fatal("offline CodexBar fetch loaded and injected a managed credential")
+		return usage.Snapshot{}, nil
+	}
+
+	cases := []struct {
+		name string
+		opts Options
+	}{
+		{name: "offline flag", opts: Options{Offline: true}},
+		{name: "cache source", opts: Options{Source: usage.SourceCache}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.opts.Backend = config.UsageBackendCodexBar
+			tc.opts.Enabled = map[string]bool{"antigravity": true}
+			tc.opts.CacheDir = cacheDir
+			tc.opts.StateDir = stateDir
+			tc.opts.DisableManagedKeychain = true
+			tc.opts.MaxAge = time.Hour
+			got, warns, err := FetchAll(context.Background(), []string{"antigravity"}, tc.opts)
+			if err != nil || len(warns) != 0 || len(got) != 1 {
+				t.Fatalf("FetchAll(codexbar offline) = %#v, %v, %v", got, warns, err)
+			}
+			if got[0].Provider != "antigravity" || got[0].Source != usage.SourceCache ||
+				got[0].Confidence != "cached" || got[0].Account != "" || got[0].Plan != "" {
+				t.Fatalf("offline snapshot = %#v", got[0])
+			}
+		})
 	}
 }
 

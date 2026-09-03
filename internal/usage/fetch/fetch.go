@@ -22,6 +22,7 @@ import (
 	"github.com/WD-Mitchell/which-model/internal/usage"
 	"github.com/WD-Mitchell/which-model/internal/usage/cache"
 	"github.com/WD-Mitchell/which-model/internal/usage/credential"
+	"github.com/WD-Mitchell/which-model/internal/usage/provider/antigravity"
 	"github.com/WD-Mitchell/which-model/internal/usage/provider/codexbar"
 )
 
@@ -34,6 +35,10 @@ const (
 
 	// DefaultMaxParallel: fan-out cap when opts.MaxParallel <= 0 (SPEC D6).
 	DefaultMaxParallel = 8
+
+	// defaultCodexBarCacheTTL matches the desktop's default usage cache age.
+	// CodexBar snapshots have no native descriptor from which to derive one.
+	defaultCodexBarCacheTTL = 15 * time.Minute
 )
 
 // Options configures one FetchAll call. All fields optional.
@@ -52,7 +57,10 @@ type Options struct {
 	DisableManagedKeychain bool                // false (default) prefers the OS keychain
 }
 
-var codexbarFetch = codexbar.FetchWithSource
+var (
+	codexbarFetch            = codexbar.FetchWithSource
+	codexbarFetchEnvironment = codexbar.FetchWithSourceEnvironment
+)
 
 // FetchAll selects the configured usage backend after applying the common
 // enabled-provider gate. An unset backend retains the native implementation
@@ -391,6 +399,28 @@ func fetchCodexBarAll(ctx context.Context, providers []string, opts Options) ([]
 	}
 	store := &cache.Store{Dir: dir}
 
+	if opts.Offline || cacheOnlySource(opts.Source) {
+		ttl := opts.MaxAge
+		if ttl <= 0 {
+			ttl = defaultCodexBarCacheTTL
+		}
+		results := make([]usage.Snapshot, 0, len(active))
+		for _, id := range active {
+			snap := store.OfflineRead(id, ttl)
+			if snap.Failure == nil {
+				snap.Source = usage.SourceCache
+				snap.Confidence = "cached"
+			}
+			if !opts.ShowIdentity {
+				snap.Account = ""
+				snap.Plan = ""
+			}
+			results = append(results, snap)
+		}
+		sort.Slice(results, func(i, j int) bool { return results[i].Provider < results[j].Provider })
+		return results, nil, nil
+	}
+
 	limit := opts.MaxParallel
 	if limit <= 0 || limit > len(active) {
 		limit = min(len(active), DefaultMaxParallel)
@@ -404,7 +434,14 @@ func fetchCodexBarAll(ctx context.Context, providers []string, opts Options) ([]
 	for i, id := range active {
 		i, id := i, id
 		g.Go(func() error {
-			snap, err := codexbarFetch(gctx, id, opts.Source)
+			environment := codexbarCredentialEnvironment(gctx, id, opts)
+			var snap usage.Snapshot
+			var err error
+			if len(environment) == 0 {
+				snap, err = codexbarFetch(gctx, id, opts.Source)
+			} else {
+				snap, err = codexbarFetchEnvironment(gctx, id, opts.Source, environment)
+			}
 			if err != nil {
 				var notFound *codexbar.BinaryNotFoundError
 				message := "codexbar usage fetch failed"
@@ -456,4 +493,24 @@ func fetchCodexBarAll(ctx context.Context, providers []string, opts Options) ([]
 		warnings = append(warnings, warnSlots[i]...)
 	}
 	return results, warnings, nil
+}
+
+func codexbarCredentialEnvironment(ctx context.Context, provider string, opts Options) map[string]string {
+	if provider != "antigravity" {
+		return nil
+	}
+	store := credential.ManagedStore{
+		StateDir:    opts.StateDir,
+		Keychain:    credential.DefaultKeychain(),
+		UseKeychain: !opts.DisableManagedKeychain,
+	}
+	managed, _, err := store.Resolve(ctx, provider)
+	if err != nil {
+		return nil
+	}
+	credentialsJSON, ok := antigravity.CredentialsJSON(managed.Token)
+	if !ok {
+		return nil
+	}
+	return map[string]string{antigravity.CredentialsEnvironment: credentialsJSON}
 }

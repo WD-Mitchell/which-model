@@ -105,7 +105,13 @@ const providerModel: ProviderModel = {
   model_name: 'Claude Opus 5',
   levels: [level],
 }
-const providerDetail: ProviderDetail = { id: 'claude', models: [providerModel] }
+const providerDetail: ProviderDetail = {
+  id: 'claude',
+  models: [providerModel],
+  accounts: [],
+  oauth_supported: true,
+  builtin: true,
+}
 
 const harness: HarnessInfo = {
   slug: 'claude',

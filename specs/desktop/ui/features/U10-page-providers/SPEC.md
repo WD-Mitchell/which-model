@@ -9,13 +9,13 @@ project: which-model-desktop
 
 ## 1. Purpose
 
-The Providers page of the settings window: a searchable, filterable provider catalogue with deterministic sorting, enablement, drag-to-set fallback order, and a per-provider detail view where each model's reasoning levels can be routed on or off. It is the GUI for the config's provider order, provider enablement, and `[routes.disabled]`. Lives in the app layer (`apps/desktop/src/settings/pages/providers/`), registered in U07's page registry under `Providers`; visuals derive from the mockup (`specs/desktop/mockup/demo.dc.html`, provider list ~lines 734–754, detail ~756–782).
+The Providers page of the settings window: a searchable, filterable provider catalogue with deterministic sorting, enablement, drag-to-set fallback order, secure per-provider account setup, and a detail view where each model's reasoning levels can be routed on or off. It is the GUI for provider order, enablement, credentials, and `[routes.disabled]`. Lives in the app layer (`apps/desktop/src/settings/pages/Providers/`), registered in U07's page registry under `Providers`; visuals derive from the mockup (`specs/desktop/mockup/demo.dc.html`, provider list ~lines 734–754, detail ~756–782).
 
 Depends on: U02 (Toggle, Button, DragList, useToast), U07 (settings shell, `DetailHeader`, page registry, `PageComponentProps`).
 
 ## 2. Behaviour
 
-1. **List data and controls.** `ProvidersPage` fetches `providers.list()` under query key `['providers']`. A search input filters provider ids case-insensitively as the user types. An enabled-state segmented control has `all`, `enabled`, and `disabled`. A sort select defaults to `name-asc` and offers `name-desc`, `models-desc`, `models-asc`, `enabled-first`, `disabled-first`, and `priority`; every tie is provider id ascending. Filtering runs before sorting. The section label is `{visible} of {total} providers`, except the unfiltered `priority` view, where it is `providers · drag to set fallback order`.
+1. **List data and controls.** `ProvidersPage` fetches `providers.list()` under query key `['providers']`. A search input filters provider ids case-insensitively as the user types. An enabled-state select has `all`, `enabled`, and `disabled`. A sort select defaults to `name-asc` and offers `name-desc`, `models-desc`, `models-asc`, `enabled-first`, `disabled-first`, and `priority`; every tie is provider id ascending. Filtering runs before sorting. The section label is `{visible} of {total} providers`, except the unfiltered `priority` view, where it is `providers · drag to set fallback order`.
 
 2. **Rows.** Each visible row is keyed by `ProviderInfo.id` and shows the provider's 1-based `priority`, enable toggle, provider id, live limits, distinct-model count (`{models} model[s]`), and chevron. Clicking the card except its toggle opens detail. The unfiltered `priority` view renders the full provider universe inside U02 `DragList`; every other view is static and omits the drag handle so a filtered or derived order can never submit a partial reorder.
 
@@ -32,6 +32,8 @@ Depends on: U02 (Toggle, Button, DragList, useToast), U07 (settings shell, `Deta
 8. **Level toggles.** A level toggle calls `providers.setRouteEnabled(id, model_id, reasoning, !enabled)`. The per-model button is a batch: sequential awaited `setRouteEnabled(id, model_id, l.reasoning, target)` calls, one per level of that model, where `target = !anyOn` — NOT `setAllRoutes`, which is provider-wide. The handler runs the calls in level order inside one async function; invalidation happens once via the resulting `config:changed` event(s).
 
 9. **Loading/empty.** While either query is pending, render nothing below the header (no spinner chrome). An empty provider universe shows the route-refresh guidance. A non-empty universe whose active controls match no providers shows `No providers match these filters.` A detail with zero models renders `0 of 0 routes enabled`.
+
+10. **Accounts and credentials.** Detail renders configured account metadata and an `Add account` modal. Account name is required. The authentication-method select always offers `API key` and offers `OAuth` only when `ProviderDetail.oauth_supported` is true. API-key input is masked and submitted once through `signin.saveAPIKey`; the key is never copied into query data or provider config. OAuth calls `signin.start`, opens its validated URL, and waits in `signin.confirm`. `start` returns an unguessable `flow_id` that every `confirm`, `submitCode`, and `cancel` call must echo; stale identifiers are rejected and cannot affect a replacement attempt. A device code is copied and displayed when present. `paste_required` alone enables the pasted-code input and `signin.submitCode`; callback and provider-client flows close automatically after browser authorization. Cancel or detail unmount calls `signin.cancel` for that exact flow. Removing an account submits the remaining non-secret account metadata through `providers.setAccounts`; removing the final account whose ref is `which-model` also deletes the managed credential, while externally owned refs such as `cursor-agent` remain untouched.
 
 ## 3. Error behaviour
 
@@ -52,6 +54,9 @@ Depends on: U02 (Toggle, Button, DragList, useToast), U07 (settings shell, `Deta
 | Default sort | Provider id A–Z | catalogues remain scannable independent of fallback priority |
 | Sort ties | Provider id ascending | deterministic results for equal model counts or enabled state |
 | Drag availability | Full-universe priority view only | `providers.reorder` rejects subsets; static views avoid misleading handles |
+| OAuth availability | Backend `ProviderDetail.oauth_supported` only | Unsupported providers must never present a dead sign-in choice |
+| Credential boundary | API keys pass once to `signin.saveAPIKey`; account rows receive non-secret refs only | Provider state, errors, and rendered data must not expose credential material |
+| Browser completion | `SignInStart.paste_required` distinguishes pasted-code from callback/client flows | An empty device code does not imply that manual paste is required |
 
 ## 5. Out of scope
 

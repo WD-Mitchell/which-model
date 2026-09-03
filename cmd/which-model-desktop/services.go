@@ -195,23 +195,24 @@ func (a *SettingsAPI) ShellSnippets() (service.ShellSnippets, error) {
 	return a.svc.Settings().ShellSnippets(ctx)
 }
 
-// SignInAPI — EngineHost.signin. Copilot/Codex device login and Claude
-// PKCE paste: Start returns the URL (+ user code when there is one),
-// Confirm waits until approved, SubmitCode delivers a pasted Claude code,
-// Cancel abandons.
+// SignInAPI — EngineHost.signin. OAuth methods drive interactive provider
+// login; SaveAPIKey stores a submitted key outside config.toml.
 type SignInAPI struct{ svc *service.Services }
 
 func (a *SignInAPI) Start(provider string) (service.SignInStart, error) {
 	return a.svc.SignIn().Start(ctx, provider)
 }
-func (a *SignInAPI) Confirm(provider string) error {
-	return a.svc.SignIn().Confirm(ctx, provider)
+func (a *SignInAPI) Confirm(provider, flowID, accountName string) error {
+	return a.svc.SignIn().Confirm(ctx, provider, flowID, accountName)
 }
-func (a *SignInAPI) Cancel(provider string) error {
-	return a.svc.SignIn().Cancel(provider)
+func (a *SignInAPI) Cancel(provider, flowID string) error {
+	return a.svc.SignIn().Cancel(provider, flowID)
 }
-func (a *SignInAPI) SubmitCode(provider, code string) error {
-	return a.svc.SignIn().SubmitCode(provider, code)
+func (a *SignInAPI) SubmitCode(provider, flowID, code string) error {
+	return a.svc.SignIn().SubmitCode(provider, flowID, code)
+}
+func (a *SignInAPI) SaveAPIKey(provider, accountName, apiKey string) error {
+	return a.svc.SignIn().SaveAPIKey(ctx, provider, accountName, apiKey)
 }
 
 // registerServices builds the application.Service entries for every engine

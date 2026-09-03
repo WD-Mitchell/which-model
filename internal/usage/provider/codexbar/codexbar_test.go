@@ -120,6 +120,22 @@ func TestFetchPassesSource(t *testing.T) {
 	}
 }
 
+func TestFetchWithSourceEnvironmentOverridesProcessEnvironment(t *testing.T) {
+	bin := writeScript(t, `test "$WM_TEST_CREDENTIAL" = "selected" || exit 1
+printf '[{"provider":"antigravity","source":"oauth","usage":{}}]'`)
+	t.Setenv("CODEXBAR_BIN", bin)
+	t.Setenv("WM_TEST_CREDENTIAL", "ambient")
+	got, err := FetchWithSourceEnvironment(
+		context.Background(),
+		"antigravity",
+		usage.SourceOAuth,
+		map[string]string{"WM_TEST_CREDENTIAL": "selected"},
+	)
+	if err != nil || got.Provider != "antigravity" || got.Failure != nil {
+		t.Fatalf("FetchWithSourceEnvironment() = %#v, %v", got, err)
+	}
+}
+
 func writeScript(t *testing.T, body string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "codexbar")
@@ -135,5 +151,14 @@ func TestParseProviderIDs(t *testing.T) {
 	want := []string{"claude", "codex", "copilot"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("parseProviderIDs() = %v, want %v", got, want)
+	}
+}
+
+func TestFallbackProvidersIncludeDesktopProviderRoster(t *testing.T) {
+	got := strings.Join(fallbackProviders(), ",")
+	for _, id := range []string{"antigravity", "commandcode", "cursor"} {
+		if !strings.Contains(","+got+",", ","+id+",") {
+			t.Errorf("fallbackProviders() = %v, missing %q", fallbackProviders(), id)
+		}
 	}
 }

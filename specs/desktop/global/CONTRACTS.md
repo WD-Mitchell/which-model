@@ -97,9 +97,17 @@ type ProviderModel struct {
     ModelName string       `json:"model_name"`
     Levels    []RouteLevel `json:"levels"`
 }
+type ProviderAccount struct {
+    Name string `json:"name"`
+    Kind string `json:"kind"` // "oauth" | "cookie" | "token"
+    Ref  string `json:"ref"`  // credential identifier, never credential material
+}
 type ProviderDetail struct {
-    ID     string          `json:"id"`
-    Models []ProviderModel `json:"models"`
+    ID             string            `json:"id"`
+    Models         []ProviderModel   `json:"models"`
+    Accounts       []ProviderAccount `json:"accounts"`
+    OAuthSupported bool              `json:"oauth_supported"`
+    Builtin        bool              `json:"builtin"`
 }
 
 type HarnessInfo struct {
@@ -316,12 +324,18 @@ export interface EngineHost {
     deleteGroup(slug: string): Promise<void>
   }
   providers: {
+    add(id: string): Promise<void>
+    addable(): Promise<string[]>
+    delete(id: string): Promise<void>
+    duplicate(id: string): Promise<string>
+    setAccounts(id: string, accounts: ProviderAccount[]): Promise<void>
     list(): Promise<ProviderInfo[]>
     setEnabled(id: string, on: boolean): Promise<void>
     reorder(orderedIds: string[]): Promise<void>
     detail(id: string): Promise<ProviderDetail>
     setRouteEnabled(id: string, modelId: string, reasoning: string, on: boolean): Promise<void>
     setAllRoutes(id: string, on: boolean): Promise<void>
+    refreshRoutes(): Promise<void>
   }
   harnesses: {
     list(): Promise<HarnessInfo[]>
@@ -347,12 +361,25 @@ export interface EngineHost {
     set(s: GUISettings): Promise<void>
     shellSnippets(): Promise<ShellSnippets>
   }
+  signin: {
+    start(provider: string): Promise<{
+      flow_id: string
+      verification_uri: string
+      user_code: string
+      paste_required: boolean
+    }>
+    confirm(provider: string, flowId: string, accountName: string): Promise<void>
+    submitCode(provider: string, flowId: string, code: string): Promise<void>
+    saveAPIKey(provider: string, accountName: string, apiKey: string): Promise<void>
+    cancel(provider: string, flowId: string): Promise<void>
+  }
   window: {
     openSettings(): Promise<void>
     closeSettings(): Promise<void>
     hidePopover(): Promise<void>
     quit(): Promise<void>
     copyToClipboard(text: string): Promise<void>
+    openURL(url: string): Promise<void>
   }
   on(event: EngineEvent, cb: (payload: unknown) => void): () => void
 }

@@ -148,11 +148,20 @@ export function GeneralPage(_props: PageComponentProps) {
             <span className={styles.label}>Open the popover</span>
             <span className={styles.note}>Global shortcut, works from any app.</span>
           </span>
-          <SegmentedControl
-            options={SHORTCUT_OPTS.map((o) => ({ value: o.value, label: o.label }))}
+          <select
+            className="wmsel"
+            aria-label="Open the popover"
             value={current.shortcut}
-            onChange={(v) => set({ shortcut: v as GUISettings['shortcut'] })}
-          />
+            onChange={(event) =>
+              set({ shortcut: event.target.value as GUISettings['shortcut'] })
+            }
+          >
+            {SHORTCUT_OPTS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Two-column grid: the system switches followed by the
@@ -366,58 +375,40 @@ export function GeneralPage(_props: PageComponentProps) {
           </div>
         </div>
 
-        {/* Weight control (mockup L654-683): step / bar / slider previews, in
-            that order. */}
-        <div className={`${styles.row} ${styles.rowTight}`}>
+        <div className={styles.row}>
           <span className={styles.labelBlock}>
             <span className={styles.label}>Weight control</span>
             <span className={styles.note}>Used for every profile weight and the scale.</span>
           </span>
-          <div className={styles.swatches} role="radiogroup" aria-label="Weight control">
-            <Swatch
-              label="step"
-              on={current.weight_control === 'step'}
-              onPick={() => set({ weight_control: 'step' })}
-            >
-              <span className={`${styles.box} ${styles.wcBox} ${styles.stepBox}`}>
-                <span className={`${styles.stepChip} ${styles.stepChipOn}`} />
-                <span className={`${styles.stepChip} ${styles.stepChipOn}`} />
-                <span className={styles.stepChip} />
-                <span className={styles.stepChip} />
-              </span>
-            </Swatch>
-            <Swatch
-              label="bar"
-              on={current.weight_control === 'bar'}
-              onPick={() => set({ weight_control: 'bar' })}
-            >
-              <span className={`${styles.box} ${styles.wcBox} ${styles.barBox}`}>
-                <span className={styles.barTrack}>
-                  <span className={styles.barFill} />
-                </span>
-              </span>
-            </Swatch>
-            <Swatch
-              label="slider"
-              on={current.weight_control === 'slider'}
-              onPick={() => set({ weight_control: 'slider' })}
-            >
-              <span className={`${styles.box} ${styles.wcBox} ${styles.sliderBox}`}>
-                <span className={styles.sliderTrack} />
-                <span className={styles.sliderKnob} />
-              </span>
-            </Swatch>
-          </div>
+          <select
+            className="wmsel"
+            aria-label="Weight control"
+            value={current.weight_control}
+            onChange={(event) =>
+              set({ weight_control: event.target.value as GUISettings['weight_control'] })
+            }
+          >
+            <option value="step">Step</option>
+            <option value="bar">Bar</option>
+            <option value="slider">Slider</option>
+          </select>
         </div>
 
         {/* Ranks held per pick (mockup L685-693). */}
         <div className={`${styles.row} ${styles.rowTight}`}>
           <span className={styles.labelPlain}>Ranks held per pick</span>
-          <SegmentedControl
-            options={HOLD_OPTS.map((v) => ({ value: String(v), label: String(v) }))}
+          <select
+            className="wmsel"
+            aria-label="Ranks held per pick"
             value={String(current.holds)}
-            onChange={(v) => set({ holds: Number(v) })}
-          />
+            onChange={(event) => set({ holds: Number(event.target.value) })}
+          >
+            {HOLD_OPTS.map((value) => (
+              <option key={value} value={String(value)}>
+                {value}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
     </div>

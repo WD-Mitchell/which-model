@@ -195,6 +195,7 @@
  * @property {string} id
  * @property {ProviderModel[] | null} models
  * @property {ProviderAccountDTO[] | null} accounts
+ * @property {boolean} oauth_supported
  * @property {boolean} builtin - Builtin providers ship a usage adapter and cannot be deleted; the UI disables Delete for them rather than failing the call.
  */
 
@@ -273,8 +274,10 @@
 /**
  * SignInStart is the Start result: what the user must see to approve.
  * @typedef {Object} SignInStart
+ * @property {string} flow_id - unguessable id required by follow-up operations
  * @property {string} verification_uri - exact https URL to open
  * @property {string} user_code - code to enter, display-only
+ * @property {boolean} paste_required - true only when Confirm awaits SubmitCode
  */
 
 /**

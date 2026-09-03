@@ -131,9 +131,10 @@ type ProviderAccountDTO struct {
 
 // ProviderDetail is the provider edit/read shape.
 type ProviderDetail struct {
-	ID       string               `json:"id"`
-	Models   []ProviderModel      `json:"models"`
-	Accounts []ProviderAccountDTO `json:"accounts"`
+	ID             string               `json:"id"`
+	Models         []ProviderModel      `json:"models"`
+	Accounts       []ProviderAccountDTO `json:"accounts"`
+	OAuthSupported bool                 `json:"oauth_supported"`
 	// Builtin providers ship a usage adapter and cannot be deleted; the UI
 	// disables Delete for them rather than failing the call.
 	Builtin bool `json:"builtin"`

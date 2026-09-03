@@ -116,11 +116,20 @@ export function createWailsHost(): EngineHost {
     },
     signin: {
       start: (provider: string) =>
-        call(SignInAPI.Start(provider) as Cancellable<unknown>, (r) => r as { verification_uri: string; user_code: string }),
-      confirm: (provider: string) => call(SignInAPI.Confirm(provider) as Cancellable<void>, () => {}),
-      submitCode: (provider: string, code: string) =>
-        call(SignInAPI.SubmitCode(provider, code) as Cancellable<void>, () => {}),
-      cancel: (provider: string) => call(SignInAPI.Cancel(provider) as Cancellable<void>, () => {}),
+        call(SignInAPI.Start(provider) as Cancellable<unknown>, (r) => r as {
+          flow_id: string
+          verification_uri: string
+          user_code: string
+          paste_required: boolean
+        }),
+      confirm: (provider: string, flowId: string, accountName: string) =>
+        call(SignInAPI.Confirm(provider, flowId, accountName) as Cancellable<void>, () => {}),
+      submitCode: (provider: string, flowId: string, code: string) =>
+        call(SignInAPI.SubmitCode(provider, flowId, code) as Cancellable<void>, () => {}),
+      cancel: (provider: string, flowId: string) =>
+        call(SignInAPI.Cancel(provider, flowId) as Cancellable<void>, () => {}),
+      saveAPIKey: (provider: string, accountName: string, apiKey: string) =>
+        call(SignInAPI.SaveAPIKey(provider, accountName, apiKey) as Cancellable<void>, () => {}),
     },
     window: {
       openSettings: () => call(WindowService.OpenSettings() as Cancellable<void>, () => {}),

@@ -54,7 +54,27 @@ func FetchWithSource(ctx context.Context, providerID string, source usage.Source
 	return fetchWithSource(ctx, providerID, source)
 }
 
+// FetchWithSourceEnvironment adds credential environment values to the
+// CodexBar subprocess without persisting them in CodexBar's config directory.
+func FetchWithSourceEnvironment(
+	ctx context.Context,
+	providerID string,
+	source usage.Source,
+	environment map[string]string,
+) (usage.Snapshot, error) {
+	return fetchWithSourceEnvironment(ctx, providerID, source, environment)
+}
+
 func fetchWithSource(ctx context.Context, providerID string, source usage.Source) (usage.Snapshot, error) {
+	return fetchWithSourceEnvironment(ctx, providerID, source, nil)
+}
+
+func fetchWithSourceEnvironment(
+	ctx context.Context,
+	providerID string,
+	source usage.Source,
+	environment map[string]string,
+) (usage.Snapshot, error) {
 	binary, err := findBinary()
 	if err != nil {
 		return usage.Snapshot{}, err
@@ -71,6 +91,9 @@ func fetchWithSource(ctx context.Context, providerID string, source usage.Source
 		args = append(args, "--source", string(source))
 	}
 	cmd := exec.CommandContext(cmdCtx, binary, args...)
+	if len(environment) > 0 {
+		cmd.Env = environmentWithOverrides(os.Environ(), environment)
+	}
 	cmd.Cancel = func() error {
 		if cmd.Process == nil {
 			return nil
@@ -115,6 +138,20 @@ func fetchWithSource(ctx context.Context, providerID string, source usage.Source
 	}
 	return failedSnapshot(providerID, usage.SourceAPI, "provider_status", "codexbar returned no matching provider"), nil
 }
+func environmentWithOverrides(base []string, overrides map[string]string) []string {
+	out := make([]string, 0, len(base)+len(overrides))
+	for _, entry := range base {
+		key, _, ok := strings.Cut(entry, "=")
+		if _, replaced := overrides[key]; ok && replaced {
+			continue
+		}
+		out = append(out, entry)
+	}
+	for key, value := range overrides {
+		out = append(out, key+"="+value)
+	}
+	return out
+}
 
 func findBinary() (string, error) {
 	if configured := strings.TrimSpace(os.Getenv("CODEXBAR_BIN")); configured != "" && isExecutable(configured) {
@@ -137,7 +174,7 @@ func isExecutable(path string) bool {
 }
 
 // SupportedProviders returns CodexBar's provider enum, falling back to the
-// three route providers when CodexBar is unavailable or its help changes.
+// providers the desktop app must expose even before CodexBar is installed.
 func SupportedProviders() []string {
 	supportedProvidersOnce.Do(func() {
 		supportedProviders = discoverSupportedProviders()
@@ -163,7 +200,9 @@ func discoverSupportedProviders() []string {
 	return providers
 }
 
-func fallbackProviders() []string { return []string{"claude", "codex", "copilot"} }
+func fallbackProviders() []string {
+	return []string{"antigravity", "claude", "codex", "commandcode", "copilot", "cursor"}
+}
 
 func parseProviderIDs(help string) []string {
 	const marker = "--provider "

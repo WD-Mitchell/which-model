@@ -56,7 +56,7 @@ async function openCopilotDetail(host: EngineHost) {
   act(() => navBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true })))
   const card = await screen.findByText((_, el) => el?.tagName === 'SPAN' && el.textContent === 'copilot' && el.className.includes('id'))
   act(() => card.dispatchEvent(new MouseEvent('click', { bubbles: true })))
-  await screen.findByText('accounts')
+  await screen.findByText('Accounts')
 }
 
 function deferConfirm(host: EngineHost) {
@@ -66,7 +66,11 @@ function deferConfirm(host: EngineHost) {
     resolve = res
     reject = rej
   })
-  const confirmSpy = vi.spyOn(host.signin, 'confirm').mockReturnValue(pending)
+  const confirm = host.signin.confirm.bind(host.signin)
+  const confirmSpy = vi.spyOn(host.signin, 'confirm').mockImplementation(async (provider, flowId, name) => {
+    await pending
+    await confirm(provider, flowId, name)
+  })
   return { confirmSpy, resolve, reject }
 }
 
@@ -90,7 +94,9 @@ describe('Providers page copilot sign-in', () => {
     await waitFor(() =>
       expect(openSpy).toHaveBeenCalledWith('https://github.com/login/device?user_code=WDML-MOCK'),
     )
-    await waitFor(() => expect(confirmSpy).toHaveBeenCalledWith('copilot'))
+    await waitFor(() =>
+      expect(confirmSpy).toHaveBeenCalledWith('copilot', expect.any(String), 'GitHub'),
+    )
     expect(screen.queryByText('I entered the code')).toBeNull()
   })
 
@@ -99,10 +105,12 @@ describe('Providers page copilot sign-in', () => {
     await openCopilotDetail(host)
     fireEvent.click(await screen.findByText('Sign in…'))
     await screen.findByText('WDML-MOCK')
-    await waitFor(() => expect(confirmSpy).toHaveBeenCalledWith('copilot'))
+    await waitFor(() =>
+      expect(confirmSpy).toHaveBeenCalledWith('copilot', expect.any(String), 'GitHub'),
+    )
     resolve()
     await waitFor(() => expect(screen.queryByText('WDML-MOCK')).toBeNull())
-    expect(await screen.findByText('signed in')).toBeDefined()
+    expect(await screen.findByText(/OAuth · signed in/)).toBeDefined()
     expect(screen.getByText('Re-authenticate')).toBeDefined()
   })
 
@@ -135,9 +143,11 @@ describe('Providers page copilot sign-in', () => {
     fireEvent.click(await screen.findByText('Sign in…'))
     await screen.findByText('WDML-MOCK')
     fireEvent.click(screen.getByText('Cancel'))
-    await waitFor(() => expect(cancelSpy).toHaveBeenCalledWith('copilot'))
+    await waitFor(() =>
+      expect(cancelSpy).toHaveBeenCalledWith('copilot', expect.any(String)),
+    )
     await waitFor(() => expect(screen.queryByText('WDML-MOCK')).toBeNull())
-    expect(screen.getByText('not signed in')).toBeDefined()
+    expect(screen.getByText(/OAuth · not signed in/)).toBeDefined()
   })
 
   it('does not tell signed-out users to run the CLI', async () => {
@@ -145,7 +155,9 @@ describe('Providers page copilot sign-in', () => {
     resetHost(host)
     await openCopilotDetail(host)
     expect(screen.queryByText(/which-model routes refresh/)).toBeNull()
-    expect(screen.queryByText('No models for this provider yet. Sign in, then refresh models.')).toBeNull()
+    expect(
+      screen.queryByText('No models for this provider yet. Sign in, then refresh models.'),
+    ).toBeNull()
     expect(await screen.findByText('GPT-5.6 Luna')).toBeDefined()
   })
 
@@ -156,13 +168,16 @@ describe('Providers page copilot sign-in', () => {
     expect(screen.queryByText('Refresh models')).toBeNull()
     fireEvent.click(await screen.findByText('Sign in…'))
     await screen.findByText('WDML-MOCK')
-    await waitFor(() => expect(confirmSpy).toHaveBeenCalledWith('copilot'))
+    await waitFor(() =>
+      expect(confirmSpy).toHaveBeenCalledWith('copilot', expect.any(String), 'GitHub'),
+    )
     resolve()
     await waitFor(() => expect(screen.queryByText('WDML-MOCK')).toBeNull())
     fireEvent.click(await screen.findByText('Refresh models'))
     await waitFor(() => expect(refreshSpy).toHaveBeenCalledTimes(1))
   })
 })
+
 
 async function openProviderDetail(host: EngineHost, id: string) {
   renderApp(host)
@@ -172,7 +187,7 @@ async function openProviderDetail(host: EngineHost, id: string) {
   act(() => navBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true })))
   const card = await screen.findByText((_, el) => el?.tagName === 'SPAN' && el.textContent === id && el.className.includes('id'))
   act(() => card.dispatchEvent(new MouseEvent('click', { bubbles: true })))
-  await screen.findByText('accounts')
+  await screen.findByText('Accounts')
 }
 
 describe('Providers page claude and codex sign-in', () => {
@@ -193,7 +208,9 @@ describe('Providers page claude and codex sign-in', () => {
     await waitFor(() =>
       expect(openSpy).toHaveBeenCalledWith('https://auth.openai.com/codex/device?user_code=WDML-MOCK'),
     )
-    await waitFor(() => expect(confirmSpy).toHaveBeenCalledWith('codex'))
+    await waitFor(() =>
+      expect(confirmSpy).toHaveBeenCalledWith('codex', expect.any(String), 'ChatGPT'),
+    )
     expect(screen.getByText('Open auth.openai.com')).toBeDefined()
   })
 
@@ -207,11 +224,15 @@ describe('Providers page claude and codex sign-in', () => {
     await waitFor(() => expect(openSpy).toHaveBeenCalledWith('https://claude.ai/oauth/authorize'))
     expect(copySpy).not.toHaveBeenCalled()
     expect(screen.queryByText('WDML-MOCK')).toBeNull()
-    await waitFor(() => expect(confirmSpy).toHaveBeenCalledWith('claude'))
-    const paste = screen.getByPlaceholderText('paste the code from the page')
+    await waitFor(() =>
+      expect(confirmSpy).toHaveBeenCalledWith('claude', expect.any(String), 'Work'),
+    )
+    const paste = screen.getByPlaceholderText('Paste the code from the page')
     fireEvent.change(paste, { target: { value: 'abc#state' } })
     fireEvent.click(await screen.findByText('Continue'))
-    await waitFor(() => expect(submitSpy).toHaveBeenCalledWith('claude', 'abc#state'))
+    await waitFor(() =>
+      expect(submitSpy).toHaveBeenCalledWith('claude', expect.any(String), 'abc#state'),
+    )
   })
 })
 
@@ -232,7 +253,7 @@ describe('Providers page model levels and benchmarks', () => {
     expect(await screen.findByRole('heading', { name: /Claude Opus 5.*\(max\)/ })).toBeDefined()
     expect(await screen.findByText('SWE-Bench Verified')).toBeDefined()
     fireEvent.click(await screen.findByText('claude'))
-    expect(await screen.findByText('accounts')).toBeDefined()
+    expect(await screen.findByText('Accounts')).toBeDefined()
     const haiku = (await screen.findByText('Claude Haiku 4')).closest('div')
     fireEvent.click(within(haiku!).getByRole('button', { name: 'low' }))
     expect(await screen.findByRole('heading', { name: /Claude Haiku 4.*\(low\)/ })).toBeDefined()
@@ -246,7 +267,7 @@ describe('Providers page model levels and benchmarks', () => {
     expect(screen.getByText('enabled providers')).toBeDefined()
     expect(screen.getByText('$15 in / $75 out per 1M')).toBeDefined()
     fireEvent.click(screen.getByTitle('Back'))
-    expect(await screen.findByText('accounts')).toBeDefined()
+    expect(await screen.findByText('Accounts')).toBeDefined()
   })
 })
 
@@ -290,6 +311,8 @@ describe('Providers page list controls', () => {
       'xai',
       'mistral',
       'google',
+      'commandcode',
+      'antigravity',
       'cursor',
       'copilot',
       'codex',
@@ -300,8 +323,10 @@ describe('Providers page list controls', () => {
   it('defaults to provider name A–Z and filters by a case-insensitive search', async () => {
     await openProvidersList(host)
     expect(providerOrder()).toEqual([
+      'antigravity',
       'claude',
       'codex',
+      'commandcode',
       'copilot',
       'cursor',
       'google',
@@ -315,17 +340,25 @@ describe('Providers page list controls', () => {
     expect(providerOrder()).toEqual(['copilot'])
   })
 
-  it('filters providers by enabled state', async () => {
+  it('filters providers by enabled state with a select', async () => {
     await openProvidersList(host)
 
-    fireEvent.click(screen.getByRole('radio', { name: 'disabled' }))
-    expect(providerOrder()).toEqual(['cursor', 'google', 'mistral', 'xai'])
+    const filter = screen.getByRole('combobox', { name: 'Filter providers' })
+    fireEvent.change(filter, { target: { value: 'disabled' } })
+    expect(providerOrder()).toEqual([
+      'antigravity',
+      'commandcode',
+      'cursor',
+      'google',
+      'mistral',
+      'xai',
+    ])
 
-    fireEvent.click(screen.getByRole('radio', { name: 'enabled' }))
+    fireEvent.change(filter, { target: { value: 'enabled' } })
     expect(providerOrder()).toEqual(['claude', 'codex', 'copilot'])
 
-    fireEvent.click(screen.getByRole('radio', { name: 'all' }))
-    expect(providerOrder()).toHaveLength(7)
+    fireEvent.change(filter, { target: { value: 'all' } })
+    expect(providerOrder()).toHaveLength(9)
   })
 
   it('sorts provider names in both directions', async () => {
@@ -339,14 +372,16 @@ describe('Providers page list controls', () => {
       'google',
       'cursor',
       'copilot',
+      'commandcode',
       'codex',
       'claude',
+      'antigravity',
     ])
 
     fireEvent.change(screen.getByLabelText('Sort providers'), {
       target: { value: 'name-asc' },
     })
-    expect(providerOrder()[0]).toBe('claude')
+    expect(providerOrder()[0]).toBe('antigravity')
   })
 
   it('sorts distinct model counts high-to-low and low-to-high', async () => {
@@ -359,6 +394,8 @@ describe('Providers page list controls', () => {
       'cursor',
       'claude',
       'codex',
+      'antigravity',
+      'commandcode',
       'google',
       'mistral',
       'xai',
@@ -368,6 +405,8 @@ describe('Providers page list controls', () => {
       target: { value: 'models-asc' },
     })
     expect(providerOrder()).toEqual([
+      'antigravity',
+      'commandcode',
       'google',
       'mistral',
       'xai',
@@ -384,6 +423,8 @@ describe('Providers page list controls', () => {
       target: { value: 'disabled-first' },
     })
     expect(providerOrder()).toEqual([
+      'antigravity',
+      'commandcode',
       'cursor',
       'google',
       'mistral',
@@ -400,6 +441,8 @@ describe('Providers page list controls', () => {
       'claude',
       'codex',
       'copilot',
+      'antigravity',
+      'commandcode',
       'cursor',
       'google',
       'mistral',
@@ -416,11 +459,86 @@ describe('Providers page list controls', () => {
       'xai',
       'mistral',
       'google',
+      'commandcode',
+      'antigravity',
       'cursor',
       'copilot',
       'codex',
       'claude',
     ])
     expect(screen.getByText('providers · drag to set fallback order')).toBeDefined()
+  })
+})
+
+describe('Providers page account setup', () => {
+  let host: EngineHost
+
+  beforeEach(() => {
+    host = createMockEngineHost()
+    resetHost(host)
+  })
+
+  it('does not offer OAuth for a provider without a supported flow', async () => {
+    await openProviderDetail(host, 'google')
+    fireEvent.click(await screen.findByRole('button', { name: 'Add account' }))
+
+    const method = screen.getByRole('combobox', {
+      name: 'Authentication method',
+    }) as HTMLSelectElement
+    expect(Array.from(method.options).map((option) => option.value)).toEqual(['api_key'])
+    expect(screen.queryByRole('option', { name: 'OAuth' })).toBeNull()
+  })
+
+  it('names a new Cursor OAuth account before starting sign-in', async () => {
+    await host.providers.setAccounts('cursor', [])
+    const { confirmSpy } = deferConfirm(host)
+    const startSpy = vi.spyOn(host.signin, 'start')
+    await openProviderDetail(host, 'cursor')
+    fireEvent.click(await screen.findByRole('button', { name: 'Add account' }))
+
+    const method = screen.getByRole('combobox', {
+      name: 'Authentication method',
+    }) as HTMLSelectElement
+    expect(Array.from(method.options).map((option) => option.value)).toEqual([
+      'oauth',
+      'api_key',
+    ])
+    fireEvent.change(screen.getByLabelText('Account name'), {
+      target: { value: 'Team' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in with OAuth' }))
+
+    await waitFor(() => expect(startSpy).toHaveBeenCalledWith('cursor'))
+    await waitFor(() => expect(confirmSpy).toHaveBeenCalledWith('cursor', expect.any(String), 'Team'))
+    expect(
+      await screen.findByText(
+        'A browser window opened. This closes automatically after authorization.',
+      ),
+    ).toBeDefined()
+    expect(screen.queryByPlaceholderText('Paste the code from the page')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull()
+  })
+
+  it('accepts an API key and never reflects it through provider data', async () => {
+    const saveSpy = vi.spyOn(host.signin, 'saveAPIKey')
+    await openProviderDetail(host, 'google')
+    fireEvent.click(await screen.findByRole('button', { name: 'Add account' }))
+    fireEvent.change(screen.getByLabelText('Account name'), {
+      target: { value: 'Production' },
+    })
+    fireEvent.change(screen.getByLabelText('API key'), {
+      target: { value: 'sk-ui-canary-123' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save account' }))
+
+    await waitFor(() =>
+      expect(saveSpy).toHaveBeenCalledWith('google', 'Production', 'sk-ui-canary-123'),
+    )
+    await waitFor(() => expect(screen.queryByDisplayValue('sk-ui-canary-123')).toBeNull())
+    const detail = await host.providers.detail('google')
+    expect(detail.accounts).toEqual([
+      { name: 'Production', kind: 'token', ref: 'which-model' },
+    ])
+    expect(JSON.stringify(detail)).not.toContain('sk-ui-canary-123')
   })
 })

@@ -26,7 +26,6 @@ import {
   Input,
   Menu,
   ProviderUsageRow,
-  SegmentedControl,
   SettingsModal,
   Tag,
   Toggle,
@@ -50,7 +49,6 @@ function errText(e: unknown, fallback: string): string {
   return (e as { message?: string }).message ?? fallback
 }
 
-const MANAGED_OAUTH_REF = 'which-model'
 
 /** Device pages (GitHub) accept ?user_code= so the copied code is pre-filled. */
 function deviceLoginURL(uri: string, userCode: string): string {
@@ -405,16 +403,16 @@ function ProvidersListView({ openDetail }: { openDetail(d: Detail): void }) {
             Where remaining quota is read from before a pick.
           </span>
         </span>
-        <SegmentedControl
-          className={styles.seg}
-          options={[
-            { value: 'off', label: 'off' },
-            { value: 'native', label: 'native' },
-            { value: 'codexbar', label: 'codexbar' },
-          ]}
+        <select
+          className="wmsel"
+          aria-label="Usage detection"
           value={backend ?? 'native'}
-          onChange={(v) => handleBackend(v as Backend)}
-        />
+          onChange={(event) => handleBackend(event.target.value as Backend)}
+        >
+          <option value="off">Off</option>
+          <option value="native">Native</option>
+          <option value="codexbar">CodexBar</option>
+        </select>
       </div>
 
       {adding ? (
@@ -464,16 +462,16 @@ function ProvidersListView({ openDetail }: { openDetail(d: Detail): void }) {
             aria-label="Search providers"
           />
         </span>
-        <SegmentedControl
-          className={styles.enabledFilter}
-          options={[
-            { value: 'all', label: 'all' },
-            { value: 'enabled', label: 'enabled' },
-            { value: 'disabled', label: 'disabled' },
-          ]}
+        <select
+          className="wmsel"
+          aria-label="Filter providers"
           value={enabledFilter}
-          onChange={(value) => setEnabledFilter(value as EnabledFilter)}
-        />
+          onChange={(event) => setEnabledFilter(event.target.value as EnabledFilter)}
+        >
+          <option value="all">All providers</option>
+          <option value="enabled">Enabled</option>
+          <option value="disabled">Disabled</option>
+        </select>
         <label className={styles.sortControl}>
           <span className={styles.sortLabel}>Sort</span>
           <select
@@ -574,6 +572,7 @@ function ProviderDetailView({
   const toast = useToast()
   const { data: detail } = useProviderDetail(id)
   const [refreshing, setRefreshing] = useState(false)
+  const [authenticated, setAuthenticated] = useState(false)
 
   const handleRoute = useCallback(
     (modelId: string, reasoning: string, on: boolean) => {
@@ -619,6 +618,7 @@ function ProviderDetailView({
   if (!detail) return <div className={cx(styles.page, styles.loading)}>loading…</div>
 
   const { on, total } = countRoutes(detail)
+  const signedIn = authenticated || isSignedIn(detail.accounts)
 
   return (
     <div className={styles.page}>
@@ -629,7 +629,7 @@ function ProviderDetailView({
       <div className={styles.summary}>
         <span className={cx('mono', styles.summaryText)}>{`${on} of ${total} routes enabled`}</span>
         <span className={styles.summaryActions}>
-          {isSignedIn(detail.accounts) ? (
+          {signedIn ? (
             <Button variant="ghost" size="xs" disabled={refreshing} onClick={handleRefreshModels}>
               {refreshing ? 'Refreshing…' : 'Refresh models'}
             </Button>
@@ -667,6 +667,8 @@ function ProviderDetailView({
       <AccountsSection
         id={id}
         accounts={detail.accounts}
+        oauthSupported={detail.oauth_supported}
+        onAuthenticated={() => setAuthenticated(true)}
         onError={(m) => toast.show(m)}
       />
 
@@ -674,9 +676,9 @@ function ProviderDetailView({
         <div className={styles.empty}>
           <EmptyState
             text={
-              isSignedIn(detail.accounts)
+              signedIn
                 ? 'No models yet. Refresh models to build them from the catalogue.'
-                : 'No models for this provider yet. Sign in, then refresh models.'
+                : 'No models for this provider yet. Add an account, then refresh models.'
             }
           />
         </div>
@@ -744,203 +746,308 @@ function ProviderDetailView({
 
 // ——— accounts ————————————————————————————————————————————————————————————
 
-const ACCOUNT_KINDS: ReadonlyArray<ProviderAccount['kind']> = ['oauth', 'cookie', 'token']
+type AccountMethod = 'oauth' | 'api_key'
 
-/** What `ref` means per kind — the field holds a REFERENCE, never a secret. */
-const REF_PLACEHOLDER: Record<ProviderAccount['kind'], string> = {
-  // oauth never renders an input (it gets a sign-in button), but the map stays
-  // total so a new kind cannot be added without deciding its placeholder.
-  oauth: 'credentials file or keychain service',
-  cookie: 'cookie file path',
-  token: 'environment variable name',
+function accountSource(account: ProviderAccount, authenticated: boolean): string {
+  if (account.kind === 'oauth') {
+    return authenticated || Boolean(account.ref)
+      ? 'OAuth · signed in'
+      : 'OAuth · not signed in'
+  }
+  if (account.kind === 'token') {
+    return account.ref === 'which-model'
+      ? 'API key · securely stored'
+      : `API key · ${account.ref}`
+  }
+  return account.ref ? `Browser cookie · ${account.ref}` : 'Browser cookie'
 }
 
 /**
- * A provider's accounts: name + the credential it links to.
- *
- * The whole list is written at once (providers.setAccounts) so add, rename,
- * re-kind and remove are one atomic config write — the UI never half-applies.
+ * Provider accounts are created through an explicit authentication flow.
+ * Secrets are sent once to the service layer and never copied into provider
+ * state, query data, local storage, or config.toml.
  */
 function AccountsSection({
   id,
   accounts,
+  oauthSupported,
+  onAuthenticated,
   onError,
 }: {
   id: string
   accounts: ProviderAccount[]
+  oauthSupported: boolean
+  onAuthenticated(): void
   onError(message: string): void
 }) {
-  const [draft, setDraft] = useState<ProviderAccount[] | null>(null)
-  const rows = draft ?? accounts
+  const [pendingAccounts, setPendingAccounts] = useState<ProviderAccount[] | null>(null)
+  const rows = pendingAccounts ?? accounts
+  const [addOpen, setAddOpen] = useState(false)
+  const [accountName, setAccountName] = useState('')
+  const [method, setMethod] = useState<AccountMethod>(oauthSupported ? 'oauth' : 'api_key')
+  const [apiKey, setAPIKey] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [authenticatedAccounts, setAuthenticatedAccounts] = useState<Set<string>>(
+    () => new Set(),
+  )
   const [signIn, setSignIn] = useState<null | {
     provider: string
     account: string
-    uri?: string
-    code?: string
+    flowId: string
+    uri: string
+    code: string
+    pasteRequired: boolean
   }>(null)
   const [pastedCode, setPastedCode] = useState('')
-  const signInLock = useRef<{ cancelled: boolean } | null>(null)
+  const signInLock = useRef<{ cancelled: boolean; flowId: string | null } | null>(null)
+  const cancelActiveSignIn = useCallback(() => {
+    const lock = signInLock.current
+    if (!lock) return
+    lock.cancelled = true
+    signInLock.current = null
+    if (lock.flowId) {
+      void getHost().signin.cancel(id, lock.flowId).catch(() => {})
+    }
+  }, [id])
+  useEffect(() => cancelActiveSignIn, [cancelActiveSignIn])
 
-  const commit = useCallback(
+  const replaceAccounts = useCallback(
     (next: ProviderAccount[]) => {
-      setDraft(next) // optimistic; cleared when the query refetches
+      setPendingAccounts(next)
       void getHost()
         .providers.setAccounts(id, next)
-        .then(() => setDraft(null))
-        .catch((e) => {
-          setDraft(null)
-          onError(errText(e, 'could not save accounts'))
+        .then(() => setPendingAccounts(null))
+        .catch((error) => {
+          setPendingAccounts(null)
+          onError(errText(error, 'could not save accounts'))
         })
     },
     [id, onError],
   )
 
-  const update = (i: number, patch: Partial<ProviderAccount>) =>
-    commit(rows.map((a, n) => (n === i ? { ...a, ...patch } : a)))
+  const closeAdd = useCallback(() => {
+    setAddOpen(false)
+    setAccountName('')
+    setMethod(oauthSupported ? 'oauth' : 'api_key')
+    setAPIKey('')
+    setSaving(false)
+  }, [oauthSupported])
 
   // OAuth sign-in: device-code providers copy the code and poll; Claude
   // opens the authorize URL and waits for a pasted code via submitCode.
-  const onSignIn = (i: number) => {
-    const snapshot = rows
-    const accountName = snapshot[i]?.name ?? 'account'
-    const lock = { cancelled: false }
+  const onSignIn = (name: string) => {
+    if (signInLock.current) return
+    const lock = { cancelled: false, flowId: null as string | null }
     signInLock.current = lock
     setPastedCode('')
     void (async () => {
       try {
-        const s = await getHost().signin.start(id)
-        if (lock.cancelled) return
-        if (s.user_code) {
-          void getHost().window.copyToClipboard(s.user_code)
-          void getHost().window.openURL(deviceLoginURL(s.verification_uri, s.user_code))
+        const started = await getHost().signin.start(id)
+        lock.flowId = started.flow_id
+        if (lock.cancelled || signInLock.current !== lock) {
+          void getHost().signin.cancel(id, started.flow_id).catch(() => {})
+          return
+        }
+        if (started.user_code) {
+          void getHost().window.copyToClipboard(started.user_code)
+          void getHost().window.openURL(
+            deviceLoginURL(started.verification_uri, started.user_code),
+          )
         } else {
-          void getHost().window.openURL(s.verification_uri)
+          void getHost().window.openURL(started.verification_uri)
         }
         setSignIn({
           provider: id,
-          account: accountName,
-          uri: s.verification_uri,
-          code: s.user_code,
+          account: name,
+          flowId: started.flow_id,
+          uri: started.verification_uri,
+          code: started.user_code,
+          pasteRequired: started.paste_required,
         })
-        await getHost().signin.confirm(id)
+        await getHost().signin.confirm(id, started.flow_id, name)
         if (lock.cancelled || signInLock.current !== lock) return
-        commit(
-          snapshot.map((a) =>
-            a.name === accountName && a.kind === 'oauth'
-              ? { ...a, ref: a.ref || MANAGED_OAUTH_REF }
-              : a,
-          ),
-        )
+        signInLock.current = null
         setSignIn(null)
-      } catch (e) {
-        if (lock.cancelled || signInLock.current !== lock || isCancelledSignIn(e)) {
-          if (signInLock.current === lock) setSignIn(null)
+        setAuthenticatedAccounts((current) => new Set(current).add(name))
+        onAuthenticated()
+      } catch (error) {
+        if (
+          lock.cancelled ||
+          signInLock.current !== lock ||
+          isCancelledSignIn(error)
+        ) {
+          if (signInLock.current === lock) {
+            signInLock.current = null
+            setSignIn(null)
+          }
           return
         }
+        if (signInLock.current === lock) signInLock.current = null
         setSignIn(null)
-        onError(errText(e, 'sign-in failed'))
+        onError(errText(error, 'sign-in failed'))
       }
     })()
   }
 
+  const submitAccount = async () => {
+    const name = accountName.trim()
+    if (!name) {
+      onError('Enter an account name')
+      return
+    }
+    if (method === 'oauth') {
+      closeAdd()
+      onSignIn(name)
+      return
+    }
+    const key = apiKey.trim()
+    if (!key) {
+      onError('Enter an API key')
+      return
+    }
+    setSaving(true)
+    try {
+      await getHost().signin.saveAPIKey(id, name, key)
+      onAuthenticated()
+      closeAdd()
+    } catch (error) {
+      setSaving(false)
+      onError(errText(error, 'could not save API key'))
+    }
+  }
+
   const onCancelSignIn = useCallback(() => {
-    if (signInLock.current) signInLock.current.cancelled = true
-    void getHost().signin.cancel(id).catch(() => {})
+    cancelActiveSignIn()
     setSignIn(null)
-  }, [id])
+  }, [cancelActiveSignIn])
 
   return (
     <section className={styles.accounts}>
       <div className={styles.accountsHead}>
-        <span className={styles.accountsLabel}>accounts</span>
-        <span className={cx('mono', styles.accountsNote)}>
-          {rows.length === 0 ? 'none' : `${rows.length} configured`}
+        <span>
+          <span className={styles.accountsLabel}>Accounts</span>
+          <span className={styles.accountsNote}>Authentication for this provider</span>
         </span>
-        <span className={styles.accountsActions}>
-          <Button
-            variant="ghost"
-            size="xs"
-            onClick={() =>
-              commit([...rows, { name: `Account ${rows.length + 1}`, kind: 'oauth', ref: '' }])
-            }
-          >
-            Add account
-          </Button>
-        </span>
+        <Button
+          variant="primary"
+          size="xs"
+          onClick={() => {
+            setMethod(oauthSupported ? 'oauth' : 'api_key')
+            setAddOpen(true)
+          }}
+        >
+          Add account
+        </Button>
       </div>
 
-      {rows.map((account, i) => (
-        <div key={i} className={styles.accountRow}>
-          <span className={styles.accountName}>
-            <Input
-              value={account.name}
-              mono={false}
-              placeholder="name"
-              onChange={(v) => setDraft(rows.map((a, n) => (n === i ? { ...a, name: v } : a)))}
-              onBlur={() => commit(rows)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') e.currentTarget.blur()
-              }}
-            />
-          </span>
-          <SegmentedControl
-            className={styles.accountKind}
-            options={ACCOUNT_KINDS.map((k) => ({ value: k, label: k }))}
-            value={account.kind}
-            onChange={(v) => update(i, { kind: v as ProviderAccount['kind'] })}
-          />
-          <span className={styles.accountRef}>
-            {account.kind === 'oauth' ? (
-              // OAuth is not something you type. The credential is obtained by
-              // signing in, so the field is a button; `ref` still holds where
-              // the resulting credential lives, shown once it does.
-              <span className={styles.oauthCell}>
-                <Button variant="secondary" size="xs" onClick={() => onSignIn(i)}>
-                  {account.ref ? 'Re-authenticate' : 'Sign in…'}
-                </Button>
-                <span className={cx('mono', styles.oauthRef)}>
-                  {account.ref ? 'signed in' : 'not signed in'}
+      {rows.length === 0 ? (
+        <div className={styles.accountEmpty}>
+          No accounts yet. Add an account to authenticate this provider.
+        </div>
+      ) : (
+        <div className={styles.accountList}>
+          {rows.map((account, index) => (
+            <div key={`${account.name}-${account.kind}`} className={styles.accountCard}>
+              <span className={styles.accountIdentity}>
+                <span className={styles.accountName}>{account.name}</span>
+                <span className={cx('mono', styles.accountSource)}>
+                  {accountSource(account, authenticatedAccounts.has(account.name))}
                 </span>
               </span>
-            ) : (
+              <span className={styles.accountActions}>
+                {account.kind === 'oauth' && oauthSupported ? (
+                  <Button
+                    variant="secondary"
+                    size="xs"
+                    onClick={() => onSignIn(account.name)}
+                  >
+                    {account.ref || authenticatedAccounts.has(account.name)
+                      ? 'Re-authenticate'
+                      : 'Sign in…'}
+                  </Button>
+                ) : null}
+                <button
+                  type="button"
+                  className={cx('ib', styles.accountDelete)}
+                  title={`Remove ${account.name}`}
+                  onClick={() =>
+                    replaceAccounts(rows.filter((_, rowIndex) => rowIndex !== index))
+                  }
+                >
+                  <TrashIcon />
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <SettingsModal
+        open={addOpen}
+        title="Add account"
+        description="Choose how this provider should authenticate."
+        onClose={closeAdd}
+        actions={
+          <>
+            <Button variant="secondary" size="xs" onClick={closeAdd}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="xs"
+              disabled={saving || !accountName.trim() || (method === 'api_key' && !apiKey.trim())}
+              onClick={() => void submitAccount()}
+            >
+              {saving ? 'Saving…' : method === 'oauth' ? 'Sign in with OAuth' : 'Save account'}
+            </Button>
+          </>
+        }
+      >
+        <div className={styles.accountForm}>
+          <label className={styles.accountField}>
+            <span>Account name</span>
+            <Input
+              value={accountName}
+              mono={false}
+              aria-label="Account name"
+              placeholder="Production"
+              onChange={setAccountName}
+            />
+          </label>
+          <label className={styles.accountField}>
+            <span>Authentication method</span>
+            <select
+              className="wmsel"
+              aria-label="Authentication method"
+              value={method}
+              onChange={(event) => setMethod(event.target.value as AccountMethod)}
+            >
+              {oauthSupported ? <option value="oauth">OAuth</option> : null}
+              <option value="api_key">API key</option>
+            </select>
+          </label>
+          {method === 'api_key' ? (
+            <label className={styles.accountField}>
+              <span>API key</span>
               <Input
-                value={account.ref}
-                mono
-                placeholder={REF_PLACEHOLDER[account.kind]}
-                onChange={(v) => setDraft(rows.map((a, n) => (n === i ? { ...a, ref: v } : a)))}
-                onBlur={() => commit(rows)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') e.currentTarget.blur()
+                value={apiKey}
+                type="password"
+                aria-label="API key"
+                placeholder="Paste API key"
+                onChange={setAPIKey}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && accountName.trim() && apiKey.trim()) {
+                    void submitAccount()
+                  }
                 }}
               />
-            )}
-          </span>
-          <button
-            type="button"
-            className={cx('ib', styles.accountDelete)}
-            title={`Remove ${account.name}`}
-            onClick={() => commit(rows.filter((_, n) => n !== i))}
-          >
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 14 14"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.25"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M2.4 4h9.2M5.6 4V2.7h2.8V4M3.7 4l.45 7.3h5.7L10.3 4M5.9 6.2v3.2M8.1 6.2v3.2" />
-            </svg>
-          </button>
+              <span className={styles.accountHint}>
+                Stored in the system keychain when available, otherwise in a private local file.
+              </span>
+            </label>
+          ) : null}
         </div>
-      ))}
-
-      <div className={styles.accountsFoot}>
-        Accounts record where a credential lives — an environment variable, file path or keychain
-        service — never the secret itself.
-      </div>
+      </SettingsModal>
 
       {signIn && (
         <SettingsModal
@@ -949,7 +1056,9 @@ function AccountsSection({
           description={
             signIn.code
               ? 'Your code is copied and the login page should open in your browser. This closes when the provider confirms.'
-              : 'A browser window opened. After you authorize, paste the code from the page and continue.'
+              : signIn.pasteRequired
+                ? 'A browser window opened. After you authorize, paste the code from the page and continue.'
+                : 'A browser window opened. This closes automatically after authorization.'
           }
           onClose={onCancelSignIn}
           closeOnBackdrop={false}
@@ -959,20 +1068,26 @@ function AccountsSection({
                 variant="secondary"
                 size="xs"
                 onClick={() => {
-                  if (signIn.uri) void getHost().window.openURL(deviceLoginURL(signIn.uri, signIn.code ?? ''))
+                  if (signIn.uri) {
+                    void getHost().window.openURL(
+                      deviceLoginURL(signIn.uri, signIn.code ?? ''),
+                    )
+                  }
                 }}
               >
                 {openLoginLabel(signIn.uri ?? '')}
               </Button>
-              {!signIn.code ? (
+              {signIn.pasteRequired ? (
                 <Button
                   variant="primary"
                   size="xs"
                   disabled={!pastedCode.trim()}
                   onClick={() => {
-                    void getHost().signin.submitCode(id, pastedCode.trim()).catch((e) => {
-                      onError(errText(e, 'could not submit code'))
-                    })
+                    void getHost()
+                      .signin.submitCode(id, signIn.flowId, pastedCode.trim())
+                      .catch((error) => {
+                        onError(errText(error, 'could not submit code'))
+                      })
                   }}
                 >
                   Continue
@@ -985,27 +1100,32 @@ function AccountsSection({
           }
         >
           {signIn.code ? (
-            <div
+            <button
+              type="button"
               className={cx('mono', styles.deviceCode)}
-              title="copied to clipboard — click to copy again"
-              onClick={() => signIn.code && void getHost().window.copyToClipboard(signIn.code)}
+              title="Copied to clipboard — click to copy again"
+              onClick={() => void getHost().window.copyToClipboard(signIn.code)}
             >
               {signIn.code}
-            </div>
-          ) : (
+            </button>
+          ) : signIn.pasteRequired ? (
             <Input
               value={pastedCode}
               mono
-              placeholder="paste the code from the page"
+              placeholder="Paste the code from the page"
               onChange={setPastedCode}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && pastedCode.trim()) {
-                  void getHost().signin.submitCode(id, pastedCode.trim()).catch((err) => {
-                    onError(errText(err, 'could not submit code'))
-                  })
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && pastedCode.trim()) {
+                  void getHost()
+                    .signin.submitCode(id, signIn.flowId, pastedCode.trim())
+                    .catch((error) => {
+                      onError(errText(error, 'could not submit code'))
+                    })
                 }
               }}
             />
+          ) : (
+            <span className={styles.accountHint}>Complete sign-in in the opened browser.</span>
           )}
         </SettingsModal>
       )}
