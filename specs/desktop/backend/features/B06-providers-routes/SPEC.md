@@ -23,9 +23,9 @@ Depends on: B02. Inherits: D00, B00 (order/enabled/availability invariants §6.1
 
 4. **LimitsLine.** A human one-liner mirroring the mockup rows (`session 42% · weekly 18%`): exact composition rules in CONTRACTS §5. Precedence: provider disabled → `not enabled`; usage disabled (per `toggle.ResolveUsageEnabled` / backend `off`) → `usage off`; no usable snapshot → `no usage data`; otherwise the composed window/credits summary.
 
-5. **Route counts.** `RoutesTotal` = number of routes-table entries for the provider. `RoutesOn` = `RoutesTotal` minus the count of `[routes.disabled].<id>` entries that match a current table route (list entries matching nothing subtract nothing). This is the same arithmetic as B00 §6.3's availability set, restricted to one provider.
+5. **Route and model counts.** `RoutesTotal` = number of routes-table entries for the provider. `RoutesOn` = `RoutesTotal` minus the count of `[routes.disabled].<id>` entries that match a current table route (list entries matching nothing subtract nothing). `Models` = the number of distinct model ids in the routes table UNION the cached models.dev catalogue under `routing.CatalogueSlugFor(id)`. A catalogue-only provider can therefore report models before routes are refreshed. Route availability arithmetic remains B00 §6.3 restricted to one provider.
 
-6. **SetEnabled.** Writes `providers.<id>.enabled`. An unknown id — not in the routes table AND not in config — is `not_found`. Idempotent writes still persist and emit (no-op detection is not required).
+6. **SetEnabled.** Writes `providers.<id>.enabled`. Every id in the provider universe from §2.1 is writable, including catalogue-only providers such as Alibaba. An id absent from config, routes, registered usage providers, and the cached models.dev catalogue is `not_found`. Idempotent writes still persist and emit (no-op detection is not required).
 
 7. **Reorder.** `Reorder(orderedIDs)` MUST receive exactly the current provider universe, each id once (validation order + messages in CONTRACTS §6). On success it rewrites `providers.<id>.priority = index + 1` (1..N) for every provider, creating `[providers.<id>]` tables as needed without touching their other keys.
 

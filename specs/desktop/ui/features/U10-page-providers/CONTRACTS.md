@@ -37,6 +37,7 @@ Queries: `['providers']` → `host.providers.list()`; `['provider', id]` → `ho
 | Element | Value |
 |---|---|
 | Section label | mono 9px, letter-spacing .13em, uppercase, accent, padding `0 22px 6px` |
+| List controls | flex center gap 10px, padding `0 22px 12px`; search grows to 240px; native `wmsel` enabled-state and sort controls |
 | Column header row | flex gap 12px, padding `0 22px 7px`; cols 16px / 14px / 132px / flex / 112px right / 10px; mono 9px uppercase `text 38%` |
 | Row | flex center gap 12px, padding `11px 22px`, border-top 1px `text 8%`, cursor pointer |
 | Grab handle | 16×16 `.ib`, `text 35%`, cursor grab; 11×11 svg, six 1px-radius dots at (4,8)×(2.5,6,9.5) |
@@ -58,16 +59,23 @@ Queries: `['providers']` → `host.providers.list()`; `['provider', id]` → `ho
 | Where | String |
 |---|---|
 | PAGE_META title / blurb / action | `Providers` / `Drag to set priority — highest at the top. Default-deny: a provider is never read until you enable it. Open one to choose which of its models may be routed to.` / none |
-| Section label | `providers · drag to set fallback order` |
-| Column headers | `#`, `provider`, `limits`, `models` |
+| Search | placeholder and accessible label `Search providers`; case-insensitive id substring |
+| Enabled filter | `All providers` / `Enabled` / `Disabled` |
+| Sort options | `Name A–Z` / `Name Z–A` / `Models high–low` / `Models low–high` / `Enabled first` / `Disabled first` / `Priority (drag)` |
+| Section label | `{visible} of {total} provider[s]`; priority/all/empty-search mode uses `providers · drag to set fallback order` |
+| Model count | `{models} model` when 1, otherwise `{models} models` |
 | Disabled limits cell | `not enabled` |
-| Models cell | `{routes_on} of {routes_total} routes` |
-| Reorder toast | `provider priority: {ids.join(' → ')}` |
+| Reorder payload | full ordered id array, only from the priority/all/empty-search view |
 | Detail blurb | `Models {id} can serve. Each reasoning level routes separately — switch off the ones the picker should not consider. Click a level to see its benchmarks.` |
 | Detail back link | `Providers` |
 | Summary | `{on} of {total} routes enabled` |
 | Bulk buttons | `Enable all` / `Disable all` (provider-wide and per-model) |
 | Detail delete | icon 13px trash (`.ib` 24px box); tooltip `Delete {id}`, disabled tooltip `Built-in provider — cannot be deleted`; success toast `deleted {id}` |
+| Accounts heading/action | `Accounts` / `Authentication for this provider` / `Add account` |
+| Empty accounts | `No accounts yet. Add an account to authenticate this provider.` |
+| Authentication methods | `OAuth` only when `oauth_supported`; `API key` always |
+| API-key field/hint | masked `API key`, placeholder `Paste API key`; `Stored in the system keychain when available, otherwise in a private local file.` |
+| Browser completion | device code when present; pasted-code input only when `paste_required`; otherwise `Complete sign-in in the opened browser.` |
 | Level label | `reasoning {reasoning}` |
 | Default tag | `default` |
 | Level click | opens `{ kind: 'provider-model', provider, modelName, reasoning }` |
@@ -80,7 +88,13 @@ Mock providers: claude/codex/copilot enabled, cursor disabled (mock defaults).
 
 | Case | Assertion |
 |---|---|
-| Row render | 4 rows in list order; cursor row shows `not enabled` and dim id; models cell matches `{routes_on} of {routes_total} routes` |
+| Row render | all mock providers render A–Z by default; disabled rows show `not enabled`; model cell uses `{models} model[s]` |
+| Search | mixed-case substring narrows the rendered provider ids immediately |
+| Enabled filter | disabled/enabled/all render the exact matching subsets |
+| Name sorts | default A–Z and explicit Z–A, independent of backend priority |
+| Model-count sorts | high–low and low–high use distinct model counts with id-ascending ties |
+| Enabled-state sorts | enabled-first and disabled-first group correctly with id-ascending ties |
+| Priority sort | restores backend priority order and the drag section label |
 | Toggle | click claude toggle → `setEnabled('claude', false)` once; row click NOT fired (no `openDetail`) |
 | Reorder | simulate `DragList` reorder codex→top → `providers.reorder(['codex','claude','copilot','cursor'])` with the FULL id array once, and toast text `provider priority: codex → claude → copilot → cursor` |
 | Reorder no-op | drop at original index → no host call, no toast |
@@ -91,6 +105,9 @@ Mock providers: claude/codex/copilot enabled, cursor disabled (mock defaults).
 | Level click | click `max` on Claude Opus 5 → title `Claude Opus 5  (max)` and a SWE-Bench row; back via `claude` returns to accounts |
 | Untested combo | click `low` on Claude Haiku 4 (catalogue-only) → empty copy `No benchmarks for this model and reasoning level yet.` |
 | Error | rejecting `setEnabled` with `{code:'io_error', message:'m'}` toasts `m` |
+| Account capability | unsupported provider offers only `api_key`; Cursor offers `oauth` and `api_key` |
+| Browser completion | Cursor callback/client flow renders no pasted-code input or `Continue` action |
+| API-key boundary | submitted key reaches `signin.saveAPIKey` once and is absent from provider detail/query output |
 
 Verify: `pnpm --filter desktop test` green.
 
@@ -102,4 +119,6 @@ Verify: `pnpm --filter desktop test` green.
 | `providers.*` host methods | D00 CONTRACTS §5 |
 | `DragList` (`onReorder(ids)`), `Toggle`, `Button`, `useToast` | U02 |
 | `PageComponentProps`, `DetailHeader`, PAGE_META rendering | U07 |
+| `ProviderAccount`, `ProviderDetail.oauth_supported` | D00 CONTRACTS §2 |
+| `providers.setAccounts`, `signin.*` host methods | D00 CONTRACTS §5 |
 | Query keys / invalidation | U00 CONTRACTS §5–6 |

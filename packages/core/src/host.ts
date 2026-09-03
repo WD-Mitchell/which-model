@@ -102,16 +102,24 @@ export interface EngineHost {
     shellSnippets(): Promise<ShellSnippets>
   }
   signin: {
-    /** Begin OAuth: returns the URL to open and, for device-code providers,
-     *  the user code. Claude returns an empty user_code (paste the callback). */
-    start(provider: string): Promise<{ verification_uri: string; user_code: string }>
-    /** Poll / wait until approved/expired/denied and save the credential.
-     *  Long-running: call off the render path. Rejects with ErrorDTO. */
-    confirm(provider: string): Promise<void>
+    /** Begin OAuth and return the unguessable id required by follow-up calls. */
+    start(
+      provider: string,
+    ): Promise<{
+      flow_id: string
+      verification_uri: string
+      user_code: string
+      paste_required: boolean
+    }>
+    /** Poll / wait until approved/expired/denied, save the credential, and
+     *  associate it with the named account. Long-running: call off render. */
+    confirm(provider: string, flowId: string, accountName: string): Promise<void>
     /** Deliver a pasted Claude authentication code to an in-flight confirm. */
-    submitCode(provider: string, code: string): Promise<void>
-    /** Abandon an active flow (safe to call anytime). */
-    cancel(provider: string): Promise<void>
+    submitCode(provider: string, flowId: string, code: string): Promise<void>
+    /** Store an API key securely and add its non-secret account reference. */
+    saveAPIKey(provider: string, accountName: string, apiKey: string): Promise<void>
+    /** Abandon the exact active flow; stale ids cannot cancel replacements. */
+    cancel(provider: string, flowId: string): Promise<void>
   }
   window: {
     openSettings(): Promise<void>

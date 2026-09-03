@@ -48,6 +48,8 @@ export interface ProviderInfo {
   id: string
   enabled: boolean
   priority: number
+  /** Distinct model IDs available through this provider. */
+  models: number
   auth: string
   limits_line: string
   routes_on: number
@@ -73,8 +75,8 @@ export interface ProviderModel {
   model_name: string
   levels: RouteLevel[]
 }
-/** One named credential for a provider. `ref` is a REFERENCE — an env var,
- *  file path or keychain service — never the secret itself. */
+/** One named credential for a provider. `ref` identifies a managed credential,
+ *  file, or keychain service — never the secret itself. */
 export interface ProviderAccount {
   name: string
   kind: 'oauth' | 'cookie' | 'token'
@@ -85,7 +87,9 @@ export interface ProviderDetail {
   id: string
   models: ProviderModel[]
   accounts: ProviderAccount[]
-  /** Ships a usage adapter: cannot be deleted, only disabled. */
+  /** True only when which-model can start an interactive OAuth flow. */
+  oauth_supported: boolean
+  /** Ships through which-model or the configured backend; disable, don't delete. */
   builtin: boolean
 }
 

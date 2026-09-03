@@ -144,10 +144,12 @@ function seedProviders() {
         { id: 'claude', on: true, priority: 1, auth: 'oauth', limits: 'session 42% · weekly 18%', session: 42, weekly: 18, monthly: 54, credits: 'max 20× plan', resets: 'session in 2h 40m' },
         { id: 'codex', on: true, priority: 2, auth: 'oauth', limits: 'session 12% · weekly 31% · 340 credits', session: 12, weekly: 31, monthly: 44, credits: '340 credits left', resets: 'weekly on Mon' },
         { id: 'copilot', on: true, priority: 3, auth: 'device flow', limits: 'monthly 1200 of 4800', session: 8, weekly: 25, monthly: 25, credits: '1200 of 4800 premium', resets: 'monthly on the 1st' },
-        { id: 'cursor', on: false, priority: 4, auth: 'via codexbar', limits: 'not enabled', session: null, weekly: null, monthly: null, credits: 'no plan detected', resets: '—' },
-        { id: 'google', on: false, priority: 5, auth: 'custom', limits: 'not enabled', session: null, weekly: null, monthly: null, credits: 'no usage data', resets: '—' },
-        { id: 'mistral', on: false, priority: 6, auth: 'custom', limits: 'not enabled', session: null, weekly: null, monthly: null, credits: 'no usage data', resets: '—' },
-        { id: 'xai', on: false, priority: 7, auth: 'custom', limits: 'not enabled', session: null, weekly: null, monthly: null, credits: 'no usage data', resets: '—' },
+        { id: 'cursor', on: false, priority: 4, auth: 'oauth', limits: 'not enabled', session: null, weekly: null, monthly: null, credits: 'no plan detected', resets: '—' },
+        { id: 'antigravity', on: false, priority: 5, auth: 'oauth', limits: 'not enabled', session: null, weekly: null, monthly: null, credits: 'no plan detected', resets: '—' },
+        { id: 'commandcode', on: false, priority: 6, auth: 'via codexbar', limits: 'not enabled', session: null, weekly: null, monthly: null, credits: 'no plan detected', resets: '—' },
+        { id: 'google', on: false, priority: 7, auth: 'custom', limits: 'not enabled', session: null, weekly: null, monthly: null, credits: 'no usage data', resets: '—' },
+        { id: 'mistral', on: false, priority: 8, auth: 'custom', limits: 'not enabled', session: null, weekly: null, monthly: null, credits: 'no usage data', resets: '—' },
+        { id: 'xai', on: false, priority: 9, auth: 'custom', limits: 'not enabled', session: null, weekly: null, monthly: null, credits: 'no usage data', resets: '—' },
     ];
 }
 function seedSettings() {
@@ -317,6 +319,8 @@ function scoreModel(data, m, p) {
 export function createMockEngineHost(overrides) {
     const data = { ...seedData(), ...(overrides ? clone(overrides) : {}) };
     // Per-host accounts so tests cannot leak signed-in state into later cases.
+    let nextSignInFlow = 0;
+    const activeSignInFlows = new Map();
     const confirmWaiters = new Map();
     const mockAccounts = {
         claude: [{ name: 'Work', kind: 'oauth', ref: '~/.claude/.credentials.json' }],
@@ -810,6 +814,7 @@ export function createMockEngineHost(overrides) {
                         id: p.id,
                         enabled: p.on,
                         priority: p.priority,
+                        models: new Set(models.map((model) => model.id)).size,
                         auth: p.auth,
                         limits_line: p.limits,
                         routes_on: models.filter((m) => !routeDisabled(p.id, m.id, m.reasoning)).length,
@@ -820,8 +825,8 @@ export function createMockEngineHost(overrides) {
                         credits: p.credits,
                         resets: p.resets,
                         accounts: (mockAccounts[p.id] ?? []).length,
-                        // Mirrors the real registry: these three ship usage adapters.
-                        builtin: ['claude', 'codex', 'copilot'].includes(p.id),
+                        // Mirrors the real native and CodexBar provider registries.
+                        builtin: ['antigravity', 'claude', 'codex', 'commandcode', 'copilot', 'cursor'].includes(p.id),
                     };
                 });
             },
@@ -845,7 +850,8 @@ export function createMockEngineHost(overrides) {
                 const detail = {
                     id: p.id,
                     accounts: mockAccounts[p.id] ?? [],
-                    builtin: ['claude', 'codex', 'copilot'].includes(p.id),
+                    oauth_supported: ['antigravity', 'claude', 'codex', 'copilot', 'cursor'].includes(p.id),
+                    builtin: ['antigravity', 'claude', 'codex', 'commandcode', 'copilot', 'cursor'].includes(p.id),
                     models: providerModels(p.id),
                 };
                 return detail;
@@ -1057,47 +1063,123 @@ export function createMockEngineHost(overrides) {
         },
         signin: {
             async start(provider) {
+                if (provider !== 'claude' &&
+                    provider !== 'codex' &&
+                    provider !== 'cursor' &&
+                    provider !== 'antigravity' &&
+                    provider !== 'copilot') {
+                    throw new EngineError('validation_failed', `sign-in for ${provider} is not supported`);
+                }
+                if (activeSignInFlows.has(provider)) {
+                    throw new EngineError('conflict', `sign-in already in progress for ${provider}`);
+                }
+                const flowId = `mock-signin-${++nextSignInFlow}`;
+                activeSignInFlows.set(provider, flowId);
                 if (provider === 'claude') {
                     return {
+                        flow_id: flowId,
                         verification_uri: 'https://claude.ai/oauth/authorize',
                         user_code: '',
+                        paste_required: true,
                     };
                 }
                 if (provider === 'codex') {
                     return {
+                        flow_id: flowId,
                         verification_uri: 'https://auth.openai.com/codex/device',
                         user_code: 'WDML-MOCK',
+                        paste_required: false,
                     };
                 }
-                if (provider !== 'copilot') {
-                    throw new EngineError('validation_failed', `sign-in for ${provider} is not supported`);
+                if (provider === 'cursor') {
+                    return {
+                        flow_id: flowId,
+                        verification_uri: 'https://cursor.com/oauth/authorize',
+                        user_code: '',
+                        paste_required: false,
+                    };
                 }
-                return { verification_uri: 'https://github.com/login/device', user_code: 'WDML-MOCK' };
+                if (provider === 'antigravity') {
+                    return {
+                        flow_id: flowId,
+                        verification_uri: 'https://accounts.google.com/o/oauth2/v2/auth',
+                        user_code: '',
+                        paste_required: false,
+                    };
+                }
+                return {
+                    flow_id: flowId,
+                    verification_uri: 'https://github.com/login/device',
+                    user_code: 'WDML-MOCK',
+                    paste_required: false,
+                };
             },
-            async confirm(provider) {
+            async confirm(provider, flowId, accountName) {
+                if (activeSignInFlows.get(provider) !== flowId) {
+                    throw new EngineError('validation_failed', 'sign-in attempt changed');
+                }
                 if (provider === 'claude') {
                     await new Promise((resolve, reject) => {
-                        confirmWaiters.set(provider, { resolve, reject });
+                        confirmWaiters.set(flowId, { resolve, reject });
                     });
                 }
-                const accounts = mockAccounts[provider] ?? [{ name: provider, kind: 'oauth', ref: '' }];
-                mockAccounts[provider] = accounts.map((a) => a.kind === 'oauth' && !a.ref.trim() ? { ...a, ref: 'which-model' } : a);
+                if (activeSignInFlows.get(provider) !== flowId) {
+                    throw new EngineError('validation_failed', 'sign-in cancelled');
+                }
+                activeSignInFlows.delete(provider);
+                confirmWaiters.delete(flowId);
+                const accounts = mockAccounts[provider] ?? [];
+                const existing = accounts.findIndex((account) => account.name === accountName);
+                const ref = provider === 'cursor' ? 'cursor-agent' : 'which-model';
+                if (existing >= 0) {
+                    accounts[existing] = { name: accountName, kind: 'oauth', ref };
+                }
+                else {
+                    accounts.push({ name: accountName, kind: 'oauth', ref });
+                }
+                mockAccounts[provider] = accounts.map((account) => ({ ...account }));
                 emit('config:changed', { section: 'providers' });
                 emit('usage:updated', {});
             },
-            async submitCode(provider, _code) {
-                const waiter = confirmWaiters.get(provider);
-                if (waiter) {
-                    confirmWaiters.delete(provider);
-                    waiter.resolve();
+            async submitCode(provider, flowId, _code) {
+                if (activeSignInFlows.get(provider) !== flowId) {
+                    throw new EngineError('validation_failed', 'sign-in attempt changed');
                 }
+                const waiter = confirmWaiters.get(flowId);
+                if (!waiter) {
+                    throw new EngineError('validation_failed', 'no pasted-code confirmation is waiting');
+                }
+                confirmWaiters.delete(flowId);
+                waiter.resolve();
             },
-            async cancel(provider) {
-                const waiter = confirmWaiters.get(provider);
+            async cancel(provider, flowId) {
+                const activeFlowId = activeSignInFlows.get(provider);
+                if (activeFlowId === undefined)
+                    return;
+                if (activeFlowId !== flowId) {
+                    throw new EngineError('validation_failed', 'sign-in attempt changed');
+                }
+                activeSignInFlows.delete(provider);
+                const waiter = confirmWaiters.get(flowId);
                 if (waiter) {
-                    confirmWaiters.delete(provider);
+                    confirmWaiters.delete(flowId);
                     waiter.reject(new EngineError('validation_failed', 'sign-in cancelled'));
                 }
+            },
+            async saveAPIKey(provider, accountName, apiKey) {
+                if (!accountName.trim() || !apiKey.trim()) {
+                    throw new EngineError('validation_failed', 'account name and API key are required');
+                }
+                const accounts = mockAccounts[provider] ?? [];
+                const existing = accounts.findIndex((account) => account.name === accountName);
+                const next = { name: accountName, kind: 'token', ref: 'which-model' };
+                if (existing >= 0)
+                    accounts[existing] = next;
+                else
+                    accounts.push(next);
+                mockAccounts[provider] = accounts.map((account) => ({ ...account }));
+                emit('config:changed', { section: 'providers' });
+                emit('usage:updated', {});
             },
         },
         window: {

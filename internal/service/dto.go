@@ -67,6 +67,7 @@ type RankedModel struct {
 	Cost         *float64 `json:"cost,omitempty"`
 	Speed        *float64 `json:"speed,omitempty"`
 }
+
 // RankResponse is a ranked result set.
 type RankResponse struct {
 	Candidates []RankedModel `json:"candidates"` // top Holds, rank ascending
@@ -85,6 +86,7 @@ type ProviderInfo struct {
 	ID          string `json:"id"`
 	Enabled     bool   `json:"enabled"`
 	Priority    int    `json:"priority"`    // 1-based display order
+	Models      int    `json:"models"`      // distinct model ids available through this provider
 	Auth        string `json:"auth"`        // e.g. "oauth", "device flow", "" when unknown
 	LimitsLine  string `json:"limits_line"` // human summary or "not enabled"
 	RoutesOn    int    `json:"routes_on"`
@@ -129,9 +131,10 @@ type ProviderAccountDTO struct {
 
 // ProviderDetail is the provider edit/read shape.
 type ProviderDetail struct {
-	ID       string               `json:"id"`
-	Models   []ProviderModel      `json:"models"`
-	Accounts []ProviderAccountDTO `json:"accounts"`
+	ID             string               `json:"id"`
+	Models         []ProviderModel      `json:"models"`
+	Accounts       []ProviderAccountDTO `json:"accounts"`
+	OAuthSupported bool                 `json:"oauth_supported"`
 	// Builtin providers ship a usage adapter and cannot be deleted; the UI
 	// disables Delete for them rather than failing the call.
 	Builtin bool `json:"builtin"`

@@ -80,4 +80,23 @@ describe('GeneralPage benchmarks data source', () => {
       expect((await host.settings.get()).only_enabled_providers).toBe(true)
     })
   })
+
+  it('uses selects for compact multi-option settings', async () => {
+    renderApp(host)
+    const shortcut = await screen.findByRole('combobox', { name: 'Open the popover' })
+    const weightControl = screen.getByRole('combobox', { name: 'Weight control' })
+    const holds = screen.getByRole('combobox', { name: 'Ranks held per pick' })
+
+    fireEvent.change(shortcut, { target: { value: 'ctrl+space' } })
+    fireEvent.change(weightControl, { target: { value: 'bar' } })
+    fireEvent.change(holds, { target: { value: '5' } })
+
+    await waitFor(async () => {
+      const settings = await host.settings.get()
+      expect(settings.shortcut).toBe('ctrl+space')
+      expect(settings.default_tab).toBe('profiles')
+      expect(settings.weight_control).toBe('bar')
+      expect(settings.holds).toBe(5)
+    })
+  })
 })

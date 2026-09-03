@@ -18,6 +18,35 @@
 }
 
 /* ——— provider list (mockup L734-755) ————————————————————————————————— */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 22px 12px;
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 150px;
+  max-width: 240px;
+}
+
+.enabledFilter {
+  flex: none;
+}
+
+.sortControl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.sortLabel {
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
 
 /* L735 */
 .kicker {
@@ -349,6 +378,16 @@
   align-items: center;
 }
 
+.staticList {
+  display: flex;
+  flex-direction: column;
+}
+
+.staticRow {
+  display: flex;
+  padding-left: 50px;
+}
+
 .order {
   flex: none;
   width: 14px;
@@ -395,22 +434,27 @@
 .accounts {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
   padding: 0 22px 18px;
 }
 
 .accountsHead {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.accountsHead > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .accountsLabel {
-  font-size: 10px;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-  font-weight: 500;
-  color: var(--color-accent);
+  font-size: 11px;
+  font-weight: 560;
+  color: var(--color-text);
 }
 
 .accountsNote {
@@ -418,70 +462,102 @@
   color: color-mix(in srgb, var(--color-text) 45%, transparent);
 }
 
-.accountsActions {
-  margin-left: auto;
+.accountEmpty {
+  padding: 13px 14px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-text) 3%, transparent);
+  color: color-mix(in srgb, var(--color-text) 46%, transparent);
+  font-size: 11px;
+  line-height: 1.45;
 }
 
-.accountRow {
+.accountList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.accountCard {
+  min-height: 50px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  padding: 8px 10px 8px 12px;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-text) 10%, transparent);
+  background: color-mix(in srgb, var(--color-text) 2.5%, transparent);
+}
+
+.accountIdentity {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
 .accountName {
-  flex: none;
-  width: 132px;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 540;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.accountKind {
-  flex: none;
+.accountSource {
+  overflow: hidden;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+  font-size: 9.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.accountRef {
-  flex: 1;
-  min-width: 0;
+.accountActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .accountDelete {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   flex: none;
   border: 0;
   padding: 0;
   background: transparent;
 }
 
-.accountsFoot {
-  font-size: 11px;
-  line-height: 1.6;
-  color: color-mix(in srgb, var(--color-text) 42%, transparent);
-  max-width: 56ch;
-  text-wrap: pretty;
-}
-
-/* OAuth accounts get a sign-in button instead of a ref field. */
-.oauthCell {
+.accountForm {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.oauthRef {
-  min-width: 0;
+.accountField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: color-mix(in srgb, var(--color-text) 72%, transparent);
+  font-size: 11px;
+}
+
+.accountHint {
+  max-width: 46ch;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
   font-size: 10px;
-  color: color-mix(in srgb, var(--color-text) 38%, transparent);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.45;
 }
 
 /* The device-flow user code: big, mono, clickable (click = copy). */
 .deviceCode {
+  width: 100%;
   padding: 14px 16px;
+  border: 0;
   border-radius: 8px;
   background: color-mix(in srgb, var(--color-text) 6%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-text) 13%, transparent);
+  color: inherit;
+  font: inherit;
   font-size: 22px;
   letter-spacing: 0.18em;
   text-align: center;

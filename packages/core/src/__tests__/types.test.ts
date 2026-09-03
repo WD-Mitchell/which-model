@@ -84,6 +84,7 @@ const provider: ProviderInfo = {
   id: 'cursor',
   enabled: false,
   priority: 4,
+  models: 3,
   auth: 'via codexbar',
   limits_line: 'not enabled',
   routes_on: 0,
@@ -93,6 +94,8 @@ const provider: ProviderInfo = {
   monthly: null,
   credits: 'no plan detected',
   resets: '—',
+  accounts: 0,
+  builtin: false,
 }
 const providerWithNumbers: ProviderInfo = { ...provider, session: 42, weekly: 18, monthly: 54 }
 
@@ -102,7 +105,13 @@ const providerModel: ProviderModel = {
   model_name: 'Claude Opus 5',
   levels: [level],
 }
-const providerDetail: ProviderDetail = { id: 'claude', models: [providerModel] }
+const providerDetail: ProviderDetail = {
+  id: 'claude',
+  models: [providerModel],
+  accounts: [],
+  oauth_supported: true,
+  builtin: true,
+}
 
 const harness: HarnessInfo = {
   slug: 'claude',

@@ -20,10 +20,13 @@ import (
 
 const managedKeychainService = "which-model"
 
-var managedProviderPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
+const managedCredentialSourceAPIKey = "api_key"
+
+var managedProviderPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 
 type managedCredentialFile struct {
-	Token string `json:"token"`
+	Token  string `json:"token"`
+	Source string `json:"source,omitempty"`
 }
 
 // ManagedStore persists credentials created by which-model. The OS keychain
@@ -59,9 +62,19 @@ func (s ManagedStore) keychain() ManagedKeychainStore {
 	return DefaultKeychain()
 }
 
-// Save validates and persists token without including credential material in
-// any error. A keychain write failure falls back to the state file.
+// Save validates and persists an OAuth token without including credential
+// material in any error. A keychain write failure falls back to the state file.
 func (s ManagedStore) Save(provider, token string) error {
+	return s.save(provider, token, "")
+}
+
+// SaveAPIKey stores an API key with source metadata so resolution never treats
+// it as an OAuth credential or runs an OAuth-token validator against it.
+func (s ManagedStore) SaveAPIKey(provider, token string) error {
+	return s.save(provider, token, managedCredentialSourceAPIKey)
+}
+
+func (s ManagedStore) save(provider, token, source string) error {
 	path := s.Path(provider)
 	if path == "" {
 		return errors.New("managed credential storage is unavailable")
@@ -69,17 +82,23 @@ func (s ManagedStore) Save(provider, token string) error {
 	if err := security.ValidateOpaqueToken(token); err != nil {
 		return errors.New("credential has an unsafe value")
 	}
-	if s.UseKeychain {
-		if err := s.keychain().Set(managedKeychainService, provider, token); err == nil {
-			if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
-				return errors.New("managed credential cleanup failed")
-			}
-			return nil
-		}
-	}
-	data, err := json.Marshal(managedCredentialFile{Token: token})
+	stored := managedCredentialFile{Token: token, Source: source}
+	data, err := json.Marshal(stored)
 	if err != nil {
 		return errors.New("managed credential encoding failed")
+	}
+	keychainValue := token
+	if source != "" {
+		keychainValue = string(data)
+	}
+	if s.UseKeychain {
+		if err := s.keychain().Set(managedKeychainService, provider, keychainValue); err == nil {
+			// The credential is committed once Keychain accepts it. Fallback
+			// cleanup is best-effort: reporting a failure here would tell the
+			// caller to retry after authentication state had already changed.
+			_ = os.Remove(path)
+			return nil
+		}
 	}
 	if err := config.AtomicWriteFile(path, append(data, '\n')); err != nil {
 		return errors.New("managed credential file write failed")
@@ -101,8 +120,13 @@ func (s ManagedStore) Resolve(ctx context.Context, provider string) (usage.Crede
 	if s.UseKeychain {
 		value, err := s.keychain().Get(managedKeychainService, provider)
 		if err == nil && value != "" {
-			if security.ValidateOpaqueToken(value) == nil {
-				return Credential{Token: value, Source: usage.AuthOAuthDeviceFlow}, nil, nil
+			stored := managedCredentialFile{Token: value}
+			var encoded managedCredentialFile
+			if json.Unmarshal([]byte(value), &encoded) == nil && encoded.Token != "" {
+				stored = encoded
+			}
+			if security.ValidateOpaqueToken(stored.Token) == nil {
+				return Credential{Token: stored.Token, Source: managedCredentialSource(stored.Source)}, nil, nil
 			}
 		} else if err != nil && !errors.Is(err, keyringNotFound) && !errors.Is(err, ErrNotFound) {
 			warnings = append(warnings, Warning{Message: "system keychain unavailable; using managed credential file"})
@@ -133,7 +157,14 @@ func (s ManagedStore) Resolve(ctx context.Context, provider string) (usage.Crede
 	if err := security.ValidateOpaqueToken(stored.Token); err != nil {
 		return Credential{}, warnings, usage.NewFailureError("unsafe_credential", "managed credential file contains an unsafe credential")
 	}
-	return Credential{Token: stored.Token, Source: usage.AuthOAuthDeviceFlow}, warnings, nil
+	return Credential{Token: stored.Token, Source: managedCredentialSource(stored.Source)}, warnings, nil
+}
+
+func managedCredentialSource(source string) usage.AuthKind {
+	if source == managedCredentialSourceAPIKey {
+		return usage.AuthEnvVar
+	}
+	return usage.AuthOAuthDeviceFlow
 }
 
 // Remove deletes both managed locations so toggling keychain use cannot leave
@@ -180,14 +211,16 @@ func ResolveProvider(ctx context.Context, provider string, sources []usage.AuthS
 	if managedErr != nil {
 		return Credential{}, warnings, managedErr
 	}
-	for _, source := range sources {
-		if source.Kind != usage.AuthOAuthDeviceFlow || source.Validate == nil {
-			continue
+	if credential.Source == usage.AuthOAuthDeviceFlow {
+		for _, source := range sources {
+			if source.Kind != usage.AuthOAuthDeviceFlow || source.Validate == nil {
+				continue
+			}
+			if err := source.Validate(ctx, credential, client); err != nil {
+				return Credential{}, warnings, ErrNotFound
+			}
+			break
 		}
-		if err := source.Validate(ctx, credential, client); err != nil {
-			return Credential{}, warnings, ErrNotFound
-		}
-		break
 	}
 	return credential, warnings, nil
 }

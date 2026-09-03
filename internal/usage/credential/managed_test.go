@@ -49,6 +49,15 @@ func (f *fakeManagedKeychain) Delete(service, account string) error {
 	return nil
 }
 
+func TestManagedStoreAcceptsConfigSafeProviderIDs(t *testing.T) {
+	store := ManagedStore{StateDir: t.TempDir(), UseKeychain: false}
+	if err := store.SaveAPIKey("custom_vllm", "token-value"); err != nil {
+		t.Fatalf("SaveAPIKey(custom_vllm): %v", err)
+	}
+	if filepath.Base(store.Path("custom_vllm")) != "custom_vllm.json" {
+		t.Fatalf("Path(custom_vllm) = %q", store.Path("custom_vllm"))
+	}
+}
 func TestManagedStoreUsesKeychainByDefault(t *testing.T) {
 	keychain := &fakeManagedKeychain{}
 	store := ManagedStore{StateDir: t.TempDir(), Keychain: keychain, UseKeychain: true}
@@ -89,6 +98,38 @@ func TestManagedStoreFallsBackToFile(t *testing.T) {
 	}
 	if cred.Token != "token-value" || cred.Source != usage.AuthOAuthDeviceFlow {
 		t.Fatalf("Resolve = %#v", cred)
+	}
+}
+
+func TestManagedStorePreservesAPIKeySource(t *testing.T) {
+	keychain := &fakeManagedKeychain{}
+	store := ManagedStore{StateDir: t.TempDir(), Keychain: keychain, UseKeychain: true}
+	if err := store.SaveAPIKey("openai", "api-key-value"); err != nil {
+		t.Fatal(err)
+	}
+	cred, warnings, err := store.Resolve(context.Background(), "openai")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cred.Token != "api-key-value" || cred.Source != usage.AuthEnvVar || len(warnings) != 0 {
+		t.Fatalf("Resolve = %#v, warnings = %v", cred, warnings)
+	}
+}
+
+func TestManagedStoreKeychainCommitDoesNotReportFallbackCleanupFailure(t *testing.T) {
+	keychain := &fakeManagedKeychain{}
+	store := ManagedStore{StateDir: t.TempDir(), Keychain: keychain, UseKeychain: true}
+	path := store.Path("openai")
+	if err := os.MkdirAll(filepath.Join(path, "blocked"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := store.SaveAPIKey("openai", "replacement-api-key"); err != nil {
+		t.Fatalf("SaveAPIKey reported failure after keychain commit: %v", err)
+	}
+	cred, _, err := store.Resolve(context.Background(), "openai")
+	if err != nil || cred.Token != "replacement-api-key" || cred.Source != usage.AuthEnvVar {
+		t.Fatalf("Resolve after keychain commit = %#v, %v", cred, err)
 	}
 }
 

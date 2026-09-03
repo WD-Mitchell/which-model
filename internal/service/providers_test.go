@@ -16,6 +16,7 @@ import (
 	"github.com/WD-Mitchell/which-model/internal/routing"
 	"github.com/WD-Mitchell/which-model/internal/usage"
 	"github.com/WD-Mitchell/which-model/internal/usage/cache"
+	"github.com/WD-Mitchell/which-model/internal/usage/credential"
 )
 
 // providersFloatPtr returns a pointer to v for snapshot windows.
@@ -143,13 +144,17 @@ source_preference = ["live"]
 		WithRoutes(tableWithExtraProviders()),
 	)
 	useTempUsageCache(t, svc)
+	seedModelsDev(t, svc, `[
+		{"Provider":"anthropic","ModelID":"claude-opus-5","Name":"Claude Opus 5"},
+		{"Provider":"anthropic","ModelID":"claude-haiku-4","Name":"Claude Haiku 4"}
+	]`)
 
 	list, err := svc.Providers().List(context.Background())
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
 
-	wantIDs := []string{"extra", "zeta", "codex", "claude"} // priorities: extra=0, zeta=0, codex=1, claude=2; 0-tie broken by id asc
+	wantIDs := []string{"anthropic", "extra", "zeta", "codex", "claude"} // priority 0 ties are id ascending, then configured priorities 1 and 2
 	gotIDs := make([]string, 0, len(list))
 	for i, info := range list {
 		gotIDs = append(gotIDs, info.ID)
@@ -177,6 +182,19 @@ source_preference = ["live"]
 	}
 	if zeta.RoutesTotal != 1 {
 		t.Fatalf("zeta RoutesTotal = %d, want 1", zeta.RoutesTotal)
+	}
+
+	if extra.Models != 0 {
+		t.Fatalf("extra Models = %d, want 0", extra.Models)
+	}
+	if zeta.Models != 1 {
+		t.Fatalf("zeta Models = %d, want 1", zeta.Models)
+	}
+	if anthropicModels := infoByID(t, list, "anthropic").Models; anthropicModels != 2 {
+		t.Fatalf("anthropic Models = %d, want 2 catalogue model ids", anthropicModels)
+	}
+	if claudeModels := infoByID(t, list, "claude").Models; claudeModels != 3 {
+		t.Fatalf("claude Models = %d, want 3 distinct catalogue and routed model ids", claudeModels)
 	}
 
 	// providers present in both config and table are enabled.
@@ -401,6 +419,49 @@ priority = 1
 		t.Fatal("claude.enabled should be true on disk")
 	}
 }
+func TestProviderSetEnabled_CatalogueOnly(t *testing.T) {
+	svc, rec := newTestServices(t)
+	useTempUsageCache(t, svc)
+	seedModelsDev(t, svc, `[{"Provider":"alibaba","ModelID":"qwen3-max","Name":"Qwen3 Max"}]`)
+
+	if err := svc.Providers().SetEnabled(context.Background(), "alibaba", true); err != nil {
+		t.Fatalf("SetEnabled catalogue-only provider: %v", err)
+	}
+	assertConfigChanged(t, rec, "providers")
+	if !reloadConfig(t, svc).Providers["alibaba"].Enabled {
+		t.Fatal("alibaba.enabled should be true on disk")
+	}
+}
+
+func TestProviderListIncludesCodexBarProviders(t *testing.T) {
+	oldDiscover := discoverBackendProviderIDs
+	t.Cleanup(func() { discoverBackendProviderIDs = oldDiscover })
+	discoverBackendProviderIDs = func(backend config.UsageBackend) []string {
+		if backend != config.UsageBackendCodexBar {
+			t.Fatalf("backend = %q, want codexbar", backend)
+		}
+		return []string{"antigravity", "commandcode", "cursor"}
+	}
+	svc, _ := newTestServices(t, WithConfigTOML("[usage]\nbackend = \"codexbar\"\n"))
+	useTempUsageCache(t, svc)
+
+	list := mustProviderList(t, svc)
+	got := make(map[string]bool, len(list))
+	for _, provider := range list {
+		got[provider.ID] = true
+	}
+	for _, id := range []string{"antigravity", "commandcode", "cursor"} {
+		if !got[id] {
+			t.Errorf("List missing CodexBar provider %q", id)
+		}
+	}
+	if err := svc.Providers().SetEnabled(context.Background(), "antigravity", true); err != nil {
+		t.Fatalf("SetEnabled CodexBar provider: %v", err)
+	}
+	if !reloadConfig(t, svc).Providers["antigravity"].Enabled {
+		t.Fatal("antigravity.enabled should be true on disk")
+	}
+}
 
 func TestProviderSetEnabled_Unknown(t *testing.T) {
 	svc, rec := newTestServices(t)
@@ -491,9 +552,10 @@ func TestProviderDetail_LevelsAndDefault(t *testing.T) {
 		t.Fatalf("Detail.ID = %q", detail.ID)
 	}
 	want := ProviderDetail{
-		ID:       "claude",
-		Builtin:  true,
-		Accounts: []ProviderAccountDTO{{Name: "Claude", Kind: AccountKindOAuth, Ref: ""}},
+		ID:             "claude",
+		Builtin:        true,
+		OAuthSupported: true,
+		Accounts:       []ProviderAccountDTO{},
 		Models: []ProviderModel{
 			{ModelID: "claude-eco", ModelName: "Claude Eco", Levels: []RouteLevel{
 				// low then default (collapsed to high = the top present rung).
@@ -861,6 +923,9 @@ priority = 1
 	if detail.Builtin {
 		t.Error("myprov must not report as builtin")
 	}
+	if detail.OAuthSupported {
+		t.Error("custom provider must not advertise OAuth")
+	}
 
 	// Duplicate carries the accounts but never the enabled state.
 	copyID, err := ps.Duplicate(ctx, "myprov")
@@ -888,6 +953,65 @@ priority = 1
 	}
 	if len(rec.Events()) == 0 {
 		t.Error("expected config:changed emissions")
+	}
+}
+
+func TestProviderSetAccountsRemovesManagedCredentialWithLastManagedAccount(t *testing.T) {
+	svc, rec := newTestServices(t, WithConfigTOML(`
+[auth]
+use_keychain = false
+
+[providers.myprov]
+enabled = true
+
+[[providers.myprov.accounts]]
+name = "Production"
+kind = "token"
+ref = "which-model"
+`))
+	ctx := context.Background()
+	store := credential.ManagedStore{StateDir: svc.paths.StateDir, UseKeychain: false}
+	if err := store.SaveAPIKey("myprov", "sk-managed-provider-test"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := svc.Providers().SetAccounts(ctx, "myprov", nil); err != nil {
+		t.Fatalf("SetAccounts(remove managed account): %v", err)
+	}
+	if _, _, err := store.Resolve(ctx, "myprov"); !errors.Is(err, credential.ErrNotFound) {
+		t.Fatalf("managed credential still resolves after account removal: %v", err)
+	}
+	if accounts := reloadConfig(t, svc).Providers["myprov"].Accounts; len(accounts) != 0 {
+		t.Fatalf("accounts after removal = %+v", accounts)
+	}
+	assertConfigChanged(t, rec, "providers")
+}
+
+func TestProviderSetAccountsDoesNotDeleteCursorOwnedCredential(t *testing.T) {
+	svc, _ := newTestServices(t, WithConfigTOML(`
+[auth]
+use_keychain = false
+
+[providers.cursor]
+enabled = true
+
+[[providers.cursor.accounts]]
+name = "Team"
+kind = "oauth"
+ref = "cursor-agent"
+`))
+	ctx := context.Background()
+	store := credential.ManagedStore{StateDir: svc.paths.StateDir, UseKeychain: false}
+	if err := store.Save("cursor", "unrelated-managed-test-token"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := svc.Providers().SetAccounts(ctx, "cursor", nil); err != nil {
+		t.Fatalf("SetAccounts(remove Cursor account): %v", err)
+	}
+	managed, _, err := store.Resolve(ctx, "cursor")
+	if err != nil || managed.Token != "unrelated-managed-test-token" {
+		t.Fatalf("Cursor-owned removal changed managed credential: %#v, %v", managed, err)
 	}
 }
 
