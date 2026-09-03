@@ -145,6 +145,9 @@ Events: success ⇒ `catalog:changed` `{}`; derive-phase failure ⇒ `config:cha
 | `TestCatalogModelCardLookupByModelID` | scored model lookup by its model ID resolves with full scores and `InCatalog: true` |
 | `TestCatalogModelCardProviderIDResolvesScoredModel` | provider model ID whose name matches a scored model directly resolves to that scored model with `InCatalog: true` and full scores |
 | `TestCatalogModelCardDisabledLevelStillExposed` | a level disabled via `[routes.disabled]` remains in the provider row's `Reasoning` and `RouteKeys` (SPEC §2.15: exposure, not enablement, governs levels); provider-level enablement is still filtered |
+| `TestCatalogModelsProviderListingContributes` | an ENABLED provider's models.dev listing with no route raises `ProviderCount` 0→1 and sets `ModelID` (SPEC §2.14 source (b)) |
+| `TestCatalogModelsDisabledProviderListingIgnored` | the same listing under a DISABLED provider contributes nothing; `ProviderCount` stays 0 and `ModelID` empty |
+| `TestCatalogModelCardSharedModelIDNoCrossProviderLeak` | two unrelated models sharing a generic provider id (`default`) do not cross-join: the unscored card keeps one provider row and the scored neighbour is unaffected |
 | `TestBuiltinMutationRejected` | SaveGroup/DeleteGroup on a builtin slug → `builtin_readonly`; config untouched; zero events; DuplicateGroup on the same slug succeeds as `<slug>_copy` |
 | `TestDeriveFailurePersistsGroup` | raw CSV removed: SaveGroup → `io_error` naming the raw path; `[groups.<slug>]` persisted; catalog cache unchanged; `config:changed` emitted, no `catalog:changed` |
 

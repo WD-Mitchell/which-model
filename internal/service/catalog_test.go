@@ -545,6 +545,146 @@ claude = ["claude-opus-5@max"]
 	}
 }
 
+// TestCatalogModelsProviderListingContributes pins B05 SPEC §2.14: ProviderCount
+// and ModelID are a UNION of (a) every route carrying the name, regardless of
+// provider enablement, and (b) the model listings of ENABLED providers, which
+// include models.dev catalogue entries that have no route yet. Kimi K2.7 Code
+// has no route in the fixture, so it isolates contribution (b): without it a
+// user who enables a provider but has not run `routes refresh` would see a
+// scored model reported as reachable from nowhere.
+func TestCatalogModelsProviderListingContributes(t *testing.T) {
+	base, _ := newTestServices(t)
+	before, err := base.Catalog().Models(catCtx())
+	if err != nil {
+		t.Fatalf("Models (baseline): %v", err)
+	}
+	var baseKimi *CatalogModel
+	for i := range before {
+		if before[i].ModelName == "Kimi K2.7 Code" {
+			baseKimi = &before[i]
+		}
+	}
+	if baseKimi == nil {
+		t.Fatal("Kimi K2.7 Code missing from baseline catalog")
+	}
+	if baseKimi.ProviderCount != 0 || baseKimi.ModelID != "" {
+		t.Fatalf("baseline Kimi = count %d id %q, want 0 and empty (no routes)", baseKimi.ProviderCount, baseKimi.ModelID)
+	}
+
+	svc, _ := newTestServices(t, WithConfigTOML(`
+[providers.cursor]
+enabled = true
+`))
+	seedModelsDevCache(t, svc, []modelsdev.ProviderModel{{
+		Provider:     "cursor",
+		ModelID:      "kimi-k2.7-code",
+		Name:         "Kimi K2.7 Code",
+		EffortLevels: []string{"high"},
+	}})
+	got, err := svc.Catalog().Models(catCtx())
+	if err != nil {
+		t.Fatalf("Models: %v", err)
+	}
+	var kimi *CatalogModel
+	for i := range got {
+		if got[i].ModelName == "Kimi K2.7 Code" {
+			kimi = &got[i]
+		}
+	}
+	if kimi == nil {
+		t.Fatal("Kimi K2.7 Code missing after seeding the provider listing")
+	}
+	if kimi.ProviderCount != 1 {
+		t.Errorf("ProviderCount = %d, want 1 from the enabled provider listing alone", kimi.ProviderCount)
+	}
+	if kimi.ModelID != "kimi-k2.7-code" {
+		t.Errorf("ModelID = %q, want kimi-k2.7-code from the provider listing", kimi.ModelID)
+	}
+	if !reflect.DeepEqual(kimi.Providers, []string{"cursor"}) {
+		t.Errorf("Providers = %v, want [cursor]", kimi.Providers)
+	}
+}
+
+// TestCatalogModelsDisabledProviderListingIgnored is the negative half of
+// §2.14(b): the listing contribution is gated on provider enablement, so the
+// same seed with cursor disabled leaves Kimi at zero.
+func TestCatalogModelsDisabledProviderListingIgnored(t *testing.T) {
+	svc, _ := newTestServices(t) // cursor not enabled
+	seedModelsDevCache(t, svc, []modelsdev.ProviderModel{{
+		Provider:     "cursor",
+		ModelID:      "kimi-k2.7-code",
+		Name:         "Kimi K2.7 Code",
+		EffortLevels: []string{"high"},
+	}})
+	got, err := svc.Catalog().Models(catCtx())
+	if err != nil {
+		t.Fatalf("Models: %v", err)
+	}
+	for _, m := range got {
+		if m.ModelName != "Kimi K2.7 Code" {
+			continue
+		}
+		if m.ProviderCount != 0 || m.ModelID != "" {
+			t.Errorf("Kimi = count %d id %q, want 0 and empty (cursor disabled)", m.ProviderCount, m.ModelID)
+		}
+		return
+	}
+	t.Fatal("Kimi K2.7 Code missing from catalog")
+}
+
+// TestCatalogModelCardSharedModelIDNoCrossProviderLeak is the aggregation-phase
+// counterpart to the provider-scoped lookup fix. Provider-native ids are
+// provider-scoped, so two unrelated models can share a generic id such as
+// "default". Before the guard, synthesising the unscored "Alpha 1.0" card
+// (base.ModelID "default") matched anthropic's "Claude Opus 5" purely on that
+// bare id, leaking a second provider row and a "max" chip that drilled into the
+// wrong benchmarks. The display name is authoritative: an id-only match whose
+// name is a DIFFERENT catalog identity must be rejected.
+func TestCatalogModelCardSharedModelIDNoCrossProviderLeak(t *testing.T) {
+	svc, _ := newTestServices(t, WithConfigTOML(`
+[providers.cursor]
+enabled = true
+
+[providers.claude]
+enabled = true
+`))
+	seedModelsDevCache(t, svc, []modelsdev.ProviderModel{
+		{Provider: "cursor", ModelID: "default", Name: "Alpha 1.0", EffortLevels: []string{"high"}},
+		{Provider: "anthropic", ModelID: "default", Name: "Claude Opus 5", EffortLevels: []string{"max"}},
+	})
+
+	got, err := svc.Catalog().Model(catCtx(), "Alpha 1.0")
+	if err != nil {
+		t.Fatalf("Model(Alpha 1.0): %v", err)
+	}
+	if got.ModelName != "Alpha 1.0" || got.InCatalog {
+		t.Fatalf("identity = %q inCatalog=%v, want Alpha 1.0 and false", got.ModelName, got.InCatalog)
+	}
+	if len(got.Providers) != 1 || got.Providers[0].Provider != "cursor" {
+		t.Fatalf("providers = %+v, want only the cursor row", got.Providers)
+	}
+	if got.ProviderCount != 1 {
+		t.Errorf("ProviderCount = %d, want 1", got.ProviderCount)
+	}
+	if stringInSlice(got.Reasoning, "max") {
+		t.Errorf("reasoning = %v, leaked Claude Opus 5's max level via the shared id", got.Reasoning)
+	}
+
+	// The scored neighbour must remain intact and unaffected by the guard.
+	opus, err := svc.Catalog().Model(catCtx(), "Claude Opus 5")
+	if err != nil {
+		t.Fatalf("Model(Claude Opus 5): %v", err)
+	}
+	if !opus.InCatalog {
+		t.Errorf("Claude Opus 5 InCatalog = false, want true")
+	}
+	for _, p := range opus.Providers {
+		if p.Provider == "cursor" {
+			t.Errorf("Alpha 1.0's cursor row leaked onto the Claude Opus 5 card: %+v", p)
+		}
+	}
+}
+
 func TestCatalogGroupsList(t *testing.T) {
 	svc, _ := newTestServices(t)
 	got, err := svc.Catalog().Groups(catCtx())

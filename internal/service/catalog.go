@@ -558,6 +558,27 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 	}
 	byKey := map[string]*acc{}
 
+	// Provider-native model ids are provider-scoped, so a bare id match can
+	// otherwise join two unrelated models that share a generic id such as
+	// "default". Reject an id-only match whose display name is itself a
+	// DIFFERENT catalog identity; that name is authoritative and proves the
+	// two entries are distinct models. Name variants that are not separate
+	// catalog identities still join, which is the case the id clause exists
+	// for (provider display names normalising differently from the CSV).
+	scoredNames := make(map[string]struct{}, len(list))
+	for i := range list {
+		scoredNames[strings.ToLower(list[i].ModelName)] = struct{}{}
+	}
+	baseLower := strings.ToLower(base.ModelName)
+	namesOtherIdentity := func(candidate string) bool {
+		lower := strings.ToLower(candidate)
+		if lower == baseLower {
+			return false
+		}
+		_, ok := scoredNames[lower]
+		return ok
+	}
+
 	// 1. Scan enabled providers for all models and reasoning levels they offer matching this model.
 	for _, pID := range providerIDs {
 		pcfg, ok := s.cfg.Providers[pID]
@@ -571,10 +592,13 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 		pmList := s.Providers().providerModelsFromMapLocked(pID, cat)
 		for _, pm := range pmList {
 			cleaned := identity.CleanModelName(pm.ModelName)
-			match := strings.EqualFold(cleaned, base.ModelName) ||
-				strings.EqualFold(pm.ModelName, base.ModelName) ||
-				(base.ModelID != "" && strings.EqualFold(pm.ModelID, base.ModelID))
-			if !match {
+			nameMatch := strings.EqualFold(cleaned, base.ModelName) ||
+				strings.EqualFold(pm.ModelName, base.ModelName)
+			idMatch := base.ModelID != "" &&
+				strings.EqualFold(pm.ModelID, base.ModelID) &&
+				!namesOtherIdentity(cleaned) &&
+				!namesOtherIdentity(pm.ModelName)
+			if !nameMatch && !idMatch {
 				continue
 			}
 			join := pID + "|" + pm.ModelID
@@ -603,10 +627,13 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 
 	// 2. Also check any routes for this model from enabled providers.
 	for _, route := range s.routes.Routes {
-		match := strings.EqualFold(route.Model, base.ModelName) ||
-			strings.EqualFold(identity.CleanModelName(route.Model), base.ModelName) ||
-			(base.ModelID != "" && strings.EqualFold(route.ModelID, base.ModelID))
-		if !match {
+		nameMatch := strings.EqualFold(route.Model, base.ModelName) ||
+			strings.EqualFold(identity.CleanModelName(route.Model), base.ModelName)
+		idMatch := base.ModelID != "" &&
+			strings.EqualFold(route.ModelID, base.ModelID) &&
+			!namesOtherIdentity(route.Model) &&
+			!namesOtherIdentity(identity.CleanModelName(route.Model))
+		if !nameMatch && !idMatch {
 			continue
 		}
 		pcfg, ok := s.cfg.Providers[route.Provider]
