@@ -41,9 +41,10 @@ Queries: `['catalog-models']` → `host.catalog.models()`.
 | Detail blurb fallback | `no provider id yet` |
 | Detail kicker | `catalog scores` |
 | Score labels | `intel`, `cost`, `speed` |
-| Missing detail | `couldn't load this model` |
+| Missing detail (not found / not in catalog) | `not yet in catalog` |
+| Detail load error (transient / IO) | `couldn't load this model` / `Retry` |
+| Unscored model scores state | `not yet in catalog` |
 | Null score cell | `—` |
-
 ## 4. Test fixtures (vitest + `createMockEngineHost`)
 
 - Sidebar `Models` is present under ranking; clicking it shows PAGE_META blurb and one row per distinct mock model name (8).

@@ -332,6 +332,7 @@ func (c *CatalogService) Model(ctx context.Context, name string) (CatalogModelDe
 func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 	list := s.catalogModelsLocked()
 	var base *CatalogModel
+	inCatalog := true
 
 	// 1. Try exact ModelName match in catalogModelsLocked.
 	for i := range list {
@@ -489,6 +490,7 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 				Maker:     extractMaker(foundName),
 			}
 			base = &synthetic
+			inCatalog = false
 		}
 	}
 
@@ -667,6 +669,7 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 		Cost:          base.Cost,
 		Speed:         base.Speed,
 		ProviderCount: providerCount,
+		InCatalog:     inCatalog,
 		Providers:     providers,
 	}, nil
 }

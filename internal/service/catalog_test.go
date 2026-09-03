@@ -324,6 +324,9 @@ enabled = true
 	if got.ModelName != "Claude Opus 5" || got.ModelID != "claude-opus-5" {
 		t.Fatalf("identity = %s/%s", got.ModelName, got.ModelID)
 	}
+	if !got.InCatalog {
+		t.Errorf("InCatalog = false, want true for scored model")
+	}
 	if got.Intelligence == nil || *got.Intelligence != 100 {
 		t.Errorf("intelligence = %v, want 100", got.Intelligence)
 	}
@@ -418,6 +421,9 @@ enabled = true
 	}
 	if got.Intelligence != nil || got.Cost != nil || got.Speed != nil {
 		t.Errorf("expected nil scores for unscored model, got intel=%v, cost=%v, speed=%v", got.Intelligence, got.Cost, got.Speed)
+	}
+	if got.InCatalog {
+		t.Errorf("InCatalog = true, want false for unscored model")
 	}
 	if got.ProviderCount != 1 {
 		t.Errorf("ProviderCount = %d, want 1", got.ProviderCount)

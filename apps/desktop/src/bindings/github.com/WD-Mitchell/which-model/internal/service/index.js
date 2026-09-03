@@ -15,13 +15,21 @@ import * as $models from "./models.js";
  */
 
 /**
- * ModelBenchRow is one benchmark result for a (model, reasoning) pair.
- * @typedef {$models.ModelBenchRow} ModelBenchRow
+ * CatalogModel is one distinct catalog identity (scores CSV model name),
+ * aggregated across reasoning rows. Intelligence/Cost/Speed are the top
+ * reasoning level's tier-1 scores (0–100), nil when that axis is blank.
+ * @typedef {$models.CatalogModel} CatalogModel
  */
 
 /**
- * ModelScoreDetail is the inverse of BenchmarkDetail.
- * @typedef {$models.ModelScoreDetail} ModelScoreDetail
+ * CatalogModelDetail is the model card: catalog identity plus enabled-provider rows.
+ * @typedef {$models.CatalogModelDetail} CatalogModelDetail
+ */
+
+/**
+ * CatalogModelProvider is one enabled provider that serves a catalog model.
+ * Costs are USD per 1M tokens from the models.dev cache; nil means no listed price.
+ * @typedef {$models.CatalogModelProvider} CatalogModelProvider
  */
 
 /**
@@ -30,7 +38,6 @@ import * as $models from "./models.js";
  */
 
 /**
- * Favourite is one pinned route.
  * @typedef {$models.Favourite} Favourite
  */
 
@@ -62,6 +69,18 @@ import * as $models from "./models.js";
 /**
  * LaunchResult is the harness launch outcome.
  * @typedef {$models.LaunchResult} LaunchResult
+ */
+
+/**
+ * ModelBenchRow is one benchmark result for a (model, reasoning) pair.
+ * @typedef {$models.ModelBenchRow} ModelBenchRow
+ */
+
+/**
+ * ModelScoreDetail is the inverse of BenchmarkDetail: every benchmark
+ * (model, reasoning) reports. An unknown or untested pair returns empty Rows,
+ * not not_found — Settings always lets you open a catalogue combo.
+ * @typedef {$models.ModelScoreDetail} ModelScoreDetail
  */
 
 /**

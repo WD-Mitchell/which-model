@@ -94,7 +94,7 @@ export function ModelCard({
           </Tag>
         ))}
       </div>
-      {model.intelligence == null && model.cost == null && model.speed == null ? (
+      {!model.in_catalog ? (
         <div className={styles.empty}>
           <EmptyState text={NOT_YET_IN_CATALOG} />
         </div>

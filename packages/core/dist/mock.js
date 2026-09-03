@@ -718,6 +718,7 @@ export function createMockEngineHost(overrides) {
                         cost: null,
                         speed: null,
                         provider_count: new Set(providers.map((pr) => pr.provider)).size,
+                        in_catalog: false,
                         providers,
                     };
                 }
@@ -781,6 +782,7 @@ export function createMockEngineHost(overrides) {
                     cost: top.core.cost,
                     speed: top.core.speed,
                     provider_count: new Set(rows.flatMap((m) => m.providers)).size,
+                    in_catalog: true,
                     providers,
                 };
             },

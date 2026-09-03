@@ -21,48 +21,23 @@
  */
 
 /**
- * ModelBenchRow is one benchmark result for a (model, reasoning) pair.
- * @typedef {Object} ModelBenchRow
- * @property {string} name
- * @property {number} value
- * @property {number} norm - value / max * 100 across every tested model
- * @property {string[] | null} groups
- */
-
-/**
- * ModelScoreDetail is the inverse of BenchmarkDetail: every benchmark
- * (model, reasoning) reports.
- * @typedef {Object} ModelScoreDetail
- * @property {string} model
- * @property {string} reasoning
- * @property {ModelBenchRow[] | null} rows
- */
-
-/**
- * CatalogModel is one distinct catalog identity.
+ * CatalogModel is one distinct catalog identity (scores CSV model name),
+ * aggregated across reasoning rows. Intelligence/Cost/Speed are the top
+ * reasoning level's tier-1 scores (0–100), nil when that axis is blank.
  * @typedef {Object} CatalogModel
  * @property {string} model_name
- * @property {string} model_id
+ * @property {string} model_id - representative route id; "" if none
  * @property {string[] | null} reasoning
  * @property {number | null} intelligence
  * @property {number | null} cost
  * @property {number | null} speed
  * @property {number} provider_count
+ * @property {string} [maker]
+ * @property {string[] | null} [providers]
  */
 
 /**
- * CatalogModelProvider is one enabled provider that serves a catalog model.
- * @typedef {Object} CatalogModelProvider
- * @property {string} provider
- * @property {string} model_id
- * @property {string[] | null} reasoning
- * @property {string[] | null} route_keys
- * @property {number | null} input_cost_usd_per_m
- * @property {number | null} output_cost_usd_per_m
- */
-
-/**
- * CatalogModelDetail is the model card.
+ * CatalogModelDetail is the model card: catalog identity plus enabled-provider rows.
  * @typedef {Object} CatalogModelDetail
  * @property {string} model_name
  * @property {string} model_id
@@ -71,7 +46,20 @@
  * @property {number | null} cost
  * @property {number | null} speed
  * @property {number} provider_count
+ * @property {boolean} in_catalog
  * @property {CatalogModelProvider[] | null} providers
+ */
+
+/**
+ * CatalogModelProvider is one enabled provider that serves a catalog model.
+ * Costs are USD per 1M tokens from the models.dev cache; nil means no listed price.
+ * @typedef {Object} CatalogModelProvider
+ * @property {string} provider
+ * @property {string} model_id
+ * @property {string[] | null} reasoning
+ * @property {string[] | null} route_keys
+ * @property {number | null} input_cost_usd_per_m
+ * @property {number | null} output_cost_usd_per_m
  */
 
 /**
@@ -83,7 +71,6 @@
  */
 
 /**
- * Favourite is one pinned route.
  * @typedef {Object} Favourite
  * @property {string} route_key
  * @property {string} model_name
@@ -109,7 +96,12 @@
  * @property {boolean} claude_md_hint
  * @property {boolean} shell_alias
  * @property {boolean} use_keychain - [auth], true prefers OS keychain
+ * @property {string} catalog_repo - "owner/repo" or "owner/repo@ref"
+ * @property {boolean} use_local_aa
+ * @property {string} benchmark_check_frequency
  * @property {boolean} only_enabled_providers
+ * @property {string} aa_api_key - write-only; Get always returns ""
+ * @property {boolean} aa_api_key_set
  * @property {string} config_path - read-only, display only
  * @property {string} version - read-only, display only
  */
@@ -157,6 +149,25 @@
  * @typedef {Object} LaunchResult
  * @property {boolean} copied - true ⇒ frontend puts Command on the clipboard
  * @property {string} command - fully substituted
+ */
+
+/**
+ * ModelBenchRow is one benchmark result for a (model, reasoning) pair.
+ * @typedef {Object} ModelBenchRow
+ * @property {string} name
+ * @property {number} value
+ * @property {number} norm - value / max * 100 across every tested model
+ * @property {string[] | null} groups
+ */
+
+/**
+ * ModelScoreDetail is the inverse of BenchmarkDetail: every benchmark
+ * (model, reasoning) reports. An unknown or untested pair returns empty Rows,
+ * not not_found — Settings always lets you open a catalogue combo.
+ * @typedef {Object} ModelScoreDetail
+ * @property {string} model
+ * @property {string} reasoning
+ * @property {ModelBenchRow[] | null} rows
  */
 
 /**
@@ -253,6 +264,9 @@
  * @property {string} reasoning
  * @property {number} score - already rounded to 2dp
  * @property {string} route_key
+ * @property {number | null} [intelligence]
+ * @property {number | null} [cost]
+ * @property {number | null} [speed]
  */
 
 /**
@@ -276,7 +290,7 @@
  * @typedef {Object} SignInStart
  * @property {string} flow_id - unguessable id required by follow-up operations
  * @property {string} verification_uri - exact https URL to open
- * @property {string} user_code - code to enter, display-only
+ * @property {string} user_code - device code to enter; empty for browser flows
  * @property {boolean} paste_required - true only when Confirm awaits SubmitCode
  */
 

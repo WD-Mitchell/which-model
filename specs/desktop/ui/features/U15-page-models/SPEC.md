@@ -26,7 +26,7 @@ Depends on: U02 (Input, EmptyState, Tag), U07 (shell, `DetailHeader`, page regis
 5. **Empty.** Pending query → nothing below the header (no spinner chrome). Zero models after filter → `EmptyState` text `no models match` when the query is non-empty, else `no models in the catalog`.
 
 6. **Detail.** `detail.kind === 'model'` renders the shared `ModelCard` for that catalog name via query `['catalog-model', name]` (`host.catalog.model(name)`). `DetailHeader`: back label (`fromProvider` or `Models`), title = `model_name`, blurb = `model_id` or `no provider id yet`. Body:
-   - Kicker `catalog scores`, reasoning tags, three-column intel/cost/speed scores. When all three scores are null (e.g. brand-new provider-listed models without catalog benchmark scores yet), render `not yet in catalog` empty state under `catalog scores`.
+   - Kicker `catalog scores`, reasoning tags, three-column intel/cost/speed scores. When `in_catalog` is false (e.g. brand-new provider-listed models without catalog benchmark scores yet), render `not yet in catalog` empty state under `catalog scores`.
    - Kicker `enabled providers`: rows for each enabled provider offering the model, with provider id, native model id, reasoning level chips, and pricing (`$X in / $Y out per 1M` or `no listed price`). Empty state: `no enabled providers offer this model`.
    - Clicking a reasoning chip on a provider row opens `{ kind: 'provider-model', provider, modelName, reasoning }` to drill into benchmarks.
    - Back (`closeDetail`) returns to the parent list (Models page list, or Provider detail when opened from Providers).
