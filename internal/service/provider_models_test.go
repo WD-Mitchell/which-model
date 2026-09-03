@@ -106,14 +106,17 @@ Tip: use --model <id> to switch.
 	// thinking beats fast beats thinking-fast — e.g. claude-opus-4-8-low wins
 	// low over -low-fast, claude-opus-4-8-thinking-low loses low to
 	// claude-opus-4-8-low. The -max context-window rows of effort families
-	// (claude-opus-4-8-max, -thinking-max) are CONTRACTS-pinned as dropped:
-	// -max is a context window, not an effort, and mixed families keep only
-	// their effort routes. Context-window-only bases (claude-fable-5-max in
-	// TestParseCursorModelList) emit alone with empty reasoning.
+	// (claude-opus-4-8-max, -thinking-max, kimi-k3-max) are CONTRACTS-pinned
+	// as dropped: -max is a context window, not an effort. An UNSUFFIXED
+	// executable row (gpt-5.3-codex, empty effort, not a -max row) is a
+	// distinct advertised route and survives alongside its effort routes.
+	// Context-window-only bases (claude-fable-5-max in TestParseCursorModelList)
+	// emit alone with empty reasoning.
 	want := []routing.ModelEntry{
 		{ModelID: "gpt-5.3-codex-low", Name: "Codex 5.3", Reasoning: []string{"low"}},
 		{ModelID: "gpt-5.3-codex-high", Name: "Codex 5.3", Reasoning: []string{"high"}},
 		{ModelID: "gpt-5.3-codex-xhigh", Name: "Codex 5.3", Reasoning: []string{"xhigh"}},
+		{ModelID: "gpt-5.3-codex", Name: "Codex 5.3"},
 		{ModelID: "cursor-grok-4.6-low", Name: "Grok 4.6", Reasoning: []string{"low"}},
 		{ModelID: "cursor-grok-4.6-medium", Name: "Grok 4.6", Reasoning: []string{"medium"}},
 		{ModelID: "cursor-grok-4.6-high", Name: "Grok 4.6", Reasoning: []string{"high"}},

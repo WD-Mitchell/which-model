@@ -231,9 +231,10 @@ func parseCursorModelLines(output string) ([]routing.ModelEntry, error) {
 }
 
 type cursorVariantCandidate struct {
-	rawID string
-	name  string
-	score int
+	rawID      string
+	name       string
+	score      int
+	maxContext bool // candidate came from a -max context-window row, not an unsuffixed id
 }
 
 type cursorModelFamily struct {
@@ -267,7 +268,7 @@ func (a *cursorModelAccumulator) add(rawID, rawName string) error {
 	}
 	a.seenRawIDs[rawID] = struct{}{}
 
-	baseID, effort, ok := parseCursorModelID(rawID)
+	baseID, effort, maxCtx, ok := parseCursorModelID(rawID)
 	if !ok {
 		return errProviderModelOutput
 	}
@@ -297,11 +298,12 @@ func (a *cursorModelAccumulator) add(rawID, rawName string) error {
 
 	existing, hasEffort := fam.efforts[effort]
 	if !hasEffort {
-		fam.efforts[effort] = &cursorVariantCandidate{rawID: rawID, name: name, score: score}
+		fam.efforts[effort] = &cursorVariantCandidate{rawID: rawID, name: name, score: score, maxContext: maxCtx}
 		fam.order = append(fam.order, effort)
 	} else if score > existing.score {
 		existing.rawID = rawID
 		existing.score = score
+		existing.maxContext = maxCtx
 		if existing.name == "" && name != "" {
 			existing.name = name
 		}
@@ -314,8 +316,9 @@ func (a *cursorModelAccumulator) entries() []routing.ModelEntry {
 	for _, baseID := range a.order {
 		fam := a.families[baseID]
 		if fam.hasEffort {
-			// Multi-effort model: emit canonical raw ID for each effort level
-			// in canonical ladder order. Exclude context-window -max variants (effort == "").
+			// Multi-effort model: emit the canonical raw ID for each explicit
+			// effort level in canonical ladder order. Context-window -max rows
+			// (empty effort, maxContext) do not create separate entries.
 			efforts := make([]string, 0, len(fam.efforts))
 			for effort := range fam.efforts {
 				if effort != "" {
@@ -333,8 +336,18 @@ func (a *cursorModelAccumulator) entries() []routing.ModelEntry {
 					Reasoning: []string{effort},
 				})
 			}
+			// An unsuffixed executable ID (empty effort, NOT a -max row) is a
+			// distinct advertised route (the provider's default launch target,
+			// e.g. gpt-5.3-codex) and must survive alongside effort routes.
+			if cand := fam.efforts[""]; cand != nil && !cand.maxContext {
+				entries = append(entries, routing.ModelEntry{
+					ModelID: cand.rawID,
+					Name:    cand.name,
+				})
+			}
 		} else if cand := fam.efforts[""]; cand != nil {
-			// Single model with no effort level (e.g. claude-fable-5-max, composer-2.5).
+			// Single model with no effort level (e.g. claude-fable-5-max,
+			// composer-2.5): emit whichever representative row won scoring.
 			entries = append(entries, routing.ModelEntry{
 				ModelID: cand.rawID,
 				Name:    cand.name,
@@ -395,13 +408,14 @@ func parseProviderModelLines(
 	return acc.entries(), nil
 }
 
-func parseCursorModelID(rawID string) (baseID, effort string, ok bool) {
+func parseCursorModelID(rawID string) (baseID, effort string, maxContext bool, ok bool) {
 	lower := strings.ToLower(rawID)
 	id := strings.TrimSuffix(lower, "-fast")
 	id = strings.TrimSuffix(id, "-thinking")
 	if strings.HasSuffix(id, "-max") {
 		id = strings.TrimSuffix(id, "-max")
 		id = strings.TrimSuffix(id, "-thinking")
+		maxContext = true
 	}
 
 	level := ""
@@ -432,15 +446,15 @@ func parseCursorModelID(rawID string) (baseID, effort string, ok bool) {
 	if strings.HasSuffix(id, "-max") {
 		id = strings.TrimSuffix(id, "-max")
 		id = strings.TrimSuffix(id, "-thinking")
+		maxContext = true
 	}
 
 	if id == "" {
-		return "", "", false
+		return "", "", false, false
 	}
 	baseID = rawID[:len(id)]
-	return baseID, level, true
+	return baseID, level, maxContext, true
 }
-
 func parseAntigravityModelEntry(id, displayName string) (baseID, name, effort string, ok bool) {
 	if !providerModelIDPattern.MatchString(id) {
 		return "", "", "", false
