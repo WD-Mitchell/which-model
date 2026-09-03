@@ -192,6 +192,7 @@ const catalogModelDetail: CatalogModelDetail = {
   cost: 0,
   speed: 12,
   provider_count: 1,
+  in_catalog: true,
   providers: [
     {
       provider: 'claude',

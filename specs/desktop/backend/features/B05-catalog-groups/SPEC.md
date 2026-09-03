@@ -45,8 +45,10 @@ Depends on: B02 (Services, caches, error mapper, test helper). Inherits D00, B00
 
 15. **Model card.** `Model(ctx, name)` returns the `CatalogModelDetail` for a display name or model ID: matches catalog identities (exact, case-insensitive, or via model ID / route mapping) with `InCatalog: true`, or synthesizes identity from provider listings/routes/models.dev for newly released models without catalog scores yet with `InCatalog: false` (intelligence/cost/speed nil). Lists enabled providers serving the model with reasoning levels, route keys, and models.dev pricing. An unknown model absent from scores, routes, and provider catalogues returns `not_found`.
 
+## 3. Error behaviour
+
 - All boundary errors map via `toErrorDTO` (B00 §3): `builtin_readonly`, `not_found`, `conflict`, `validation_failed` per §2.8/§2.9; file failures → `io_error` naming the path.
-- Read methods (`Benchmarks`, `BenchmarkDetail`, `Groups`, `GroupDetail`, `ModelDetail`, `Models`) never mutate and never emit.
+- Read methods (`Benchmarks`, `BenchmarkDetail`, `Groups`, `GroupDetail`, `ModelDetail`, `Models`, `Model`) never mutate and never emit.
 - Validation check order within `SaveGroup` is fixed (§2.8) so messages are golden-testable; exact strings in CONTRACTS §6.
 - `ctx` cancellation during the pipeline maps to `io_error` with the §2.12 partial-persist semantics.
 
