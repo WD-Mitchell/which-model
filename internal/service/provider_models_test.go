@@ -15,8 +15,14 @@ func TestParseCursorModelList(t *testing.T) {
 
 auto - Auto (current, default)
 gpt-5.6-sol-high-fast - GPT-5.6 Sol 1M High Fast
-claude-opus-5-thinking-max - Claude Opus 5 1M Max Thinking
+claude-fable-5-max - Claude Fable 5 1M Max (NO ZDR)
+claude-fable-5-thinking-max - Claude Fable 5 1M Max Thinking (NO ZDR)
 cursor-grok-4.6-high - Cursor Grok 4.6
+claude-opus-5-medium - Claude Opus 5 Medium
+claude-opus-5-medium-fast - Claude Opus 5 Medium Fast
+claude-opus-5-thinking-high - Claude Opus 5 High Thinking
+claude-opus-5-thinking-high-fast - Claude Opus 5 High Thinking Fast
+claude-opus-5-low-fast - Claude Opus 5 Low Fast
 
 Tip: use --model <id> to switch.
 `
@@ -26,8 +32,105 @@ Tip: use --model <id> to switch.
 	}
 	want := []routing.ModelEntry{
 		{ModelID: "gpt-5.6-sol-high-fast", Name: "GPT-5.6 Sol", Reasoning: []string{"high"}},
-		{ModelID: "claude-opus-5-thinking-max", Name: "Claude Opus 5", Reasoning: []string{"max"}},
+		{ModelID: "claude-fable-5-max", Name: "Claude Fable 5"},
 		{ModelID: "cursor-grok-4.6-high", Name: "Grok 4.6", Reasoning: []string{"high"}},
+		{ModelID: "claude-opus-5-low-fast", Name: "Claude Opus 5", Reasoning: []string{"low"}},
+		{ModelID: "claude-opus-5-medium", Name: "Claude Opus 5", Reasoning: []string{"medium"}},
+		{ModelID: "claude-opus-5-thinking-high", Name: "Claude Opus 5", Reasoning: []string{"high"}},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("parseCursorModelList() = %#v, want %#v", got, want)
+	}
+}
+func TestParseCursorModelList_ComprehensiveVariants(t *testing.T) {
+	output := `Available models
+
+auto - Auto (current, default)
+gpt-5.3-codex-low - Codex 5.3 Low
+gpt-5.3-codex-low-fast - Codex 5.3 Low Fast
+gpt-5.3-codex - Codex 5.3
+gpt-5.3-codex-fast - Codex 5.3 Fast
+gpt-5.3-codex-high - Codex 5.3 High
+gpt-5.3-codex-high-fast - Codex 5.3 High Fast
+gpt-5.3-codex-xhigh - Codex 5.3 Extra High
+gpt-5.3-codex-xhigh-fast - Codex 5.3 Extra High Fast
+cursor-grok-4.6-low - Cursor Grok 4.6 Low
+cursor-grok-4.6-low-fast - Cursor Grok 4.6 Low Fast
+cursor-grok-4.6-medium - Cursor Grok 4.6 Medium
+cursor-grok-4.6-medium-fast - Cursor Grok 4.6 Medium Fast
+cursor-grok-4.6-high - Cursor Grok 4.6
+cursor-grok-4.6-high-fast - Cursor Grok 4.6 Fast
+cursor-grok-4.6-xhigh - Cursor Grok 4.6 Extra High
+cursor-grok-4.6-xhigh-fast - Cursor Grok 4.6 Extra High Fast
+composer-2.5 - Composer 2.5
+composer-2.5-fast - Composer 2.5 Fast
+claude-opus-4-8-low - Claude Opus 4.8 1M Low
+claude-opus-4-8-low-fast - Claude Opus 4.8 1M Low Fast
+claude-opus-4-8-medium - Claude Opus 4.8 1M Medium
+claude-opus-4-8-medium-fast - Claude Opus 4.8 1M Medium Fast
+claude-opus-4-8-high - Claude Opus 4.8 1M
+claude-opus-4-8-high-fast - Claude Opus 4.8 1M Fast
+claude-opus-4-8-xhigh - Claude Opus 4.8 1M Extra High
+claude-opus-4-8-xhigh-fast - Claude Opus 4.8 1M Extra High Fast
+claude-opus-4-8-max - Claude Opus 4.8 1M Max
+claude-opus-4-8-max-fast - Claude Opus 4.8 1M Max Fast
+claude-opus-4-8-thinking-low - Claude Opus 4.8 1M Low Thinking
+claude-opus-4-8-thinking-low-fast - Claude Opus 4.8 1M Low Thinking Fast
+claude-opus-4-8-thinking-medium - Claude Opus 4.8 1M Medium Thinking
+claude-opus-4-8-thinking-medium-fast - Claude Opus 4.8 1M Medium Thinking Fast
+claude-opus-4-8-thinking-high - Claude Opus 4.8 1M Thinking
+claude-opus-4-8-thinking-high-fast - Claude Opus 4.8 1M Thinking Fast
+claude-opus-4-8-thinking-xhigh - Claude Opus 4.8 1M Extra High Thinking
+claude-opus-4-8-thinking-xhigh-fast - Claude Opus 4.8 1M Extra High Thinking Fast
+claude-opus-4-8-thinking-max - Claude Opus 4.8 1M Max Thinking
+claude-opus-4-8-thinking-max-fast - Claude Opus 4.8 1M Max Thinking Fast
+claude-4.6-sonnet-medium - Claude Sonnet 4.6 1M
+claude-4.6-sonnet-medium-thinking - Claude Sonnet 4.6 1M Thinking
+claude-4.6-opus-high - Claude Opus 4.6 1M
+claude-4.6-opus-max - Claude Opus 4.6 1M Max
+claude-4.6-opus-high-thinking - Claude Opus 4.6 1M Thinking
+claude-4.6-opus-max-thinking - Claude Opus 4.6 1M Max Thinking
+claude-4.5-sonnet - Claude Sonnet 4.5
+claude-4.5-sonnet-thinking - Claude Sonnet 4.5 Thinking
+kimi-k3-low - Kimi K3 Low
+kimi-k3-high - Kimi K3 High
+kimi-k3-max - Kimi K3
+
+Tip: use --model <id> to switch.
+`
+	got, err := parseCursorModelList(output)
+	if err != nil {
+		t.Fatalf("parseCursorModelList() error = %v", err)
+	}
+	// Score preference (Codex P1): for each (base, effort), plain beats
+	// thinking beats fast beats thinking-fast — e.g. claude-opus-4-8-low wins
+	// low over -low-fast, claude-opus-4-8-thinking-low loses low to
+	// claude-opus-4-8-low. The -max context-window rows of effort families
+	// (claude-opus-4-8-max, -thinking-max, kimi-k3-max) are CONTRACTS-pinned
+	// as dropped: -max is a context window, not an effort. An UNSUFFIXED
+	// executable row (gpt-5.3-codex, empty effort, not a -max row) is a
+	// distinct advertised route and survives alongside its effort routes.
+	// Context-window-only bases (claude-fable-5-max in TestParseCursorModelList)
+	// emit alone with empty reasoning.
+	want := []routing.ModelEntry{
+		{ModelID: "gpt-5.3-codex-low", Name: "Codex 5.3", Reasoning: []string{"low"}},
+		{ModelID: "gpt-5.3-codex-high", Name: "Codex 5.3", Reasoning: []string{"high"}},
+		{ModelID: "gpt-5.3-codex-xhigh", Name: "Codex 5.3", Reasoning: []string{"xhigh"}},
+		{ModelID: "gpt-5.3-codex", Name: "Codex 5.3"},
+		{ModelID: "cursor-grok-4.6-low", Name: "Grok 4.6", Reasoning: []string{"low"}},
+		{ModelID: "cursor-grok-4.6-medium", Name: "Grok 4.6", Reasoning: []string{"medium"}},
+		{ModelID: "cursor-grok-4.6-high", Name: "Grok 4.6", Reasoning: []string{"high"}},
+		{ModelID: "cursor-grok-4.6-xhigh", Name: "Grok 4.6", Reasoning: []string{"xhigh"}},
+		{ModelID: "composer-2.5", Name: "Composer 2.5"},
+		{ModelID: "claude-opus-4-8-low", Name: "Claude Opus 4.8", Reasoning: []string{"low"}},
+		{ModelID: "claude-opus-4-8-medium", Name: "Claude Opus 4.8", Reasoning: []string{"medium"}},
+		{ModelID: "claude-opus-4-8-high", Name: "Claude Opus 4.8", Reasoning: []string{"high"}},
+		{ModelID: "claude-opus-4-8-xhigh", Name: "Claude Opus 4.8", Reasoning: []string{"xhigh"}},
+		{ModelID: "claude-4.6-sonnet-medium", Name: "Claude Sonnet 4.6", Reasoning: []string{"medium"}},
+		{ModelID: "claude-4.6-opus-high", Name: "Claude Opus 4.6", Reasoning: []string{"high"}},
+		{ModelID: "claude-4.5-sonnet", Name: "Claude Sonnet 4.5"},
+		{ModelID: "kimi-k3-low", Name: "Kimi K3", Reasoning: []string{"low"}},
+		{ModelID: "kimi-k3-high", Name: "Kimi K3", Reasoning: []string{"high"}},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("parseCursorModelList() = %#v, want %#v", got, want)
@@ -38,7 +141,9 @@ func TestParseAntigravityModelList(t *testing.T) {
 	output := "Fetching available models...\n" +
 		"gemini-3.6-flash-high\tGemini 3.6 Flash (High)\n" +
 		"claude-sonnet-4-6\tClaude Sonnet 4.6 (Thinking)\n" +
-		"gpt-oss-120b-medium\tGPT-OSS 120B (Medium)\n"
+		"gpt-oss-120b-medium\tGPT-OSS 120B (Medium)\n" +
+		"gemini-3.6-promax\tGemini 3.6 Pro Max\n" +
+		"gemini-3.1-pro\tGemini 3.1 Pro 1M\n"
 	got, err := parseAntigravityModelList(output)
 	if err != nil {
 		t.Fatalf("parseAntigravityModelList() error = %v", err)
@@ -47,6 +152,13 @@ func TestParseAntigravityModelList(t *testing.T) {
 		{ModelID: "gemini-3.6-flash-high", Name: "Gemini 3.6 Flash", Reasoning: []string{"high"}},
 		{ModelID: "claude-sonnet-4-6", Name: "Claude Sonnet 4.6"},
 		{ModelID: "gpt-oss-120b-medium", Name: "GPT-OSS 120B", Reasoning: []string{"medium"}},
+		// Antigravity normalization removes only Fast, Thinking, and the label
+		// matching the ID's own effort suffix: a "-max" ID is an effort max
+		// (name "Max" trimmed), while display names carrying Max/Maximum with
+		// no matching effort suffix survive intact — including "1M", which
+		// this PR scoped OUT of Antigravity cleanup (it stays Cursor-only).
+		{ModelID: "gemini-3.6-promax", Name: "Gemini 3.6 Pro Max"},
+		{ModelID: "gemini-3.1-pro", Name: "Gemini 3.1 Pro 1M"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("parseAntigravityModelList() = %#v, want %#v", got, want)
@@ -59,6 +171,12 @@ func TestProviderModelListRejectsMalformedOutput(t *testing.T) {
 	}
 	if got, err := parseAntigravityModelList("Fetching available models...\nnot-a-record\n"); err == nil || got != nil {
 		t.Fatalf("parseAntigravityModelList(malformed) = %#v, %v, want nil and error", got, err)
+	}
+	if got, err := parseCursorModelList("Available models\ngpt-5.6-sol - GPT-5.6 Sol\ngpt-5.6-sol - GPT-5.6 Sol\n"); err == nil || got != nil {
+		t.Fatalf("parseCursorModelList(duplicate raw row) = %#v, %v, want nil and error", got, err)
+	}
+	if got, err := parseAntigravityModelList("Fetching available models...\ngpt-oss-120b-medium\tGPT-OSS 120B\ngpt-oss-120b-medium\tGPT-OSS 120B\n"); err == nil || got != nil {
+		t.Fatalf("parseAntigravityModelList(duplicate raw row) = %#v, %v, want nil and error", got, err)
 	}
 }
 

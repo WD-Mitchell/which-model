@@ -35,7 +35,7 @@ Depends on: B02. Inherits: D00, B00 (order/enabled/availability invariants §6.1
 
 10. **Events.** Every mutation emits exactly one `config:changed`: `SetEnabled`/`Reorder` with payload `{"section":"providers"}`; `SetRouteEnabled`/`SetAllRoutes` with `{"section":"routes"}`. Write mechanics follow B00 §2.2 verbatim.
 
-11. **Provider-native model refresh.** `RefreshRoutes` augments models.dev with credentialed local CLI discovery for enabled `cursor` and `antigravity` providers when usage is enabled. Cursor runs `cursor-agent --list-models`; Antigravity runs `agy models`, then falls back to `antigravity models`. Each successful listing becomes `routing.ProviderInput.LiveModels`, so scored models that have no models.dev provider slug can still appear in `Detail`. Discovery is fail-closed and provider-local: a missing executable, command failure, timeout, empty/oversized output, or malformed/duplicate row yields no live models for that provider and does not prevent other provider sources from rebuilding. Commands have a 15-second ceiling, stdout is capped at 1 MiB, and output is never included in errors or logs.
+11. **Provider-native model refresh.** `RefreshRoutes` augments models.dev with credentialed local CLI discovery for enabled `cursor` and `antigravity` providers when usage is enabled. Cursor runs `cursor-agent --list-models`; Antigravity runs `agy models`, then falls back to `antigravity models`. Each successful listing becomes `routing.ProviderInput.LiveModels`, so scored models that have no models.dev provider slug can still appear in `Detail`. For providers that enumerate variants as distinct IDs (such as Cursor with context-window variants, thinking variants, fast mode, and effort levels), discovery preserves an executable provider-native raw model ID for each distinct route (e.g. `claude-opus-4-8-low`), while merging duplicate fast-mode and thinking variants into their canonical raw ID and excluding context-window suffixes (e.g. Cursor's `-max`) from being treated as reasoning levels. Discovery is fail-closed and provider-local: a missing executable, command failure, timeout, empty/oversized output, or malformed/duplicate row yields no live models for that provider and does not prevent other provider sources from rebuilding. Commands have a 15-second ceiling, stdout is capped at 1 MiB, and output is strictly validated.
 
 ## 3. Error behaviour
 
@@ -59,6 +59,7 @@ Depends on: B02. Inherits: D00, B00 (order/enabled/availability invariants §6.1
 | `SetAllRoutes(true)` | delete the key, not an empty array | Keeps config.toml minimal; absence = nothing disabled |
 | Provider-native discovery | Enabled Cursor: `cursor-agent --list-models`; enabled Antigravity: `agy models` then `antigravity models`; feed parsed rows through F18 `LiveModels` | Neither provider has a reliable same-named models.dev catalogue slug, while the installed authenticated CLI is authoritative for models the user can launch |
 | Discovery failure | Return no live source for only the failed provider; 15-second timeout, 1 MiB stdout cap, strict all-row parsing, no output in diagnostics | A broken or hostile executable must not block unrelated routes, exhaust memory, or leak provider output |
+| Cursor model variants | preserve provider-native raw IDs for each executable route while merging duplicate -fast/-thinking variants and excluding -max from reasoning | Cursor exposes variants as distinct IDs; without normalization same-model variants duplicate cards, inflate route counts, and misclassify -max as reasoning, while preserving raw IDs ensures cursor --model {model_id} launches an advertised executable ID for every effort (Issue #145) |
 
 ## 5. Out of scope
 
@@ -66,3 +67,17 @@ Depends on: B02. Inherits: D00, B00 (order/enabled/availability invariants §6.1
 - Live usage fetching, refresher, staleness/confidence surfacing (B08).
 - Favourites `InRange` recomputation (B09, which calls into the same B00 §6.3 arithmetic).
 - Provider `weight`, `cache_ttl`, credential keys — read-only inputs here; the GUI does not edit them.
+
+## 6. Deviations / corrections
+
+### 1. Cursor model variant normalization and executable route preservation (Issue #145)
+
+- **Prior behavior**: Provider model discovery treated every distinct model ID string from `cursor-agent --list-models` as an independent model entry. Context-window variants (`-max`), fast-mode variants (`-fast`), and thinking variants (`-thinking`) each created separate routes and cards. A trailing `-max` was erroneously mapped to effort `max`, producing duplicate cards (e.g. `claude-fable-5-max` and `claude-fable-5-thinking-max` both with level `max`), and duplicated effort levels for same-model variants (`claude-opus-5-medium` and `claude-opus-5-medium-fast` both with `medium`).
+- **Correction**: Discovery normalizes Cursor model lines by merging redundant variants:
+  - Fast-mode variants (`-fast`) and duplicate thinking variants (`-thinking`) merge into the canonical provider-native raw ID for that effort.
+  - Suffix `-max` is recognized as maximum context window, NOT an effort level. It is stripped from the base model ID and excluded from being surfaced as effort `max`.
+  - For models with no explicit effort levels (e.g. `claude-fable-5-max`), the model entry emits with empty reasoning so it adopts catalog reasoning (`default`).
+  - Provider-native raw IDs are preserved for each executable route (`claude-opus-4-8-low`, `claude-opus-4-8-medium`, `claude-opus-4-8-high`, `claude-opus-4-8-xhigh`, `claude-fable-5-max`). Because the builtin Cursor harness command `cursor --model {model_id}` lacks a `{reasoning}` argument, preserving the advertised suffixed IDs ensures `HarnessService.Launch` always invokes a valid, executable model ID for every selected effort.
+  - In `Detail`, each executable route ID is listed with its corresponding level, deduplicating fast-mode, thinking, and `-max` duplicates while maintaining 1:1 parity with executable routes and `SetRouteEnabled` keys.
+  - Representative selection: for each `(base, effort)`, the highest-scoring raw variant wins (plain > thinking > fast > thinking-fast); exact score ties keep the first row seen in command output. Context-window-only `-max` rows inside an effort-bearing family (e.g. `kimi-k3-max`) do not create an entry, per the issue's "must not create separate entries" requirement. An unsuffixed id in an effort-bearing family (e.g. `gpt-5.3-codex`) is NOT a context-window row: it is the provider's advertised default launch target and is preserved as its own executable route with empty reasoning.
+  - Antigravity is unaffected by the Cursor variant grammar: a `-max` id remains effort `max` there, and its display-name cleanup stays limited to `Fast`, `Thinking`, and the matched effort label, so legitimate names ending in `Max`/`Maximum`/`1M` with no matching effort suffix survive (e.g. `Gemini 3.1 Pro 1M` keeps its name).
