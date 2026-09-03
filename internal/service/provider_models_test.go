@@ -102,6 +102,14 @@ Tip: use --model <id> to switch.
 	if err != nil {
 		t.Fatalf("parseCursorModelList() error = %v", err)
 	}
+	// Score preference (Codex P1): for each (base, effort), plain beats
+	// thinking beats fast beats thinking-fast — e.g. claude-opus-4-8-low wins
+	// low over -low-fast, claude-opus-4-8-thinking-low loses low to
+	// claude-opus-4-8-low. The -max context-window rows of effort families
+	// (claude-opus-4-8-max, -thinking-max) are CONTRACTS-pinned as dropped:
+	// -max is a context window, not an effort, and mixed families keep only
+	// their effort routes. Context-window-only bases (claude-fable-5-max in
+	// TestParseCursorModelList) emit alone with empty reasoning.
 	want := []routing.ModelEntry{
 		{ModelID: "gpt-5.3-codex-low", Name: "Codex 5.3", Reasoning: []string{"low"}},
 		{ModelID: "gpt-5.3-codex-high", Name: "Codex 5.3", Reasoning: []string{"high"}},
@@ -126,12 +134,13 @@ Tip: use --model <id> to switch.
 	}
 }
 
-
 func TestParseAntigravityModelList(t *testing.T) {
 	output := "Fetching available models...\n" +
 		"gemini-3.6-flash-high\tGemini 3.6 Flash (High)\n" +
 		"claude-sonnet-4-6\tClaude Sonnet 4.6 (Thinking)\n" +
-		"gpt-oss-120b-medium\tGPT-OSS 120B (Medium)\n"
+		"gpt-oss-120b-medium\tGPT-OSS 120B (Medium)\n" +
+		"gemini-3.6-promax\tGemini 3.6 Pro Max\n" +
+		"gemini-3.1-pro\tGemini 3.1 Pro 1M\n"
 	got, err := parseAntigravityModelList(output)
 	if err != nil {
 		t.Fatalf("parseAntigravityModelList() error = %v", err)
@@ -140,6 +149,13 @@ func TestParseAntigravityModelList(t *testing.T) {
 		{ModelID: "gemini-3.6-flash-high", Name: "Gemini 3.6 Flash", Reasoning: []string{"high"}},
 		{ModelID: "claude-sonnet-4-6", Name: "Claude Sonnet 4.6"},
 		{ModelID: "gpt-oss-120b-medium", Name: "GPT-OSS 120B", Reasoning: []string{"medium"}},
+		// Antigravity normalization removes only Fast, Thinking, and the label
+		// matching the ID's own effort suffix: a "-max" ID is an effort max
+		// (name "Max" trimmed), while display names carrying Max/Maximum with
+		// no matching effort suffix survive intact. ("1M" trims only in the
+		// Cursor normalizer; Antigravity keeps it — main behavior, pinned.)
+		{ModelID: "gemini-3.6-promax", Name: "Gemini 3.6 Pro Max"},
+		{ModelID: "gemini-3.1-pro", Name: "Gemini 3.1 Pro 1M"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("parseAntigravityModelList() = %#v, want %#v", got, want)

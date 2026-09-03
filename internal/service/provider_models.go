@@ -394,20 +394,6 @@ func parseProviderModelLines(
 	}
 	return acc.entries(), nil
 }
-func parseCursorModelEntry(rawID, displayName string) (baseID, name, effort string, ok bool) {
-	if !providerModelIDPattern.MatchString(rawID) {
-		return "", "", "", false
-	}
-	baseID, effort, ok = parseCursorModelID(rawID)
-	if !ok {
-		return "", "", "", false
-	}
-	name = normalizeCursorModelName(baseID, displayName, effort)
-	if name == "" {
-		return "", "", "", false
-	}
-	return baseID, name, effort, true
-}
 
 func parseCursorModelID(rawID string) (baseID, effort string, ok bool) {
 	lower := strings.ToLower(rawID)
@@ -453,14 +439,6 @@ func parseCursorModelID(rawID string) (baseID, effort string, ok bool) {
 	}
 	baseID = rawID[:len(id)]
 	return baseID, level, true
-}
-
-func cursorModelBaseID(rawID string) string {
-	baseID, _, ok := parseCursorModelID(rawID)
-	if !ok || baseID == "" {
-		return rawID
-	}
-	return baseID
 }
 
 func parseAntigravityModelEntry(id, displayName string) (baseID, name, effort string, ok bool) {
@@ -557,16 +535,11 @@ func normalizeAntigravityModelName(id, displayName, level string) string {
 		case "default":
 			name = trimSuffixFold(name, " None")
 		}
-		name = trimSuffixFold(name, " 1M")
 		if name == before {
 			break
 		}
 	}
 	return name
-}
-
-func normalizeProviderModelName(id, displayName, level string) string {
-	return normalizeAntigravityModelName(id, displayName, level)
 }
 
 func trimSuffixFold(value, suffix string) string {
