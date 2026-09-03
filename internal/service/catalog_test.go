@@ -394,6 +394,96 @@ func TestCatalogModelCardDisabledOmitted(t *testing.T) {
 		t.Errorf("providers = %+v, want empty when claude is not enabled", got.Providers)
 	}
 }
+func TestCatalogModelCardUnscoredProviderModel(t *testing.T) {
+	svc, _ := newTestServices(t, WithConfigTOML(`
+[providers.cursor]
+enabled = true
+`))
+	in, out := 2.5, 10.0
+	seedModelsDevCache(t, svc, []modelsdev.ProviderModel{{
+		Provider:          "cursor",
+		ModelID:           "fable-5.1",
+		Name:              "Fable 5.1",
+		EffortLevels:      []string{"default", "high"},
+		InputCostUSDPerM:  &in,
+		OutputCostUSDPerM: &out,
+	}})
+
+	got, err := svc.Catalog().Model(catCtx(), "Fable 5.1")
+	if err != nil {
+		t.Fatalf("Model(Fable 5.1): %v", err)
+	}
+	if got.ModelName != "Fable 5.1" || got.ModelID != "fable-5.1" {
+		t.Fatalf("identity = %s/%s, want Fable 5.1/fable-5.1", got.ModelName, got.ModelID)
+	}
+	if got.Intelligence != nil || got.Cost != nil || got.Speed != nil {
+		t.Errorf("expected nil scores for unscored model, got intel=%v, cost=%v, speed=%v", got.Intelligence, got.Cost, got.Speed)
+	}
+	if got.ProviderCount != 1 {
+		t.Errorf("ProviderCount = %d, want 1", got.ProviderCount)
+	}
+	if len(got.Providers) != 1 {
+		t.Fatalf("providers = %+v, want 1 (cursor enabled)", got.Providers)
+	}
+	p := got.Providers[0]
+	if p.Provider != "cursor" || p.ModelID != "fable-5.1" {
+		t.Errorf("provider row = %+v, want cursor/fable-5.1", p)
+	}
+	if p.InputCostUSDPerM == nil || *p.InputCostUSDPerM != 2.5 {
+		t.Errorf("input cost = %v, want 2.5", p.InputCostUSDPerM)
+	}
+	if p.OutputCostUSDPerM == nil || *p.OutputCostUSDPerM != 10.0 {
+		t.Errorf("output cost = %v, want 10.0", p.OutputCostUSDPerM)
+	}
+
+	// Also verify lookup by ModelID works for unscored model
+	gotByID, err := svc.Catalog().Model(catCtx(), "fable-5.1")
+	if err != nil {
+		t.Fatalf("Model(fable-5.1): %v", err)
+	}
+	if gotByID.ModelName != "Fable 5.1" {
+		t.Errorf("gotByID.ModelName = %q, want Fable 5.1", gotByID.ModelName)
+	}
+}
+
+func TestCatalogModelCardUnscoredDisabledProvider(t *testing.T) {
+	svc, _ := newTestServices(t) // cursor not enabled
+	seedModelsDevCache(t, svc, []modelsdev.ProviderModel{{
+		Provider:     "cursor",
+		ModelID:      "fable-5.1",
+		Name:         "Fable 5.1",
+		EffortLevels: []string{"default"},
+	}})
+
+	got, err := svc.Catalog().Model(catCtx(), "Fable 5.1")
+	if err != nil {
+		t.Fatalf("Model(Fable 5.1): %v", err)
+	}
+	if got.ModelName != "Fable 5.1" {
+		t.Fatalf("modelName = %s, want Fable 5.1", got.ModelName)
+	}
+	if got.ProviderCount != 0 {
+		t.Errorf("ProviderCount = %d, want 0 (provider disabled)", got.ProviderCount)
+	}
+	if len(got.Providers) != 0 {
+		t.Errorf("providers = %+v, want empty when provider is disabled", got.Providers)
+	}
+}
+
+func TestCatalogModelCardLookupByModelID(t *testing.T) {
+	svc, _ := newTestServices(t)
+	// Claude Opus 5 is in scores CSV; lookup by its model ID "claude-opus-5"
+	got, err := svc.Catalog().Model(catCtx(), "claude-opus-5")
+	if err != nil {
+		t.Fatalf("Model(claude-opus-5): %v", err)
+	}
+	if got.ModelName != "Claude Opus 5" {
+		t.Errorf("ModelName = %q, want Claude Opus 5", got.ModelName)
+	}
+	if got.Intelligence == nil || *got.Intelligence != 100 {
+		t.Errorf("intelligence = %v, want 100", got.Intelligence)
+	}
+}
 
 func TestCatalogGroupsList(t *testing.T) {
 	svc, _ := newTestServices(t)

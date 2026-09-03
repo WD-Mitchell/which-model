@@ -332,12 +332,166 @@ func (c *CatalogService) Model(ctx context.Context, name string) (CatalogModelDe
 func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 	list := s.catalogModelsLocked()
 	var base *CatalogModel
+
+	// 1. Try exact ModelName match in catalogModelsLocked.
 	for i := range list {
 		if list[i].ModelName == name {
 			base = &list[i]
 			break
 		}
 	}
+
+	// 2. Try case-insensitive ModelName match.
+	if base == nil {
+		for i := range list {
+			if strings.EqualFold(list[i].ModelName, name) || strings.EqualFold(identity.CleanModelName(list[i].ModelName), name) {
+				base = &list[i]
+				break
+			}
+		}
+	}
+
+	// 3. Try matching against catalog ModelID.
+	if base == nil {
+		for i := range list {
+			if list[i].ModelID != "" && strings.EqualFold(list[i].ModelID, name) {
+				base = &list[i]
+				break
+			}
+		}
+	}
+
+	// 4. Try matching name against routes that map to a catalog model.
+	if base == nil {
+		for _, route := range s.routes.Routes {
+			if route.ModelID != "" && (strings.EqualFold(route.ModelID, name) || strings.EqualFold(route.Model, name) || strings.EqualFold(identity.CleanModelName(route.Model), name)) {
+				for i := range list {
+					if strings.EqualFold(list[i].ModelName, route.Model) || strings.EqualFold(identity.CleanModelName(list[i].ModelName), route.Model) {
+						base = &list[i]
+						break
+					}
+				}
+				if base != nil {
+					break
+				}
+			}
+		}
+	}
+
+	// 5. Try matching name against provider models that map to a catalog model.
+	if base == nil {
+		for _, pID := range s.providerUniverseLocked() {
+			for _, pm := range s.Providers().providerModelsLocked(pID) {
+				if strings.EqualFold(pm.ModelName, name) || strings.EqualFold(identity.CleanModelName(pm.ModelName), name) || (pm.ModelID != "" && strings.EqualFold(pm.ModelID, name)) {
+					for _, route := range s.routes.Routes {
+						if strings.EqualFold(route.ModelID, pm.ModelID) || strings.EqualFold(route.Model, pm.ModelName) {
+							for i := range list {
+								if strings.EqualFold(list[i].ModelName, route.Model) {
+									base = &list[i]
+									break
+								}
+							}
+							if base != nil {
+								break
+							}
+						}
+					}
+					if base != nil {
+						break
+					}
+				}
+			}
+			if base != nil {
+				break
+			}
+		}
+	}
+
+	// 6. If still nil, the model is not in the scores catalog. Look for it as a provider-listed model,
+	// route model, or models.dev entry and synthesize a CatalogModel so its profile can be viewed.
+	if base == nil {
+		var (
+			foundName string
+			foundIDs  []string
+			reasonSet = make(map[string]struct{})
+		)
+		for _, pID := range s.providerUniverseLocked() {
+			for _, pm := range s.Providers().providerModelsLocked(pID) {
+				if strings.EqualFold(pm.ModelName, name) || strings.EqualFold(identity.CleanModelName(pm.ModelName), name) || (pm.ModelID != "" && strings.EqualFold(pm.ModelID, name)) {
+					if foundName == "" {
+						foundName = pm.ModelName
+					}
+					if pm.ModelID != "" {
+						foundIDs = append(foundIDs, pm.ModelID)
+					}
+					for _, lvl := range pm.Levels {
+						collapsed := identity.CollapseReasoning(lvl.Reasoning)
+						if collapsed != "" {
+							reasonSet[collapsed] = struct{}{}
+						}
+					}
+				}
+			}
+		}
+		for _, route := range s.routes.Routes {
+			if strings.EqualFold(route.Model, name) || strings.EqualFold(identity.CleanModelName(route.Model), name) || (route.ModelID != "" && strings.EqualFold(route.ModelID, name)) {
+				if foundName == "" {
+					foundName = route.Model
+				}
+				if route.ModelID != "" {
+					foundIDs = append(foundIDs, route.ModelID)
+				}
+				if route.Reasoning != "" {
+					collapsed := identity.CollapseReasoning(route.Reasoning)
+					if collapsed != "" {
+						reasonSet[collapsed] = struct{}{}
+					}
+				}
+			}
+		}
+		for _, m := range loadModelsDevCatalogue(s.paths.CacheDir) {
+			if strings.EqualFold(m.Name, name) || strings.EqualFold(identity.CleanModelName(m.Name), name) || (m.ModelID != "" && strings.EqualFold(m.ModelID, name)) {
+				if foundName == "" {
+					foundName = m.Name
+				}
+				if m.ModelID != "" {
+					foundIDs = append(foundIDs, m.ModelID)
+				}
+				for _, lvl := range m.EffortLevels {
+					collapsed := identity.CollapseReasoning(lvl)
+					if collapsed != "" {
+						reasonSet[collapsed] = struct{}{}
+					}
+				}
+			}
+		}
+
+		if foundName != "" || len(foundIDs) > 0 {
+			if foundName == "" {
+				foundName = name
+			}
+			sort.Strings(foundIDs)
+			var modelID string
+			if len(foundIDs) > 0 {
+				modelID = foundIDs[0]
+			}
+			levels := make([]string, 0, len(reasonSet))
+			for r := range reasonSet {
+				levels = append(levels, r)
+			}
+			sort.SliceStable(levels, func(i, j int) bool {
+				return reasoningLess(levels[i], levels[j])
+			})
+			synthetic := CatalogModel{
+				ModelName: foundName,
+				ModelID:   modelID,
+				Reasoning: levels,
+				Maker:     extractMaker(foundName),
+			}
+			base = &synthetic
+		}
+	}
+
 	if base == nil {
 		return CatalogModelDetail{}, fmt.Errorf("%w: no model %q", errNotFound, name)
 	}
@@ -360,7 +514,10 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 		}
 		for _, pm := range s.Providers().providerModelsLocked(pID) {
 			cleaned := identity.CleanModelName(pm.ModelName)
-			if cleaned != base.ModelName && pm.ModelName != base.ModelName && (base.ModelID == "" || pm.ModelID != base.ModelID) {
+			match := strings.EqualFold(cleaned, base.ModelName) ||
+				strings.EqualFold(pm.ModelName, base.ModelName) ||
+				(base.ModelID != "" && strings.EqualFold(pm.ModelID, base.ModelID))
+			if !match {
 				continue
 			}
 			join := pID + "|" + pm.ModelID
@@ -389,7 +546,10 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 
 	// 2. Also check any routes for this model from enabled providers.
 	for _, route := range s.routes.Routes {
-		if route.Model != base.ModelName {
+		match := strings.EqualFold(route.Model, base.ModelName) ||
+			strings.EqualFold(identity.CleanModelName(route.Model), base.ModelName) ||
+			(base.ModelID != "" && strings.EqualFold(route.ModelID, base.ModelID))
+		if !match {
 			continue
 		}
 		pcfg, ok := s.cfg.Providers[route.Provider]
@@ -491,6 +651,14 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 	sort.SliceStable(reasoningList, func(i, j int) bool {
 		return reasoningLess(reasoningList[i], reasoningList[j])
 	})
+	distinctProviders := make(map[string]struct{})
+	for _, p := range providers {
+		distinctProviders[p.Provider] = struct{}{}
+	}
+	providerCount := len(distinctProviders)
+	if base.ProviderCount > providerCount {
+		providerCount = base.ProviderCount
+	}
 	return CatalogModelDetail{
 		ModelName:     base.ModelName,
 		ModelID:       base.ModelID,
@@ -498,7 +666,7 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 		Intelligence:  base.Intelligence,
 		Cost:          base.Cost,
 		Speed:         base.Speed,
-		ProviderCount: base.ProviderCount,
+		ProviderCount: providerCount,
 		Providers:     providers,
 	}, nil
 }

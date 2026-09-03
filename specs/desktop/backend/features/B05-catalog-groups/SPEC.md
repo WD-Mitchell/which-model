@@ -42,7 +42,8 @@ Depends on: B02 (Services, caches, error mapper, test helper). Inherits D00, B00
 13. **ModelDetail.** Inverse of BenchmarkDetail: given a model display name and reasoning level (cleaned and collapsed the same way as the scores CSV), return every catalogue benchmark that pair reports. Unknown or untested pairs return empty `Rows`, not `not_found`, so Settings can open any catalogue combo. `Norm` is value/max×100 against every tested model of that benchmark, matching BenchmarkDetail.
 
 14. **Models list.** `Models(ctx)` returns one `CatalogModel` per distinct scores-CSV display name (`ScoreRow.Model`), sorted name ascending. Each row aggregates every reasoning level that name reports (collapsed, unique, effort-ladder order). Intelligence/cost/speed are the top effort row's tier-1 scores (nil when that axis is blank). `ModelID` is the lexicographically first `route.ModelID` whose `route.Model` equals the name, or `""`. `ProviderCount` is the number of distinct enabled `route.Provider` values for that name. When `gui.only_enabled_providers` is `true`, `Models` filters the list to only models with `ProviderCount > 0`. Route-only identities that are not in the scores CSV are omitted. Reads never emit.
-## 3. Error behaviour
+
+15. **Model card.** `Model(ctx, name)` returns the `CatalogModelDetail` for a display name or model ID: matches catalog identities (exact, case-insensitive, or via model ID / route mapping), or synthesizes identity from provider listings/routes/models.dev for newly released models without catalog scores yet (intelligence/cost/speed nil). Lists enabled providers serving the model with reasoning levels, route keys, and models.dev pricing. An unknown model absent from scores, routes, and provider catalogues returns `not_found`.
 
 - All boundary errors map via `toErrorDTO` (B00 §3): `builtin_readonly`, `not_found`, `conflict`, `validation_failed` per §2.8/§2.9; file failures → `io_error` naming the path.
 - Read methods (`Benchmarks`, `BenchmarkDetail`, `Groups`, `GroupDetail`, `ModelDetail`, `Models`) never mutate and never emit.
@@ -61,7 +62,7 @@ Depends on: B02 (Services, caches, error mapper, test helper). Inherits D00, B00
 | Re-derive on every group mutation | Always run §2.10, even when bytes may be identical | Keeps scores CSV provenance consistent with the merged config; mtime change is the observable contract of the verify test |
 | Rename rewrites profiles | Custom `[profiles.*.tier2]` keys rewritten in the same atomic write; builtins untouched | One durable write per mutation (D00 §2.3); builtin profiles cannot reference custom slugs by construction |
 | Duplicate allowed on builtins | Yes ("Duplicate & edit" affordance) | Mockup `onGrDuplicate`; the copy is custom and fully editable |
-
+| Unscored provider model detail | Synthesizes CatalogModelDetail from provider listings/routes/models.dev with nil scores | Newly released models appear in provider listings before catalog scores exist; allows viewing model card and enabled providers (issue #141) |
 ## 5. Out of scope
 
 - `[groups.*]` TOML schema + accessors — B01. Catalog cache construction and `newTestServices` — B02. Profile validation accepting custom slugs — B03. Rank consumption of `Categories` — B04. Groups/benchmarks UI — U09.

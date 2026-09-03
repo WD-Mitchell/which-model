@@ -659,14 +659,73 @@ export function createMockEngineHost(overrides) {
                 return list;
             },
             async model(name) {
-                const rows = data.models.filter((m) => m.name === name);
-                if (rows.length === 0)
-                    throw notFound('model', name);
-                const top = [...rows].sort((a, b) => EFFORT_ORDER.indexOf(collapseReasoning(b.reasoning)) -
-                    EFFORT_ORDER.indexOf(collapseReasoning(a.reasoning)))[0];
-                const allReasoning = new Set(rows.map((m) => m.reasoning));
+                const rows = data.models.filter((m) => m.name === name || m.id === name);
                 const enabledProviders = data.providers.filter((p) => p.on);
                 const groups = new Map();
+                const allReasoning = new Set();
+                if (rows.length === 0) {
+                    const matchingProviderModels = [];
+                    for (const p of data.providers) {
+                        for (const pm of providerModels(p.id)) {
+                            if (pm.model_name === name || pm.model_id === name) {
+                                matchingProviderModels.push({ provider: p.id, model: pm });
+                                for (const level of pm.levels) {
+                                    allReasoning.add(collapseReasoning(level.reasoning));
+                                }
+                            }
+                        }
+                    }
+                    if (matchingProviderModels.length === 0) {
+                        throw notFound('model', name);
+                    }
+                    for (const p of enabledProviders) {
+                        for (const pm of providerModels(p.id)) {
+                            if (pm.model_name === name || pm.model_id === name) {
+                                const join = `${p.id}|${pm.model_id}`;
+                                let acc = groups.get(join);
+                                if (acc === undefined) {
+                                    acc = { provider: p.id, model_id: pm.model_id, reasoning: new Set(), keys: new Set() };
+                                    groups.set(join, acc);
+                                }
+                                for (const level of pm.levels) {
+                                    const collapsed = collapseReasoning(level.reasoning);
+                                    acc.reasoning.add(collapsed);
+                                    allReasoning.add(collapsed);
+                                    acc.keys.add(formatRouteKey(p.id, pm.model_id, collapsed));
+                                }
+                            }
+                        }
+                    }
+                    const providers = [...groups.values()]
+                        .sort((a, b) => a.provider.localeCompare(b.provider) || a.model_id.localeCompare(b.model_id))
+                        .map((a) => {
+                        const cost = MOCK_COSTS[`${a.provider}/${a.model_id}`];
+                        return {
+                            provider: a.provider,
+                            model_id: a.model_id,
+                            reasoning: [...a.reasoning].sort((x, y) => (reasoningLess(x, y) ? -1 : 1)),
+                            route_keys: [...a.keys].sort(),
+                            input_cost_usd_per_m: cost === undefined ? null : cost.input,
+                            output_cost_usd_per_m: cost === undefined ? null : cost.output,
+                        };
+                    });
+                    const first = matchingProviderModels[0].model;
+                    return {
+                        model_name: first.model_name,
+                        model_id: first.model_id,
+                        reasoning: [...allReasoning].sort((x, y) => (reasoningLess(x, y) ? -1 : 1)),
+                        intelligence: null,
+                        cost: null,
+                        speed: null,
+                        provider_count: new Set(providers.map((pr) => pr.provider)).size,
+                        providers,
+                    };
+                }
+                for (const m of rows) {
+                    allReasoning.add(m.reasoning);
+                }
+                const top = [...rows].sort((a, b) => EFFORT_ORDER.indexOf(collapseReasoning(b.reasoning)) -
+                    EFFORT_ORDER.indexOf(collapseReasoning(a.reasoning)))[0];
                 for (const p of enabledProviders) {
                     for (const pm of providerModels(p.id)) {
                         if (pm.model_name === name || pm.model_id === top.id) {

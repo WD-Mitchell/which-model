@@ -26,19 +26,17 @@ Depends on: U02 (Input, EmptyState, Tag), U07 (shell, `DetailHeader`, page regis
 5. **Empty.** Pending query → nothing below the header (no spinner chrome). Zero models after filter → `EmptyState` text `no models match` when the query is non-empty, else `no models in the catalog`.
 
 6. **Detail.** `detail.kind === 'model'` renders the shared `ModelCard` for that catalog name via query `['catalog-model', name]` (`host.catalog.model(name)`). `DetailHeader`: back label (`fromProvider` or `Models`), title = `model_name`, blurb = `model_id` or `no provider id yet`. Body:
-   - Kicker `catalog scores`, reasoning tags, three-column intel/cost/speed scores.
+   - Kicker `catalog scores`, reasoning tags, three-column intel/cost/speed scores. When all three scores are null (e.g. brand-new provider-listed models without catalog benchmark scores yet), render `not yet in catalog` empty state under `catalog scores`.
    - Kicker `enabled providers`: rows for each enabled provider offering the model, with provider id, native model id, reasoning level chips, and pricing (`$X in / $Y out per 1M` or `no listed price`). Empty state: `no enabled providers offer this model`.
    - Clicking a reasoning chip on a provider row opens `{ kind: 'provider-model', provider, modelName, reasoning }` to drill into benchmarks.
    - Back (`closeDetail`) returns to the parent list (Models page list, or Provider detail when opened from Providers).
 
-7. **Loading/missing detail.** While the model query is pending, render `loading…` under the header. If the query errors, show `couldn't load this model` with ghost `Retry`.
-
+7. **Loading/missing detail.** While the model query is pending, render `loading…` under the header. If the query rejects with `not_found` (or the model has no catalog identity), show `not yet in catalog` empty state without a retry button; for other errors, show `couldn't load this model` with ghost `Retry`.
 ## 3. Error behaviour
 
 - `['catalog-models']` rejection → inline `couldn't load models` with ghost `Retry` calling `refetch`.
-- `['catalog-model', name]` rejection → inline `couldn't load this model` with ghost `Retry` calling `refetch`.
+- `['catalog-model', name]` rejection → inline `not yet in catalog` on `not_found`; other rejections show `couldn't load this model` with ghost `Retry` calling `refetch`.
 - Navigation is client state and cannot fail.
-
 ## 4. Decisions
 
 | Decision | Value | Rationale |
@@ -47,9 +45,8 @@ Depends on: U02 (Input, EmptyState, Tag), U07 (shell, `DetailHeader`, page regis
 | Detail payload | Dedicated `CatalogModelDetail` from `catalog.model(name)` | Provides reachable enabled providers and per-provider pricing from models.dev |
 | List control state owner | U15-owned module store (`pages/Models/listState.ts`), session lifetime | The list unmounts under any detail (U07 renders list XOR detail); only module-level state survives the round-trip (issue #142). Mirrors U06's `lib/overrides.ts` ownership pattern |
 | Filter | Client-side | The catalog is small enough to fetch once; keeps the host API a single list call |
-| Score display | Integer when whole, else one decimal; `—` for null | Scores CSV values are 0–100; mock fixtures may be 0–5 |
-| Identity | `Detail.id` is the cleaned catalog display name | Scores and routes join on `route.Model` / `ScoreRow.Model`, not provider-native ids |
-
+| Score display | Integer when whole, else one decimal; `—` for null; `not yet in catalog` when unscored | Scores CSV values are 0–100; brand-new provider models have no catalog scores yet (issue #141) |
+| Identity | `Detail.id` is the cleaned catalog display name or model ID | Scores and routes join on `route.Model` / `ScoreRow.Model`, and provider models match on name or ID |
 ## 5. Out of scope
 
 - Enabled-providers-only clipping — issue #102.
