@@ -271,7 +271,7 @@ func (a *cursorModelAccumulator) add(rawID, rawName string) error {
 	if !ok {
 		return errProviderModelOutput
 	}
-	name := normalizeProviderModelName(baseID, rawName, effort)
+	name := normalizeCursorModelName(baseID, rawName, effort)
 	if name == "" {
 		return errProviderModelOutput
 	}
@@ -402,7 +402,7 @@ func parseCursorModelEntry(rawID, displayName string) (baseID, name, effort stri
 	if !ok {
 		return "", "", "", false
 	}
-	name = normalizeProviderModelName(baseID, displayName, effort)
+	name = normalizeCursorModelName(baseID, displayName, effort)
 	if name == "" {
 		return "", "", "", false
 	}
@@ -468,7 +468,7 @@ func parseAntigravityModelEntry(id, displayName string) (baseID, name, effort st
 		return "", "", "", false
 	}
 	level, _ := providerModelEffort(id)
-	cleanName := normalizeProviderModelName(id, displayName, level)
+	cleanName := normalizeAntigravityModelName(id, displayName, level)
 	if cleanName == "" {
 		return "", "", "", false
 	}
@@ -499,7 +499,7 @@ func providerModelEffort(id string) (string, bool) {
 	return "", false
 }
 
-func normalizeProviderModelName(id, displayName, level string) string {
+func normalizeCursorModelName(id, displayName, level string) string {
 	name := identity.CleanModelName(displayName)
 	for {
 		before := name
@@ -520,9 +520,6 @@ func normalizeProviderModelName(id, displayName, level string) string {
 		case "xhigh":
 			name = trimSuffixFold(name, " Extra High")
 			name = trimSuffixFold(name, " XHigh")
-		case "max":
-			name = trimSuffixFold(name, " Maximum")
-			name = trimSuffixFold(name, " Max")
 		case "default":
 			name = trimSuffixFold(name, " None")
 		}
@@ -534,6 +531,42 @@ func normalizeProviderModelName(id, displayName, level string) string {
 		name = strings.TrimSpace(name[len("Cursor "):])
 	}
 	return name
+}
+
+func normalizeAntigravityModelName(id, displayName, level string) string {
+	name := identity.CleanModelName(displayName)
+	for {
+		before := name
+		name = trimSuffixFold(name, " Fast")
+		name = trimSuffixFold(name, " Thinking")
+		switch level {
+		case "minimal":
+			name = trimSuffixFold(name, " Minimal")
+		case "low":
+			name = trimSuffixFold(name, " Low")
+		case "medium":
+			name = trimSuffixFold(name, " Medium")
+		case "high":
+			name = trimSuffixFold(name, " High")
+		case "xhigh":
+			name = trimSuffixFold(name, " Extra High")
+			name = trimSuffixFold(name, " XHigh")
+		case "max":
+			name = trimSuffixFold(name, " Maximum")
+			name = trimSuffixFold(name, " Max")
+		case "default":
+			name = trimSuffixFold(name, " None")
+		}
+		name = trimSuffixFold(name, " 1M")
+		if name == before {
+			break
+		}
+	}
+	return name
+}
+
+func normalizeProviderModelName(id, displayName, level string) string {
+	return normalizeAntigravityModelName(id, displayName, level)
 }
 
 func trimSuffixFold(value, suffix string) string {
