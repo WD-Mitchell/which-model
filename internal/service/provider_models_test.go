@@ -31,10 +31,12 @@ Tip: use --model <id> to switch.
 		t.Fatalf("parseCursorModelList() error = %v", err)
 	}
 	want := []routing.ModelEntry{
-		{ModelID: "gpt-5.6-sol", Name: "GPT-5.6 Sol", Reasoning: []string{"high"}},
-		{ModelID: "claude-fable-5", Name: "Claude Fable 5"},
-		{ModelID: "cursor-grok-4.6", Name: "Grok 4.6", Reasoning: []string{"high"}},
-		{ModelID: "claude-opus-5", Name: "Claude Opus 5", Reasoning: []string{"low", "medium", "high"}},
+		{ModelID: "gpt-5.6-sol-high-fast", Name: "GPT-5.6 Sol", Reasoning: []string{"high"}},
+		{ModelID: "claude-fable-5-max", Name: "Claude Fable 5"},
+		{ModelID: "cursor-grok-4.6-high", Name: "Grok 4.6", Reasoning: []string{"high"}},
+		{ModelID: "claude-opus-5-low-fast", Name: "Claude Opus 5", Reasoning: []string{"low"}},
+		{ModelID: "claude-opus-5-medium", Name: "Claude Opus 5", Reasoning: []string{"medium"}},
+		{ModelID: "claude-opus-5-thinking-high", Name: "Claude Opus 5", Reasoning: []string{"high"}},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("parseCursorModelList() = %#v, want %#v", got, want)
@@ -101,14 +103,23 @@ Tip: use --model <id> to switch.
 		t.Fatalf("parseCursorModelList() error = %v", err)
 	}
 	want := []routing.ModelEntry{
-		{ModelID: "gpt-5.3-codex", Name: "Codex 5.3", Reasoning: []string{"low", "high", "xhigh"}},
-		{ModelID: "cursor-grok-4.6", Name: "Grok 4.6", Reasoning: []string{"low", "medium", "high", "xhigh"}},
+		{ModelID: "gpt-5.3-codex-low", Name: "Codex 5.3", Reasoning: []string{"low"}},
+		{ModelID: "gpt-5.3-codex-high", Name: "Codex 5.3", Reasoning: []string{"high"}},
+		{ModelID: "gpt-5.3-codex-xhigh", Name: "Codex 5.3", Reasoning: []string{"xhigh"}},
+		{ModelID: "cursor-grok-4.6-low", Name: "Grok 4.6", Reasoning: []string{"low"}},
+		{ModelID: "cursor-grok-4.6-medium", Name: "Grok 4.6", Reasoning: []string{"medium"}},
+		{ModelID: "cursor-grok-4.6-high", Name: "Grok 4.6", Reasoning: []string{"high"}},
+		{ModelID: "cursor-grok-4.6-xhigh", Name: "Grok 4.6", Reasoning: []string{"xhigh"}},
 		{ModelID: "composer-2.5", Name: "Composer 2.5"},
-		{ModelID: "claude-opus-4-8", Name: "Claude Opus 4.8", Reasoning: []string{"low", "medium", "high", "xhigh"}},
-		{ModelID: "claude-4.6-sonnet", Name: "Claude Sonnet 4.6", Reasoning: []string{"medium"}},
-		{ModelID: "claude-4.6-opus", Name: "Claude Opus 4.6", Reasoning: []string{"high"}},
+		{ModelID: "claude-opus-4-8-low", Name: "Claude Opus 4.8", Reasoning: []string{"low"}},
+		{ModelID: "claude-opus-4-8-medium", Name: "Claude Opus 4.8", Reasoning: []string{"medium"}},
+		{ModelID: "claude-opus-4-8-high", Name: "Claude Opus 4.8", Reasoning: []string{"high"}},
+		{ModelID: "claude-opus-4-8-xhigh", Name: "Claude Opus 4.8", Reasoning: []string{"xhigh"}},
+		{ModelID: "claude-4.6-sonnet-medium", Name: "Claude Sonnet 4.6", Reasoning: []string{"medium"}},
+		{ModelID: "claude-4.6-opus-high", Name: "Claude Opus 4.6", Reasoning: []string{"high"}},
 		{ModelID: "claude-4.5-sonnet", Name: "Claude Sonnet 4.5"},
-		{ModelID: "kimi-k3", Name: "Kimi K3", Reasoning: []string{"low", "high"}},
+		{ModelID: "kimi-k3-low", Name: "Kimi K3", Reasoning: []string{"low"}},
+		{ModelID: "kimi-k3-high", Name: "Kimi K3", Reasoning: []string{"high"}},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("parseCursorModelList() = %#v, want %#v", got, want)
@@ -192,7 +203,7 @@ func TestDiscoverLiveProviderModelsUsesProviderCommandsAndFallback(t *testing.T)
 	}
 
 	cursor := discoverLiveProviderModelsDefault(context.Background(), "cursor")
-	if want := []routing.ModelEntry{{ModelID: "gpt-5.6-sol", Name: "GPT-5.6 Sol", Reasoning: []string{"high"}}}; !reflect.DeepEqual(cursor, want) {
+	if want := []routing.ModelEntry{{ModelID: "gpt-5.6-sol-high", Name: "GPT-5.6 Sol", Reasoning: []string{"high"}}}; !reflect.DeepEqual(cursor, want) {
 		t.Fatalf("cursor models = %#v, want %#v", cursor, want)
 	}
 	antigravity := discoverLiveProviderModelsDefault(context.Background(), "antigravity")

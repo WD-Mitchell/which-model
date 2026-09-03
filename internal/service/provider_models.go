@@ -101,13 +101,8 @@ func (w *providerModelOutput) Write(data []byte) (int, error) {
 	_, _ = w.Buffer.Write(data)
 	return len(data), nil
 }
-
 func parseCursorModelList(output string) ([]routing.ModelEntry, error) {
-	return parseProviderModelLines(
-		output,
-		parseCursorLine,
-		parseCursorModelEntry,
-	)
+	return parseCursorModelLines(output)
 }
 
 func parseAntigravityModelList(output string) ([]routing.ModelEntry, error) {
@@ -117,7 +112,6 @@ func parseAntigravityModelList(output string) ([]routing.ModelEntry, error) {
 		parseAntigravityModelEntry,
 	)
 }
-
 func parseCursorLine(line string) (id, name string, skip bool, ok bool) {
 	switch {
 	case line == "Available models", strings.HasPrefix(line, "Tip:"):
@@ -209,6 +203,163 @@ func (a *providerModelAccumulator) entries() []routing.ModelEntry {
 	return entries
 }
 
+func parseCursorModelLines(output string) ([]routing.ModelEntry, error) {
+	scanner := bufio.NewScanner(strings.NewReader(output))
+	acc := newCursorModelAccumulator()
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		rawID, rawName, skip, ok := parseCursorLine(line)
+		if !ok {
+			return nil, errProviderModelOutput
+		}
+		if skip {
+			continue
+		}
+		rawID = strings.TrimSpace(rawID)
+		rawName = strings.TrimSpace(rawName)
+		if err := acc.add(rawID, rawName); err != nil {
+			return nil, err
+		}
+	}
+	if scanner.Err() != nil || len(acc.order) == 0 {
+		return nil, errProviderModelOutput
+	}
+	return acc.entries(), nil
+}
+
+type cursorVariantCandidate struct {
+	rawID string
+	name  string
+	score int
+}
+
+type cursorModelFamily struct {
+	baseID    string
+	name      string
+	efforts   map[string]*cursorVariantCandidate
+	order     []string
+	hasEffort bool
+}
+
+type cursorModelAccumulator struct {
+	order      []string
+	families   map[string]*cursorModelFamily
+	seenRawIDs map[string]struct{}
+}
+
+func newCursorModelAccumulator() *cursorModelAccumulator {
+	return &cursorModelAccumulator{
+		order:      make([]string, 0),
+		families:   make(map[string]*cursorModelFamily),
+		seenRawIDs: make(map[string]struct{}),
+	}
+}
+
+func (a *cursorModelAccumulator) add(rawID, rawName string) error {
+	if !providerModelIDPattern.MatchString(rawID) {
+		return errProviderModelOutput
+	}
+	if _, duplicate := a.seenRawIDs[rawID]; duplicate {
+		return errProviderModelOutput
+	}
+	a.seenRawIDs[rawID] = struct{}{}
+
+	baseID, effort, ok := parseCursorModelID(rawID)
+	if !ok {
+		return errProviderModelOutput
+	}
+	name := normalizeProviderModelName(baseID, rawName, effort)
+	if name == "" {
+		return errProviderModelOutput
+	}
+
+	fam, exists := a.families[baseID]
+	if !exists {
+		fam = &cursorModelFamily{
+			baseID:  baseID,
+			name:    name,
+			efforts: make(map[string]*cursorVariantCandidate),
+			order:   make([]string, 0),
+		}
+		a.families[baseID] = fam
+		a.order = append(a.order, baseID)
+	} else if fam.name == "" && name != "" {
+		fam.name = name
+	}
+
+	score := cursorRawIDScore(rawID)
+	if effort != "" {
+		fam.hasEffort = true
+	}
+
+	existing, hasEffort := fam.efforts[effort]
+	if !hasEffort {
+		fam.efforts[effort] = &cursorVariantCandidate{rawID: rawID, name: name, score: score}
+		fam.order = append(fam.order, effort)
+	} else if score > existing.score {
+		existing.rawID = rawID
+		existing.score = score
+		if existing.name == "" && name != "" {
+			existing.name = name
+		}
+	}
+	return nil
+}
+
+func (a *cursorModelAccumulator) entries() []routing.ModelEntry {
+	entries := make([]routing.ModelEntry, 0)
+	for _, baseID := range a.order {
+		fam := a.families[baseID]
+		if fam.hasEffort {
+			// Multi-effort model: emit canonical raw ID for each effort level
+			// in canonical ladder order. Exclude context-window -max variants (effort == "").
+			efforts := make([]string, 0, len(fam.efforts))
+			for effort := range fam.efforts {
+				if effort != "" {
+					efforts = append(efforts, effort)
+				}
+			}
+			sort.SliceStable(efforts, func(i, j int) bool {
+				return reasoningLess(efforts[i], efforts[j])
+			})
+			for _, effort := range efforts {
+				cand := fam.efforts[effort]
+				entries = append(entries, routing.ModelEntry{
+					ModelID:   cand.rawID,
+					Name:      cand.name,
+					Reasoning: []string{effort},
+				})
+			}
+		} else if cand := fam.efforts[""]; cand != nil {
+			// Single model with no effort level (e.g. claude-fable-5-max, composer-2.5).
+			entries = append(entries, routing.ModelEntry{
+				ModelID: cand.rawID,
+				Name:    cand.name,
+			})
+		}
+	}
+	return entries
+}
+
+func cursorRawIDScore(rawID string) int {
+	lower := strings.ToLower(rawID)
+	isFast := strings.HasSuffix(lower, "-fast")
+	isThinking := strings.Contains(lower, "-thinking")
+	switch {
+	case !isFast && !isThinking:
+		return 4
+	case !isFast && isThinking:
+		return 3
+	case isFast && !isThinking:
+		return 2
+	default:
+		return 1
+	}
+}
+
 func parseProviderModelLines(
 	output string,
 	parseLine func(string) (id, name string, skip bool, ok bool),
@@ -243,7 +394,6 @@ func parseProviderModelLines(
 	}
 	return acc.entries(), nil
 }
-
 func parseCursorModelEntry(rawID, displayName string) (baseID, name, effort string, ok bool) {
 	if !providerModelIDPattern.MatchString(rawID) {
 		return "", "", "", false
@@ -303,6 +453,14 @@ func parseCursorModelID(rawID string) (baseID, effort string, ok bool) {
 	}
 	baseID = rawID[:len(id)]
 	return baseID, level, true
+}
+
+func cursorModelBaseID(rawID string) string {
+	baseID, _, ok := parseCursorModelID(rawID)
+	if !ok || baseID == "" {
+		return rawID
+	}
+	return baseID
 }
 
 func parseAntigravityModelEntry(id, displayName string) (baseID, name, effort string, ok bool) {
