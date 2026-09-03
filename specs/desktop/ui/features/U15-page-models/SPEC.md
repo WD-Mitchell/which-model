@@ -19,7 +19,7 @@ Depends on: U02 (Input, EmptyState, Tag), U07 (shell, `DetailHeader`, page regis
 
 2. **List data.** Query `['catalog-models']` → `host.catalog.models()`. One row per `CatalogModel`, in returned order (name ascending). The list is the full scores catalog, not clipped to enabled providers.
 
-3. **Search.** A filter field (placeholder `filter models`) sits under the header. Matching is case-insensitive substring on `model_name` or `model_id`. Empty query shows every row. The filter is client-side over the fetched list.
+3. **Search.** A filter field (placeholder `filter models`) sits under the header. Matching is case-insensitive substring on `model_name` or `model_id`. Empty query shows every row. The filter is client-side over the fetched list. The query and the maker/provider multi-selects live in U15's module-level Zustand store (`pages/Models/listState.ts`, session-scoped, never persisted to storage or config), so they survive the detail round-trip: U07 renders the page's list OR its detail, and the list unmounts whenever a detail is on the stack. Menu-open flags stay view-local.
 
 4. **Rows.** Each row is a `.row` (hover tint, pointer): display name, model id (mono, muted; omit the id line when `model_id` is empty), reasoning levels as neutral tags, integer catalog scores for intelligence / cost / speed (`—` when null), provider count, chevron. Clicking the row opens `{ kind: 'model', id: model_name }`.
 
@@ -45,6 +45,7 @@ Depends on: U02 (Input, EmptyState, Tag), U07 (shell, `DetailHeader`, page regis
 |---|---|---|
 | Catalog source | Scores CSV identities via `catalog.models()`, not the models.dev universe | Ranking already treats the scores file as the catalog; models.dev is huge and provider-scoped |
 | Detail payload | Dedicated `CatalogModelDetail` from `catalog.model(name)` | Provides reachable enabled providers and per-provider pricing from models.dev |
+| List control state owner | U15-owned module store (`pages/Models/listState.ts`), session lifetime | The list unmounts under any detail (U07 renders list XOR detail); only module-level state survives the round-trip (issue #142). Mirrors U06's `lib/overrides.ts` ownership pattern |
 | Filter | Client-side | The catalog is small enough to fetch once; keeps the host API a single list call |
 | Score display | Integer when whole, else one decimal; `—` for null | Scores CSV values are 0–100; mock fixtures may be 0–5 |
 | Identity | `Detail.id` is the cleaned catalog display name | Scores and routes join on `route.Model` / `ScoreRow.Model`, not provider-native ids |

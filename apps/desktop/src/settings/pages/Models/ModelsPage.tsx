@@ -3,9 +3,10 @@
 //
 // Layout follows U09/U14: <main> has no horizontal padding, so every block
 // here carries its own 22px gutter and `.row` hover tints bleed edge to edge.
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, EmptyState, Input, Tag, cx } from '@which-model/ui'
 import { useCatalogModels } from '../../../lib/queries'
+import { useModelsListStore } from './listState'
 import { DetailHeader } from '../../DetailHeader'
 import { PAGE_META } from '../../pages'
 import type { Detail, PageComponentProps } from '../../pages'
@@ -82,9 +83,17 @@ function extractFallbackMaker(name: string): string {
 
 function ModelsListView({ openDetail }: { openDetail(d: Detail): void }) {
   const { data, isError, isPending, refetch } = useCatalogModels()
-  const [query, setQuery] = useState('')
-  const [selectedMakers, setSelectedMakers] = useState<string[]>([])
-  const [selectedProviders, setSelectedProviders] = useState<string[]>([])
+  // List controls live in the module-level store (lib/listState) so they
+  // survive the detail-view round-trip that unmounts this view (#142).
+  const {
+    query,
+    setQuery,
+    selectedMakers,
+    selectedProviders,
+    toggleMaker,
+    toggleProvider,
+    clearFilters,
+  } = useModelsListStore()
   const [makerMenuOpen, setMakerMenuOpen] = useState(false)
   const [providerMenuOpen, setProviderMenuOpen] = useState(false)
   const filterRef = useRef<HTMLDivElement>(null)
@@ -120,23 +129,6 @@ function ModelsListView({ openDetail }: { openDetail(d: Detail): void }) {
     return () => window.removeEventListener('pointerdown', onDown)
   }, [])
 
-  const toggleMaker = useCallback((maker: string) => {
-    setSelectedMakers((prev) =>
-      prev.includes(maker) ? prev.filter((x) => x !== maker) : [...prev, maker],
-    )
-  }, [])
-
-  const toggleProvider = useCallback((provider: string) => {
-    setSelectedProviders((prev) =>
-      prev.includes(provider) ? prev.filter((x) => x !== provider) : [...prev, provider],
-    )
-  }, [])
-
-  const clearAllFilters = useCallback(() => {
-    setQuery('')
-    setSelectedMakers([])
-    setSelectedProviders([])
-  }, [])
 
   const visible = useMemo(() => {
     return list.filter((m) => {
@@ -274,7 +266,7 @@ function ModelsListView({ openDetail }: { openDetail(d: Detail): void }) {
             <button
               type="button"
               className={styles.clearAll}
-              onClick={clearAllFilters}
+              onClick={clearFilters}
             >
               Clear all
             </button>

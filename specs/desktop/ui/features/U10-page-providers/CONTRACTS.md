@@ -9,14 +9,15 @@ project: which-model-desktop
 
 ## 1. Files owned
 
-| File (under `apps/desktop/src/settings/pages/providers/`) | Contents |
+| File (under `apps/desktop/src/settings/pages/Providers/`) | Contents |
 |---|---|
-| `ProvidersPage.tsx` | list view (SPEC §2.1–2.4) |
-| `ProviderDetail.tsx` | detail view (SPEC §2.5–2.8) |
+| `ProvidersPage.tsx` | list view (SPEC §2.1–2.5) |
+| `ProviderDetail.tsx` | detail view (SPEC §2.6–2.11) |
+| `listState.ts` | U10-owned Zustand store for the list controls (SPEC §2.2): state `{ query, enabledFilter, sortMode }`, actions `setQuery` / `setEnabledFilter` / `setSortMode`, exported `PROVIDERS_LIST_INITIAL` defaults and the `EnabledFilter` / `ProviderSort` types. Session lifetime — never persisted to storage or config |
 | `providers.module.css` | both views' styles |
 | `ProvidersPage.test.tsx`, `ProviderDetail.test.tsx` | §5 fixtures |
 
-Plus the registry entry for `Providers` in U07's page registry. Imports: `Toggle`, `Button`, `DragList`, `useToast`, `cx` from `@which-model/ui` (U02); DTOs from `@which-model/core`; `PageComponentProps` from U07. No other cross-feature imports.
+Plus the registry entry for `Providers` in U07's page registry. Imports: `Toggle`, `Button`, `DragList`, `useToast`, `cx` from `@which-model/ui` (U02); DTOs from `@which-model/core`; `PageComponentProps` from U07; `zustand` in `listState.ts` only (pure state, no host imports — U06 `overrides.ts` pattern). No other cross-feature imports.
 
 ## 2. Props (exact)
 
@@ -90,8 +91,9 @@ Mock providers: claude/codex/copilot enabled, cursor disabled (mock defaults).
 |---|---|
 | Row render | enabled mock providers (claude, codex, copilot) render before the disabled ones by default; disabled rows show `not enabled`; model cell uses `{models} model[s]` |
 | Search | mixed-case substring narrows the rendered provider ids immediately |
+| List control persistence | search `PIL` + filter `enabled` + sort `name-desc` narrow the list to `copilot`; opening the copilot detail and clicking Back restores the exact control values and row order (SPEC §2.2) |
 | Enabled filter | disabled/enabled/all render the exact matching subsets |
-| Name sorts | default is enabled-first (enabled group id-ascending, then disabled); explicit Z–A and A–Z sort purely by provider id, independent of backend priority |
+| Name sorts | explicit Z–A and A–Z sort purely by provider id, independent of backend priority |
 | Model-count sorts | high–low and low–high use distinct model counts with id-ascending ties |
 | Enabled-state sorts | enabled-first and disabled-first group correctly with id-ascending ties |
 | Priority sort | restores backend priority order and the drag section label |

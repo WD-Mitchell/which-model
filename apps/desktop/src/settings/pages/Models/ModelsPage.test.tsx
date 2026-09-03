@@ -7,7 +7,14 @@ import type { EngineHost } from '@which-model/core'
 import { ToastProvider } from '@which-model/ui'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { resetHost } from '../../../lib/host'
+import { MODELS_LIST_INITIAL, useModelsListStore } from './listState'
 import { SettingsApp } from '../../SettingsApp'
+
+// List control state is module-level now; reset it per test so cases stay
+// isolated the way unmount-on-cleanup used to guarantee.
+beforeEach(() => {
+  useModelsListStore.setState({ ...MODELS_LIST_INITIAL })
+})
 
 function makeClient() {
   return new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -157,6 +164,41 @@ describe('Models page', () => {
 
     expect(await screen.findByText('Claude Opus 5')).toBeDefined()
     expect(screen.getByText('GPT-5.6 Luna')).toBeDefined()
+  })
+
+  it('keeps search and filters across a detail round-trip', async () => {
+    renderApp(host)
+    await openModels()
+    fireEvent.change(screen.getByPlaceholderText('filter models'), {
+      target: { value: 'GPT' },
+    })
+
+    fireEvent.click(await screen.findByText('GPT-5.6 Luna'))
+    expect(await screen.findByText('catalog scores')).toBeDefined()
+    fireEvent.click(screen.getByTitle('Back'))
+    await screen.findByPlaceholderText('filter models')
+
+    expect((screen.getByPlaceholderText('filter models') as HTMLInputElement).value).toBe('GPT')
+    expect(screen.queryByText('Claude Opus 5')).toBeNull()
+    expect(screen.getByText('GPT-5.6 Luna')).toBeDefined()
+
+    // Both maker and provider multi-selects survive the same way.
+    fireEvent.click(screen.getByRole('button', { name: 'Filter by maker' }))
+    fireEvent.click(await screen.findByText('OpenAI'))
+    fireEvent.click(screen.getByRole('button', { name: 'Filter by provider' }))
+    fireEvent.click(await screen.findByText('copilot'))
+    fireEvent.click(await screen.findByText('GPT-5.6 Luna'))
+    expect(await screen.findByText('catalog scores')).toBeDefined()
+    fireEvent.click(screen.getByTitle('Back'))
+    await screen.findByPlaceholderText('filter models')
+
+    expect(
+      screen.getByRole('button', { name: 'Filter by maker' }).textContent,
+    ).toContain('(1)')
+    expect(
+      screen.getByRole('button', { name: 'Filter by provider' }).textContent,
+    ).toContain('(1)')
+    expect(screen.getByText('GPT-5.6 Sol')).toBeDefined()
   })
 })
 

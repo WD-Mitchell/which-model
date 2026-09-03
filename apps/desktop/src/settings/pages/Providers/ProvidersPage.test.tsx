@@ -11,7 +11,14 @@ import { ToastProvider } from '@which-model/ui'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { resetHost } from '../../../lib/host'
 import { useEngineEvents } from '../../../lib/invalidate'
+import { PROVIDERS_LIST_INITIAL, useProvidersListStore } from './listState'
 import { SettingsApp } from '../../SettingsApp'
+
+// List control state is module-level now; reset it per test so cases stay
+// isolated the way unmount-on-cleanup used to guarantee.
+beforeEach(() => {
+  useProvidersListStore.setState({ ...PROVIDERS_LIST_INITIAL })
+})
 
 function makeClient() {
   return new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -337,6 +344,36 @@ describe('Providers page list controls', () => {
     fireEvent.change(screen.getByLabelText('Search providers'), {
       target: { value: 'PIL' },
     })
+    expect(providerOrder()).toEqual(['copilot'])
+  })
+
+  it('keeps search, filter and sort across a detail round-trip', async () => {
+    await openProvidersList(host)
+    fireEvent.change(screen.getByLabelText('Search providers'), {
+      target: { value: 'PIL' },
+    })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Filter providers' }), {
+      target: { value: 'enabled' },
+    })
+    fireEvent.change(screen.getByLabelText('Sort providers'), {
+      target: { value: 'name-desc' },
+    })
+    expect(providerOrder()).toEqual(['copilot'])
+
+    const card = await screen.findByText(
+      (_, el) =>
+        el?.tagName === 'SPAN' && el.textContent === 'copilot' && el.className.includes('id'),
+    )
+    act(() => card.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+    await screen.findByText('Accounts')
+    fireEvent.click(screen.getByTitle('Back'))
+    await screen.findByLabelText('Search providers')
+
+    expect((screen.getByLabelText('Search providers') as HTMLInputElement).value).toBe('PIL')
+    expect(
+      (screen.getByRole('combobox', { name: 'Filter providers' }) as HTMLSelectElement).value,
+    ).toBe('enabled')
+    expect((screen.getByLabelText('Sort providers') as HTMLSelectElement).value).toBe('name-desc')
     expect(providerOrder()).toEqual(['copilot'])
   })
 
