@@ -6,7 +6,7 @@
 
 ## How this fits together
 
-<!-- If execution, data, or documentation flow changes, include a grounded Mermaid diagram. Avoid bloat: omit nodes and edges that do not change a reader's understanding of the flow. Use available space in both dimensions when the real flow permits it; do not default to a single chain. A horizontal row has a hard cap of four boxes, with three preferred; vertical depth has no hard cap. For a purely mechanical change, explain why a graph adds no truthful information. -->
+<!-- If execution, data, or documentation flow changes, include a grounded Mermaid diagram. Avoid bloat: omit nodes and edges that do not change a reader's understanding of the flow. Diagrams with four or fewer boxes MUST use a horizontal layout. For more than four boxes, use available space in both dimensions when the real flow permits it; do not default to a single chain. Every horizontal row has a hard cap of four boxes, with three preferred; vertical depth has no hard cap. For a purely mechanical change, explain why a graph adds no truthful information. -->
 
 ## Affected behaviour
 

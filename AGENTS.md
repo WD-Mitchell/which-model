@@ -69,12 +69,13 @@ model the information flow—source or trigger, documentation decision or
 transformation, reader/consumer, and resulting outcome. For specifications,
 model the requirement/contract flow into the behavior it governs. Every required
 Mermaid diagram MUST omit nodes and edges that do not change a reader's
-understanding of the real flow. When that flow permits it, use available space
-in both dimensions rather than defaulting to a single chain. A horizontal row
-has a hard cap of four boxes, with three preferred; vertical depth has no hard
-cap. Never draw a file inventory, use speculative nodes, or retain an obsolete
-graph. Every edge endpoint must be declared, and the fence must begin with
-`flowchart` or `graph` plus a direction.
+understanding of the real flow. Diagrams with four or fewer boxes MUST use a
+horizontal layout. For more than four boxes, use available space in both
+dimensions when the real flow permits it rather than defaulting to a single
+chain. Every horizontal row has a hard cap of four boxes, with three preferred;
+vertical depth has no hard cap. Never draw a file inventory, use speculative
+nodes, or retain an obsolete graph. Every edge endpoint must be declared, and
+the fence must begin with `flowchart` or `graph` plus a direction.
 
 The repository provides separate templates for code, documentation,
 specification, and maintenance PRs. Select the closest template; do not use a

@@ -6,16 +6,16 @@
 
 ## How this fits together
 
-<!-- Required: show the information flow, not a list of changed files. Replace the placeholder graph with the real source, editorial decision, reader, and outcome. Avoid bloat: omit nodes and edges that do not change a reader's understanding of the flow. Use available space in both dimensions when the real flow permits it; do not default to a single chain. A horizontal row has a hard cap of four boxes, with three preferred; vertical depth has no hard cap. -->
+<!-- Required: show the information flow, not a list of changed files. Replace the placeholder graph with the real source, editorial decision, reader, and outcome. Avoid bloat: omit nodes and edges that do not change a reader's understanding of the flow. Diagrams with four or fewer boxes MUST use a horizontal layout. For more than four boxes, use available space in both dimensions when the real flow permits it; do not default to a single chain. Every horizontal row has a hard cap of four boxes, with three preferred; vertical depth has no hard cap. -->
 ```mermaid
-flowchart TD
+flowchart LR
   source[Real source or trigger]
-  reader[Reader or consuming agent]
   decision[Documentation decision or transformation]
+  reader[Reader or consuming agent]
   outcome[Resulting understanding or action]
   source --> decision
-  reader --> decision
-  decision --> outcome
+  decision --> reader
+  reader --> outcome
 ```
 
 ## Affected behaviour
