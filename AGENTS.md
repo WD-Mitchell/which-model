@@ -51,9 +51,8 @@ This project uses GitHub Issues as its work-item system.
 ## Pull-request policy
 
 Every PR uses the required project template in
-`.github/PULL_REQUEST_TEMPLATE/` and the common pull-request contract in
-`.agents/skills/pull-requests/SKILL.md`. The body is current-state evidence,
-not a history log, and MUST contain these sections in this order:
+`.github/PULL_REQUEST_TEMPLATE/`. Its body is current-state evidence, not a
+history log, and MUST contain these sections in this order:
 
 1. **Summary** — what changed and why.
 2. **How this fits together** — the real system or information flow.
