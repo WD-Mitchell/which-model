@@ -1,4 +1,4 @@
-<!-- Tracking fields: associate this PR with its GitHub issue through the Development/linked-issue field. Add the PR and issue to project 82; set both project items to `In review` when the PR opens, and set this PR's Sprint field to the current sprint. These are fields, not body sections. -->
+<!-- Tracking fields: associate this PR with its GitHub issue through the Development/linked-issue field. This is a field, not a body section. -->
 
 ## Summary
 
@@ -6,9 +6,9 @@
 
 ## How this fits together
 
-<!-- Required: show the information flow, not a list of changed files. Replace the placeholder graph with the real source, editorial decision, reader, and outcome. -->
+<!-- Required: show the information flow, not a list of changed files. Replace the placeholder graph with the real source, editorial decision, reader, and outcome. Prefer a taller-than-wide layout: no horizontal row may contain more than four boxes, and three is preferred. -->
 ```mermaid
-flowchart LR
+flowchart TD
   source[Real source or trigger]
   decision[Documentation decision or transformation]
   reader[Reader or consuming agent]
@@ -44,10 +44,6 @@ flowchart LR
 - [ ] The linked issue exists and its Type is `Task` or `Bug`.
 - [ ] The Mermaid diagram shows the real documentation information flow and is not a file inventory.
 - [ ] Documentation links, anchors, generated outputs, and examples were verified as applicable.
-- [ ] The applicable `specs/` scope was updated with the correct disposition.
 - [ ] Tests were added or updated for the changed documentation or process contract.
 - [ ] The PR's Development/linked-issue field associates it with the issue.
-- [ ] The PR and linked issue are in project 82 with status `In review`.
-- [ ] The PR's Sprint field is set to the current sprint.
-- [ ] The PR title ends with `#sdd` and the exact `AI-Workflow: CODA` label is applied.
 - [ ] The authenticated human uploader is the PR assignee.

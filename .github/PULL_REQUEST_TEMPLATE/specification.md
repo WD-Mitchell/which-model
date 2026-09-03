@@ -1,4 +1,4 @@
-<!-- Tracking fields: associate this PR with its GitHub issue through the Development/linked-issue field. Add the PR and issue to project 82; set both project items to `In review` when the PR opens, and set this PR's Sprint field to the current sprint. These are fields, not body sections. -->
+<!-- Tracking fields: associate this PR with its GitHub issue through the Development/linked-issue field. This is a field, not a body section. -->
 
 ## Summary
 
@@ -6,9 +6,9 @@
 
 ## How this fits together
 
-<!-- Required: show how requirements/contracts flow into governed behavior. Do not list changed files. -->
+<!-- Required: show how requirements/contracts flow into governed behavior. Do not list changed files. Prefer a taller-than-wide layout: no horizontal row may contain more than four boxes, and three is preferred. -->
 ```mermaid
-flowchart LR
+flowchart TD
   request[Approved product outcome]
   contract[Requirement or contract]
   behavior[Governed behavior and acceptance]
@@ -46,6 +46,4 @@ flowchart LR
 - [ ] No implementation plan, task breakdown, ticket archive, or per-ticket acceptance definition was added to `specs/`.
 - [ ] New or updated tests defend the specification contract.
 - [ ] The PR's Development/linked-issue field associates it with the issue.
-- [ ] The PR and linked issue are in project 82 with status `In review`.
-- [ ] The PR's Sprint field is set to the current sprint.
 - [ ] The authenticated human uploader is the PR assignee.
