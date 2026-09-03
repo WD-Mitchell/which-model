@@ -50,5 +50,6 @@ Queries: `['catalog-models']` → `host.catalog.models()`.
 - Filter `opus` leaves Claude Opus 5 and hides GPT-5.6 Luna.
 - Clicking Claude Opus 5 opens a detail titled `Claude Opus 5` with back `Models`; back returns to the list.
 - Empty filter-miss shows `no models match`.
+- Search `GPT` then open GPT-5.6 Luna's detail and return: the query, narrowed rows, and a picked provider multi-select (button shows `Provider (1)`) all survive the round-trip (SPEC §2.3).
 
 Verify: `pnpm --filter desktop test -- ModelsPage` (plus `pnpm -r typecheck`).

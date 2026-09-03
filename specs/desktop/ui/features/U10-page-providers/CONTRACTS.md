@@ -91,8 +91,9 @@ Mock providers: claude/codex/copilot enabled, cursor disabled (mock defaults).
 |---|---|
 | Row render | enabled mock providers (claude, codex, copilot) render before the disabled ones by default; disabled rows show `not enabled`; model cell uses `{models} model[s]` |
 | Search | mixed-case substring narrows the rendered provider ids immediately |
+| List control persistence | search `PIL` + filter `enabled` + sort `name-desc` narrow the list to `copilot`; opening the copilot detail and clicking Back restores the exact control values and row order (SPEC §2.2) |
 | Enabled filter | disabled/enabled/all render the exact matching subsets |
-| Name sorts | default is enabled-first (enabled group id-ascending, then disabled); explicit Z–A and A–Z sort purely by provider id, independent of backend priority |
+| Name sorts | explicit Z–A and A–Z sort purely by provider id, independent of backend priority |
 | Model-count sorts | high–low and low–high use distinct model counts with id-ascending ties |
 | Enabled-state sorts | enabled-first and disabled-first group correctly with id-ascending ties |
 | Priority sort | restores backend priority order and the drag section label |

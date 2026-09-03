@@ -19,7 +19,6 @@ Depends on: U02 (Toggle, Button, DragList, useToast), U07 (settings shell, `Deta
 
 2. **List control persistence.** The list's search query, enabled-state filter, and sort mode live in U10's module-level Zustand store (`pages/Providers/listState.ts`, session-scoped, never persisted to storage or config), because U07 renders a page's list OR its detail and the list unmounts whenever a detail is on the stack. Navigating into a detail and back re-mounts the list with exactly the controls it was left in; menu-open flags and detail-local state stay view-local. The store is pure state (no host imports); tests reset it via `useProvidersListStore.setState` for isolation.
 
-
 3. **Rows.** Each visible row is keyed by `ProviderInfo.id` and shows the provider's 1-based `priority`, enable toggle, provider id, live limits, distinct-model count (`{models} model[s]`), and chevron. Clicking the card except its toggle opens detail. The unfiltered `priority` view renders the full provider universe inside U02 `DragList`; every other view is static and omits the drag handle so a filtered or derived order can never submit a partial reorder.
 
 4. **Toggle.** Row toggle calls `providers.setEnabled(id, !enabled)`. No optimistic write; the `config:changed` event invalidates `['providers']` (U00 CONTRACTS §5) and the row re-renders from the refetch.
