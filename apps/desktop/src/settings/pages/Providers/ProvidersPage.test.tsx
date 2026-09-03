@@ -11,7 +11,7 @@ import { ToastProvider } from '@which-model/ui'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { resetHost } from '../../../lib/host'
 import { useEngineEvents } from '../../../lib/invalidate'
-import { PROVIDERS_LIST_INITIAL, useProvidersListStore } from '../../../lib/listState'
+import { PROVIDERS_LIST_INITIAL, useProvidersListStore } from './listState'
 import { SettingsApp } from '../../SettingsApp'
 
 // List control state is module-level now; reset it per test so cases stay

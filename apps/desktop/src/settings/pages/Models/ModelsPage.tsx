@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, EmptyState, Input, Tag, cx } from '@which-model/ui'
 import { useCatalogModels } from '../../../lib/queries'
-import { useModelsListStore } from '../../../lib/listState'
+import { useModelsListStore } from './listState'
 import { DetailHeader } from '../../DetailHeader'
 import { PAGE_META } from '../../pages'
 import type { Detail, PageComponentProps } from '../../pages'

@@ -39,7 +39,7 @@ import {
   useProvidersListStore,
   type EnabledFilter,
   type ProviderSort,
-} from '../../../lib/listState'
+} from './listState'
 import { getHost } from '../../../lib/host'
 import { DetailHeader } from '../../DetailHeader'
 import { PAGE_META } from '../../pages'

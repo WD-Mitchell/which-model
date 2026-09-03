@@ -7,7 +7,7 @@ import type { EngineHost } from '@which-model/core'
 import { ToastProvider } from '@which-model/ui'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { resetHost } from '../../../lib/host'
-import { MODELS_LIST_INITIAL, useModelsListStore } from '../../../lib/listState'
+import { MODELS_LIST_INITIAL, useModelsListStore } from './listState'
 import { SettingsApp } from '../../SettingsApp'
 
 // List control state is module-level now; reset it per test so cases stay
