@@ -12,9 +12,12 @@ project: which-model-desktop
 | File | Contents |
 |---|---|
 | `internal/service/providers.go` | provider list/detail/mutation methods on `*Services`, LimitsLine composer, disabled-list helpers |
-| `internal/service/providers_test.go` | fixtures + tests per §8 |
+| `internal/service/routes_refresh.go` | route refresh orchestration and F18 `routing.Input` construction |
+| `internal/service/provider_models.go` | bounded Cursor/Antigravity CLI model discovery and parsers |
+| `internal/service/provider_models_test.go` | parser, failure-isolation, command-selection, and full refresh tests |
+| `internal/service/providers_test.go` | fixtures + provider list/detail/mutation tests per §8 |
 
-Import boundary: `providers.go` MAY import `internal/{config,routing,usage,usage/cache,usage/toggle,catalog/identity,pick/band}` and stdlib. It MUST NOT import `internal/usage/fetch` (the compile-time guarantee behind SPEC §2.3's "never a live fetch").
+Import boundaries: `providers.go` MAY import `internal/{config,routing,usage,usage/cache,usage/toggle,catalog/identity,pick/band}` and stdlib, but MUST NOT import `internal/usage/fetch` (the compile-time guarantee behind SPEC §2.3's "never a live fetch"). `provider_models.go` MAY import `internal/{catalog/identity,routing}` and stdlib; it MUST execute only the fixed binaries and arguments in SPEC §2.11, never a shell or provider-supplied command.
 
 ## 2. Exported API (methods on `*Services`; DTOs are D00 CONTRACTS §2 — not redefined here)
 
@@ -49,9 +52,13 @@ func (s *Services) ProviderSetRouteEnabled(ctx context.Context, id, modelID, rea
 // (SPEC §2.9). Unknown id -> errNotFound.
 // Emits config:changed{"section":"routes"}.
 func (s *Services) ProviderSetAllRoutes(ctx context.Context, id string, on bool) error
+
+// RefreshRoutes rebuilds routes from models.dev plus bounded provider-native
+// discovery for enabled Cursor/Antigravity providers (SPEC §2.11).
+func (p *ProviderService) RefreshRoutes(ctx context.Context) error
 ```
 
-Host binding names map to `EngineHost.providers.*` (D00 §5): `list`, `setEnabled`, `reorder`, `detail`, `setRouteEnabled`, `setAllRoutes`.
+Host binding names map to `EngineHost.providers.*` (D00 §5): `list`, `setEnabled`, `reorder`, `detail`, `setRouteEnabled`, `setAllRoutes`, `refreshRoutes`.
 
 ## 3. Internal helpers (shape fixed so B04/B09 tests may reuse)
 
@@ -64,6 +71,20 @@ func (s *Services) disabledRouteSet(id string) map[string]struct{}
 // identity.CollapseReasoning; input = levels present in the table.
 func topReasoning(levels []string) string
 ```
+
+Provider-native discovery contract (SPEC §2.11):
+
+```go
+func discoverLiveProviderModelsDefault(ctx context.Context, provider string) []routing.ModelEntry
+func parseCursorModelList(output string) ([]routing.ModelEntry, error)
+func parseAntigravityModelList(output string) ([]routing.ModelEntry, error)
+```
+
+- Cursor accepts `Available models`, skips `auto - ...` and `Tip:` lines, and parses every other non-empty line as `<model-id> - <display-name>`.
+- Antigravity skips `Fetching available models...` and parses every other non-empty line as `<model-id>\t<display-name>`.
+- Model ids match `^[A-Za-z0-9._-]+$` and must be unique. Any invalid row rejects the complete listing.
+- Effort comes from the terminal id suffix after optional `-fast`: `minimal`, `low`, `medium`, `high`, `xhigh`, `max`, `extra-high`→`xhigh`, `none`→`default`. Display names pass through `identity.CleanModelName`, then remove provider presentation suffixes (`Fast`, `Thinking`, the matched effort label, `1M`) and Cursor's redundant leading `Cursor `.
+- Command failure, timeout, empty output, output beyond 1 MiB, malformed data, or an unsupported provider returns nil. No raw command output is returned, logged, or embedded in an error.
 
 ## 4. Config keys owned
 
@@ -126,4 +147,8 @@ Default fixture: routes table with providers `claude`,`codex` (≥2 models × �
 | `TestProvidersReorder_RejectsWrongSet` | golden messages §6 rows 1–3 in order (dup, unknown, missing); config untouched, zero events |
 | `TestProviderDetail_LevelsAndDefault` | Levels = table's levels only, ascending ladder order; Default on exactly the top rung; `"default"` reasoning collapses to `high` before comparison |
 | `TestProviderRoutes_DisabledArithmetic` | SetRouteEnabled off adds sorted+deduped entry; RoutesOn = RoutesTotal − matched entries; unmatched stale entry subtracts nothing and survives writes; SetAllRoutes(true) deletes the key; SetAllRoutes(false) writes the full sorted list. (Rank-side exclusion is B04's cross-feature test.) |
+| `TestParseCursorModelList`, `TestParseAntigravityModelList` | real CLI row formats become exact model ids, cleaned names, and reasoning levels |
+| `TestProviderModelListRejectsMalformedOutput`, `TestProviderModelOutputCapsBytes`, `TestDiscoverLiveProviderModelsFailsClosed` | strict parsing, bounded output, and every command failure degrade to a nil provider-local live source |
+| `TestDiscoverLiveProviderModelsUsesProviderCommandsAndFallback` | fixed Cursor command and Antigravity primary/fallback order; parsed results use provider-live identities |
+| `TestRefreshRoutesDiscoversCursorAndAntigravityWithoutOpencodeAmbiguity`, `TestRefreshRoutesLiveDiscoveryFailureIsProviderLocal` | end-to-end service refresh adds scored Cursor/Antigravity detail models, explicit models.dev effort disambiguates OpenCode Kimi K3, and one missing live source does not suppress other providers |
 | all mutation tests | exactly one event with the §7 payload via the emit recorder |

@@ -107,8 +107,9 @@ type BuildResult struct {
 // Routes; user-declared routes for the provider are kept (SPEC §2.8).
 func ProduceRoutes(in Input) (BuildResult, error)
 
-// AmbiguityError is the fail-loud result of an unresolvable catalog match
-// (SPEC §2.8). Candidates lists EVERY matched catalog identity, catalog order.
+// AmbiguityError is the fail-loud result when an effort-less provider model
+// matches multiple catalog identities (SPEC §2.8). Candidates lists EVERY
+// matched catalog identity, in catalog order.
 type AmbiguityError struct {
     Provider   string
     ModelID    string
