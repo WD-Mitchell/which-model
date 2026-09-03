@@ -231,18 +231,23 @@ func parseCursorModelLines(output string) ([]routing.ModelEntry, error) {
 }
 
 type cursorVariantCandidate struct {
-	rawID      string
-	name       string
-	score      int
-	maxContext bool // candidate came from a -max context-window row, not an unsuffixed id
+	rawID string
+	name  string
+	score int
 }
 
 type cursorModelFamily struct {
-	baseID    string
-	name      string
-	efforts   map[string]*cursorVariantCandidate
-	order     []string
-	hasEffort bool
+	baseID string
+	name   string
+	// efforts maps each explicit effort level (and the empty key for the
+	// family's unsuffixed executable id, if advertised) to its best
+	// non-context-window candidate.
+	efforts map[string]*cursorVariantCandidate
+	order   []string
+	// maxContext holds the best -max context-window-only candidate, if any.
+	// Context rows carry no effort and never create their own entry.
+	maxContext *cursorVariantCandidate
+	hasEffort  bool
 }
 
 type cursorModelAccumulator struct {
@@ -296,17 +301,20 @@ func (a *cursorModelAccumulator) add(rawID, rawName string) error {
 		fam.hasEffort = true
 	}
 
+	cand := &cursorVariantCandidate{rawID: rawID, name: name, score: score}
+	if maxCtx {
+		if fam.maxContext == nil || score > fam.maxContext.score {
+			fam.maxContext = cand
+		}
+		return nil
+	}
+
 	existing, hasEffort := fam.efforts[effort]
 	if !hasEffort {
-		fam.efforts[effort] = &cursorVariantCandidate{rawID: rawID, name: name, score: score, maxContext: maxCtx}
+		fam.efforts[effort] = cand
 		fam.order = append(fam.order, effort)
 	} else if score > existing.score {
-		existing.rawID = rawID
-		existing.score = score
-		existing.maxContext = maxCtx
-		if existing.name == "" && name != "" {
-			existing.name = name
-		}
+		fam.efforts[effort] = cand
 	}
 	return nil
 }
@@ -318,7 +326,7 @@ func (a *cursorModelAccumulator) entries() []routing.ModelEntry {
 		if fam.hasEffort {
 			// Multi-effort model: emit the canonical raw ID for each explicit
 			// effort level in canonical ladder order. Context-window -max rows
-			// (empty effort, maxContext) do not create separate entries.
+			// never create entries here.
 			efforts := make([]string, 0, len(fam.efforts))
 			for effort := range fam.efforts {
 				if effort != "" {
@@ -336,22 +344,32 @@ func (a *cursorModelAccumulator) entries() []routing.ModelEntry {
 					Reasoning: []string{effort},
 				})
 			}
-			// An unsuffixed executable ID (empty effort, NOT a -max row) is a
-			// distinct advertised route (the provider's default launch target,
-			// e.g. gpt-5.3-codex) and must survive alongside effort routes.
-			if cand := fam.efforts[""]; cand != nil && !cand.maxContext {
+			// An unsuffixed executable ID (empty effort key) is a distinct
+			// advertised route (the provider's default launch target, e.g.
+			// gpt-5.3-codex) and survives alongside effort routes. Context
+			// rows never reach this slot, so the candidate is unsuffixed.
+			if cand := fam.efforts[""]; cand != nil {
 				entries = append(entries, routing.ModelEntry{
 					ModelID: cand.rawID,
 					Name:    cand.name,
 				})
 			}
-		} else if cand := fam.efforts[""]; cand != nil {
-			// Single model with no effort level (e.g. claude-fable-5-max,
-			// composer-2.5): emit whichever representative row won scoring.
-			entries = append(entries, routing.ModelEntry{
-				ModelID: cand.rawID,
-				Name:    cand.name,
-			})
+		} else {
+			// No explicit efforts: emit the unsuffixed executable if the
+			// family advertised one; otherwise fall back to the best
+			// context-window-only row (e.g. claude-fable-5-max) with empty
+			// reasoning so it adopts catalog reasoning.
+			if cand := fam.efforts[""]; cand != nil {
+				entries = append(entries, routing.ModelEntry{
+					ModelID: cand.rawID,
+					Name:    cand.name,
+				})
+			} else if cand := fam.maxContext; cand != nil {
+				entries = append(entries, routing.ModelEntry{
+					ModelID: cand.rawID,
+					Name:    cand.name,
+				})
+			}
 		}
 	}
 	return entries
