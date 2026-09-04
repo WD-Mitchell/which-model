@@ -32,6 +32,7 @@ type PublishConfig struct {
     PRTitle        string
     PRLabels       []string
     RawCSVPath     string // from [catalog].raw_csv_path; blank -> default
+    ScoresCSVPath  string // from [catalog].scores_csv_path; blank -> publication default
 }
 
 // Defaults (annex-b §8.1; SPEC behaviour 2).
@@ -51,7 +52,7 @@ var DefaultPRLabels = []string{"data", "automated"}
 // func (c *Config) UnmarshalKey(key string, out any) error).
 type UnmarshalKeyer interface{ UnmarshalKey(key string, out any) error }
 
-// Load reads [catalog.publish] and [catalog].raw_csv_path, applies defaults for
+// Load decodes the complete [catalog] table, applies publishing defaults for
 // absent keys, and runs Validate. Missing section = all defaults.
 func Load(cfg UnmarshalKeyer) (*PublishConfig, error)
 
@@ -136,7 +137,8 @@ which-model catalog workflow --check [--out PATH]
 | `catalog.publish.commit_message` | string | `"chore(data): refresh available model scores"` | commit `-m` |
 | `catalog.publish.pr_title` | string | `"chore(data): refresh available model scores"` | `gh pr create --title` |
 | `catalog.publish.pr_labels` | array[string] | `["data", "automated"]` | one `--label` each |
-| `catalog.raw_csv_path` | string | `"available-model-data-export/available_model_raw_values.csv"` | sole `git add` path |
+| `catalog.raw_csv_path` | string | `"data/available_model_raw_values.csv"` | raw artifact path; staged together with scores |
+| `catalog.scores_csv_path` | string | `"data/available_model_scores.csv"` | generated score artifact; staged together with raw values |
 
 ## 4. Generated workflow shape (golden)
 
@@ -147,13 +149,13 @@ Full golden documents live in `specs/features/F30-publishing/TASKS.md` task F30-
 3. `permissions:` block per SPEC Decisions (mode-dependent).
 4. `concurrency.group: refresh-model-data`; `cancel-in-progress: false`.
 5. `jobs.refresh.strategy.matrix.branch` = `branches` in listed order; `fail-fast: false`.
-6. Optional non-empty `environment` is emitted at `jobs.refresh.environment`. Checkout and PR creation authenticate with `${{ secrets.CSV_UPDATE_TOKEN || github.token }}`; the standalone refresh uses `ARTIFICIAL_ANALYSIS_API`; changes stage only the raw CSV; no Go setup, build, application invocation, or tests.
+6. Optional non-empty `environment` is emitted at `jobs.refresh.environment`. Checkout and PR creation authenticate with `${{ secrets.CSV_UPDATE_TOKEN || github.token }}`; the standalone refresh uses `ARTIFICIAL_ANALYSIS_API`; score generation and the Python suite validate the configured raw/scores pair before staging both artifacts; no Go setup, build, or application invocation.
 7. Pull-request mode assigns a unique head branch, creates a PAT-authored PR when `CSV_UPDATE_TOKEN` is configured, conditionally approves it with `github.token`, and enables auto-merge as step `id: merge`. Direct-push mode uses step `id: publish`.
 8. Outcome reporting keys off the relevant publish-step outcome: `auto-merge-enabled` for an accepted deferred merge request, `published` only for completed direct pushes, `skipped-no-changes`, or `failed`. No usage command or usage credential appears.
 9. Exactly one trailing `\n`; LF line endings.
 
 ## 5. Cross-feature references (pinned)
-- F01 `internal/config`: `func (c *Config) UnmarshalKey(key string, out any) error` (DECISION B) — the `UnmarshalKeyer` interface is satisfied structurally; tests use a fake.
+- F01 `internal/config`: `func (c *Config) UnmarshalKey(key string, out any) error` (DECISION B) — the `UnmarshalKeyer` interface is satisfied structurally; tests use real strict TOML decoding (a fake is reserved for sentinel-error propagation).
 - F23 `pkg/whichmodel/catalog_cmd.go` — `workflow` subcommand added inside `NewCatalogCmd` after F23 lands.
 - `internal/security` (F05) usage: none required (no network, no credentials, no file reads beyond the workflow file).
 - Compiles under `-tags nousage`: `internal/catalog/publish` never imports `internal/usage` (annex-b §0 usage independence).
@@ -165,3 +167,40 @@ None — uses the fixed `0`/`1`/`2` set (`specs/global/SPEC.md §5`); `--check` 
 ## 7. Flags owned
 
 `--write`, `--check`, `--out <path>` on `catalog workflow` (all others belong to F23's other subcommands).
+
+### Shared catalog schema correction (#166)
+
+All catalog consumers decode the complete `catalog` table through F01's strict,
+table-only `UnmarshalKey`. `internal/catalog.Config` owns all existing catalog
+fields plus `Publish PublishConfig` (`toml:"publish"`); `catalog.PublishConfig`
+owns the existing nested publishing fields. `whichmodel.CatalogConfig` and
+`publish.PublishConfig` remain public aliases. Unknown catalog and publish keys
+are errors; valid nested publishing settings coexist with configured raw/scores
+paths, including environment-only overrides. Publishing seeds nested defaults,
+then reads raw artifact paths from the decoded root. Pick validates catalog
+configuration before loading scores and propagates config errors as exit 2.
+Empty consumer paths retain their previous defaults. This corrects scalar
+accessor guidance that contradicted F01's table-only contract.
+
+### Paired artifact publication correction (#165)
+
+This supersedes the former raw-only publication decision. Each refresh produces
+and publishes a coherent raw/scores pair. The standalone Python refresh receives
+`--output <RawCSVPath>`; `generate_scores.py` receives `--input <RawCSVPath>` and
+`--output <ScoresCSVPath>`. Before staging either artifact, run
+`python3 -m unittest discover -s .daily-update/tests -v` with
+`WHICH_MODEL_TEST_RAW_CSV` and `WHICH_MODEL_TEST_SCORES_CSV` set to the configured
+artifact pair. Generation or test failure
+aborts publication. Both artifact arguments are shell-quoted consistently across
+refresh, generation, and staging. Equal normalized destinations are invalid.
+The score publication default is `data/available_model_scores.csv`, distinct from
+the CLI's cache-path default. PR CI runs the Python suite, preserving deterministic
+regeneration checks. The generator retains Python Decimal/schema behavior and
+requires no Go runtime. Checkout pins in the renderer, golden, and committed
+workflow remain synchronized. Regression cases cover custom paths, stage ordering,
+generator failure before staging, and repeat generation matching committed bytes.
+
+
+`catalog.PublishConfig.RunTests bool` decodes legacy `run_tests`; it does not
+change the generated verification steps. Every catalog consumer accepts this documented
+boolean consistently.

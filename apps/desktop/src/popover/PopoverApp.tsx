@@ -192,11 +192,16 @@ export function PopoverApp() {
     // profile and no rank yet, and pushing those would blank the menu bar for
     // a beat every time the popover mounts. Until the first real pick, the
     // host's own startup ranking holds the title.
-    if (!activeName || !pick) return
+    if (!rankQuery.isSuccess) return
+    if (!pick) {
+      void getHost().window.setTrayPick('', '', '', '').catch(() => {})
+      return
+    }
+    if (!activeName) return
     void getHost()
       .window.setTrayPick(activeName, pick.model_name, pick.reasoning, pick.provider)
       .catch(() => {})
-  }, [activeName, pick?.model_name, pick?.reasoning, pick?.provider])
+  }, [rankQuery.isSuccess, activeName, pick?.model_name, pick?.reasoning, pick?.provider])
 
   const handleSelectProfile = useCallback((slug: string, scaleIndex: number | null) => {
     setSelectedIndex(0)

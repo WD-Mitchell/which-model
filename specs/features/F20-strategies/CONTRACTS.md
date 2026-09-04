@@ -97,3 +97,14 @@ Path: `<State.DataDir>/pick/round_robin.json`. The state contains `scope_key` an
 ## 8. Build and dependency constraints
 
 The package must compile and test in default and `nousage` builds. It consumes `pick.Candidate`, `pick.Strategy`, and the five canonical strategy constants from `specs/global/CONTRACTS.md` §4.
+
+### Cursor corruption recovery (#169)
+
+Absent/unreadable, malformed, non-object, or null cursor documents restart with a
+non-nil empty scope map. A JSON type error discards the entire document, including
+partially decoded entries. In an otherwise valid map, negative and maximal-int
+indices reset only that scope to zero before selection or increment, preventing
+slice-index panics and overflow. Other valid scopes are preserved. Dry runs use
+the recovered cursor without persisting corrections; real runs rotate normally
+under the existing exclusive lock and permissions. This makes the existing
+corruption-recovery promise apply to semantic corruption as well as syntax errors.

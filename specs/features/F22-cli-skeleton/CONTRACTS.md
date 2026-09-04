@@ -224,3 +224,7 @@ paths from `config.ResolvePaths` for `_sources` and `config path`.
 - Alias invariance: no code reads `os.Args[0]`; `Use` is fixed `"which-model"`; help/error
   output is byte-identical under symlinks `wm`, `wmodel`, `whichm`.
 - Compiles under `-tags nousage` (usage-toggle stubs land in F21).
+
+## Nested command execution correction (#162)
+
+`ExecuteCommand` must build fresh command instances before dispatching a hook's underlying command and restore the caller's global flags/output streams on return. Cached Cobra commands cannot be reparented while the outer hook is still executing. The registry's inspection cache remains available; nested execution invalidates it before constructing a new tree.
