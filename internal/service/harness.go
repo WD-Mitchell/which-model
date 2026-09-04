@@ -129,14 +129,15 @@ func (h *HarnessService) seedIfEmpty() error {
 		h.s.mu.Unlock()
 		return err
 	}
-	if err := config.AtomicWriteFile(h.s.paths.UserConfigFile, data); err != nil {
+	writeErr := writeHarnessConfig(h.s.paths.UserConfigFile, data)
+	if writeErr != nil && !config.WriteCommitted(writeErr) {
 		h.s.mu.Unlock()
-		return err
+		return writeErr
 	}
 	h.s.cfg = next
 	h.s.mu.Unlock()
 	h.s.emit(EventConfigChanged, map[string]string{"section": "harnesses"})
-	return nil
+	return writeErr
 }
 
 // Save upserts a harness. Validation order (SPEC §2.5): slug grammar -> name
@@ -324,14 +325,15 @@ func (h *HarnessService) persist(next *config.Config) error {
 		h.s.mu.Unlock()
 		return err
 	}
-	if err := config.AtomicWriteFile(h.s.paths.UserConfigFile, data); err != nil {
+	writeErr := writeHarnessConfig(h.s.paths.UserConfigFile, data)
+	if writeErr != nil && !config.WriteCommitted(writeErr) {
 		h.s.mu.Unlock()
-		return err
+		return writeErr
 	}
 	h.s.cfg = next
 	h.s.mu.Unlock()
 	h.s.emit(EventConfigChanged, map[string]string{"section": "harnesses"})
-	return nil
+	return writeErr
 }
 
 // BuildCommand substitutes {model_id} then {reasoning} via ReplaceAll (a
@@ -487,3 +489,5 @@ func contains(list []string, want string) bool {
 	}
 	return false
 }
+
+var writeHarnessConfig = config.AtomicWriteFile

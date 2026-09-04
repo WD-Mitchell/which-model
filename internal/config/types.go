@@ -33,12 +33,12 @@ type ProviderAccount struct {
 type ProviderConfig struct {
 	Enabled               bool              `toml:"enabled"`
 	Accounts              []ProviderAccount `toml:"accounts"`
-	Priority              int             `toml:"priority"`
-	Weight                decimal.Decimal `toml:"weight"`
-	CacheTTL              time.Duration   `toml:"cache_ttl"`
-	SourcePreference      []string        `toml:"source_preference"`
-	CredentialPath        string          `toml:"credential_path"`
-	TrustedFallbackOrigin string          `toml:"trusted_fallback_origin"`
+	Priority              int               `toml:"priority"`
+	Weight                decimal.Decimal   `toml:"weight"`
+	CacheTTL              time.Duration     `toml:"cache_ttl"`
+	SourcePreference      []string          `toml:"source_preference"`
+	CredentialPath        string            `toml:"credential_path"`
+	TrustedFallbackOrigin string            `toml:"trusted_fallback_origin"`
 }
 
 func Default() *Config {
@@ -101,3 +101,22 @@ func (e *ConfigError) Error() string {
 func (e *ConfigError) Unwrap() error { return e.Err }
 
 func (e *ConfigError) ExitCode() int { return 2 }
+
+// Clone preserves typed values and deferred environment overrides without TOML coercion.
+func (c *Config) Clone() *Config {
+	next := *c
+	if c.raw != nil {
+		next.raw = deepCopyRaw(c.raw).(map[string]any)
+	}
+	next.env = make(map[string]string, len(c.env))
+	for k, v := range c.env {
+		next.env[k] = v
+	}
+	next.Providers = make(map[string]ProviderConfig, len(c.Providers))
+	for k, v := range c.Providers {
+		v.Accounts = append([]ProviderAccount(nil), v.Accounts...)
+		v.SourcePreference = append([]string(nil), v.SourcePreference...)
+		next.Providers[k] = v
+	}
+	return &next
+}

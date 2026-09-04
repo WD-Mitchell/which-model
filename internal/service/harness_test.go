@@ -667,3 +667,30 @@ func TestHarnessFailedMutationLeavesLiveConfigUnchanged(t *testing.T) {
 		})
 	}
 }
+
+func TestHarnessPublishesCommittedWriteDespiteSyncFailure(t *testing.T) {
+	svc, rec := newTestServices(t)
+	mustListHarnesses(t, svc)
+	before := harnessConfigEvents(rec)
+	prior := writeHarnessConfig
+	writeHarnessConfig = func(path string, data []byte) error {
+		if err := config.AtomicWriteFile(path, data); err != nil {
+			return err
+		}
+		return &config.CommittedWriteError{Err: errors.New("sync failed")}
+	}
+	t.Cleanup(func() { writeHarnessConfig = prior })
+	err := svc.Harnesses().Save(context.Background(), HarnessInfo{Slug: "committed", Name: "Committed", Command: "tool"})
+	if !config.WriteCommitted(err) {
+		t.Fatalf("got %v", err)
+	}
+	found := false
+	for _, h := range mustListHarnesses(t, svc) {
+		if h.Slug == "committed" {
+			found = true
+		}
+	}
+	if !found || harnessConfigEvents(rec) != before+1 {
+		t.Fatal("committed config was not published")
+	}
+}

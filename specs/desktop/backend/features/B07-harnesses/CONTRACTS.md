@@ -136,3 +136,13 @@ Pinned regression: `TestHarnessEditsPreserveEnabledOverride` covers all nine edi
 Every mutation, including initial seeding, Save, Delete, SetProvider, SetAllProviders, and SetEnabled, clones the complete configuration through `cloneConfig` while holding the write lock. It mutates only that independent document and publishes it after the atomic write succeeds. Clone cleanup and lock release occur on every error. Failed writes leave both live and persisted state unchanged and emit no event.
 
 Pinned regression: `TestHarnessFailedMutationLeavesLiveConfigUnchanged` forces all six mutations to fail at an invalid destination, verifies byte-identical live TOML and no event, then verifies a later successful write cannot leak the rejected change.
+
+
+## Transaction boundary correction — #179 review
+
+Config cloning preserves raw values, typed provider values, and deferred env
+overrides directly. A pre-rename failure leaves both disk and memory unchanged.
+If rename succeeds but directory sync fails, publish the now-visible config and
+emit one config-changed event, then return a classified committed-write error
+so durability failure remains visible. The caller must not treat this error as
+a rollback. Pin post-commit filesystem and harness state/event regressions.
