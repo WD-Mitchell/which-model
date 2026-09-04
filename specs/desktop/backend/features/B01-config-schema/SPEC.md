@@ -37,14 +37,14 @@ Depends on: nothing (wave-3 root). Consumed by: B02–B10, D00 §2.3/§2.7.
 
 7. **Not env-addressable.** No additions to the `envKeys` vocabulary (`internal/config/env.go`). A `WHICH_MODEL_*` variable that resolves into a B01 section under the existing suffix rules fails at the existing eager checks (`ApplyEnv` / `UnmarshalKey` unmatched-overlay), exactly as for any unknown env key today.
 
-8. **AtomicWriteFile.** `AtomicWriteFile(path, data)` creates parent directories (0755), writes a temp file in the target directory with mode 0600, fsyncs it, closes, renames into place, then fsyncs the directory. On any failure the temp file is removed and the destination is untouched. `pkg/whichmodel/config_cmd.go`'s `config set` calls it in place of the deleted local `atomicWrite`; behaviour visible to CLI users is unchanged except the 0600 file mode and dir fsync. `setNestedKey`/`parseTOMLValue` stay CLI-local.
+8. **AtomicWriteFile.** `AtomicWriteFile(path, data)` creates parent directories (0755), writes a temp file in the target directory with mode 0600, fsyncs it, closes, renames into place, then fsyncs the directory. On failure before rename the temp file is removed and the destination is untouched. If rename succeeds but directory fsync fails, return `CommittedWriteError`: the destination contains the new bytes, while crash durability remains unconfirmed. `pkg/whichmodel/config_cmd.go`'s `config set` calls it in place of the deleted local `atomicWrite`; behaviour visible to CLI users is unchanged except the 0600 file mode and dir fsync. `setNestedKey`/`parseTOMLValue` stay CLI-local.
 
 9. **Builtin collisions are NOT checked here.** `internal/config` cannot know builtin profile/group/harness slugs (no `internal/pick` import). Rejecting a custom slug that collides with a builtin is the service layer's save-time `conflict` per B00 §6.4 (B03/B05/B07).
 
 ## 3. Error behaviour
 
 - All errors are `*config.ConfigError` with `Kind: KindInvalidValue` and `Key` set to the offending dotted key, rendering as `config: invalid value for <key>: <detail>` — details verbatim in CONTRACTS §5. Decode failures keep the existing `UnmarshalKey` error shapes.
-- `Load*` on an absent section never errors. `Delete*` on an absent slug never errors. `AtomicWriteFile` returns raw `os` errors (callers wrap; the service layer maps them to `io_error`).
+- `Load*` on an absent section never errors. `Delete*` on an absent slug never errors. `AtomicWriteFile` returns raw pre-commit `os` errors or a `CommittedWriteError` wrapping a post-rename directory-sync error; `WriteCommitted` identifies the latter. Callers must distinguish rollback from an already-visible write.
 - Validation stops at the first failing check (fixed order); no multi-error aggregation.
 
 ## 4. Decisions
@@ -71,3 +71,13 @@ Depends on: nothing (wave-3 root). Consumed by: B02–B10, D00 §2.3/§2.7.
 ## Deviations
 
 - **B00 SPEC §5 (file table).** B01 additionally owns two bounded change sites outside its listed files: the section render list + trailing-unknown-sections loop in `internal/config/marshal.go` (§2.6 — without it the new sections are dropped on marshal), and the one-line `atomicWrite` → `config.AtomicWriteFile` re-point (plus deletion of the local helper) in `pkg/whichmodel/config_cmd.go` (§2.8). No other feature may edit those sites.
+
+
+## Atomic-write correction — #179 review
+
+The former all-errors-leave-destination-untouched guarantee was impossible after
+a successful rename. `CommittedWriteError` wraps the underlying error, and
+`WriteCommitted(error) bool` reports whether the new bytes are visible.
+`TestAtomicWritePostCommitError` pins error classification and file contents.
+Harness mutations publish this committed state and notify listeners even while
+reporting the durability error.
