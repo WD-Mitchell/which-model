@@ -138,3 +138,11 @@ then reads raw artifact paths from the decoded root. Pick validates catalog
 configuration before loading scores and propagates config errors as exit 2.
 Empty consumer paths retain their previous defaults. This corrects scalar
 accessor guidance that contradicted F01's table-only contract.
+
+
+## Legacy run_tests compatibility — #167 review
+
+Accept the documented `catalog.publish.run_tests` boolean, including its
+environment override, as a legacy compatibility option. Publishing verification
+is mandatory; false cannot disable the Python suite. This supersedes the former
+conditional-test option without rejecting existing configurations.
