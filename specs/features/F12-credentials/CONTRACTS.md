@@ -247,3 +247,16 @@ func CheckExpired(exp time.Time, now time.Time) error
 | Dependencies added | `github.com/zalando/go-keyring` (darwin build only) |
 | Depends on | F05, F11 (per `specs/DEPENDENCY-GRAPH.md` §2) |
 | Blocks | F14, F15, F16, F17, F25 (per `specs/DEPENDENCY-GRAPH.md` §2) |
+
+## Review regression contract (#176, #177)
+
+`FileResolver.Paths` accepts single-pass leading-home and environment expansion before stat/read; missing/empty variables skip only that candidate. `KeychainResolver` recognizes `errors.Is` for both not-found sentinels. No public type changes.
+
+| Input | Required result |
+|---|---|
+| `~/auth.json`, `$VAR/auth.json`, `${VAR}/auth.json` | Resolve temporary synthetic credential |
+| Missing/empty override followed by a valid home path | Skip override, resolve home credential |
+| Multiple valid candidates | First candidate wins |
+| Literal absolute/relative paths or shell-like text in environment value | Preserve literal path; no execution or recursive expansion |
+| Unsupported-platform keychain or wrapped not-found | Continue to file source |
+| Locked/denied keychain with secret-bearing error | `keychain_unavailable`, no secret in failure |

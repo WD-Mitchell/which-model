@@ -67,7 +67,7 @@ type KeychainResolver struct {
 func (r *KeychainResolver) Resolve(ctx context.Context) (usage.Credential, error) {
 	v, err := r.Store.Get(r.Service, r.Account)
 	if err != nil {
-		if errors.Is(err, keyringNotFound) {
+		if errors.Is(err, keyringNotFound) || errors.Is(err, ErrNotFound) {
 			return Credential{}, ErrNotFound
 		}
 		return Credential{}, usage.NewFailureError(

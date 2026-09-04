@@ -5,6 +5,7 @@ package credential
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -117,5 +118,18 @@ func TestDefaultKeychain(t *testing.T) { // case 7
 	var _ KeychainStore = DefaultKeychain() // compile-time interface satisfaction
 	if DefaultKeychain() == nil {
 		t.Fatal("DefaultKeychain() = nil, want non-nil KeychainStore")
+	}
+}
+
+func TestKeychainResolverMissingSentinels(t *testing.T) {
+	for _, store := range []KeychainStore{
+		UnavailableKeychain{},
+		fakeKeychainStore{err: fmt.Errorf("wrapped: %w", ErrNotFound)},
+		fakeKeychainStore{err: fmt.Errorf("wrapped: %w", keyringNotFound)},
+	} {
+		_, err := (&KeychainResolver{Store: store, Service: "synthetic-test-service"}).Resolve(context.Background())
+		if !errors.Is(err, ErrNotFound) {
+			t.Errorf("source absence must continue chain: %v", err)
+		}
 	}
 }
