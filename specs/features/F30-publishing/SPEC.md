@@ -154,3 +154,11 @@ regeneration checks. The generator retains Python Decimal/schema behavior and
 requires no Go runtime. Checkout pins in the renderer, golden, and committed
 workflow remain synchronized. Regression cases cover custom paths, stage ordering,
 generator failure before staging, and repeat generation matching committed bytes.
+
+
+## Legacy run_tests compatibility — #167 review
+
+Accept the documented `catalog.publish.run_tests` boolean, including its
+environment override, as a legacy compatibility option. Publishing verification
+is mandatory; false cannot disable the Python suite. This supersedes the former
+conditional-test option without rejecting existing configurations.

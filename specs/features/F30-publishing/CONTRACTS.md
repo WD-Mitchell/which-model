@@ -199,3 +199,8 @@ regeneration checks. The generator retains Python Decimal/schema behavior and
 requires no Go runtime. Checkout pins in the renderer, golden, and committed
 workflow remain synchronized. Regression cases cover custom paths, stage ordering,
 generator failure before staging, and repeat generation matching committed bytes.
+
+
+`catalog.PublishConfig.RunTests bool` decodes legacy `run_tests`; it cannot
+disable publishing verification. Every catalog consumer accepts this documented
+boolean consistently.
