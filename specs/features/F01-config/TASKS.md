@@ -525,9 +525,22 @@ graph TD
 | 10 | `DecodeFile` on `[usage]` + `[providers.claude]` | `strings.Index(out, "[usage]")` < `strings.Index(out, "[providers.claude]")` (canonical order) |
 | 11 | `DecodeFile` on `[bands.tier]` `weight = 1.0` (array of tables) | output contains `[[bands.tier]]` |
 
+### Review regression cases (#167)
+
+The corrected T9 renderer must also pin these owning-schema round trips:
+
+| Input | Expected |
+|---|---|
+| Integer strategy shares `0` and `1` | Render and reload as integers, never booleans |
+| Decimal gate `0`/`1` and title `true`/`0`/`001` | Render as strings; decimal/text owners reload the exact value |
+| Boolean setting spelled `0`/`1` | Render false/true; reload as booleans |
+| Invalid integer or boolean spelling | Return `KindInvalidValue` naming the dotted key |
+| Render, save, `LoadFile`, then `UnmarshalKey` | Preserve effective values and leave the source config unchanged |
+| Every generic environment key | Exactly one declared render kind |
+
 **Acceptance criteria:**
 - [ ] `go build ./internal/config/...` succeeds
-- [ ] `go test ./internal/config/...` passes with the 11 cases above
+- [ ] `go test ./internal/config/...` passes with the 11 base cases and 6 review regression cases above
 - [ ] no file outside the Files list modified
 
 **Run:** `go test ./internal/config/...`
@@ -590,15 +603,3 @@ graph TD
 - [ ] workflow references no secret other than the default `GITHUB_TOKEN` (which it does not even name)
 
 **Run:** no Go test for this task; gate = the 8 content checks against the verbatim YAML block above, then `git status` shows only `.github/workflows/ci.yml` added.
-### Review regression cases (#167)
-
-The corrected T9 renderer must also pin these owning-schema round trips:
-
-| Input | Expected |
-|---|---|
-| Integer strategy shares `0` and `1` | Render and reload as integers, never booleans |
-| Decimal gate `0`/`1` and title `true`/`0`/`001` | Render as strings; decimal/text owners reload the exact value |
-| Boolean setting spelled `0`/`1` | Render false/true; reload as booleans |
-| Invalid integer or boolean spelling | Return `KindInvalidValue` naming the dotted key |
-| Render, save, `LoadFile`, then `UnmarshalKey` | Preserve effective values and leave the source config unchanged |
-| Every generic environment key | Exactly one declared render kind |
