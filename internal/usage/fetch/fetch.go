@@ -52,7 +52,7 @@ type Options struct {
 	Timeout                time.Duration       // per-provider timeout; 0 → descriptor.Timeout → DefaultTimeoutSec
 	MaxParallel            int                 // fan-out cap; <= 0 → min(active, DefaultMaxParallel)
 	CacheDir               string              // "" → cache.New() (system dir); test seam (SPEC D11)
-	Source                 usage.Source        // optional source forwarded to CodexBar
+	Source                 usage.Source        // optional forced credential source; empty preserves auto
 	StateDir               string              // "" resolves the platform state directory
 	DisableManagedKeychain bool                // false (default) prefers the OS keychain
 }
@@ -239,7 +239,7 @@ func runProvider(gctx context.Context, store *cache.Store, client *http.Client, 
 	if !opts.Refresh && desc.CacheTTL > 0 {
 		ttl := cache.EffectiveTTL(desc.CacheTTL, opts.MaxAge)
 		snap, stale, rerr := store.Read(id, ttl)
-		if rerr == nil && !stale {
+		if rerr == nil && !stale && snap.Failure == nil && matchesRequestedSource(snap.Source, opts.Source) {
 			snap.Source = usage.SourceCache
 			snap.Confidence = "cached"
 			snap.Stale = false
@@ -284,6 +284,13 @@ func runProvider(gctx context.Context, store *cache.Store, client *http.Client, 
 			}
 			return failureSnapshot(id, MapError(rerr), cred), warns
 		}
+	}
+
+	if !matchesRequestedSource(SourceFor(cred, desc.Kind), opts.Source) {
+		return failureSnapshot(id, usage.Failure{
+			Code:    "login_required",
+			Message: "no credential found for requested source",
+		}, cred), warns
 	}
 
 	// Fetch (SPEC §4c); the provider leaves Source unset — F14 alone
@@ -530,6 +537,9 @@ func codexbarCredentialEnvironment(ctx context.Context, provider string, opts Op
 	if err != nil {
 		return nil
 	}
+	if !matchesRequestedSource(SourceFor(managed, usage.KindSubscription), opts.Source) {
+		return nil
+	}
 	credentialsJSON, ok := antigravity.CredentialsJSON(managed.Token)
 	if !ok {
 		return nil
@@ -537,7 +547,8 @@ func codexbarCredentialEnvironment(ctx context.Context, provider string, opts Op
 	return map[string]string{antigravity.CredentialsEnvironment: credentialsJSON}
 }
 
-// matchesRequestedSource checks original provenance before it is stamped as cache.
+// matchesRequestedSource checks original provenance before it is stamped as
+// cache. Cache-only reads are handled before this online eligibility check.
 func matchesRequestedSource(actual, requested usage.Source) bool {
 	return requested == "" || actual == requested
 }

@@ -40,6 +40,7 @@ const DefaultMaxParallel = 8
 // Options configures one FetchAll call. All fields optional.
 type Options struct {
     Backend    config.UsageBackend // off, native, codexbar; empty retains native
+    Source     usage.Source     // forced credential source; empty preserves auto precedence
     Refresh    bool              // skip cache reads; refetch and rewrite (annex-d --refresh-usage)
     Offline    bool              // read-only: cache only, never credentials/fetch/writes
     MaxAge     time.Duration     // TTL override via cache.EffectiveTTL (annex-d --max-age)
@@ -110,6 +111,15 @@ func SourceFor(cred usage.Credential, kind usage.Kind) usage.Source
 | Earlier parent deadline or cancellation | Parent remains the upper bound and returns batch error |
 | Blocked provider and successful sibling | `timeout` data for blocked provider; sibling retained |
 
+## Review regression contract (#184)
+
+| Scenario | Required result |
+|---|---|
+| Forced api with managed OAuth or forced oauth with managed API key | `login_required`; zero native fetches; no credential material in error |
+| Matching managed credential or empty source | Fetch succeeds with resolved source |
+| Forced online source with matching cache provenance | Cache hit stamped cache/cached after original source check |
+| Forced online source with mismatched/unknown cache provenance | Matching live path; no incompatible cache reuse |
+| Source cache or Offline, including Refresh | Cache-only behavior remains unchanged |
 
 ## Managed lookup deadline correction — #181 review
 

@@ -227,6 +227,9 @@ func TestCodexBarCacheFirst(t *testing.T) {
 		{name: "refresh", refresh: true, wantCalls: 1},
 		{name: "force max age", age: 2 * time.Minute, maxAge: time.Minute, wantCalls: 1},
 		{name: "normal max age", age: 2 * time.Minute, maxAge: 15 * time.Minute},
+		{name: "matching source", stored: usage.SourceOAuth, forced: usage.SourceOAuth},
+		{name: "mismatched source", stored: usage.SourceOAuth, forced: usage.SourceAPI, wantCalls: 1},
+		{name: "unknown source", forced: usage.SourceAPI, wantCalls: 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()

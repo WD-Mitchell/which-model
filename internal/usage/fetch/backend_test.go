@@ -103,3 +103,24 @@ func TestFetchAllCodexBarInjectsManagedAntigravityOAuth(t *testing.T) {
 		t.Fatal("CodexBar did not receive the selected managed OAuth credential JSON")
 	}
 }
+
+func TestCodexBarManagedInjectionHonorsForcedSource(t *testing.T) {
+	token, err := antigravity.EncodeCredential(antigravity.Credentials{AccessToken: "synthetic-access", RefreshToken: "synthetic-refresh", ClientID: "synthetic-client", ClientSecret: "synthetic-secret"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := credential.ManagedStore{StateDir: t.TempDir()}
+	if err := store.Save("antigravity", token); err != nil {
+		t.Fatal(err)
+	}
+	for _, source := range []usage.Source{"", usage.SourceOAuth, usage.SourceAPI} {
+		environment := codexbarCredentialEnvironment(context.Background(), "antigravity", Options{Source: source, StateDir: store.StateDir, DisableManagedKeychain: true})
+		if source == usage.SourceAPI {
+			if len(environment) != 0 {
+				t.Error("forced API must not inject managed OAuth credential")
+			}
+		} else if len(environment) != 1 {
+			t.Errorf("matching/auto source %q should inject managed OAuth credential", source)
+		}
+	}
+}
