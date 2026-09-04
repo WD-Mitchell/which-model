@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/WD-Mitchell/which-model/internal/catalog/fetch/modelsdev"
 	"github.com/WD-Mitchell/which-model/internal/catalog/identity"
+	"github.com/WD-Mitchell/which-model/internal/config"
 	"github.com/WD-Mitchell/which-model/internal/httpkit"
 	"github.com/WD-Mitchell/which-model/internal/routing"
 	"github.com/WD-Mitchell/which-model/internal/usage"
@@ -34,7 +34,7 @@ func modelsDevCachePath(cacheDir string) string {
 }
 
 // RefreshRoutes rebuilds the route table the same way `which-model routes
-// refresh` does: models.dev catalogue (cache, else fetch) joined to the
+// refresh` does: models.dev catalogue (explicit refresh, with cached fallback) joined to the
 // scores CSV, preserving user-declared routes. Settings calls this after a
 // successful sign-in and from the signed-in "Refresh models" button.
 //
@@ -98,16 +98,23 @@ func (p *ProviderService) RefreshRoutes(ctx context.Context) error {
 
 func (p *ProviderService) loadOrFetchModelsDev() ([]modelsdev.ProviderModel, error) {
 	path := modelsDevCachePath(p.s.paths.CacheDir)
-	if cached, ok := readModelsDevCache(path); ok {
-		return cached, nil
-	}
 	catalogue, err := fetchModelsDevCatalogue()
+	if err == nil && len(catalogue) == 0 {
+		err = fmt.Errorf("models.dev catalogue is empty")
+	}
 	if err != nil {
+		if cached, ok := readModelsDevCache(path); ok {
+			p.s.mu.Lock()
+			p.s.warnings = append(p.s.warnings, "models.dev refresh failed; using cached model catalogue")
+			p.s.mu.Unlock()
+			return cached, nil
+		}
 		return nil, err
 	}
 	if err := writeModelsDevCache(path, catalogue); err != nil {
-		// Routes can still be built from the in-memory catalogue.
-		return catalogue, nil
+		p.s.mu.Lock()
+		p.s.warnings = append(p.s.warnings, "models.dev catalogue could not be cached; using refreshed models for this operation")
+		p.s.mu.Unlock()
 	}
 	return catalogue, nil
 }
@@ -121,14 +128,7 @@ func readModelsDevCache(path string) ([]modelsdev.ProviderModel, bool) {
 	if err := json.Unmarshal(data, &catalogue); err != nil || len(catalogue) == 0 {
 		return nil, false
 	}
-	// If the cached file has no cost keys in the payload at all, it was written
-	// by an older binary before price support was introduced. Refresh it.
-	if !bytes.Contains(data, []byte("cost")) && !bytes.Contains(data, []byte("Cost")) {
-		if fresh, err := fetchModelsDevCatalogue(); err == nil && len(fresh) > 0 {
-			_ = writeModelsDevCache(path, fresh)
-			return fresh, true
-		}
-	}
+
 	return catalogue, true
 }
 
@@ -140,7 +140,7 @@ func writeModelsDevCache(path string, catalogue []modelsdev.ProviderModel) error
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o644)
+	return config.AtomicWriteFile(path, data)
 }
 
 func (p *ProviderService) routeProductionInputLocked(catalogue []modelsdev.ProviderModel, liveModels map[string][]routing.ModelEntry) routing.Input {
