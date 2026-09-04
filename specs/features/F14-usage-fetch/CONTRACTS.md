@@ -109,3 +109,12 @@ func SourceFor(cred usage.Credential, kind usage.Kind) usage.Source
 | Explicit CodexBar timeout / absent timeout | Provider context uses requested budget / 10s default |
 | Earlier parent deadline or cancellation | Parent remains the upper bound and returns batch error |
 | Blocked provider and successful sibling | `timeout` data for blocked provider; sibling retained |
+
+
+## Managed lookup deadline correction — #181 review
+
+The provider budget bounds managed keychain lookup as well as the CodexBar
+process. Because the OS keychain interface cannot cancel an active prompt,
+return on context cancellation and discard the late result; permit at most four
+outstanding such calls process-wide. Do not launch CodexBar after the lookup
+exhausts the budget. Pin blocked-keychain deadline and earlier-parent tests.

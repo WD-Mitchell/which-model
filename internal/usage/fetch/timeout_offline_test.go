@@ -149,11 +149,12 @@ func TestCodexBarWorkerDeadline(t *testing.T) {
 		name                         string
 		timeout, parentTimeout, want time.Duration
 	}{
-		{"explicit", 50 * time.Millisecond, 0, 50 * time.Millisecond},
+		{"explicit", 5 * time.Second, 0, 5 * time.Second},
 		{"default", 0, 0, 10 * time.Second},
-		{"parent earlier", time.Second, 20 * time.Millisecond, 20 * time.Millisecond},
+		{"parent earlier", 10 * time.Second, 5 * time.Second, 5 * time.Second},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			cacheDir := t.TempDir()
 			ctx := context.Background()
 			if tc.parentTimeout > 0 {
 				var cancel context.CancelFunc
@@ -164,12 +165,12 @@ func TestCodexBarWorkerDeadline(t *testing.T) {
 				deadline, ok := ctx.Deadline()
 				if !ok {
 					t.Error("provider context has no deadline")
-				} else if remaining := time.Until(deadline); remaining > tc.want || remaining < tc.want-20*time.Millisecond {
+				} else if remaining := time.Until(deadline); remaining > tc.want || remaining < tc.want-time.Second {
 					t.Errorf("provider budget=%v want approximately %v", remaining, tc.want)
 				}
 				return usage.Snapshot{Provider: id}, nil
 			})
-			_, _, err := FetchAll(ctx, []string{"codex"}, Options{Backend: config.UsageBackendCodexBar, Enabled: map[string]bool{"codex": true}, CacheDir: t.TempDir(), Timeout: tc.timeout})
+			_, _, err := FetchAll(ctx, []string{"codex"}, Options{Backend: config.UsageBackendCodexBar, Enabled: map[string]bool{"codex": true}, CacheDir: cacheDir, Timeout: tc.timeout})
 			if err != nil {
 				t.Fatal(err)
 			}

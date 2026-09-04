@@ -455,7 +455,9 @@ func fetchCodexBarAll(ctx context.Context, providers []string, opts Options) ([]
 			environment := codexbarCredentialEnvironment(pctx, id, opts)
 			var snap usage.Snapshot
 			var err error
-			if len(environment) == 0 {
+			if pctx.Err() != nil {
+				err = pctx.Err()
+			} else if len(environment) == 0 {
 				snap, err = codexbarFetch(pctx, id, opts.Source)
 			} else {
 				snap, err = codexbarFetchEnvironment(pctx, id, opts.Source, environment)

@@ -67,3 +67,12 @@ The CodexBar backend follows the same online cache-first pipeline: use `cache.Ef
 ## Review correction (#181)
 
 Each live CodexBar worker has a context timeout of positive `Options.Timeout` or 10 seconds, bounded by its parent. The worker context covers managed credential setup and either fetch function. Worker deadline expiry produces a fixed sanitized `timeout` failure, even when the adapter returns an untyped error, without cancelling siblings. Only parent cancellation/deadline is a batch error. CodexBar's standalone adapter keeps its existing 30-second ceiling.
+
+
+## Managed lookup deadline correction — #181 review
+
+The provider budget bounds managed keychain lookup as well as the CodexBar
+process. Because the OS keychain interface cannot cancel an active prompt,
+return on context cancellation and discard the late result; permit at most four
+outstanding such calls process-wide. Do not launch CodexBar after the lookup
+exhausts the budget. Pin blocked-keychain deadline and earlier-parent tests.
