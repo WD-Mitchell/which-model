@@ -60,3 +60,7 @@ Depends on: U02 (primitives), U07 (shell, `PageComponentProps`, `Detail` union, 
 ## 5. Out of scope
 
 - `catalog.*` host implementation and fixtures — U01/IM tiers; group weighting in profiles — U08; shell, PAGE_META copy, back-stack mechanics — U07; shared primitives (`Toggle`, `Tag`, `CoverageBar`, `Input`, toasts) — U02.
+
+## Deviations
+
+- **Membership persistence (§2.9, §4):** Debounced by 300ms (issue #40) to coalesce rapid benchmark toggles and avoid overwhelming IPC with discrete writes. The pending timer is cancelled atomically on group rename and navigation, and the latest uncommitted flags are flushed with the rename payload.

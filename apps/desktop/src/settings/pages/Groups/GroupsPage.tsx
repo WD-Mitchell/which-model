@@ -266,9 +266,12 @@ function GroupDetailView({
 
   useEffect(() => {
     return () => {
-      if (saveTimer.current) clearTimeout(saveTimer.current)
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current)
+        saveTimer.current = null
+      }
     }
-  }, [])
+  }, [slug])
 
   if (!group) return <div className={cx(styles.page, styles.loading)}>loading…</div>
 
@@ -294,10 +297,16 @@ function GroupDetailView({
     const next = sanitizeSlug(nameDraft)
     setNameDraft(null)
     if (!next || next === group.slug) return
-    const members = group.benchmarks.filter((_, i) => onFlags[i] ?? false).map((b) => b.name)
+    const currentFlags = local ?? group.benchmarks.map((b) => b.on)
+    const members = group.benchmarks.filter((_, i) => currentFlags[i] ?? false).map((b) => b.name)
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current)
+      saveTimer.current = null
+    }
     void getHost()
       .catalog.saveGroup(slug, members, next)
       .then(() => {
+        setLocal(null)
         closeDetail()
         openDetail({ kind: 'group', id: next })
       })
