@@ -322,3 +322,19 @@ function Probe() {
   useRank(initialScaleProfile, 'none', 5)
   return null
 }
+
+describe('create-only Save as profile', () => {
+ beforeEach(() => { resetHost(); useOverridesStore.getState().clear() })
+ afterEach(() => { cleanup(); vi.restoreAllMocks() })
+ it('uses a free create suffix and preserves the earlier custom profile', async () => {
+  const host = getHost() as MockEngineHost
+  const profile = await host.profiles.get(initialScaleProfile)
+  await host.profiles.create({ ...profile, slug: `${initialScaleProfile}_custom`, builtin: false, core_share: 75 })
+  renderApp()
+  await settle()
+  await showSliders()
+  fireEvent.click(screen.getByRole('button', { name: 'Save as profile' }))
+  await waitFor(() => expect(useOverridesStore.getState().baseSlug).toBe(`${initialScaleProfile}_custom_2`))
+  expect((await host.profiles.get(`${initialScaleProfile}_custom`)).core_share).toBe(75)
+ })
+})

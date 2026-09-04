@@ -58,6 +58,7 @@ export function createWailsHost(): EngineHost {
     profiles: {
       list: () => call(ProfilesAPI.List() as Cancellable<unknown>, (r) => r as never),
       get: (slug: string) => call(ProfilesAPI.Get(slug) as Cancellable<unknown>, (r) => r as never),
+      create: (p) => call(ProfilesAPI.Create(p) as Cancellable<void>, () => {}),
       save: (p) => call(ProfilesAPI.Save(p) as Cancellable<void>, () => {}),
       duplicate: (slug: string) => call(ProfilesAPI.Duplicate(slug) as Cancellable<unknown>, (r) => r as never),
       delete: (slug: string) => call(ProfilesAPI.Delete(slug) as Cancellable<void>, () => {}),

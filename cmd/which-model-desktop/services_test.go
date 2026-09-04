@@ -28,6 +28,7 @@ func TestProfilesBindingStructuredErrors(t *testing.T) {
 	}{
 		{err, "not_found"},
 		{api.Save(service.ProfileDetail{Slug: "bad-slug"}), "validation_failed"},
+		{api.Create(service.ProfileDetail{Slug: "planning"}), "conflict"},
 	} {
 		data, e := json.Marshal(tc.err)
 		if e != nil {
