@@ -19,7 +19,7 @@ import {
   WeightRow,
 } from '@which-model/ui'
 import type { ProfileDetail, ProfileSummary } from '@which-model/core'
-import { useProfile, useProfiles, useSettings } from '../../../lib/queries'
+import { useGroups, useProfile, useProfiles, useSettings } from '../../../lib/queries'
 import { getHost } from '../../../lib/host'
 import { DetailHeader } from '../../DetailHeader'
 import { PAGE_META } from '../../pages'
@@ -29,6 +29,10 @@ import styles from './ProfilesPage.module.css'
 /** Core benchmarks are a fixed triple (engine tier 1); everything else is a
  *  benchmark group carried in tier 2. */
 const CORE_KEYS = ['intelligence', 'cost', 'speed'] as const
+// F10 canonical categories include score columns without a catalog group.
+const CATEGORY_KEYS = ['reasoning', 'knowledge', 'research', 'planning_capability',
+  'instruction_following', 'software_engineering', 'ui_visual', 'agentic_tools',
+  'finance', 'evidence_capture', 'security', 'data_ml'] as const
 
 // Mockup icon set (demo.dc.html L317-318). Never a literal "×" or "›".
 function TrashIcon({ size }: { size: 12 | 13 }) {
@@ -302,6 +306,8 @@ function ProfileDetailView({
   const { data: settings } = useSettings()
   const [local, setLocal] = useState<ProfileDetail | null>(null)
   const qc = useQueryClient()
+  const groupsQuery = useGroups()
+  const knownTaskKeys = useRef(new Set<string>())
   const persistenceKey = 'profile:' + slug
   const [opening] = useState(() => hasActiveAutosave(persistenceKey))
   const busyRef = useRef(opening)
@@ -365,8 +371,10 @@ function ProfileDetailView({
   }
 
   const readOnly = current.builtin
+  for (const key of Object.keys(current.tier2_weights)) knownTaskKeys.current.add(key)
+  const taskKeys = [...new Set([...CATEGORY_KEYS, ...(groupsQuery.data ?? []).map((g) => g.slug), ...knownTaskKeys.current])].sort()
   const weighted = weightedKeys(current)
-  const total = 3 + Object.keys(current.tier2_weights).length
+  const total = 3 + taskKeys.length
 
   const handleWeight = (key: string, v: number) => {
     const t1 = current.tier1_weights
@@ -387,7 +395,7 @@ function ProfileDetailView({
   // Mockup `pfRow` (demo.dc.html L1128-1146) colours a row by its value only —
   // no benchmark is singled out with the accent here.
   const coreRows = CORE_KEYS.map((k) => ({ key: k as string, value: current.tier1_weights[k] ?? 0 }))
-  const taskRows = Object.keys(current.tier2_weights).sort()
+  const taskRows = taskKeys
     .map((k) => ({ key: k, value: current.tier2_weights[k] ?? 0 }))
 
   const duplicate = async () => {
