@@ -83,3 +83,12 @@ All remaining generic overrides are strings, including decimal gate values,
 durations, and titles such as "true", "0", and "001". Invalid booleans or integers
 return `ConfigError{Kind: KindInvalidValue}` naming the dotted key. This supersedes
 the lossy bool-first inference in D16; rendering never mutates the source config.
+
+### Legacy migration correction (#168)
+
+`EnsureLegacyMigration(paths Paths, home string) error` reads the legacy root from
+`filepath.Join(home, ".which-model")`. `Load` passes its resolved `LoadOptions.Home`
+or `os.UserHomeDir` home explicitly. Destination paths remain those of ResolvePaths,
+including arbitrary XDG overrides. This corrects #39's inferred-home regression;
+canonical config wins, successful migrations are idempotent, and missing legacy
+data creates no migration artifacts.

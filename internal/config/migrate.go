@@ -15,8 +15,8 @@ import (
 // recovery. The legacy root is removed after a successful move. Safe to
 // call on every start: a no-op without a legacy tree, and a completed
 // migration removes it.
-func EnsureLegacyMigration(paths Paths) error {
-	legacyRoot := filepath.Join(legacyHome(paths), ".which-model")
+func EnsureLegacyMigration(paths Paths, home string) error {
+	legacyRoot := filepath.Join(home, ".which-model")
 	if info, err := os.Stat(legacyRoot); err != nil || !info.IsDir() {
 		return nil
 	}
@@ -59,21 +59,6 @@ func EnsureLegacyMigration(paths Paths) error {
 		}
 	}
 	return os.Remove(legacyRoot)
-}
-
-// legacyHome resolves the home directory the legacy `~/.which-model` tree
-// lives under: strip the per-OS layout segments from the resolved config
-// dir ("Library/Application Support" on darwin, ".config" for the XDG
-// default, honoring XDG_CONFIG_HOME overrides).
-func legacyHome(paths Paths) string {
-	dir := filepath.Dir(paths.ConfigDir)
-	if filepath.Base(dir) == "Application Support" && filepath.Base(filepath.Dir(dir)) == "Library" {
-		return filepath.Dir(filepath.Dir(dir))
-	}
-	if filepath.Base(dir) == "which-model" && filepath.Base(filepath.Dir(dir)) == ".config" {
-		return filepath.Dir(filepath.Dir(dir))
-	}
-	return dir
 }
 
 func fileRegular(path string) bool {
