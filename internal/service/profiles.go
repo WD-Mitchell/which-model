@@ -162,12 +162,8 @@ func (p *ProfileService) persistProfile(ctx context.Context, d ProfileDetail, cr
 		if !profileSlugRe.MatchString(d.Slug) {
 			return fmt.Errorf("%w: profile slug %q must match [a-z0-9_]+", errValidation, d.Slug)
 		}
-		prev, err := p.s.cfg.LoadProfiles(pick.CategoryNames)
-		if err != nil {
-			return err
-		}
 		_, builtin := pick.Profiles[d.Slug]
-		if _, exists := prev[d.Slug]; createOnly && (builtin || exists) {
+		if createOnly && builtin {
 			return fmt.Errorf("%w: profile %q already exists", errConflict, d.Slug)
 		}
 		if builtin {
@@ -189,6 +185,13 @@ func (p *ProfileService) persistProfile(ctx context.Context, d ProfileDetail, cr
 		ep.Tier2Share = ep.Tier2Share.Mul(decimalHundred)
 		if err := pick.ValidateProfile(ep); err != nil {
 			return fmt.Errorf("%w: %v", errValidation, err)
+		}
+		prev, err := p.s.cfg.LoadProfiles(pick.CategoryNames)
+		if err != nil {
+			return err
+		}
+		if _, exists := prev[d.Slug]; createOnly && exists {
+			return fmt.Errorf("%w: profile %q already exists", errConflict, d.Slug)
 		}
 		next, cleanup, err := cloneConfig(p.s.cfg)
 		if err != nil {

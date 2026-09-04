@@ -135,3 +135,12 @@ Verify: `go test ./internal/service/ -run TestProfile`.
 | Create existing custom/builtin | `conflict`; no replacement or event |
 | Save existing custom | Replaces weights; one event |
 | Failed profile persistence | Clone discarded; no live mutation or event |
+
+
+## Request validation precedence correction — #171 review
+
+Save validates slug, built-in protection, reserved name, shares, and weights
+before decoding unrelated stored profiles. Create reports conflict for built-in
+slugs, validates request fields, then checks custom occupancy under the same
+write lock. Malformed stored profiles cannot mask an intrinsic request error.
+Pin `TestProfileRequestErrorsPrecedeStoredProfileDecode`.
