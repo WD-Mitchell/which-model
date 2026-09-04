@@ -15,9 +15,9 @@ type auditEvidence struct {
 	Profile     string             `json:"profile"`
 	ScoreInputs map[string]float64 `json:"score_inputs"`
 	Band        *struct {
-		Name        string  `json:"name"`
-		UsedPercent float64 `json:"used_percent"`
-		Weight      float64 `json:"weight"`
+		Name        string   `json:"name"`
+		UsedPercent *float64 `json:"used_percent"`
+		Weight      *float64 `json:"weight"`
 	} `json:"band,omitempty"`
 	SnapshotAgeSeconds *int64 `json:"snapshot_age_seconds,omitempty"`
 	Confidence         string `json:"confidence,omitempty"`
@@ -57,7 +57,7 @@ func (e *auditEvidence) valid() bool {
 			return false
 		}
 	}
-	if e.Band != nil && (e.Band.Name == "" || e.Band.UsedPercent < 0 || e.Band.UsedPercent > 100 || e.Band.Weight < 0) {
+	if e.Band != nil && (e.Band.Name == "" || e.Band.UsedPercent == nil || e.Band.Weight == nil || *e.Band.UsedPercent < 0 || *e.Band.UsedPercent > 100 || *e.Band.Weight < 0) {
 		return false
 	}
 	for _, excluded := range e.ExcludedCandidates {
