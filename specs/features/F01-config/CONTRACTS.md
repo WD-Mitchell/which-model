@@ -271,7 +271,7 @@ None. `which-model config show --json` (including its `_sources` map) is F22's c
 - F21-usage-toggle: `cfg.Usage.Enabled` (`UsageEnabled`, `specs/global/CONTRACTS.md` §5.1) + enumeration of `cfg.Providers` with `Enabled == true` for `auto` resolution (README §6.1); F21 resolves, F01 never does.
 - F22-cli-skeleton: `Load`, `LoadFile`, `Validate`, `ResolvePaths`, `ConfigError`/`ExitCode`; `--config` → `LoadOptions.Path`; `config show` renders via `MarshalTOML` (annex-d §2.7); `config show --json` derives from the same render (toml → map, F22 composition; `_sources` is F22's).
 - F19-bands / F20-strategies / F09-scoring / F23-cmd-catalog / F30-publishing: `cfg.UnmarshalKey("bands"|"strategy"|"scoring"|"catalog"|"catalog.publish", &ownStruct)` with own defaults + semantic validation.
-- F30-publishing: `Load(cfg)` + `UnmarshalKey("catalog.publish", …)` per DECISION B; F30 SPEC owns the full `[catalog.publish]` key table (annex-b §8).
+- F30-publishing: `Load(cfg)` + the complete shared `UnmarshalKey("catalog", …)` schema per DECISION B; F30 SPEC owns the full `[catalog.publish]` key table (annex-b §8).
 
 ### Environment rendering correction (#167)
 
@@ -300,3 +300,11 @@ Legacy migration supports an XDG destination on a different filesystem. When
 rename returns EXDEV, files are copied with atomic replacement before source
 removal; directory trees retain first-wins merging. A failed copy retains its
 source. Pin `TestLegacyCrossDeviceMove`.
+
+
+## Catalog schema correction — #167 review
+
+All catalog consumers, including desktop benchmark-group loading, decode the
+complete shared catalog schema. The legacy `catalog.publish.run_tests` boolean
+remains accepted for config/env compatibility; the option does not change generated workflow behavior. F30 owns the
+verification steps (paired-artifact verification is introduced by #165).

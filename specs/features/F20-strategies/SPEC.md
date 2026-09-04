@@ -68,3 +68,14 @@ Only `priority` and `round-robin` work when usage is disabled. `least-used`, `mo
 - Candidate scoring and `FinalScore` calculation — F10/F19.
 - Usage fetching and normalization — F14 and provider adapters.
 - CLI rendering, history, and exit-code mapping — F26.
+
+### Cursor corruption recovery (#169)
+
+Absent/unreadable, malformed, non-object, or null cursor documents restart with a
+non-nil empty scope map. A JSON type error discards the entire document, including
+partially decoded entries. In an otherwise valid map, negative and maximal-int
+indices reset only that scope to zero before selection or increment, preventing
+slice-index panics and overflow. Other valid scopes are preserved. Dry runs use
+the recovered cursor without persisting corrections; real runs rotate normally
+under the existing exclusive lock and permissions. This makes the existing
+corruption-recovery promise apply to semantic corruption as well as syntax errors.

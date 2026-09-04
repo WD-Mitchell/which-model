@@ -29,6 +29,7 @@ All non-window structs are `struct{ svc *service.Services }`; every method deleg
 type ProfilesAPI struct{ svc *service.Services }
 func (a *ProfilesAPI) List() ([]service.ProfileSummary, error)
 func (a *ProfilesAPI) Get(slug string) (service.ProfileDetail, error)
+func (a *ProfilesAPI) Create(p service.ProfileDetail) error
 func (a *ProfilesAPI) Save(p service.ProfileDetail) error
 func (a *ProfilesAPI) Duplicate(slug string) (service.ProfileDetail, error)
 func (a *ProfilesAPI) Delete(slug string) error
@@ -99,17 +100,16 @@ func registerServices(app *application.App, svc *service.Services, win *WindowSe
 
 | Go return | TS binding | Rejection |
 |---|---|---|
-| `(DTO, error)` | `Promise<DTO>` (snake_case JSON) | error JSON-serialised; `*service.Error` → `{code, message}` |
+| `(DTO, error)` | `Promise<DTO>` (snake_case JSON) | error normalized to `service.ErrorDTO`; Wails rejects with `RuntimeError.cause = {code, message}` |
 | `error` | `Promise<void>` | same |
 
-Bound methods MUST NOT return bare `errors.New` for contract-path failures — always `*service.Error` with a D00 §4 code, so every rejection is ErrorDTO-shaped.
+Bound methods MUST NOT return bare `errors.New` for contract-path failures — always `service.ErrorDTO` with a D00 §4 code, so every rejection is ErrorDTO-shaped.
 
 ## 4. wailsHost + host switch (TS)
 
 ```ts
 // apps/desktop/src/host/wailsHost.ts
-export class EngineError extends Error { code: string }           // code ∈ D00 §4
-export function toEngineError(e: unknown): EngineError            // ErrorDTO shape → typed; else {code:'io_error', message:String(e)}
+export function toEngineError(e: unknown): ErrorDTO // direct DTO or RuntimeError.cause; else io_error
 export function createWailsHost(): EngineHost
 // on(): Events.On(event, h) with D00 §3 names verbatim; h unwraps envelope → cb(payload); returns Wails' unsubscribe.
 // Also forwards the shell-local `host:notice` event (S05 CONTRACTS §2 deviation).
@@ -129,6 +129,16 @@ Every group method: `(...args) => Binding.Method(...args).catch(e => { throw toE
 
 ## 6. Verification
 
-- Unit: none in Go (wrappers are delegation only). `check:host` green against freshly generated bindings is the automated gate; CI runs it on every push.
+- Unit: native binding tests marshal real service errors and verify their stable codes. `check:host` green against freshly generated bindings is the automated gate; CI runs it on every push.
 - Manual (integration gate): `task desktop:dev` → popover lists real profiles from `config.toml`; edit a weight in settings → `config:changed` observed via `host.on` → popover rank refreshes; force an engine error (delete a builtin profile) → rejection surfaces with `code === 'builtin_readonly'`.
 - Browser mode: `pnpm --filter desktop dev:browser` → full UI on mock data in an ordinary browser, no Wails runtime errors in console.
+
+## Review correction — #32: structured native error envelope
+
+All bound engine facets normalize errors through exported `service.ToErrorDTO` before Wails serialization. `bindingError(nil)` remains nil and `bindingResult` preserves successful values. The mapper retains the existing sentinel, DTO pass-through, and sanitization behavior. Wails RuntimeError carries the serialized ErrorDTO in `cause`; frontend normalization accepts either a validated direct DTO (mocks) or one validated cause object. Code must be a known D00 code and message a string; arrays, null, malformed/unknown codes, and ordinary errors use `io_error`. Human-readable messages are never parsed for codes.
+
+Pinned regressions marshal invalid-slug/missing-profile native errors, preserve nil success, and exercise the installed RuntimeError class plus a generated-call rejection and malformed cause cases.
+
+## Create-only profile binding — #171
+
+ProfilesAPI additionally binds `Create(ProfileDetail) error`; bindings are regenerated through the pinned Wails generator. An occupied slug crosses the native boundary as `conflict`, verified by `TestProfilesBindingStructuredErrors`.

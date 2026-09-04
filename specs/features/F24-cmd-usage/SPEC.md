@@ -80,3 +80,7 @@ project: which-model
 - The `--login` inline-auth flag on `usage` (belongs to the auth feature family, annex-d §2.2).
 - Any provider fetch logic itself: F24 only wires flags and renders; fetching is F14, credentials are F12.
 - `which-model serve`, hooks, skills (other features).
+
+## Forced-source execution correction (#184)
+
+After #28 validates `--source`, F14 enforces it for the resolved credential, including managed fallback, before native fetch. A mismatch yields sanitized `login_required` without invoking the provider. A fresh online cache is eligible only when its original source matches the forced source; unknown/mismatched provenance proceeds to the matching live path. Empty source preserves automatic precedence; `--source cache` and offline mode remain cache-only. Regression coverage is pinned in F14 CONTRACTS: managed OAuth/API mismatch, matching/auto fallback, and matching/mismatched/unknown stored provenance. Human codeowner review is required before merge.

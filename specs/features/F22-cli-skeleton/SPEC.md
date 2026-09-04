@@ -192,3 +192,7 @@ features (registered via `RegisterExitCode`).
 - Per-key config-layer provenance in `_sources` (D10).
 - Validation of foreign config sections in `config validate` (D12; owners validate at use time).
 - Shell completion generation for the aliases (flag completion only, D13).
+
+## Nested execution correction (#162)
+
+Hooks execute underlying CLI commands in the same process. Each nested command must use fresh Cobra command instances and restore the outer global flags and streams afterward. This prevents mutable parent pointers and parsed flags from redirecting the hook envelope or leaking request state across invocations. F29 governs host-context and inherited-flag behavior; its CLI integration tests pin the nested execution contract.

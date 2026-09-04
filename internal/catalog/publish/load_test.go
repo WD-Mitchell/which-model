@@ -1,8 +1,8 @@
 package publish
 
 import (
-	"encoding/json"
 	"errors"
+	"github.com/BurntSushi/toml"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -18,50 +18,37 @@ type fakeCfg struct {
 
 func (f fakeCfg) UnmarshalKey(key string, out any) error { return f.fn(key, out) }
 
-// jsonRoundTrip decodes v into out through encoding/json, mirroring F01's
-// UnmarshalKey semantics (missing value = out untouched). Map keys are
-// normalized like F01's TOML matching: case-insensitive with underscores
-// ignored.
-func jsonRoundTrip(v any, out any) error {
-	data, err := json.Marshal(normalizeKeys(v))
+// kv uses the real strict table-only decoder; scalar-permissive fakes hid #166.
+func kv(t *testing.T, key string, value any) *config.Config {
+	t.Helper()
+	doc := map[string]any{}
+	if value != nil {
+		switch key {
+		case "catalog.publish":
+			doc["catalog"] = map[string]any{"publish": value}
+		case "catalog":
+			doc["catalog"] = value
+		default:
+			t.Fatalf("unsupported fixture key %q", key)
+		}
+	}
+	data, err := toml.Marshal(doc)
 	if err != nil {
-		return err
+		t.Fatal(err)
 	}
-	return json.Unmarshal(data, out)
-}
-
-func normalizeKeys(v any) any {
-	switch x := v.(type) {
-	case map[string]any:
-		out := make(map[string]any, len(x))
-		for k, val := range x {
-			out[strings.ToLower(strings.ReplaceAll(k, "_", ""))] = normalizeKeys(val)
-		}
-		return out
-	case []any:
-		out := make([]any, len(x))
-		for i, val := range x {
-			out[i] = normalizeKeys(val)
-		}
-		return out
-	default:
-		return v
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		t.Fatal(err)
 	}
-}
-
-// kv returns a fake returning v for key and the zero value (nil) for every
-// other key.
-func kv(key string, v any) fakeCfg {
-	return fakeCfg{fn: func(k string, out any) error {
-		if k != key {
-			return jsonRoundTrip(nil, out)
-		}
-		return jsonRoundTrip(v, out)
-	}}
+	cfg, err := config.LoadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return cfg
 }
 
 func TestLoadMissingSection(t *testing.T) {
-	pc, err := Load(kv("catalog.publish", nil))
+	pc, err := Load(kv(t, "catalog.publish", nil))
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -85,28 +72,12 @@ func TestLoadMissingSection(t *testing.T) {
 }
 
 func TestLoadFullSection(t *testing.T) {
-	cfg := fakeCfg{fn: func(key string, out any) error {
-		switch key {
-		case "catalog.publish":
-			return jsonRoundTrip(map[string]any{
-				"enabled":        true,
-				"schedule":       "15 8 * * *",
-				"timezone":       "America/New_York",
-				"environment":    "csv-update",
-				"branches":       []any{"main", "release"},
-				"mode":           "pull-request",
-				"auto_merge":     true,
-				"merge_method":   "squash",
-				"commit_message": "chore: custom commit",
-				"pr_title":       "chore: custom PR",
-				"pr_labels":      []any{"data", "automated"},
-			}, out)
-		case "catalog.raw_csv_path":
-			return jsonRoundTrip("custom_raw.csv", out)
-		default:
-			return jsonRoundTrip(nil, out)
-		}
-	}}
+	cfg := kv(t, "catalog", map[string]any{
+		"raw_csv_path": "custom_raw.csv",
+		"publish": map[string]any{
+			"enabled": true, "schedule": "15 8 * * *", "timezone": "America/New_York", "environment": "csv-update", "branches": []string{"main", "release"}, "mode": "pull-request", "auto_merge": true, "merge_method": "squash", "commit_message": "chore: custom commit", "pr_title": "chore: custom PR", "pr_labels": []string{"data", "automated"},
+		},
+	})
 	pc, err := Load(cfg)
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
@@ -136,7 +107,7 @@ func TestLoadValidationErrors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := Load(kv("catalog.publish", tt.values))
+			_, err := Load(kv(t, "catalog.publish", tt.values))
 			if err == nil {
 				t.Fatalf("Load() = nil, want error containing %q", tt.wantSub)
 			}
@@ -160,7 +131,7 @@ func TestLoadUnmarshalErrorPropagated(t *testing.T) {
 }
 
 func TestLoadPRLabelsDeduplicated(t *testing.T) {
-	pc, err := Load(kv("catalog.publish", map[string]any{"pr_labels": []any{"data", "data", "x"}}))
+	pc, err := Load(kv(t, "catalog.publish", map[string]any{"pr_labels": []any{"data", "data", "x"}}))
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -170,7 +141,7 @@ func TestLoadPRLabelsDeduplicated(t *testing.T) {
 }
 
 func TestLoadDirectPushValuesUsed(t *testing.T) {
-	pc, err := Load(kv("catalog.publish", map[string]any{"mode": "direct-push", "auto_merge": false}))
+	pc, err := Load(kv(t, "catalog.publish", map[string]any{"mode": "direct-push", "auto_merge": false}))
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -211,7 +182,7 @@ pr_labels = ["data", "automated"]
 }
 
 func TestLoadEnabledFalse(t *testing.T) {
-	pc, err := Load(kv("catalog.publish", map[string]any{"enabled": false}))
+	pc, err := Load(kv(t, "catalog.publish", map[string]any{"enabled": false}))
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -222,5 +193,63 @@ func TestLoadEnabledFalse(t *testing.T) {
 		pc.MergeMethod != DefaultMergeMethod || !pc.AutoMerge ||
 		!reflect.DeepEqual(pc.Branches, DefaultBranches) || !reflect.DeepEqual(pc.PRLabels, DefaultPRLabels) {
 		t.Errorf("other fields must keep defaults: %+v", pc)
+	}
+}
+
+func TestLoadFullCatalogRealConfig(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	body := `[catalog]
+raw_csv_path = "custom raw.csv"
+scores_csv_path = "custom scores.csv"
+cache_ttl = "12h"
+warn_on_stale_scores = true
+[catalog.publish]
+enabled = true
+branches = ["main"]
+`
+	if err := os.WriteFile(path, []byte(body), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.LoadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pc, err := Load(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pc.RawCSVPath != "custom raw.csv" {
+		t.Fatalf("raw path = %q", pc.RawCSVPath)
+	}
+}
+
+func TestLoadPairedArtifactPaths(t *testing.T) {
+	for _, same := range []bool{false, true} {
+		raw := "custom raw.csv"
+		scores := "custom scores.csv"
+		if same {
+			scores = "./custom raw.csv"
+		}
+		cfg := kv(t, "catalog", map[string]any{"raw_csv_path": raw, "scores_csv_path": scores})
+		pc, err := Load(cfg)
+		if same {
+			if err == nil {
+				t.Fatal("identical artifact paths accepted")
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if pc.RawCSVPath != raw || pc.ScoresCSVPath != scores {
+			t.Fatalf("paths: %+v", pc)
+		}
+	}
+	defaults, err := Load(config.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if defaults.ScoresCSVPath != "data/available_model_scores.csv" {
+		t.Fatalf("default scores path = %q", defaults.ScoresCSVPath)
 	}
 }

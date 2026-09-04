@@ -100,3 +100,10 @@ Legacy migration supports an XDG destination on a different filesystem. When
 rename returns EXDEV, files are copied with atomic replacement before source
 removal; directory trees retain first-wins merging. A failed copy retains its
 source. Pin `TestLegacyCrossDeviceMove`.
+
+## Catalog schema correction — #167 review
+
+All catalog consumers, including desktop benchmark-group loading, decode the
+complete shared catalog schema. The legacy `catalog.publish.run_tests` boolean
+remains accepted for config/env compatibility; the option does not change generated workflow behavior. F30 owns the
+verification steps (paired-artifact verification is introduced by #165).
