@@ -65,3 +65,19 @@ Depends on: S01 (scaffold, wails config), B02 (`service.New`, `StartRefresher`, 
 | Tray icon form | Template PNG (@1x/@2x) embedded via `go:embed`, SVG source kept in-repo | macOS wants template rasters for auto light/dark tinting; SVG is the editable source of truth |
 | Single-instance action | second launch → show popover | Menu-bar apps must not spawn twice; showing the popover is the least surprising response |
 | Wails API verification | NOT verified against the module — `go doc` unavailable offline (module absent from cache, proxy fetch failed with checksum error). All `application.*` names in this pair follow the published v3 alpha surface and are **verify at implementation** | Recorded per process rules; the pinned go.mod version is authoritative |
+
+
+## Shutdown lifecycle correction — #51
+
+Application shutdown first marks the application as quitting, then cancels the
+tracked tray startup fallback and popover focus-reclaim timers, and closes the
+event bridge. The normal ApplicationStarted callback cancels its fallback timer;
+hiding the popover cancels its pending focus timer. Focus callbacks check the
+show generation and quitting state before touching the window. Timer cancellation
+is idempotent. Closing the bridge is safe concurrently through sync.Once and
+signals its drain goroutine to exit; main also defers Close for early returns.
+Already-running callbacks retain their existing native-runtime lifetime constraints.
+
+Pinned regressions in cmd/which-model-desktop/shutdown_test.go verify repeated
+timer cancellation, hide cancellation, and concurrent bridge closure.
+Run: `go test -race ./cmd/which-model-desktop`.
