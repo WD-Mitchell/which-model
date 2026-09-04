@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -188,5 +190,27 @@ func TestProfileCustomGroupSaveAndRank(t *testing.T) {
 	}
 	if _, err := svc.Rank(ctx, RankRequest{Overrides: &d}); !errors.Is(err, errValidation) {
 		t.Fatalf("unknown preview=%v", err)
+	}
+}
+
+func TestProfileRequestErrorsPrecedeStoredProfileDecode(t *testing.T) {
+	svc, _ := newTestServices(t)
+	path := filepath.Join(t.TempDir(), "bad.toml")
+	if err := os.WriteFile(path, []byte("[profiles.broken]\ncore_share = 'bad'\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.cfg.DecodeFile(path); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		detail ProfileDetail
+		want   error
+	}{
+		{ProfileDetail{Slug: "planning"}, errBuiltinReadonly},
+		{ProfileDetail{Slug: "custom", Name: "Custom", CoreShare: 0}, errValidation},
+	} {
+		if err := svc.Profiles().Save(context.Background(), tc.detail); !errors.Is(err, tc.want) {
+			t.Fatalf("got %v, want %v", err, tc.want)
+		}
 	}
 }
