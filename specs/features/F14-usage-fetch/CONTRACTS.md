@@ -102,6 +102,23 @@ func SourceFor(cred usage.Credential, kind usage.Kind) usage.Source
 | Missing, stale, corrupt, or Refresh cache | One live fetch; successful result cached before identity redaction |
 | Two-minute cache, MaxAge 60s / 15m | Fetch / hit respectively |
 
+## Review regression contract (#181)
+
+| Scenario | Required result |
+|---|---|
+| Explicit CodexBar timeout / absent timeout | Provider context uses requested budget / 10s default |
+| Earlier parent deadline or cancellation | Parent remains the upper bound and returns batch error |
+| Blocked provider and successful sibling | `timeout` data for blocked provider; sibling retained |
+
+
+## Managed lookup deadline correction — #181 review
+
+The provider budget bounds managed keychain lookup as well as the CodexBar
+process. Because the OS keychain interface cannot cancel an active prompt,
+return on context cancellation and discard the late result; permit at most four
+outstanding such calls process-wide. Do not launch CodexBar after the lookup
+exhausts the budget. Pin blocked-keychain deadline and earlier-parent tests.
+
 
 ## Cache source correction — #180 review
 

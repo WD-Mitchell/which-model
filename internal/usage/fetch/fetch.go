@@ -446,15 +446,25 @@ func fetchCodexBarAll(ctx context.Context, providers []string, opts Options) ([]
 					return nil
 				}
 			}
-			environment := codexbarCredentialEnvironment(gctx, id, opts)
+			timeout := opts.Timeout
+			if timeout <= 0 {
+				timeout = DefaultTimeoutSec
+			}
+			pctx, cancel := context.WithTimeout(gctx, timeout)
+			defer cancel()
+			environment := codexbarCredentialEnvironment(pctx, id, opts)
 			var snap usage.Snapshot
 			var err error
-			if len(environment) == 0 {
-				snap, err = codexbarFetch(gctx, id, opts.Source)
+			if pctx.Err() != nil {
+				err = pctx.Err()
+			} else if len(environment) == 0 {
+				snap, err = codexbarFetch(pctx, id, opts.Source)
 			} else {
-				snap, err = codexbarFetchEnvironment(gctx, id, opts.Source, environment)
+				snap, err = codexbarFetchEnvironment(pctx, id, opts.Source, environment)
 			}
-			if err != nil {
+			if errors.Is(pctx.Err(), context.DeadlineExceeded) {
+				snap = usage.Snapshot{Provider: id, Source: usage.SourceCLI, Failure: &usage.Failure{Code: "timeout", Message: "codexbar usage request timed out"}}
+			} else if err != nil {
 				var notFound *codexbar.BinaryNotFoundError
 				message := "codexbar usage fetch failed"
 				if errors.As(err, &notFound) {
