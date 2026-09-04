@@ -43,6 +43,9 @@ func (p *ProfileService) Get(ctx context.Context, slug string) (ProfileDetail, e
 // on d are ignored.
 func (p *ProfileService) Save(ctx context.Context, d ProfileDetail) error
 
+// Create rejects every occupied slug with errConflict under the writer lock.
+func (p *ProfileService) Create(ctx context.Context, d ProfileDetail) error
+
 // Duplicate copies slug (built-in or custom) to the first free of
 // <slug>_copy, <slug>_copy_2, ... in the merged set; persists it as a custom
 // (Builtin false, Name = new slug, Picks 0, LastUsed ""), emits
@@ -78,7 +81,7 @@ func validateComplexityScale(scale []string, profiles map[string]catalog.Profile
 
 | Method | Event | Payload |
 |---|---|---|
-| Save, Duplicate, Delete (success) | `config:changed` | `{"section": "profiles"}` |
+| Create, Save, Duplicate, Delete (success) | `config:changed` | `{"section": "profiles"}` |
 | List, Get, ComplexityScale; any failed mutation | — none — | |
 
 Exactly one event per successful mutation (D00 §2.4), asserted via B02's `emitRecorder`.
@@ -123,3 +126,12 @@ Verify: `go test ./internal/service/ -run TestProfile`.
 | `dtoWeights`, `engineWeights`, `engineProfile`, sentinels, `newTestServices`, `emitRecorder` | B02 CONTRACTS |
 | `[profiles.*]` TOML accessors | B01 CONTRACTS |
 | profile stats aggregation (`ProfileStats`) | B11 CONTRACTS |
+
+## Review regression rows
+
+| Case | Required result |
+|---|---|
+| Two concurrent Create calls for one free slug | Exactly one success, one `conflict`, one event; winning weights persist |
+| Create existing custom/builtin | `conflict`; no replacement or event |
+| Save existing custom | Replaces weights; one event |
+| Failed profile persistence | Clone discarded; no live mutation or event |

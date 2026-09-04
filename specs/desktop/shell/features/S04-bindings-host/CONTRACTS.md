@@ -29,6 +29,7 @@ All non-window structs are `struct{ svc *service.Services }`; every method deleg
 type ProfilesAPI struct{ svc *service.Services }
 func (a *ProfilesAPI) List() ([]service.ProfileSummary, error)
 func (a *ProfilesAPI) Get(slug string) (service.ProfileDetail, error)
+func (a *ProfilesAPI) Create(p service.ProfileDetail) error
 func (a *ProfilesAPI) Save(p service.ProfileDetail) error
 func (a *ProfilesAPI) Duplicate(slug string) (service.ProfileDetail, error)
 func (a *ProfilesAPI) Delete(slug string) error
@@ -137,3 +138,7 @@ Every group method: `(...args) => Binding.Method(...args).catch(e => { throw toE
 All bound engine facets normalize errors through exported `service.ToErrorDTO` before Wails serialization. `bindingError(nil)` remains nil and `bindingResult` preserves successful values. The mapper retains the existing sentinel, DTO pass-through, and sanitization behavior. Wails RuntimeError carries the serialized ErrorDTO in `cause`; frontend normalization accepts either a validated direct DTO (mocks) or one validated cause object. Code must be a known D00 code and message a string; arrays, null, malformed/unknown codes, and ordinary errors use `io_error`. Human-readable messages are never parsed for codes.
 
 Pinned regressions marshal invalid-slug/missing-profile native errors, preserve nil success, and exercise the installed RuntimeError class plus a generated-call rejection and malformed cause cases.
+
+## Create-only profile binding — #171
+
+ProfilesAPI additionally binds `Create(ProfileDetail) error`; bindings are regenerated through the pinned Wails generator. An occupied slug crosses the native boundary as `conflict`, verified by `TestProfilesBindingStructuredErrors`.

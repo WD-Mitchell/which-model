@@ -39,6 +39,10 @@ func bindingResult[T any](value T, err error) (T, error) {
 	return value, bindingError(err)
 }
 
+func (a *ProfilesAPI) Create(p service.ProfileDetail) error {
+	return bindingError(a.svc.Profiles().Create(ctx, p))
+}
+
 func (a *ProfilesAPI) Save(p service.ProfileDetail) error {
 	return bindingError(a.svc.Profiles().Save(ctx, p))
 }

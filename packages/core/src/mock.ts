@@ -602,6 +602,12 @@ export function createMockEngineHost(
       async get(slug) {
         return clone(requireProfile(slug))
       },
+      async create(p) {
+        if (!SLUG_RE.test(p.slug)) throw new EngineError('validation_failed', `invalid profile slug "${p.slug}"`)
+        if (data.profiles.some((x) => x.slug === p.slug)) throw new EngineError('conflict', `profile "${p.slug}" already exists`)
+        data.profiles.push({ ...clone(p), builtin: false, picks: 0, last_used: '' })
+        emit('config:changed', { section: 'profiles' })
+      },
       async save(p) {
         if (!SLUG_RE.test(p.slug)) {
           throw new EngineError('validation_failed', `invalid profile slug "${p.slug}"`)
