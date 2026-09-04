@@ -61,3 +61,11 @@ Depends on: U04 (`ProfileWeightSparkbar`), U07 (settings shell, `DetailHeader`, 
 ## Review correction — #171: create without replacing
 
 New profile uses atomic `profiles.create`, starts at list count + 1, retries the next integer only on conflict, and disables submission while pending. The list-count collision regression verifies that an existing profile retains its weights while the new profile opens at the next free slug.
+
+## Review correction — #172: durable editor saves
+
+Each detail editor is keyed by slug and owns one serialized autosave queue. It retains the latest snapshot, debounces profile edits by 300ms, and flushes exactly once on navigation/unmount. Duplicate waits for the queue; Delete disables editing, drains the queue, deletes the identity, and cancels retained work before navigation. An older completion or error cannot clear a newer draft. Successful saves refetch the detail; failures toast and refetch persisted truth. Clean editors render fresh server data directly.
+
+The persistence barrier is shared by entity identity across editor mounts. Reopening an entity waits for the prior mount's final write and refetches before accepting edits; duplicate/delete/rename also wait for outstanding persistence.
+
+Pinned regressions: duplicate contains pending weights; delete never recreates the profile; delayed completion/error retains a newer draft; delay a flushed write, navigate away and reopen, then edit again—the final saved snapshot includes both edits in order.

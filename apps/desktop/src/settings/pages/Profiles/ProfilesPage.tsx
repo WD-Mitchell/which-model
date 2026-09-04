@@ -7,6 +7,8 @@
 //     labels, and the core/task balance rail.
 // Both supply their own 22px gutter: <main> has none (U07 layout contract).
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { createAutosave, hasActiveAutosave, whenAutosaveIdle } from '../../../lib/autosave'
 import {
   BalanceSlider,
   Button,
@@ -169,7 +171,7 @@ export function ProfilesPage({ detail, openDetail, closeDetail }: PageComponentP
 
   const detailPage =
     detail?.kind === 'profile' ? (
-      <ProfileDetailView slug={detail.id} onBack={closeDetail} openDetail={openDetail} />
+      <ProfileDetailView key={detail.id} slug={detail.id} onBack={closeDetail} openDetail={openDetail} />
     ) : null
 
   if (detailPage) {
@@ -287,37 +289,64 @@ function ProfileDetailView({
   const { data: profile } = useProfile(slug)
   const { data: settings } = useSettings()
   const [local, setLocal] = useState<ProfileDetail | null>(null)
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
+  const qc = useQueryClient()
+  const persistenceKey = 'profile:' + slug
+  const [opening] = useState(() => hasActiveAutosave(persistenceKey))
+  const busyRef = useRef(opening)
+  const [busy, setBusy] = useState(opening)
+  const [queue] = useState(() => createAutosave<ProfileDetail>(
+    async (next) => {
+      await getHost().profiles.save(next)
+      await qc.invalidateQueries({ queryKey: ['profile', slug] })
+    },
+    {
+      key: persistenceKey,
+      delay: 300,
+      onSuccess: (_next, generation) => { if (queue.isCurrent(generation)) setLocal(null) },
+      onError: async (error, generation) => {
+        toast.show((error as { message?: string }).message ?? 'save failed')
+        await qc.invalidateQueries({ queryKey: ['profile', slug] })
+        if (queue.isCurrent(generation)) setLocal(null)
+      },
+    },
+  ))
   const sliderStyle = settings?.weight_control ?? 'slider'
   const current = local ?? profile
 
-  // Reset local draft when the loaded profile changes.
-  useEffect(() => {
-    if (profile) setLocal(null)
-  }, [profile])
+  const scheduleSave = useCallback((next: ProfileDetail) => {
+    if (busyRef.current || next.builtin) return
+    setLocal(next)
+    queue.schedule(next)
+  }, [queue])
 
-  const scheduleSave = useCallback(
-    (next: ProfileDetail) => {
-      setLocal(next)
-      if (saveTimer.current) clearTimeout(saveTimer.current)
-      saveTimer.current = setTimeout(() => {
-        void getHost()
-          .profiles.save(next)
-          .catch((e) => {
-            toast.show((e as { message?: string }).message ?? 'save failed')
-            setLocal(null) // re-sync with persisted truth
-          })
-      }, 300)
-    },
-    [toast],
-  )
+  useEffect(() => () => { void queue.flush().catch(() => {}) }, [queue])
 
+  // Returning to an editor waits for a previous mount's final write and reads
+  // that saved snapshot before accepting another full-profile/list edit.
   useEffect(() => {
-    return () => {
-      if (saveTimer.current) clearTimeout(saveTimer.current)
-    }
-  }, [])
+    if (!opening) return
+    let mounted = true
+    void whenAutosaveIdle(persistenceKey)
+      .then(() => qc.invalidateQueries({ queryKey: ['profile', slug] }))
+      .finally(() => { if (mounted) { busyRef.current = false; setBusy(false) } })
+    return () => { mounted = false }
+  }, [opening, persistenceKey, qc, slug])
+
+
+  const remove = async () => {
+    if (busyRef.current) return
+    busyRef.current = true
+    setBusy(true)
+    try {
+      await queue.flush()
+      await getHost().profiles.delete(slug)
+      queue.cancelPending()
+      toast.show(`deleted ${slug}`)
+      onBack()
+    } catch (error) {
+      toast.show((error as { message?: string }).message ?? 'delete failed')
+    } finally { busyRef.current = false; setBusy(false) }
+  }
 
   if (!current) {
     return <div className={styles.placeholder}>{'Loading…'}</div>
@@ -346,18 +375,21 @@ function ProfileDetailView({
   // Mockup `pfRow` (demo.dc.html L1128-1146) colours a row by its value only —
   // no benchmark is singled out with the accent here.
   const coreRows = CORE_KEYS.map((k) => ({ key: k as string, value: current.tier1_weights[k] ?? 0 }))
-  const taskRows = Object.keys(current.tier2_weights)
-    .sort()
+  const taskRows = Object.keys(current.tier2_weights).sort()
     .map((k) => ({ key: k, value: current.tier2_weights[k] ?? 0 }))
 
-  const duplicate = () =>
-    void getHost()
-      .profiles.duplicate(slug)
-      .then((d) => {
-        toast.show(`editing ${d.slug}`)
-        openDetail({ kind: 'profile', id: d.slug })
-      })
-      .catch(() => {})
+  const duplicate = async () => {
+    if (busyRef.current) return
+    busyRef.current = true
+    setBusy(true)
+    try {
+      await queue.flush()
+      const copy = await getHost().profiles.duplicate(slug)
+      toast.show(`editing ${copy.slug}`)
+      openDetail({ kind: 'profile', id: copy.slug })
+    } catch (error) { toast.show((error as { message?: string }).message ?? 'duplicate failed') }
+    finally { busyRef.current = false; setBusy(false) }
+  }
 
   return (
     <div className={styles.page}>
@@ -379,7 +411,7 @@ function ProfileDetailView({
           {`${weighted} of ${total} benchmarks weighted · ${current.picks.toLocaleString()} picks`}
         </span>
         <span className={styles.detailActions}>
-          <Button variant="ghost" size="xs" onClick={duplicate}>
+          <Button variant="ghost" size="xs" disabled={busy} onClick={duplicate}>
             {readOnly ? 'Duplicate & edit' : 'Duplicate'}
           </Button>
           <button
@@ -387,16 +419,8 @@ function ProfileDetailView({
             className={'ib' + (readOnly ? ' off' : '') + ' ' + styles.iconBtnLg}
             title={readOnly ? 'Built-in profile — cannot be deleted' : 'Delete this profile'}
             aria-label={readOnly ? 'Built-in profile — cannot be deleted' : 'Delete this profile'}
-            disabled={readOnly}
-            onClick={() =>
-              void getHost()
-                .profiles.delete(slug)
-                .then(() => {
-                  toast.show(`deleted ${slug}`)
-                  onBack()
-                })
-                .catch((e) => toast.show((e as { message?: string }).message ?? 'delete failed'))
-            }
+            disabled={readOnly || busy}
+            onClick={() => void remove()}
           >
             <TrashIcon size={13} />
           </button>
@@ -416,11 +440,11 @@ function ProfileDetailView({
             value={r.value}
             labelWidth={150}
             valueStyle="verbose"
-            readOnly={readOnly}
+            readOnly={readOnly || busy}
             // Core axes are required keys (engine rule 3), so they cannot be
             // dropped to "ignored" the way a task benchmark below can.
             min={1}
-            onChange={readOnly ? undefined : (v) => handleWeight(r.key, v)}
+            onChange={readOnly || busy ? undefined : (v) => handleWeight(r.key, v)}
           />
         ))}
       </div>
@@ -445,8 +469,8 @@ function ProfileDetailView({
               value={r.value}
               labelWidth={150}
               valueStyle="verbose"
-              readOnly={readOnly}
-              onChange={readOnly ? undefined : (v) => handleWeight(r.key, v)}
+              readOnly={readOnly || busy}
+              onChange={readOnly || busy ? undefined : (v) => handleWeight(r.key, v)}
             />
           ))}
         </div>
@@ -455,7 +479,7 @@ function ProfileDetailView({
       {/* Balance rail closes the page — it weighs the two sections above it,
           so it can only be read after them (mockup L390-396). */}
       <div className={styles.balance}>
-        <BalanceSlider core={current.core_share} readOnly={readOnly} showRatio onChange={handleBalance} />
+        <BalanceSlider core={current.core_share} readOnly={readOnly || busy} showRatio onChange={handleBalance} />
       </div>
     </div>
   )
