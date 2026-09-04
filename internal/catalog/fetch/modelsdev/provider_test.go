@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/WD-Mitchell/which-model/internal/catalog/fetch"
@@ -212,11 +213,27 @@ func TestFetchModelsDevProvidersErrors(t *testing.T) {
 		}
 	})
 
-	t.Run("closed server -> network", func(t *testing.T) {
-		srv := newTestServer(t, `[]`, http.StatusOK)
-		url := srv.URL
-		srv.Close()
-		_, err := FetchModelsDevProvidersFrom(httpkit.NewClient(), url)
+	t.Run("dial failure -> network", func(t *testing.T) {
+		// A closed test server's port can be reused before the retry. Inject
+		// the transport failure so both attempts exercise the network path.
+		dialErr := errors.New("fixture connection refused")
+		var attempts atomic.Int32
+		old := http.DefaultTransport
+		transport := &http.Transport{
+			DialContext: func(context.Context, string, string) (net.Conn, error) {
+				attempts.Add(1)
+				return nil, dialErr
+			},
+		}
+		http.DefaultTransport = transport
+		t.Cleanup(func() {
+			transport.CloseIdleConnections()
+			http.DefaultTransport = old
+		})
+		_, err := FetchModelsDevProvidersFrom(httpkit.NewClient(), ProvidersURL)
+		if got := attempts.Load(); got != 2 {
+			t.Fatalf("dial attempts = %d, want 2 (one retry)", got)
+		}
 		var fe *fetch.Error
 		if !errors.As(err, &fe) {
 			t.Fatalf("error = %v, want *fetch.Error", err)
