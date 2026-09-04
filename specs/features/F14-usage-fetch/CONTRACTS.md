@@ -101,3 +101,11 @@ func SourceFor(cred usage.Credential, kind usage.Kind) usage.Source
 | Fresh CodexBar cache / two sequential online calls | No credential/subprocess/write on hit; one total live fetch |
 | Missing, stale, corrupt, or Refresh cache | One live fetch; successful result cached before identity redaction |
 | Two-minute cache, MaxAge 60s / 15m | Fetch / hit respectively |
+
+
+## Cache source correction — #180 review
+
+Before reusing an online CodexBar cache entry for an explicitly requested source,
+compare its original source with the request. Only then stamp the returned
+snapshot as cached. A mismatching cache entry causes live collection with the
+requested source. Explicit cache-only reads retain their existing policy.
