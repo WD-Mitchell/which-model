@@ -32,6 +32,7 @@ type PublishConfig struct {
     PRTitle        string
     PRLabels       []string
     RawCSVPath     string // from [catalog].raw_csv_path; blank -> default
+    ScoresCSVPath  string // from [catalog].scores_csv_path; blank -> publication default
 }
 
 // Defaults (annex-b §8.1; SPEC behaviour 2).
@@ -136,7 +137,8 @@ which-model catalog workflow --check [--out PATH]
 | `catalog.publish.commit_message` | string | `"chore(data): refresh available model scores"` | commit `-m` |
 | `catalog.publish.pr_title` | string | `"chore(data): refresh available model scores"` | `gh pr create --title` |
 | `catalog.publish.pr_labels` | array[string] | `["data", "automated"]` | one `--label` each |
-| `catalog.raw_csv_path` | string | `"available-model-data-export/available_model_raw_values.csv"` | sole `git add` path |
+| `catalog.raw_csv_path` | string | `"data/available_model_raw_values.csv"` | raw artifact path; staged together with scores |
+| `catalog.scores_csv_path` | string | `"data/available_model_scores.csv"` | generated score artifact; staged together with raw values |
 
 ## 4. Generated workflow shape (golden)
 
@@ -153,7 +155,7 @@ Full golden documents live in `specs/features/F30-publishing/TASKS.md` task F30-
 9. Exactly one trailing `\n`; LF line endings.
 
 ## 5. Cross-feature references (pinned)
-- F01 `internal/config`: `func (c *Config) UnmarshalKey(key string, out any) error` (DECISION B) — the `UnmarshalKeyer` interface is satisfied structurally; tests use a fake.
+- F01 `internal/config`: `func (c *Config) UnmarshalKey(key string, out any) error` (DECISION B) — the `UnmarshalKeyer` interface is satisfied structurally; tests use real strict TOML decoding (a fake is reserved for sentinel-error propagation).
 - F23 `pkg/whichmodel/catalog_cmd.go` — `workflow` subcommand added inside `NewCatalogCmd` after F23 lands.
 - `internal/security` (F05) usage: none required (no network, no credentials, no file reads beyond the workflow file).
 - Compiles under `-tags nousage`: `internal/catalog/publish` never imports `internal/usage` (annex-b §0 usage independence).
@@ -179,3 +181,19 @@ then reads raw artifact paths from the decoded root. Pick validates catalog
 configuration before loading scores and propagates config errors as exit 2.
 Empty consumer paths retain their previous defaults. This corrects scalar
 accessor guidance that contradicted F01's table-only contract.
+
+### Paired artifact publication correction (#165)
+
+This supersedes the former raw-only publication decision. Each refresh produces
+and publishes a coherent raw/scores pair. The standalone Python refresh receives
+`--output <RawCSVPath>`; `generate_scores.py` receives `--input <RawCSVPath>` and
+`--output <ScoresCSVPath>`. Before staging either artifact, run
+`python3 -m unittest discover -s .daily-update/tests -v`. Generation or test failure
+aborts publication. Both artifact arguments are shell-quoted consistently across
+refresh, generation, and staging. Equal normalized destinations are invalid.
+The score publication default is `data/available_model_scores.csv`, distinct from
+the CLI's cache-path default. PR CI runs the Python suite, preserving deterministic
+regeneration checks. The generator retains Python Decimal/schema behavior and
+requires no Go runtime. Checkout pins in the renderer, golden, and committed
+workflow remain synchronized. Regression cases cover custom paths, stage ordering,
+generator failure before staging, and repeat generation matching committed bytes.

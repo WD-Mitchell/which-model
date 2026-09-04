@@ -20,16 +20,20 @@ jobs:
       matrix:
         branch: ["main", "release"] # from [catalog.publish].branches, listed order
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ matrix.branch }}
           token: ${{ secrets.CSV_UPDATE_TOKEN || github.token }}
-      - run: python3 .daily-update/refresh-model-data.py
+      - run: |
+          python3 .daily-update/refresh-model-data.py --output 'data/available_model_raw_values.csv'
         env:
           ARTIFICIAL_ANALYSIS_API: ${{ secrets.ARTIFICIAL_ANALYSIS_API }}
+      - run: |
+          python3 .daily-update/generate_scores.py --input 'data/available_model_raw_values.csv' --output 'data/available_model_scores.csv'
+          python3 -m unittest discover -s .daily-update/tests -v
       - id: changes
         run: |
-          git add -- data/available_model_raw_values.csv
+          git add -- 'data/available_model_raw_values.csv' 'data/available_model_scores.csv'
           git diff --cached --quiet || echo "changed=true" >> "$GITHUB_OUTPUT"
       - if: steps.changes.outputs.changed == 'true'
         run: |

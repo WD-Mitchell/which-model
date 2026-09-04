@@ -25,4 +25,5 @@ type PublishConfig struct {
 	PRTitle       string   `toml:"pr_title"`
 	PRLabels      []string `toml:"pr_labels"`
 	RawCSVPath    string   `toml:"-"` // from [catalog].raw_csv_path; blank -> default
+	ScoresCSVPath string   `toml:"-"` // from [catalog].scores_csv_path; blank -> publication default
 }

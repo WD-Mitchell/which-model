@@ -222,3 +222,34 @@ branches = ["main"]
 		t.Fatalf("raw path = %q", pc.RawCSVPath)
 	}
 }
+
+func TestLoadPairedArtifactPaths(t *testing.T) {
+	for _, same := range []bool{false, true} {
+		raw := "custom raw.csv"
+		scores := "custom scores.csv"
+		if same {
+			scores = "./custom raw.csv"
+		}
+		cfg := kv(t, "catalog", map[string]any{"raw_csv_path": raw, "scores_csv_path": scores})
+		pc, err := Load(cfg)
+		if same {
+			if err == nil {
+				t.Fatal("identical artifact paths accepted")
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if pc.RawCSVPath != raw || pc.ScoresCSVPath != scores {
+			t.Fatalf("paths: %+v", pc)
+		}
+	}
+	defaults, err := Load(config.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if defaults.ScoresCSVPath != "data/available_model_scores.csv" {
+		t.Fatalf("default scores path = %q", defaults.ScoresCSVPath)
+	}
+}

@@ -3,6 +3,7 @@ package publish
 import (
 	"fmt"
 	"github.com/WD-Mitchell/which-model/internal/catalog"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -66,6 +67,7 @@ func Load(cfg UnmarshalKeyer) (*PublishConfig, error) {
 	}
 	pc := &cc.Publish
 	pc.RawCSVPath = firstNonEmpty(cc.RawCSVPath, "data/available_model_raw_values.csv")
+	pc.ScoresCSVPath = firstNonEmpty(cc.ScoresCSVPath, "data/available_model_scores.csv")
 	if err := Validate(pc); err != nil {
 		return nil, err
 	}
@@ -82,6 +84,9 @@ func firstNonEmpty(a, b string) string {
 // Validate checks mode/merge_method/branches/schedule/labels per SPEC
 // behaviour 3. Typed errors name the offending key.
 func Validate(pc *PublishConfig) error {
+	if pc.RawCSVPath != "" && pc.ScoresCSVPath != "" && filepath.Clean(pc.RawCSVPath) == filepath.Clean(pc.ScoresCSVPath) {
+		return &ValidationError{Message: "catalog.scores_csv_path must differ from catalog.raw_csv_path"}
+	}
 	switch pc.Mode {
 	case "pull-request", "direct-push":
 	default:
