@@ -68,3 +68,15 @@ All failures return `(zero Snapshot, *Error)` with `Error{Code, Message}` carryi
 - Keychain storage of codex credentials — the `.mjs` chain is file-only.
 - Build-tag `nousage` stubbing — F21's domain (global SPEC §4); DEPENDENCY-GRAPH §2 lists no `blocks` for F16.
 - Text rendering (`formatUsageReport` port) — F24's domain; this feature guarantees data-level parity.
+
+## Snapshot knowledge correction (#182)
+
+Successful fetches set the existing `Snapshot.UsageKnown` field to whether any normalized window has `UsageKnown && !Synthetic` (global CONTRACTS §1.5). A real zero reading, credits-only reading, or unlimited known window counts; synthetic-only and failed snapshots remain false. This corrects an omitted aggregate assignment without changing canonical types or the JSON schema. The aggregate flag survives F14 live fetch, cache serialization/replay, and JSON output.
+
+| Snapshot contents | `usage_known` |
+|---|---|
+| Real positive or zero reading | `true` |
+| Real credits-only or unlimited known reading, when supported | `true` |
+| Mixed real and synthetic windows, when supported | `true` |
+| Synthetic-only windows, when supported | `false` |
+| Provider failure | `false` |
