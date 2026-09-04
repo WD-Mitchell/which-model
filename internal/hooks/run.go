@@ -174,7 +174,7 @@ func dispatch(h Hook, code int, out []byte, opts Options) ([]byte, error) {
 			return approveFailOpen("model-audit", code), nil
 		}
 		var doc auditDocument
-		if err := json.Unmarshal(out, &doc); err != nil || doc.SchemaVersion != "2.0" || doc.Evidence == nil {
+		if err := json.Unmarshal(out, &doc); err != nil || doc.SchemaVersion != "2.0" || !doc.Evidence.valid() {
 			return approveFailOpen("model-audit", 0), nil
 		}
 		provider, modelID, ok := strings.Cut(doc.Candidate, ":")

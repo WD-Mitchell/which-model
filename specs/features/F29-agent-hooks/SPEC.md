@@ -139,3 +139,12 @@ All exit codes are within the fixed set (`specs/global/SPEC.md` §5): `0` succes
 The former stdin fixture override contradicted normal host hook delivery and is superseded by mandatory execution with host context. The former positional explain command and object-shaped candidate contradicted F26's existing history selector and string candidate contracts; F26 remains authoritative. Sanitized JSONL preserves every documented F26 evidence field and removes unrelated fields.
 
 Explicit global flags before `hooks run` are parsed before the hook name and forwarded to the underlying command. Arguments after the hook name override them. JSON remains required for underlying machine output; outer text/JSON rendering flags do not alter hook protocol. A regression covers outer offline/config/timeout and later timeout override.
+
+
+## Audit validation correction — #163 review
+
+Before creating any audit file, validate the required F26 evidence profile,
+score-input map, route provenance, and exclusions array, including enum values
+and optional age/date/band bounds. Missing or null required fields fail open
+without writing a plausible but incomplete audit record. Empty maps and arrays
+remain valid. Pin `TestAuditRejectsIncompleteEvidence`.

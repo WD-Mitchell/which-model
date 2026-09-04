@@ -198,3 +198,12 @@ None (uses the fixed 0/1/2 set; no new `Failure.Code` values — `specs/global/C
 `ExecuteCommand` builds fresh command instances and restores outer global flags/output streams. Runtime stdin never supplies command results. Model audit selects `--last` unless an explicit `--pick-id` is supplied; `WHICH_MODEL_CANDIDATE_ID` is a correlation check only. Evidence is decoded through the documented F26 fields, compacted to one JSONL line, and model ID is the suffix after the first colon. Invalid/mismatched evidence produces the established fail-open envelope and no write.
 
 Explicit global flags before `hooks run` are parsed before the hook name and forwarded to the underlying command. Arguments after the hook name override them. JSON remains required for underlying machine output; outer text/JSON rendering flags do not alter hook protocol. A regression covers outer offline/config/timeout and later timeout override.
+
+
+## Audit validation correction — #163 review
+
+Before creating any audit file, validate the required F26 evidence profile,
+score-input map, route provenance, and exclusions array, including enum values
+and optional age/date/band bounds. Missing or null required fields fail open
+without writing a plausible but incomplete audit record. Empty maps and arrays
+remain valid. Pin `TestAuditRejectsIncompleteEvidence`.

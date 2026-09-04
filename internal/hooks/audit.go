@@ -1,5 +1,7 @@
 package hooks
 
+import "time"
+
 // auditDocument is the private decoding boundary for F26 ExplainResult.
 // Explicit fields strip unrelated input before writing audit files. Keep this
 // wire view aligned with F26; hooks cannot import the CLI package that runs it.
@@ -32,4 +34,41 @@ type auditEvidence struct {
 		Reason     string `json:"reason"`
 	} `json:"excluded_candidates"`
 	LastVerified string `json:"last_verified,omitempty"`
+}
+
+// valid rejects incomplete or out-of-contract evidence before any file is created.
+func (e *auditEvidence) valid() bool {
+	if e == nil || e.Profile == "" || e.ScoreInputs == nil || e.ExcludedCandidates == nil {
+		return false
+	}
+	switch e.RouteProvenance {
+	case "provider_live", "models_dev", "user_declared":
+	default:
+		return false
+	}
+	if e.Confidence != "" && e.Confidence != "live" && e.Confidence != "cached" {
+		return false
+	}
+	if e.SnapshotAgeSeconds != nil && *e.SnapshotAgeSeconds < 0 {
+		return false
+	}
+	if e.LastVerified != "" {
+		if _, err := time.Parse(time.RFC3339, e.LastVerified); err != nil {
+			return false
+		}
+	}
+	if e.Band != nil && (e.Band.Name == "" || e.Band.UsedPercent < 0 || e.Band.UsedPercent > 100 || e.Band.Weight < 0) {
+		return false
+	}
+	for _, excluded := range e.ExcludedCandidates {
+		if excluded.Route.Provider == "" || excluded.Route.ModelID == "" || excluded.Route.Model == "" || excluded.Route.Reasoning == "" || excluded.Route.WindowIDs == nil || excluded.Reason == "" {
+			return false
+		}
+		switch excluded.ReasonCode {
+		case "band_gated", "no_score_row", "auth_required", "provider_error", "not_in_availability_list":
+		default:
+			return false
+		}
+	}
+	return true
 }
