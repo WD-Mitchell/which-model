@@ -66,6 +66,10 @@ Depends on: S01 (scaffold, wails config), B02 (`service.New`, `StartRefresher`, 
 | Single-instance action | second launch → show popover | Menu-bar apps must not spawn twice; showing the popover is the least surprising response |
 | Wails API verification | NOT verified against the module — `go doc` unavailable offline (module absent from cache, proxy fetch failed with checksum error). All `application.*` names in this pair follow the published v3 alpha surface and are **verify at implementation** | Recorded per process rules; the pinned go.mod version is authoritative |
 
+## Review correction — #175: completed empty frontend ranking
+
+After a successful empty ranking, the popover calls `SetTrayPick("", "", "", "")`. This clears both recommendation lines and the provider icon while retaining frontend ownership. Host refresh must not substitute the default profile's recommendation. Initial pending queries and temporary query-key transitions publish nothing; a later successful nonempty rank restores the matching text and provider. Pinned regressions cover initial pending, valid → empty → valid, and frontend ownership after an empty push.
+
 
 ## Shutdown lifecycle correction — #51
 

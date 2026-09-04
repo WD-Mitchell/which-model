@@ -60,3 +60,12 @@ Depends on: U01 (core/host/mock), U02 (primitives), U03 (ComplexityScale), U04 (
 - Weights view body, overrides store, save/copy footer — U06.
 - Carousel/list/card internals — U04; scale/weight primitives — U03.
 - Settings window and its pages — U07+. Tauri window plumbing behind `window.*` — backend features.
+
+
+## Completed empty ranking correction — #175 review
+
+When an enabled ranking query completes successfully with zero candidates,
+clear the native tray pick and pending launch state. Loading and failed
+requests preserve the last successful tray state. Do not publish results from
+a disabled query or a superseded request. This rule governs the popover-to-tray
+bridge as well as the S02 native host.
