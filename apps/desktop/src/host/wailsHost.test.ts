@@ -1,4 +1,9 @@
-import { describe, it, expect, vi } from 'vitest'
+import { beforeAll, describe, it, expect, vi } from 'vitest'
+// Keep the real RuntimeError implementation, but own Wails' import-time DOM
+// polling timer so it cannot run after jsdom tears down window.
+vi.hoisted(() => { vi.useFakeTimers() })
+beforeAll(() => { vi.runOnlyPendingTimers(); vi.useRealTimers() })
+
 import { Call } from '@wailsio/runtime'
 import { toEngineError, createWailsHost } from './wailsHost'
 import { ProfilesAPI } from '../bindings/github.com/WD-Mitchell/which-model/cmd/which-model-desktop/index.js'
