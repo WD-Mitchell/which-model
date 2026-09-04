@@ -79,7 +79,7 @@ Depends on: F07, F08, F11
 - Band evaluation, gating, and strategy scoring — F19/F20.
 - Refresh scheduling and trigger detection — F27.
 
-### Catalog join optimization (#170)
+## 6. Catalog join optimization (#170)
 
 Route production builds a single invocation-local cleaned-name index and matches
 provider entries only against their name bucket. Buckets preserve catalog order;
