@@ -1,9 +1,11 @@
 package config
 
 import (
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
+	"syscall"
 )
 
 // EnsureLegacyMigration moves a pre-platform-layout `~/.which-model` tree
@@ -32,7 +34,7 @@ func EnsureLegacyMigration(paths Paths, home string) error {
 
 	legacyConfig := filepath.Join(legacyRoot, "config.toml")
 	if fileRegular(legacyConfig) {
-		if err := os.Rename(legacyConfig, paths.UserConfigFile); err != nil {
+		if err := moveLegacy(legacyConfig, paths.UserConfigFile); err != nil {
 			return err
 		}
 	}
@@ -54,7 +56,7 @@ func EnsureLegacyMigration(paths Paths, home string) error {
 		return err
 	}
 	for _, entry := range entries {
-		if err := os.Rename(filepath.Join(legacyRoot, entry.Name()), filepath.Join(paths.ConfigDir, ".legacy-"+entry.Name())); err != nil {
+		if err := moveLegacy(filepath.Join(legacyRoot, entry.Name()), filepath.Join(paths.ConfigDir, ".legacy-"+entry.Name())); err != nil {
 			return err
 		}
 	}
@@ -98,13 +100,55 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, info.Mode().Perm())
+	out, err := os.CreateTemp(filepath.Dir(dst), ".legacy-copy-*")
 	if err != nil {
 		return err
 	}
-	if _, err := io.Copy(out, in); err != nil {
-		out.Close()
+	defer os.Remove(out.Name())
+	defer out.Close()
+	if err := out.Chmod(info.Mode().Perm()); err != nil {
 		return err
 	}
-	return out.Close()
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+	if err := out.Sync(); err != nil {
+		return err
+	}
+	if err := out.Close(); err != nil {
+		return err
+	}
+	// Link publishes the complete copy without overwriting a first-wins target.
+	if err := os.Link(out.Name(), dst); err != nil && !os.IsExist(err) {
+		return err
+	}
+	return nil
+}
+
+// Cross-device migration copies completely before removing its source.
+var renameLegacy = os.Rename
+
+func moveLegacy(src, dst string) error {
+	err := renameLegacy(src, dst)
+	if !errors.Is(err, syscall.EXDEV) {
+		return err
+	}
+	info, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		if err := mergeTree(src, dst); err != nil {
+			return err
+		}
+		return os.RemoveAll(src)
+	}
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	if err := AtomicWriteFile(dst, data); err != nil {
+		return err
+	}
+	return os.Remove(src)
 }

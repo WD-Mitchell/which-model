@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 )
 
@@ -159,5 +160,26 @@ func TestLoadMigratesLinuxLegacyHome(t *testing.T) {
 				t.Fatal(err)
 			}
 		})
+	}
+}
+
+func TestLegacyCrossDeviceMove(t *testing.T) {
+	prior := renameLegacy
+	renameLegacy = func(string, string) error { return syscall.EXDEV }
+	t.Cleanup(func() { renameLegacy = prior })
+	src := filepath.Join(t.TempDir(), "old.toml")
+	dst := filepath.Join(t.TempDir(), "new.toml")
+	if err := os.WriteFile(src, []byte("setting = true\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := moveLegacy(src, dst); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(dst)
+	if err != nil || string(data) != "setting = true\n" {
+		t.Fatalf("data %s err %v", data, err)
+	}
+	if _, err := os.Stat(src); !os.IsNotExist(err) {
+		t.Fatalf("source remains: %v", err)
 	}
 }

@@ -92,3 +92,11 @@ or `os.UserHomeDir` home explicitly. Destination paths remain those of ResolvePa
 including arbitrary XDG overrides. This corrects #39's inferred-home regression;
 canonical config wins, successful migrations are idempotent, and missing legacy
 data creates no migration artifacts.
+
+
+## Cross-device migration correction — #168 review
+
+Legacy migration supports an XDG destination on a different filesystem. When
+rename returns EXDEV, files are copied with atomic replacement before source
+removal; directory trees retain first-wins merging. A failed copy retains its
+source. Pin `TestLegacyCrossDeviceMove`.
