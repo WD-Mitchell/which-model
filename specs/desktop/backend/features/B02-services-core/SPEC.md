@@ -63,3 +63,7 @@ Inherits: `specs/global/*`, `specs/desktop/global/*` (D00), `specs/desktop/backe
 ## 5. Out of scope
 
 Service methods (B03–B11); `AtomicWriteFile`/GUI config sections (B01); history aggregation (B11); Wails registration and event transport (S02/S04).
+
+## Review correction — #32: host error normalization
+
+`ToErrorDTO(err error) ErrorDTO` exports the existing canonical mapper for the native adapter. Nil maps to an empty DTO, existing value/pointer DTOs pass through, wrapped sentinels retain their stable codes, and unknown errors retain existing sanitization. Binding wrappers must keep successful nil errors nil instead of returning the empty DTO as an error. No new error codes or message parsing are introduced.
