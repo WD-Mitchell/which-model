@@ -278,5 +278,5 @@ None. `which-model config show --json` (including its `_sources` map) is F22's c
 
 All catalog consumers, including desktop benchmark-group loading, decode the
 complete shared catalog schema. The legacy `catalog.publish.run_tests` boolean
-remains accepted for config/env compatibility; publishing verification is
-mandatory and the option cannot disable it.
+remains accepted for config/env compatibility; the option does not change generated workflow behavior. F30 owns the
+verification steps (paired-artifact verification is introduced by #165).

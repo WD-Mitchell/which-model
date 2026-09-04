@@ -181,6 +181,6 @@ Empty consumer paths retain their previous defaults. This corrects scalar
 accessor guidance that contradicted F01's table-only contract.
 
 
-`catalog.PublishConfig.RunTests bool` decodes legacy `run_tests`; it cannot
-disable publishing verification. Every catalog consumer accepts this documented
+`catalog.PublishConfig.RunTests bool` decodes legacy `run_tests`; it does not
+change the generated verification steps. Every catalog consumer accepts this documented
 boolean consistently.
