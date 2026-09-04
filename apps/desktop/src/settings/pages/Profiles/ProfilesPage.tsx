@@ -128,8 +128,14 @@ export function ProfilesPage({ detail, openDetail, closeDetail }: PageComponentP
   const { data: profiles } = useProfiles()
 
   const profilesList = profiles ?? []
+  const creatingRef = useRef(false)
+  const [creating, setCreating] = useState(false)
 
   const handleNew = useCallback(async () => {
+    if (creatingRef.current) return
+    creatingRef.current = true
+    setCreating(true)
+    try {
     let n = profilesList.length + 1
     // eslint-disable-next-line no-constant-condition
     while (true) {
@@ -145,7 +151,7 @@ export function ProfilesPage({ detail, openDetail, closeDetail }: PageComponentP
         last_used: '',
       }
       try {
-        await getHost().profiles.save(payload)
+        await getHost().profiles.create(payload)
         toast.show('new profile created')
         openDetail({ kind: 'profile', id: slug })
         return
@@ -158,6 +164,7 @@ export function ProfilesPage({ detail, openDetail, closeDetail }: PageComponentP
         return
       }
     }
+    } finally { creatingRef.current = false; setCreating(false) }
   }, [profilesList.length, toast, openDetail])
 
   const detailPage =
@@ -174,7 +181,7 @@ export function ProfilesPage({ detail, openDetail, closeDetail }: PageComponentP
       <DetailHeader
         title={PAGE_META.Profiles[0]}
         blurb={PAGE_META.Profiles[1]}
-        action={{ label: PAGE_META.Profiles[2] as string, onAction: () => void handleNew() }}
+        action={{ label: PAGE_META.Profiles[2] as string, onAction: () => void handleNew(), disabled: creating }}
       />
       <span className={'mono ' + styles.kicker}>profiles</span>
       <div className={styles.colHeader}>

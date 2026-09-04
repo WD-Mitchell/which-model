@@ -191,7 +191,7 @@ func (c *Config) DecodeFile(path string) error
 // normalized), generic sections from the merged file document, and env
 // overrides merged into their sections (dotted keys). UsageAuto → "auto",
 // UsageTrue/False → TOML bools; decimals/durations → TOML strings; env
-// values inferred bool → int → string. Section order: usage, scoring,
+// values rendered by documented key type. Section order: usage, scoring,
 // strategy, bands, catalog, output, providers (annex-d §4.2); providers
 // sorted by id. Generic sections appear only when present in a file layer
 // or via env.
@@ -276,6 +276,34 @@ None. `which-model config show --json` (including its `_sources` map) is F22's c
 ## Hook runtime environment correction — #163
 
 F29 owns `WHICH_MODEL_TASK_PROFILE`, `WHICH_MODEL_CANDIDATE_ID`, and `WHICH_MODEL_DISPATCHED_MODEL`. `ApplyEnv` excludes those exact names from configuration overrides, preserving their values for hooks without saving them in TOML. Unknown prefixed names and misspellings still fail eagerly. This lets the real `explain` command run under dispatch correlation variables.
+
+### Environment rendering correction (#167)
+
+Generic environment overrides retain the owning field type when rendered or saved:
+`strategy.tier1_share` and `tier2_share` are integers (including 0/1);
+`catalog.warn_on_stale_scores`, `catalog.publish.enabled/auto_merge/run_tests`, and
+`output.identity_default` are booleans (including ParseBool 0/1 spelling).
+All remaining generic overrides are strings, including decimal gate values,
+durations, and titles such as "true", "0", and "001". Invalid booleans or integers
+return `ConfigError{Kind: KindInvalidValue}` naming the dotted key. This supersedes
+the lossy bool-first inference in D16; rendering never mutates the source config.
+
+### Legacy migration correction (#168)
+
+`EnsureLegacyMigration(paths Paths, home string) error` reads the legacy root from
+`filepath.Join(home, ".which-model")`. `Load` passes its resolved `LoadOptions.Home`
+or `os.UserHomeDir` home explicitly. Destination paths remain those of ResolvePaths,
+including arbitrary XDG overrides. This corrects #39's inferred-home regression;
+canonical config wins, successful migrations are idempotent, and missing legacy
+data creates no migration artifacts.
+
+
+## Cross-device migration correction — #168 review
+
+Legacy migration supports an XDG destination on a different filesystem. When
+rename returns EXDEV, files are copied with atomic replacement before source
+removal; directory trees retain first-wins merging. A failed copy retains its
+source. Pin `TestLegacyCrossDeviceMove`.
 
 
 ## Catalog schema correction — #167 review

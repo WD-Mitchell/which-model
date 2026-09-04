@@ -30,7 +30,7 @@ Source: `docs/plan/annex-d-cli-reference.md` §1.1a (env prefix), §1.2 (`--conf
 11. **Validation.** `Validate` checks the F01-owned surface: `usage.enabled` is one of the three canonical values, every provider id is non-empty, every provider weight is `>= 0` (zero normalized to `1.0`), every provider `cache_ttl` is `>= 0`. Section-specific semantics (band tier ordering, publish mode/branches, strategy names, normalizer/aggregator names, provider registry ids) are validated by the owning features at their `UnmarshalKey` call. (annex-d §4.2/§4.3; README §6.1.)
 11a. **Backend validation.** `Validate` rejects any programmatically constructed `usage.backend` outside `{off,native,codexbar}` with key `usage.backend`.
 12. **Decimal config values.** `providers.<id>.weight` is `decimal.Decimal` (shopspring). TOML floats reach it through BurntSushi/toml's `TextUnmarshaler` path (`fmt.Sprintf("%f", …)` → `UnmarshalText`), which preserves literals exactly up to 6 fractional digits — the canonical tables use ≤ 2 — and truncates beyond that (documented decoder behavior; see D12). No `float64` field exists anywhere in the numeric config surface (annex-b §1 no-float64 rule).
-13. **Resolved-config rendering.** `MarshalTOML` renders the fully resolved configuration for `config show` (annex-d §2.7): `[usage]` and `[providers.<id>]` from the typed values (env applied, weights normalized), generic sections from the merged file document, and every stored env override merged into its section (dotted keys, B8). Rendering rules: `UsageAuto` → `"auto"`, `UsageTrue`/`UsageFalse` → TOML booleans; decimals and durations render as TOML strings (`weight = "0.85"`, `cache_ttl = "1h"` — they decode back through the same `TextUnmarshaler`/`time.ParseDuration` paths, so the render round-trips); env override values infer bool (`strconv.ParseBool`) → int (`strconv.Atoi`) → string. Section order is canonical: `usage`, `scoring`, `strategy`, `bands`, `catalog`, `output`, `providers` (annex-d §4.2 order), providers sorted by id; generic sections appear only when present in a file layer or via env (F01 does not know their defaults — D16).
+13. **Resolved-config rendering.** `MarshalTOML` renders the fully resolved configuration for `config show` (annex-d §2.7): `[usage]` and `[providers.<id>]` from the typed values (env applied, weights normalized), generic sections from the merged file document, and every stored env override merged into its section (dotted keys, B8). Rendering rules: `UsageAuto` → `"auto"`, `UsageTrue`/`UsageFalse` → TOML booleans; decimals and durations render as TOML strings (`weight = "0.85"`, `cache_ttl = "1h"` — they decode back through the same `TextUnmarshaler`/`time.ParseDuration` paths, so the render round-trips); env override values render by dotted-key type: booleans via `strconv.ParseBool`, integer strategy shares via `strconv.ParseInt`, and remaining generic values as strings. Section order is canonical: `usage`, `scoring`, `strategy`, `bands`, `catalog`, `output`, `providers` (annex-d §4.2 order), providers sorted by id; generic sections appear only when present in a file layer or via env (F01 does not know their defaults — D16).
 13a. **Backend rendering.** `MarshalTOML` always renders the resolved `usage.backend` string under `[usage]`.
 
 ## Error behaviour
@@ -62,7 +62,7 @@ Source: `docs/plan/annex-d-cli-reference.md` §1.1a (env prefix), §1.2 (`--conf
 | D13 | Usage toggle split | F01 parses/validates `UsageEnabled`; F21 resolves it | DECISION boundary: F01 = config surface, F21 = toggle levels + degraded mode (README §6) |
 | D14 | Env vocabulary | closed, eager: every `WHICH_MODEL_*` var (except `WHICH_MODEL_CONFIG` and documented F29 hook inputs) must match an env-addressable scalar key from annex-d §4.2 (longest-suffix key match resolves underscore ambiguity); unknown var → `KindInvalidValue` at `ApplyEnv` time | the annotated config's key set is fixed and small; eager rejection catches typos at startup instead of at first section use, and yields the dotted key needed for `MarshalTOML` (B13). New config keys update the vocabulary table (CONTRACTS §3) + tests |
 | D15 | Imports | `github.com/BurntSushi/toml` + `github.com/shopspring/decimal` + stdlib; zero `internal/` | global CONTRACTS §8's operative constraint is "MUST NOT import anything in `internal/`" ("stdlib only" read as "no internal packages" — TOML parsing and decimal-typed weights require these two libraries) |
-| D16 | `MarshalTOML` rendering | decimals/durations as TOML strings, env values inferred bool → int → string, canonical section order, generic sections only when present | exact round-trip through F01's own decode paths; F01 cannot render generic-section defaults it does not own (D9) |
+| D16 | `MarshalTOML` rendering | decimals/durations as TOML strings, env values rendered by documented key type, canonical section order, generic sections only when present | exact round-trip through F01's own decode paths; F01 cannot render generic-section defaults it does not own (D9) |
 
 ## Out of scope
 
@@ -77,6 +77,34 @@ Source: `docs/plan/annex-d-cli-reference.md` §1.1a (env prefix), §1.2 (`--conf
 
 F29 owns `WHICH_MODEL_TASK_PROFILE`, `WHICH_MODEL_CANDIDATE_ID`, and `WHICH_MODEL_DISPATCHED_MODEL`. `ApplyEnv` excludes those exact names from configuration overrides, preserving their values for hooks without saving them in TOML. Unknown prefixed names and misspellings still fail eagerly. This lets the real `explain` command run under dispatch correlation variables.
 
+
+### Environment rendering correction (#167)
+
+Generic environment overrides retain the owning field type when rendered or saved:
+`strategy.tier1_share` and `tier2_share` are integers (including 0/1);
+`catalog.warn_on_stale_scores`, `catalog.publish.enabled/auto_merge/run_tests`, and
+`output.identity_default` are booleans (including ParseBool 0/1 spelling).
+All remaining generic overrides are strings, including decimal gate values,
+durations, and titles such as "true", "0", and "001". Invalid booleans or integers
+return `ConfigError{Kind: KindInvalidValue}` naming the dotted key. This supersedes
+the lossy bool-first inference in D16; rendering never mutates the source config.
+
+### Legacy migration correction (#168)
+
+`EnsureLegacyMigration(paths Paths, home string) error` reads the legacy root from
+`filepath.Join(home, ".which-model")`. `Load` passes its resolved `LoadOptions.Home`
+or `os.UserHomeDir` home explicitly. Destination paths remain those of ResolvePaths,
+including arbitrary XDG overrides. This corrects #39's inferred-home regression;
+canonical config wins, successful migrations are idempotent, and missing legacy
+data creates no migration artifacts.
+
+
+## Cross-device migration correction — #168 review
+
+Legacy migration supports an XDG destination on a different filesystem. When
+rename returns EXDEV, files are copied with atomic replacement before source
+removal; directory trees retain first-wins merging. A failed copy retains its
+source. Pin `TestLegacyCrossDeviceMove`.
 
 ## Catalog schema correction — #167 review
 
