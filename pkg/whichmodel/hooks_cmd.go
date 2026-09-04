@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/WD-Mitchell/which-model/internal/config"
 	"github.com/WD-Mitchell/which-model/internal/hooks"
@@ -26,10 +27,14 @@ func init() { register(NewHooksCmd) }
 // behaviour 4/12).
 func ExecuteCommand(args []string, stdout, stderr io.Writer) int {
 	prevOut, prevErr := Stdout, Stderr
+	prevGlobal := Global
+	defer func() { Stdout, Stderr, Global = prevOut, prevErr, prevGlobal }()
+	// Commands hold mutable flags and parent pointers. Reusing the outer
+	// tree would reparent the running hook and redirect its envelope into
+	// the nested command's captured stdout.
+	resetRegistryBuildCache()
 	Stdout, Stderr = stdout, stderr
-	code := ExecuteArgs(args)
-	Stdout, Stderr = prevOut, prevErr
-	return code
+	return ExecuteArgs(args)
 }
 
 // NewHooksCmd builds the `hooks` command tree: install | remove | run
@@ -152,6 +157,22 @@ func newHooksRunCmd() *cobra.Command {
 		DisableFlagParsing: true,
 		Args:               cobra.ArbitraryArgs,
 		RunE: func(c *cobra.Command, args []string) error {
+			// DisableFlagParsing also leaves global flags before the command
+			// in args. Parse only that prefix; the hook's own args are opaque.
+			prefix := pflag.NewFlagSet("hooks run", pflag.ContinueOnError)
+			prefix.SetOutput(io.Discard)
+			prefix.AddFlagSet(c.InheritedFlags())
+			prefix.SetInterspersed(false)
+			if err := prefix.Parse(args); err != nil {
+				return &UsageError{Message: err.Error()}
+			}
+			args = prefix.Args()
+			if err := Global.Normalize(); err != nil {
+				return err
+			}
+			if err := Global.Validate(); err != nil {
+				return err
+			}
 			if len(args) == 0 {
 				return &UsageError{Message: "missing hook name (known: " + hookNames() + ")"}
 			}
@@ -159,8 +180,8 @@ func newHooksRunCmd() *cobra.Command {
 			if _, ok := hooks.Get(name); !ok {
 				return &UsageError{Message: fmt.Sprintf("unknown hook %q (known: %s)", name, hookNames())}
 			}
-			// Non-empty stdin is a fixture JSON document replacing the
-			// underlying command's stdout (SPEC behaviour 4). Resolve the
+			// Non-empty stdin is host context, never command output.
+			// The underlying command always runs (SPEC behaviour 4). Resolve the
 			// repo root best-effort: it only matters for model-audit
 			// evidence, which fails open without it.
 			root, _ := skills.RepoRoot()
@@ -168,7 +189,17 @@ func newHooksRunCmd() *cobra.Command {
 			if err != nil {
 				return &UsageError{Message: err.Error()}
 			}
-			out, err := hooks.Run(name, args[1:], hooks.Options{
+			// Cobra has already consumed flags before `hooks`. Forward those
+			// explicit settings too; flags after the hook name still win.
+			var passthrough []string
+			prefix.Visit(func(flag *pflag.Flag) {
+				// Underlying output is always JSON for the decision decoder.
+				if flag.Name != "json" && flag.Name != "text" {
+					passthrough = append(passthrough, "--"+flag.Name+"="+flag.Value.String())
+				}
+			})
+			passthrough = append(passthrough, args[1:]...)
+			out, err := hooks.Run(name, passthrough, hooks.Options{
 				Runner:   ExecuteCommand,
 				Stdin:    in,
 				RepoRoot: root,

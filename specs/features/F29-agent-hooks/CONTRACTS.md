@@ -45,7 +45,7 @@ package hooks
 type Envelope struct {
     Decision           string         `json:"decision"`
     Reason             string         `json:"reason,omitempty"`
-    HookSpecificOutput map[string]any `json:"hookSpecificOutput,omitempty"`
+    HookSpecificOutput map[string]any `json:"hookSpecificOutput"`
 }
 
 func MarshalEnvelope(e Envelope) []byte
@@ -54,8 +54,9 @@ func MarshalEnvelope(e Envelope) []byte
 // pkg/whichmodel.ExecuteCommand as the default.
 type Runner func(args []string, stdout, stderr io.Writer) int
 
-// Options carries the test seams. Stdin replaces the underlying command's
-// stdout when non-empty (SPEC behaviour 4). Env overrides os.Environ for
+// Options carries execution inputs. Stdin is a host JSON object; Runner
+// always supplies the underlying command result (SPEC behaviour 4).
+// Env overrides os.Environ for
 // WHICH_MODEL_TASK_PROFILE / WHICH_MODEL_CANDIDATE_ID /
 // WHICH_MODEL_DISPATCHED_MODEL. RepoRoot is the evidence-file base dir.
 type Options struct {
@@ -67,7 +68,7 @@ type Options struct {
 
 // Run executes hook (SPEC behaviours 4–8). It returns the bytes to write to
 // stdout (possibly empty = fail-open silence), or an error for exit-2-class
-// conditions: unknown hook name, non-empty Stdin that is not valid JSON.
+// conditions: unknown hook name, non-empty Stdin that is not a valid JSON object.
 // Run NEVER returns an error for underlying command failures (fail-open).
 func Run(name string, passthrough []string, opts Options) ([]byte, error)
 ```
@@ -191,3 +192,7 @@ which-model hooks run <hook> [args...]
 ## 7. Error codes added
 
 None (uses the fixed 0/1/2 set; no new `Failure.Code` values — `specs/global/CONTRACTS.md §1.6`).
+
+## Execution correction — #162
+
+`ExecuteCommand` builds fresh commands and restores the caller's flags and streams. Stdin is empty/whitespace or a JSON object containing host context; it never replaces command output. Only Runner injects output fixtures. Explicit outer global flags are forwarded ahead of passthrough flags; underlying output remains JSON.
