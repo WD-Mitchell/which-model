@@ -53,7 +53,11 @@ func (s *Services) Rank(ctx context.Context, req RankRequest) (RankResponse, err
 		return RankResponse{}, err
 	}
 
-	result, err := pick.Rank(s.scores, profile, available)
+	categories, err := s.profileCategories()
+	if err != nil {
+		return RankResponse{}, err
+	}
+	result, err := pick.RankWithCategories(s.scores, profile, available, categories)
 	var noCand *pick.NoCandidatesError
 	if errors.As(err, &noCand) {
 		return RankResponse{Candidates: []RankedModel{}, Total: 0}, nil
@@ -388,4 +392,18 @@ func (s *Services) CatalogLine(ctx context.Context) (CatalogSummary, error) {
 		ProvidersOn: providersOn,
 		Harnesses:   harnesses,
 	}, nil
+}
+
+// profileCategories reads the current configuration under the caller's lock.
+func (s *Services) profileCategories() ([]string, error) {
+	allowed, err := s.tier2AllowedSet()
+	if err != nil {
+		return nil, err
+	}
+	categories := make([]string, 0, len(allowed))
+	for name := range allowed {
+		categories = append(categories, name)
+	}
+	sort.Strings(categories)
+	return categories, nil
 }

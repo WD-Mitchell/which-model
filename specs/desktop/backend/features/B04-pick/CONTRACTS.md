@@ -105,7 +105,7 @@ Fixture request: `ProfileSlug` of a custom profile with `CoreShare 60`, tier1 `{
 
    (beta keeps raw tier-1 77.50 with no tier-2 evidence; alpha@high vs gamma@medium tie on every score key and break on casefolded model asc; alpha@high resolves `claude` over `codex` by priority.) Run twice ⇒ identical responses (SPEC §2.9).
 2. **Disabled route re-resolves provider.** With `[routes.disabled] claude = ["alpha-1@high"]`: alpha@high stays ranked (still available via codex) with `Provider "codex"`, `RouteKey "codex/alpha-1x@high"`; with BOTH providers' alpha@high routes disabled, alpha@high drops out and `Total` is 3.
-3. **Empty availability.** All providers disabled (or routes table empty) ⇒ `RankResponse{Candidates: [], Total: 0}`, nil error, `pick.Rank` not reached (no `RankingError`).
+3. **Empty availability.** All providers disabled (or routes table empty) ⇒ `RankResponse{Candidates: [], Total: 0}`, nil error, `pick.RankWithCategories` not reached (no `RankingError`).
 4. **Overrides don't persist.** `Rank` with non-nil `Overrides` (and with an invalid override for the rejection path): read `config.toml` bytes before/after — byte-identical; `history.jsonl` absent/unchanged; recorder shows zero events. Invalid override (CoreShare 57; weight 6; tier2 key `"bogus"`) ⇒ `validation_failed`, checks hit in SPEC §2.1 order.
 5. **Holds.** `Holds 0` uses `[gui].holds`; `Holds 3` truncates to 3 with `Total 4`; `Holds 4` ⇒ `validation_failed`.
 6. **RecordPick appends + emits.** Two calls append exactly two lines; each unmarshals with the §4 field names (`ulid` 26 chars, `ts` RFC3339, `strategy "gui"`, `candidate_id` = the route key); recorder shows exactly one `pick:recorded` per call with `{profile_slug, route_key}`. Bad grammar (`"claude/x"`, `"a@b"`) ⇒ `validation_failed`, zero lines, zero events; unknown profile ⇒ `not_found`; unwritable state dir ⇒ `io_error`, zero events.
@@ -121,9 +121,13 @@ Fixture request: `ProfileSlug` of a custom profile with `CoreShare 60`, tier1 `{
 
 | Symbol | Source |
 |---|---|
-| `pick.Rank`, `pick.Identity`, `pick.Profiles`, `pick.CategoryNames`, `*pick.NoCandidatesError`, `*pick.RankingError` | `internal/pick` (`rank.go`, `availability.go`, `profiles.go`, `errors`) |
+| `pick.RankWithCategories`, `pick.Identity`, `pick.Profiles`, `pick.CategoryNames`, `*pick.NoCandidatesError`, `*pick.RankingError` | `internal/pick` (`rank.go`, `availability.go`, `profiles.go`, `errors`) |
 | `catalog.ScoreRow`, `catalog.Profile` | `internal/catalog/types.go` |
 | `routing.Table`, `routing.Route` | `internal/routing` (loaded/cached by B02) |
 | `engineProfile`, `engineWeights`, `round2`, `toErrorDTO`, `newTestServices`, `WithConfigTOML`, `WithScoresCSV`, `WithRoutes` | B02 (B00 CONTRACTS §4–5) |
 | `ParseRouteKey`, `FormatRouteKey`, D00 DTOs | `internal/service/dto.go` (D00 §7) |
 | History entry struct + append primitive | B11 `internal/service/history.go` (shape pinned in §4 until B11's contract lands) |
+
+## Review correction — #185
+
+Rank supplies exactly `pick.CategoryNames` union the current `[groups.*]` slugs to `RankWithCategories`, under `Services.mu.RLock`. Saved profiles and ephemeral overrides use the same vocabulary. Custom-group scoring, availability filtering, tie-breaks, and history behavior are unchanged. Regression: a configured group's composite can change the winner; absent group keys remain invalid. CLI `Rank` and `ValidateProfile` retain their static vocabulary.

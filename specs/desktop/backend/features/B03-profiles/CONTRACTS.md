@@ -99,7 +99,7 @@ Reads and writes `[profiles.<slug>]` (`core_share`, `[profiles.<slug>.tier1]`, `
 | 3 | name equals a built-in's name, slug differs | `errConflict` | `profile name %q conflicts with built-in profile %q` |
 | 4 | CoreShare out of range / not step 5 | `errValidation` | `core_share %d must be between 10 and 90 in steps of 5` |
 | 5 | weight > 5 | `errValidation` | from B02 `engineWeights` |
-| 6 | `pick.ValidateProfile` failure | `errValidation` | engine `RankingError` message verbatim |
+| 6 | `pick.ValidateProfileWithCategories` failure | `errValidation` | engine `RankingError` message verbatim |
 | — | Get/Duplicate/Delete unknown slug | `errNotFound` | `profile %q not found` |
 | — | Delete built-in | `errBuiltinReadonly` | `profile %q is built-in and read-only` |
 
@@ -121,7 +121,7 @@ Verify: `go test ./internal/service/ -run TestProfile`.
 
 | Symbol | Source |
 |---|---|
-| `pick.Profiles`, `pick.ValidateProfile` | `internal/pick/{profiles,profile}.go` |
+| `pick.Profiles`, `pick.ValidateProfileWithCategories` | `internal/pick/{profiles,profile}.go` |
 | `catalog.Profile{Tier1Share, Tier2Share, Tier1Weights, Tier2Weights}` | `internal/catalog/types.go` |
 | `dtoWeights`, `engineWeights`, `engineProfile`, sentinels, `newTestServices`, `emitRecorder` | B02 CONTRACTS |
 | `[profiles.*]` TOML accessors | B01 CONTRACTS |
@@ -135,3 +135,9 @@ Verify: `go test ./internal/service/ -run TestProfile`.
 | Create existing custom/builtin | `conflict`; no replacement or event |
 | Save existing custom | Replaces weights; one event |
 | Failed profile persistence | Clone discarded; no live mutation or event |
+
+## Review correction — #185: configured group vocabulary
+
+Configured custom groups are valid profile task metrics. Both Save and Create validate against the locked configuration's group vocabulary through F10's explicit category-aware entry point. Unknown or deleted group slugs fail validation. This corrects the previous static-validator call, which contradicted B05's custom-group scoring contract. CLI validation remains static.
+
+Pinned regressions: `TestProfileCustomGroupSaveAndRank` requires nonempty saved/override candidates and rejects unknown group keys; `TestRankWithCategoriesCustomGroupChangesWinner` verifies the custom group flips the winner with exact totals.

@@ -58,3 +58,7 @@ Depends on: F02, F09
 - Routing/usage join: sourcing live availability, allowance windows, provider routing (F18 routing; F23+ commands).
 - Scores-CSV parsing and duplicate/range validation of input rows (F09 `score.ParseScoresCSV`).
 - Profile persistence, user-defined profile files, `--weights-json` flag parsing (F22; F10 exposes `ProfileFromJSON`).
+
+## Review correction — #185: explicit category vocabulary
+
+`ValidateProfileWithCategories(profile, categories)` applies all six validation rules with the supplied list as rule 5's exact category vocabulary. `RankWithCategories(rows, profile, available, categories)` uses that validator and the existing scoring, exclusion, availability, and sorting pipeline. The existing `ValidateProfile` and `Rank` delegate with `CategoryNames`, preserving CLI behavior and avoiding global mutation. Desktop callers may explicitly include configured custom group slugs. Unknown names still fail; shares and mandatory core-axis rules do not change.

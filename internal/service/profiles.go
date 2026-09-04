@@ -187,7 +187,11 @@ func (p *ProfileService) persistProfile(ctx context.Context, d ProfileDetail, cr
 		}
 		ep.Tier1Share = ep.Tier1Share.Mul(decimalHundred)
 		ep.Tier2Share = ep.Tier2Share.Mul(decimalHundred)
-		if err := pick.ValidateProfile(ep); err != nil {
+		categories, err := p.s.profileCategories()
+		if err != nil {
+			return err
+		}
+		if err := pick.ValidateProfileWithCategories(ep, categories); err != nil {
 			return fmt.Errorf("%w: %v", errValidation, err)
 		}
 		next, cleanup, err := cloneConfig(p.s.cfg)

@@ -214,3 +214,21 @@ func TestValidateProfileRules(t *testing.T) {
 		t.Errorf("untouched balanced_implementation: ValidateProfile error: %v", err)
 	}
 }
+
+func TestValidateProfileWithCategories(t *testing.T) {
+	p := Profiles["planning"]
+	p.Tier2Weights = map[string]decimal.Decimal{"custom_group": decimal.NewFromInt(5)}
+	if err := ValidateProfile(p); err == nil {
+		t.Fatal("static validator accepted custom group")
+	}
+	if err := ValidateProfileWithCategories(p, []string{"custom_group"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateProfileWithCategories(p, nil); err == nil {
+		t.Fatal("missing vocabulary accepted")
+	}
+	p.Tier1Share = decimal.Zero
+	if err := ValidateProfileWithCategories(p, []string{"custom_group"}); err == nil {
+		t.Fatal("invalid shares accepted")
+	}
+}

@@ -240,3 +240,12 @@ func ParseAvailability(data []byte) ([]Identity, error)
 - **Error codes added:** none — errors are Go types (`RankingError`, `NoCandidatesError`); F22 maps them to exit codes 2 and 3 per `specs/global/SPEC.md §5`.
 - **JSON shapes emitted:** the `Result` struct above (annex-b §5.8) — used by F22 as the payload of `which-model pick --json` and `which-model explain --json`.
 - **Warning strings emitted** (verbatim, annex-b §5.6): `missing optional category scores: <names in CategoryNames order>` and `no optional task-category scores available; Tier 1 score used` (only when `Tier2Weights` is non-empty).
+
+## Explicit category-aware APIs (#185)
+
+```go
+func ValidateProfileWithCategories(p catalog.Profile, categories []string) error
+func RankWithCategories(rows []catalog.ScoreRow, profile catalog.Profile, available []Identity, categories []string) (Result, error)
+```
+
+Regression rows: a supplied custom group passes and influences the winning score; the same key absent from `categories` fails; malformed shares/core weights still fail; existing `ValidateProfile`, `ProfileFromJSON`, and `Rank` reject that custom key and retain their existing goldens. The category slice is request-local and never changes `CategoryNames`.

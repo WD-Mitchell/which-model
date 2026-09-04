@@ -17,6 +17,12 @@ var requiredTier1Axes = []string{"intelligence", "cost", "speed"}
 // ValidateProfile enforces the 6 rules of rank_models.py:80-103 verbatim
 // (annex-b §5.2). Returns *RankingError on the first violation.
 func ValidateProfile(p catalog.Profile) error {
+	return ValidateProfileWithCategories(p, CategoryNames)
+}
+
+// ValidateProfileWithCategories validates against an explicit tier-2 vocabulary.
+// All other rules are identical to ValidateProfile.
+func ValidateProfileWithCategories(p catalog.Profile, categories []string) error {
 	// Rule 1: share signs.
 	if p.Tier1Share.Sign() <= 0 || p.Tier2Share.Sign() < 0 {
 		return &RankingError{Message: "tier 1 share must be positive and tier 2 share cannot be negative"}
@@ -65,7 +71,7 @@ func ValidateProfile(p catalog.Profile) error {
 	}
 	// Rule 5: tier-2 keys must be CategoryNames members (sorted).
 	categoryNames := map[string]bool{}
-	for _, name := range CategoryNames {
+	for _, name := range categories {
 		categoryNames[name] = true
 	}
 	var unknownCategories []string
