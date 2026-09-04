@@ -8,6 +8,8 @@
 // here supplies its own 22px inline gutter — that is what lets the group-list
 // row rules and their `.row` hover tint bleed edge to edge.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { createAutosave, hasActiveAutosave, whenAutosaveIdle } from '../../../lib/autosave'
 import { Button, CoverageBar, Input, Tag, Toggle, cx, useToast } from '@which-model/ui'
 import type { BenchRow } from '@which-model/core'
 import { useBenchmarkDetail, useBenchmarks, useGroupDetail, useGroups } from '../../../lib/queries'
@@ -79,6 +81,7 @@ function ChevronIcon() {
 export function GroupsPage({ detail, openDetail, closeDetail }: PageComponentProps) {
   return detail?.kind === 'group' ? (
     <GroupDetailView
+      key={detail.id}
       slug={detail.id}
       onBack={closeDetail}
       openDetail={openDetail}
@@ -244,31 +247,57 @@ function GroupDetailView({
   // null = "showing the persisted slug"; a string is an uncommitted edit.
   const [nameDraft, setNameDraft] = useState<string | null>(null)
   const [local, setLocal] = useState<boolean[] | null>(null)
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // group.benchmarks IS the whole catalogue with an `on` flag per row
-  // (internal/service/catalog.go groupDetailLocked), so membership is read and
-  // written straight off it — no second, separately-ordered benchmark list.
-  const schedule = useCallback(
-    (rows: { name: string }[], nextFlags: boolean[]) => {
-      setLocal(nextFlags)
-      if (saveTimer.current) clearTimeout(saveTimer.current)
-      saveTimer.current = setTimeout(() => {
-        const members = rows.filter((_, i) => nextFlags[i] ?? false).map((b) => b.name)
-        void getHost()
-          .catalog.saveGroup(slug, members)
-          .then(() => setLocal(null))
-          .catch((e) => toast.show(errText(e, 'save failed')))
-      }, 300)
+  const qc = useQueryClient()
+  const persistenceKey = 'group:' + slug
+  const [opening] = useState(() => hasActiveAutosave(persistenceKey))
+  const busyRef = useRef(opening)
+  const [busy, setBusy] = useState(opening)
+  const [queue] = useState(() => createAutosave<string[]>(
+    async (members) => {
+      await getHost().catalog.saveGroup(slug, members)
+      await qc.invalidateQueries({ queryKey: ['group', slug] })
     },
-    [slug, toast],
-  )
+    {
+      key: persistenceKey,
+      delay: 0,
+      onSuccess: (_members, generation) => { if (queue.isCurrent(generation)) setLocal(null) },
+      onError: async (error, generation) => {
+        toast.show(errText(error, 'save failed'))
+        await qc.invalidateQueries({ queryKey: ['group', slug] })
+        if (queue.isCurrent(generation)) setLocal(null)
+      },
+    },
+  ))
 
+  const schedule = useCallback((rows: { name: string }[], flags: boolean[]) => {
+    if (busyRef.current) return
+    setLocal(flags)
+    queue.schedule(rows.filter((_, i) => flags[i] ?? false).map((b) => b.name))
+    void queue.flush().catch(() => {})
+  }, [queue])
+
+  useEffect(() => () => { void queue.flush().catch(() => {}) }, [queue])
+
+  // Returning to an editor waits for a previous mount's final write and reads
+  // that saved snapshot before accepting another full-profile/list edit.
   useEffect(() => {
-    return () => {
-      if (saveTimer.current) clearTimeout(saveTimer.current)
-    }
-  }, [])
+    if (!opening) return
+    let mounted = true
+    void whenAutosaveIdle(persistenceKey)
+      .then(() => qc.invalidateQueries({ queryKey: ['group', slug] }))
+      .finally(() => { if (mounted) { busyRef.current = false; setBusy(false) } })
+    return () => { mounted = false }
+  }, [opening, persistenceKey, qc, slug])
+
+
+  async function afterSave(action: () => Promise<void>) {
+    if (busyRef.current) return
+    busyRef.current = true
+    setBusy(true)
+    try { await queue.flush(); await action() }
+    catch (error) { toast.show(errText(error, 'save failed')) }
+    finally { busyRef.current = false; setBusy(false) }
+  }
 
   if (!group) return <div className={cx(styles.page, styles.loading)}>loading…</div>
 
@@ -295,13 +324,14 @@ function GroupDetailView({
     setNameDraft(null)
     if (!next || next === group.slug) return
     const members = group.benchmarks.filter((_, i) => onFlags[i] ?? false).map((b) => b.name)
-    void getHost()
+    void afterSave(() => getHost()
       .catalog.saveGroup(slug, members, next)
       .then(() => {
+        queue.cancelPending()
         closeDetail()
         openDetail({ kind: 'group', id: next })
       })
-      .catch((e) => toast.show(errText(e, 'rename failed')))
+      .catch((e) => toast.show(errText(e, 'rename failed'))))
   }
 
   return (
@@ -321,14 +351,15 @@ function GroupDetailView({
           <Button
             variant="ghost"
             size="xs"
+            disabled={busy}
             onClick={() =>
-              void getHost()
+              void afterSave(() => getHost()
                 .catalog.duplicateGroup(slug)
                 .then((copy) => {
                   toast.show(`editing ${copy.slug}`)
                   openDetail({ kind: 'group', id: copy.slug })
                 })
-                .catch((e) => toast.show(errText(e, 'duplicate failed')))
+                .catch((e) => toast.show(errText(e, 'duplicate failed'))))
             }
           >
             {readOnly ? 'Duplicate & edit' : 'Duplicate'}
@@ -337,15 +368,16 @@ function GroupDetailView({
             type="button"
             className={cx('ib', readOnly && 'off', styles.iconBtnLg)}
             title={readOnly ? 'Built-in group — cannot be deleted' : 'Delete this group'}
-            disabled={readOnly}
+            disabled={readOnly || busy}
             onClick={() =>
-              void getHost()
+              void afterSave(() => getHost()
                 .catalog.deleteGroup(slug)
                 .then(() => {
+                  queue.cancelPending()
                   toast.show(`deleted ${slug}`)
                   onBack()
                 })
-                .catch((e) => toast.show(errText(e, 'delete failed')))
+                .catch((e) => toast.show(errText(e, 'delete failed'))))
             }
           >
             <TrashIcon size={13} />
@@ -356,6 +388,7 @@ function GroupDetailView({
         <div className={styles.nameRow}>
           <span className={styles.nameLabel}>name</span>
           <Input
+            disabled={busy}
             className={styles.nameInput}
             value={nameDraft ?? group.slug}
             onChange={setNameDraft}
@@ -382,7 +415,7 @@ function GroupDetailView({
           <span key={r.name} className={cx(styles.grRow, r.on && styles.grRowOn)}>
             <Toggle
               on={r.on}
-              disabled={readOnly}
+              disabled={readOnly || busy}
               onToggle={() => {
                 const next = [...onFlags]
                 next[r.idx] = !onFlags[r.idx]

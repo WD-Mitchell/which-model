@@ -60,3 +60,11 @@ Depends on: U02 (primitives), U07 (shell, `PageComponentProps`, `Detail` union, 
 ## 5. Out of scope
 
 - `catalog.*` host implementation and fixtures — U01/IM tiers; group weighting in profiles — U08; shell, PAGE_META copy, back-stack mechanics — U07; shared primitives (`Toggle`, `Tag`, `CoverageBar`, `Input`, toasts) — U02.
+
+## Review correction — #172: durable membership edits
+
+Membership changes enqueue a full-list snapshot immediately, with no debounce. One writer runs at a time; while it runs the latest pending snapshot replaces earlier pending snapshots. Navigation flushes retained work. Duplicate and rename drain the queue first; rename disables editing until completion and cancels work for the old identity after success. Delete drains before removal and cancels pending work after success. Detail components are keyed by slug. Only the latest acknowledged generation clears the local draft; errors toast and refetch the group without clearing newer edits.
+
+Pinned regressions: toggle then Back/open benchmark persists; controlled delayed writes finish in order with newest state retained; rename/duplicate receive final membership; deletion does not recreate a group; failures refetch persisted truth.
+
+The persistence barrier is shared by entity identity across editor mounts. Reopening an entity waits for the prior mount's final write and refetches before accepting edits; duplicate/delete/rename also wait for outstanding persistence. Regression: delay a flushed write, navigate away and reopen, then edit again; the final saved snapshot includes both edits in order.

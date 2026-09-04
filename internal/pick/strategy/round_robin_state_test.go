@@ -149,3 +149,25 @@ func readRawState(t *testing.T, dataDir string) (map[string]cursorDoc, error) {
 	}
 	return m, nil
 }
+
+func TestDecodeCursorStatePreservesOtherScopes(t *testing.T) {
+	got := decodeCursorState([]byte(`{"broken":{"index":-1},"healthy":{"index":7,"updated_at":"original"}}`))
+	if got["broken"].Index != 0 || got["healthy"].Index != 7 || got["healthy"].UpdatedAt != "original" {
+		t.Fatalf("scopes: %+v", got)
+	}
+	got = decodeCursorState([]byte(`{"healthy":{"index":7},"broken":{"index":"invalid"}}`))
+	if got == nil || len(got) != 0 {
+		t.Fatalf("partially decoded state retained: %+v", got)
+	}
+	dir := t.TempDir()
+	if err := writeRawState(t, dir, "null"); err != nil {
+		t.Fatal(err)
+	}
+	if err := saveCursor(dir, "healthy", 5); err != nil {
+		t.Fatal(err)
+	}
+	index, err := loadCursor(dir, "healthy")
+	if err != nil || index != 5 {
+		t.Fatalf("saved cursor = %d, %v", index, err)
+	}
+}

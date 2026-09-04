@@ -114,3 +114,11 @@ Page title/blurb/action for the list (`Benchmark groups` / blurb / `New group`) 
 - group chips render per `detail.groups`; clicking one fires `onOpenGroup(slug)`; empty groups renders the no-groups line.
 - default order = norm desc with header `normalised score  ↓`; click same header → asc `↑` and reversed order; click `model (reasoning)` → desc on `(model+reasoning).localeCompare`; click `benchmark result` → numeric desc on `value`.
 - row shows value `toFixed(1)`, integer norm, bar width `{norm}%`; header shows `{rows.length} of {coverageTotal}`.
+
+## Review correction — #172: durable membership edits
+
+Membership changes enqueue a full-list snapshot immediately, with no debounce. One writer runs at a time; while it runs the latest pending snapshot replaces earlier pending snapshots. Navigation flushes retained work. Duplicate and rename drain the queue first; rename disables editing until completion and cancels work for the old identity after success. Delete drains before removal and cancels pending work after success. Detail components are keyed by slug. Only the latest acknowledged generation clears the local draft; errors toast and refetch the group without clearing newer edits.
+
+Pinned regressions: toggle then Back/open benchmark persists; controlled delayed writes finish in order with newest state retained; rename/duplicate receive final membership; deletion does not recreate a group; failures refetch persisted truth.
+
+The persistence barrier is shared by entity identity across editor mounts. Reopening an entity waits for the prior mount's final write and refetches before accepting edits; duplicate/delete/rename also wait for outstanding persistence. Pinned regression in the shared queue covers two mounts using the same key; the profile editor integration verifies disabled editing during the prior write.

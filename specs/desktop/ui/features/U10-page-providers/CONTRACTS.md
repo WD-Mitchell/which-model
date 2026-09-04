@@ -124,3 +124,14 @@ Verify: `pnpm --filter desktop test` green.
 | `ProviderAccount`, `ProviderDetail.oauth_supported` | D00 CONTRACTS §2 |
 | `providers.setAccounts`, `signin.*` host methods | D00 CONTRACTS §5 |
 | Query keys / invalidation | U00 CONTRACTS §5–6 |
+
+
+## Account mutation ordering correction — #38 review
+
+Account-list replacements are FIFO and retain the latest pending list. Add,
+API-key save, and OAuth sign-in/re-authentication are unavailable while a
+replacement is queued or running; handler guards enforce this even before the
+next render. Removal is unavailable during credential persistence or sign-in.
+Every failed replacement reports its error, including an older failed write
+followed by a newer queued edit. This prevents a queued whole-list replacement
+from deleting an account that authentication just created.

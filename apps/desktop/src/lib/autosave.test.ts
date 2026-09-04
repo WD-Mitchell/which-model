@@ -1,0 +1,50 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createAutosave } from './autosave'
+
+describe('serialized autosave', () => {
+ beforeEach(() => vi.useFakeTimers())
+ afterEach(() => vi.useRealTimers())
+ it('coalesces for 300ms and flushes one retained snapshot on navigation', async () => {
+  const write = vi.fn(async (_value: number) => {})
+  const queue = createAutosave(write, { delay: 300 })
+  queue.schedule(1)
+  queue.schedule(2)
+  await vi.advanceTimersByTimeAsync(299)
+  expect(write).not.toHaveBeenCalled()
+  await queue.flush()
+  await vi.runAllTimersAsync()
+  await queue.flush()
+  expect(write.mock.calls).toEqual([[2]])
+ })
+ it('never reverses full-list writes and marks older completions stale', async () => {
+  let release!: () => void
+  const writes: number[] = []
+  const write = vi.fn(async (value: number) => { if (value === 1) await new Promise<void>((r) => { release = r }); writes.push(value) })
+  const complete = vi.fn()
+  const queue = createAutosave(write, { delay: 0, onSuccess: (_value, generation): void => { complete(queue.isCurrent(generation)) } })
+  queue.schedule(1)
+  await vi.advanceTimersByTimeAsync(0)
+  queue.schedule(2)
+  queue.schedule(3)
+  expect(write).toHaveBeenCalledTimes(1)
+  release()
+  await queue.flush()
+  expect(writes).toEqual([1, 3])
+  expect(complete.mock.calls).toEqual([[false], [true]])
+ })
+ it('reports rejection, remains usable, and cancels retained writes', async () => {
+  const failure = new Error('failed')
+  const write = vi.fn().mockRejectedValueOnce(failure).mockResolvedValue(undefined)
+  const onError = vi.fn()
+  const queue = createAutosave(write, { delay: 300, onError })
+  queue.schedule(1)
+  await expect(queue.flush()).rejects.toBe(failure)
+  expect(onError).toHaveBeenCalledWith(failure, 1)
+  queue.schedule(2)
+  await queue.flush()
+  queue.schedule(3)
+  queue.cancelPending()
+  await queue.flush()
+  expect(write.mock.calls).toEqual([[1], [2]])
+ })
+})
