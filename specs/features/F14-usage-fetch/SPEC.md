@@ -59,3 +59,13 @@ F14 is the usage subsystem's orchestrator: one call (`FetchAll`) turns a list of
 - Rendering/exit-code logic (`login_required` prompting, offline exit 1) — F24.
 - `nousage` stub for this package — F21.
 - Any per-provider retry/backoff beyond httpkit's default 1×500ms — provider-owned (F15+).
+
+## Review corrections (#180, #181, #184)
+
+The CodexBar backend follows the same online cache-first pipeline: use `cache.EffectiveTTL(15*time.Minute, opts.MaxAge)` for reads, bypass online reads only with `Refresh`, and return fresh cache entries before credential/keychain/subprocess work. A cache hit never writes, sets cache/cached provenance and `Stale=false`, and applies identity redaction only to the returned copy. Missing, corrupt, stale, failed, or ineligible cache entries proceed to live fetch; failures are never written. B08's normal 15-minute and force 60-second ages therefore work without unconditional refresh.
+
+Each live CodexBar worker has a context timeout of positive `Options.Timeout` or 10 seconds, bounded by its parent. The worker context covers managed credential setup and either fetch function. Worker deadline expiry produces a fixed sanitized `timeout` failure, even when the adapter returns an untyped error, without cancelling siblings. Only parent cancellation/deadline is a batch error. CodexBar's standalone adapter keeps its existing 30-second ceiling.
+
+Following #28 source validation, a nonempty forced source constrains actual credentials, including managed fallback: after resolution and before native `Fetch`, `SourceFor(cred, desc.Kind)` must match or return fixed `login_required` with no external fetch. CodexBar managed credential injection is likewise limited to matching sources. Auto mode retains existing precedence. Online cache reuse under a forced non-cache source requires matching original stored `Snapshot.Source` before stamping `SourceCache`; unknown or mismatched provenance is a miss. Explicit cache source and offline mode retain their cache-only behavior.
+
+This correction changes credential eligibility; #184 requires human codeowner review before merge.

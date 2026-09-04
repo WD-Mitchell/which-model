@@ -22,6 +22,7 @@ import (
     "context"
     "time"
 
+    "github.com/WD-Mitchell/which-model/internal/config"
     "github.com/WD-Mitchell/which-model/internal/usage"
     "github.com/WD-Mitchell/which-model/internal/usage/cache"
     "github.com/WD-Mitchell/which-model/internal/usage/credential"
@@ -38,6 +39,8 @@ const DefaultMaxParallel = 8
 
 // Options configures one FetchAll call. All fields optional.
 type Options struct {
+    Backend    config.UsageBackend // off, native, codexbar; empty retains native
+    Source     usage.Source     // forced credential source; empty preserves auto precedence
     Refresh    bool              // skip cache reads; refetch and rewrite (annex-d --refresh-usage)
     Offline    bool              // read-only: cache only, never credentials/fetch/writes
     MaxAge     time.Duration     // TTL override via cache.EffectiveTTL (annex-d --max-age)
@@ -91,3 +94,19 @@ func SourceFor(cred usage.Credential, kind usage.Kind) usage.Source
 | Dependencies added | `golang.org/x/sync` (errgroup only) |
 | Depends on | F04, F11, F12, F13 (per `specs/DEPENDENCY-GRAPH.md` §2) |
 | Blocks | F15, F16, F17, F21, F24 (per `specs/DEPENDENCY-GRAPH.md` §2) |
+
+## Review regression contract (#180, #181, #184)
+
+| Scenario | Required result |
+|---|---|
+| Fresh CodexBar cache / two sequential online calls | No credential/subprocess/write on hit; one total live fetch |
+| Missing, stale, corrupt, or Refresh cache | One live fetch; successful result cached before identity redaction |
+| Two-minute cache, MaxAge 60s / 15m | Fetch / hit respectively |
+| Explicit CodexBar timeout / absent timeout | Provider context uses requested budget / 10s default |
+| Earlier parent deadline or cancellation | Parent remains the upper bound and returns batch error |
+| Blocked provider and successful sibling | `timeout` data for blocked provider; sibling retained |
+| Forced api with managed OAuth or forced oauth with managed API key | `login_required`; zero native fetches; no credential material in error |
+| Matching managed credential or empty source | Fetch succeeds with resolved source |
+| Forced online source with matching cache provenance | Cache hit stamped cache/cached after original source check |
+| Forced online source with mismatched/unknown cache provenance | Matching live path; no incompatible cache reuse |
+| Source cache or Offline, including Refresh | Cache-only behavior remains unchanged |
