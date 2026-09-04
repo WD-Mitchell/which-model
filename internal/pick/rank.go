@@ -194,7 +194,12 @@ type rankedEntry struct {
 // rows have unique (model, reasoning) identities (enforced by
 // score.ParseScoresCSV, F09).
 func Rank(rows []catalog.ScoreRow, profile catalog.Profile, available []Identity) (Result, error) {
-	if err := ValidateProfile(profile); err != nil {
+	return RankWithCategories(rows, profile, available, CategoryNames)
+}
+
+// RankWithCategories preserves Rank scoring and ordering with an explicit category vocabulary.
+func RankWithCategories(rows []catalog.ScoreRow, profile catalog.Profile, available []Identity, categories []string) (Result, error) {
+	if err := ValidateProfileWithCategories(profile, categories); err != nil {
 		return Result{}, err
 	}
 	// A supplied-but-empty filter matches nothing (parse_availability's

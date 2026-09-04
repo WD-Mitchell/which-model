@@ -9,7 +9,7 @@ project: which-model-desktop
 
 ## 1. Purpose
 
-`internal/service/pick.go` is the popover's ranking surface: it resolves a profile (saved or ephemeral overrides), builds the live availability set from the routes table and provider config, runs the engine's `pick.Rank`, and maps the result to the D00 `RankResponse` with a route key per candidate. It also records explicit picks to `<StateDir>/pick/history.jsonl` (feeding B11's per-profile stats) and produces the popover's catalog line.
+`internal/service/pick.go` is the popover's ranking surface: it resolves a profile (saved or ephemeral overrides), builds the live availability set from the routes table and provider config, runs the engine's `pick.RankWithCategories`, and maps the result to the D00 `RankResponse` with a route key per candidate. It also records explicit picks to `<StateDir>/pick/history.jsonl` (feeding B11's per-profile stats) and produces the popover's catalog line.
 
 Depends on: B02 (Services, helpers, error mapping), B03 (profile resolution), B06 (provider/route config semantics), B11 (history append + stats). Inherits D00 + B00; DTOs are D00 CONTRACTS §2 verbatim.
 
@@ -19,13 +19,13 @@ Depends on: B02 (Services, helpers, error mapping), B03 (profile resolution), B0
 
 2. **Ephemeral overrides (D00 §2.2).** A `Rank` call — with or without `Overrides` — persists NOTHING: no config write, no history line, no event. Overrides exist only for the duration of the call.
 
-3. **Engine conversion.** The resolved DTO profile becomes a `catalog.Profile` via B02's `engineProfile`: `Tier1Share = CoreShare`, `Tier2Share = 100 − CoreShare` (percent values — `pick.Rank` combines as `tier·share÷100`), int weights 1..5 → `decimal.Decimal` via `engineWeights` (0-valued keys removed).
+3. **Engine conversion.** The resolved DTO profile becomes a `catalog.Profile` via B02's `engineProfile`: `Tier1Share = CoreShare`, `Tier2Share = 100 − CoreShare` (percent values — `pick.RankWithCategories` combines as `tier·share÷100`), int weights 1..5 → `decimal.Decimal` via `engineWeights` (0-valued keys removed).
 
 4. **Availability set (B00 CONTRACTS §6.3, verbatim).** `available []pick.Identity` is built from the routes table (`routing.LoadTable`, cached by B02): one `Identity{Model: route.Model, Reasoning: route.Reasoning}` per route whose provider is enabled (`providers.<id>.enabled == true`; absent ⇒ disabled) AND whose `model_id@reasoning` is not listed under `[routes.disabled].<provider>`. Duplicates (same catalog identity via several providers) are deduplicated.
 
-5. **Empty availability is not an error.** When the set is empty, `Rank` returns `RankResponse{Candidates: [], Total: 0}` WITHOUT calling `pick.Rank` (the engine rejects a non-nil empty filter). The popover renders this as "Enable a provider" / "every provider is switched off" (mockup `pickName`/`pickMeta` empty-route branch). Likewise, a `*pick.NoCandidatesError` from the engine (all rows cut by tier-1 or availability filtering) maps to `RankResponse{Total: 0}`, not an error.
+5. **Empty availability is not an error.** When the set is empty, `Rank` returns `RankResponse{Candidates: [], Total: 0}` WITHOUT calling `pick.RankWithCategories` (the engine rejects a non-nil empty filter). The popover renders this as "Enable a provider" / "every provider is switched off" (mockup `pickName`/`pickMeta` empty-route branch). Likewise, a `*pick.NoCandidatesError` from the engine (all rows cut by tier-1 or availability filtering) maps to `RankResponse{Total: 0}`, not an error.
 
-6. **Ranking and mapping.** `Rank` calls `pick.Rank(rows, profile, available)` on the cached scores rows. The `Recommendation` is rank 1; `Alternatives` follow in engine order (ranks 2..n). `Candidates` is the first `Holds` entries; `Total = Result.CandidateCount` (pre-truncation count). Per candidate: `Score = round2(Total)` (the only place the 2dp boundary rounding happens); `Rank` is 1-based; `ModelName` = catalog model name; `Reasoning` from the engine row.
+6. **Ranking and mapping.** `Rank` calls `pick.RankWithCategories(rows, profile, available, categories)` on the cached scores rows. The `Recommendation` is rank 1; `Alternatives` follow in engine order (ranks 2..n). `Candidates` is the first `Holds` entries; `Total = Result.CandidateCount` (pre-truncation count). Per candidate: `Score = round2(Total)` (the only place the 2dp boundary rounding happens); `Rank` is 1-based; `ModelName` = catalog model name; `Reasoning` from the engine row.
 
 7. **Provider and route key per candidate.** Each candidate's `Provider` is the highest-priority (lowest `priority`, ties by id ascending — B00 §6.1) ENABLED provider that routes that exact `(model, reasoning)` and is not disabled for it under `[routes.disabled]` — the mockup's `results()` first-match rule. `ModelID` is that route's provider-native `routing.Route.ModelID`; `RouteKey = FormatRouteKey(Provider, ModelID, Reasoning)`. A candidate that survived §2.4 always resolves a provider by construction.
 
@@ -50,7 +50,7 @@ Depends on: B02 (Services, helpers, error mapping), B03 (profile resolution), B0
 |---|---|---|
 | Empty availability / no candidates | `RankResponse{Total: 0}`, nil error | The popover's "Enable a provider" state is a normal render, not a fault (mockup empty-route branch); engine's non-nil-empty-filter error is a CLI concern |
 | Overrides validation scope | Save-equivalent minus slug/name rules | Ephemeral profiles have no identity; weight/share integrity still guards the engine precondition |
-| Share conversion | `Tier1Share = CoreShare` (percent), not `CoreShare/100` | `pick.Rank` multiplies by share then divides by 100 (`rank.go` step 7) |
+| Share conversion | `Tier1Share = CoreShare` (percent), not `CoreShare/100` | `pick.RankWithCategories` multiplies by share then divides by 100 (`rank.go` step 7) |
 | Provider resolution | First enabled, non-disabled provider by priority order per candidate | Mockup `results()` `order.find(...)`; B00 §6.1/§6.3 make it deterministic |
 | History entry shape | CLI `HistoryEntry` field names re-declared in B11; `strategy: "gui"`; `candidate_id` = D00 route key | One history file for CLI + GUI (B00 §2.3); route key keeps reasoning, which the CLI's `provider:model_id` form drops |
 | History write failure | Returned as `io_error` (CLI swallows) | GUI surfaces a toast; silent loss of pick counts is invisible in a GUI |
@@ -59,3 +59,7 @@ Depends on: B02 (Services, helpers, error mapping), B03 (profile resolution), B0
 ## 5. Out of scope
 
 - Launch/substitution and the `Launch` → `RecordPick` call chain — B07. Per-profile pick aggregation (`Picks`/`LastUsed`) and the append primitive — B11. Availability config mutation (`[routes.disabled]`, enable/priority) — B06. Profile persistence — B03. Frontend hold/carousel behaviour — U04/U05.
+
+## Review correction — #185
+
+Rank supplies exactly `pick.CategoryNames` union the current `[groups.*]` slugs to `RankWithCategories`, under `Services.mu.RLock`. Saved profiles and ephemeral overrides use the same vocabulary. Custom-group scoring, availability filtering, tie-breaks, and history behavior are unchanged. Regression: a configured group's composite can change the winner; absent group keys remain invalid. CLI `Rank` and `ValidateProfile` retain their static vocabulary.

@@ -170,6 +170,29 @@ func TestProfileCreateAtomicCollision(t *testing.T) {
 	}
 }
 
+func TestProfileCustomGroupSaveAndRank(t *testing.T) {
+	svc, _ := newTestServices(t, WithConfigTOML(providersFixture+"[groups.custom_group]\nbenchmarks = [\"SWE-Bench Verified\"]\n"))
+	ctx := context.Background()
+	d := ProfileDetail{Slug: "custom_profile", Name: "Custom", CoreShare: 65, Tier1Weights: map[string]int{"intelligence": 3, "cost": 3, "speed": 3}, Tier2Weights: map[string]int{"custom_group": 5}}
+	if err := svc.Profiles().Save(ctx, d); err != nil {
+		t.Fatal(err)
+	}
+	for _, req := range []RankRequest{{ProfileSlug: d.Slug}, {ProfileSlug: d.Slug, Overrides: &d}} {
+		if result, err := svc.Rank(ctx, req); err != nil {
+			t.Fatal(err)
+		} else if len(result.Candidates) == 0 {
+			t.Fatal("custom-group rank did not reach scoring")
+		}
+	}
+	d.Tier2Weights = map[string]int{"missing_group": 5}
+	if err := svc.Profiles().Save(ctx, d); !errors.Is(err, errValidation) {
+		t.Fatalf("unknown group=%v", err)
+	}
+	if _, err := svc.Rank(ctx, RankRequest{Overrides: &d}); !errors.Is(err, errValidation) {
+		t.Fatalf("unknown preview=%v", err)
+	}
+}
+
 func TestProfileRequestErrorsPrecedeStoredProfileDecode(t *testing.T) {
 	svc, _ := newTestServices(t)
 	path := filepath.Join(t.TempDir(), "bad.toml")
