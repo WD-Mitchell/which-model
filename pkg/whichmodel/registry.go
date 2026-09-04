@@ -74,9 +74,9 @@ func registeredCommands() []*cobra.Command {
 
 // resetRegistryBuildCache invalidates the registeredCommands() cache so the
 // next call rebuilds every command fresh (new *cobra.Command + new local
-// flag structs per registrar) without adding a new registrar. Test-only:
-// production calls ExecuteArgs exactly once per process, so the cache is
-// never observably stale there. Feature test files use this (via
+// flag structs per registrar) without adding a new registrar. In-process
+// hook commands use this to avoid reparenting the active outer tree.
+// Feature test files also use this (via
 // captureExecuteFresh) to avoid cobra's per-command FlagSet — in particular
 // pflag's StringArray accumulate-on-Set semantics — leaking flag state
 // across ExecuteArgs calls within one test binary.

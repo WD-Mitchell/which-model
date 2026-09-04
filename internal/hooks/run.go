@@ -41,7 +41,7 @@ type Options struct {
 
 var (
 	errUnknownHook = errors.New("unknown hook")
-	errBadStdin    = errors.New("stdin fixture is not valid JSON")
+	errBadStdin    = errors.New("stdin is not valid JSON object")
 )
 
 // Run executes hook. Returns stdout bytes (possibly empty = fail-open
@@ -52,26 +52,18 @@ func Run(name string, passthrough []string, opts Options) ([]byte, error) {
 	if !ok {
 		return nil, errUnknownHook
 	}
-	code := 0
-	var out []byte
-	if len(opts.Stdin) > 0 {
-		if !json.Valid(opts.Stdin) {
-			return nil, errBadStdin
-		}
-		out = opts.Stdin // fixture replaces underlying stdout
-	} else {
-		runner := opts.Runner
-		if runner == nil {
-			runner = func([]string, io.Writer, io.Writer) int {
-				// CLI layer always supplies ExecuteCommand; a nil runner
-				// is a test authoring error — treat as failure (fail-open).
-				return 1
-			}
-		}
-		var stdout, stderr bytes.Buffer
-		code = runner(h.Underlying(passthrough, opts.Env), &stdout, &stderr)
-		out = stdout.Bytes()
+	input := bytes.TrimSpace(opts.Stdin)
+	if len(input) > 0 && (!json.Valid(input) || input[0] != '{') {
+		return nil, errBadStdin
 	}
+	runner := opts.Runner
+	if runner == nil {
+		// A missing command runner is an underlying failure, never success.
+		runner = func([]string, io.Writer, io.Writer) int { return 1 }
+	}
+	var stdout, stderr bytes.Buffer
+	code := runner(h.Underlying(passthrough, opts.Env), &stdout, &stderr)
+	out := stdout.Bytes()
 	return dispatch(h, code, out, opts)
 }
 
