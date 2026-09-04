@@ -41,7 +41,7 @@ type Options struct {
 
 var (
 	errUnknownHook = errors.New("unknown hook")
-	errBadStdin    = errors.New("stdin fixture is not valid JSON")
+	errBadStdin    = errors.New("stdin is not valid JSON object")
 )
 
 // Run executes hook. Returns stdout bytes (possibly empty = fail-open
@@ -52,26 +52,18 @@ func Run(name string, passthrough []string, opts Options) ([]byte, error) {
 	if !ok {
 		return nil, errUnknownHook
 	}
-	code := 0
-	var out []byte
-	if len(opts.Stdin) > 0 {
-		if !json.Valid(opts.Stdin) {
-			return nil, errBadStdin
-		}
-		out = opts.Stdin // fixture replaces underlying stdout
-	} else {
-		runner := opts.Runner
-		if runner == nil {
-			runner = func([]string, io.Writer, io.Writer) int {
-				// CLI layer always supplies ExecuteCommand; a nil runner
-				// is a test authoring error — treat as failure (fail-open).
-				return 1
-			}
-		}
-		var stdout, stderr bytes.Buffer
-		code = runner(h.Underlying(passthrough, opts.Env), &stdout, &stderr)
-		out = stdout.Bytes()
+	input := bytes.TrimSpace(opts.Stdin)
+	if len(input) > 0 && (!json.Valid(input) || input[0] != '{') {
+		return nil, errBadStdin
 	}
+	runner := opts.Runner
+	if runner == nil {
+		// A missing command runner is an underlying failure, never success.
+		runner = func([]string, io.Writer, io.Writer) int { return 1 }
+	}
+	var stdout, stderr bytes.Buffer
+	code := runner(h.Underlying(passthrough, opts.Env), &stdout, &stderr)
+	out := stdout.Bytes()
 	return dispatch(h, code, out, opts)
 }
 
@@ -181,23 +173,21 @@ func dispatch(h Hook, code int, out []byte, opts Options) ([]byte, error) {
 		if code != 0 {
 			return approveFailOpen("model-audit", code), nil
 		}
-		var doc map[string]json.RawMessage
-		if err := json.Unmarshal(out, &doc); err != nil {
+		var doc auditDocument
+		if err := json.Unmarshal(out, &doc); err != nil || doc.SchemaVersion != "2.0" || doc.Evidence == nil {
 			return approveFailOpen("model-audit", 0), nil
 		}
-		candidateRaw, ok := doc["candidate"]
-		if !ok {
+		provider, modelID, ok := strings.Cut(doc.Candidate, ":")
+		if !ok || provider == "" || modelID == "" {
 			return approveFailOpen("model-audit", 0), nil
 		}
-		var cand struct {
-			Route struct {
-				ModelID string `json:"model_id"`
-			} `json:"route"`
-		}
-		if err := json.Unmarshal(candidateRaw, &cand); err != nil {
+		if expected := envOr(opts.Env, "WHICH_MODEL_CANDIDATE_ID", ""); expected != "" && expected != doc.Candidate {
 			return approveFailOpen("model-audit", 0), nil
 		}
-		if cand.Route.ModelID == "" {
+		// Decode only documented fields, then emit one compact JSONL record.
+		// Unrelated host/provider fields must never enter dispatch evidence.
+		out, err := json.Marshal(doc)
+		if err != nil {
 			return approveFailOpen("model-audit", 0), nil
 		}
 		root := opts.RepoRoot
@@ -213,12 +203,12 @@ func dispatch(h Hook, code int, out []byte, opts Options) ([]byte, error) {
 			return approveFailOpen("model-audit", 0), nil
 		}
 		mismatch := false
-		if dispatched := envOr(opts.Env, "WHICH_MODEL_DISPATCHED_MODEL", ""); dispatched != "" && dispatched != cand.Route.ModelID {
+		if dispatched := envOr(opts.Env, "WHICH_MODEL_DISPATCHED_MODEL", ""); dispatched != "" && dispatched != modelID {
 			mismatch = true
 			rec := map[string]any{
 				"ts":               time.Now().UTC().Format(time.RFC3339),
 				"dispatched_model": dispatched,
-				"route_model_id":   cand.Route.ModelID,
+				"route_model_id":   modelID,
 				"evidence":         json.RawMessage(out),
 			}
 			b, err := json.Marshal(rec)

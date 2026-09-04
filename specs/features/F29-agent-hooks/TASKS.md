@@ -74,9 +74,14 @@ graph TD
        },
        {
            ID: "model-audit", Event: "PostToolUse", Matcher: "Task", Timeout: 5,
-           Underlying: func(p []string, env map[string]string) []string {
-               if id := envOr(env, "WHICH_MODEL_CANDIDATE_ID", ""); id != "" {
-                   return append([]string{"explain", id, "--json"}, p...)
+           // Build explain --last --json, or explain --json when passthrough
+           // supplies --pick-id. Candidate env is correlation only (SPEC §7).
+           Underlying: func(p []string, _ map[string]string) []string {
+               for _, arg := range p {
+                   if arg == "--" { break }
+                   if arg == "--pick-id" || strings.HasPrefix(arg, "--pick-id=") {
+                       return append([]string{"explain", "--json"}, p...)
+                   }
                }
                return append([]string{"explain", "--last", "--json"}, p...)
            },
@@ -179,38 +184,30 @@ graph TD
 
    var (
        errUnknownHook   = errors.New("unknown hook")
-       errBadStdin      = errors.New("stdin fixture is not valid JSON")
+       errBadStdin      = errors.New("stdin is not valid JSON object")
    )
 
    // Run executes hook. Returns stdout bytes (possibly empty = fail-open
    // silence) or an error for exit-2-class conditions. Never errors for
    // underlying command failures (fail-open).
    func Run(name string, passthrough []string, opts Options) ([]byte, error) {
-       h, ok := Get(name)
-       if !ok {
-           return nil, errUnknownHook
-       }
-       code := 0
-       var out []byte
-       if len(opts.Stdin) > 0 {
-           if !json.Valid(opts.Stdin) {
-               return nil, errBadStdin
-           }
-           out = opts.Stdin // fixture replaces underlying stdout
-       } else {
-           runner := opts.Runner
-           if runner == nil {
-               runner = func([]string, io.Writer, io.Writer) int {
-                   // CLI layer always supplies ExecuteCommand; a nil runner
-                   // is a test authoring error — treat as failure (fail-open).
-                   return 1
-               }
-           }
-           var stdout, stderr bytes.Buffer
-           code = runner(h.Underlying(passthrough, opts.Env), &stdout, &stderr)
-           out = stdout.Bytes()
-       }
-       return dispatch(h, code, out, opts)
+   	h, ok := Get(name)
+   	if !ok {
+   		return nil, errUnknownHook
+   	}
+   	input := bytes.TrimSpace(opts.Stdin)
+   	if len(input) > 0 && (!json.Valid(input) || input[0] != '{') {
+   		return nil, errBadStdin
+   	}
+   	runner := opts.Runner
+   	if runner == nil {
+   		// A missing command runner is an underlying failure, never success.
+   		runner = func([]string, io.Writer, io.Writer) int { return 1 }
+   	}
+   	var stdout, stderr bytes.Buffer
+   	code := runner(h.Underlying(passthrough, opts.Env), &stdout, &stderr)
+   	out := stdout.Bytes()
+   	return dispatch(h, code, out, opts)
    }
    ```
 2. Add the per-hook switch, starting with the two SessionStart hooks and error plumbing:
@@ -249,7 +246,7 @@ graph TD
    - same with `fakeRunner(5, "auth needed")` → empty bytes, nil error.
    - `Run("nonsense", nil, Options{})` → error equal to `errUnknownHook`.
    - `Run("usage-refresh", nil, Options{Stdin: []byte("not json")})` → error equal to `errBadStdin`.
-   - `Run("usage-refresh", nil, Options{Stdin: []byte(`{"anything":1}`)})` → the approve envelope (fixture path skips the runner entirely; assert the runner was NEVER called via a flag-closing fake).
+   - `Run("usage-refresh", nil, Options{Stdin: []byte(`{"anything":1}`), Runner: fakeRunner(0, `{"snapshots":[]}`)})` → the approve envelope (host context path executes the runner once; assert invocation and use its exit code).
    - canary: `Run("usage-refresh", nil, Options{Stdin: []byte(`{"secret":"CANARY_XYZ"}`)})` → output bytes do NOT contain `CANARY_XYZ` (envelope is constant; canary rule, SPEC behaviour 12).
    - malformed run error messages: assert `errUnknownHook`/`errBadStdin` are the sentinel values (callers map them to exit 2).
 
@@ -262,7 +259,7 @@ graph TD
 | 3 | `usage-refresh`, runner exit 5 | empty output, nil error |
 | 4 | `Run("nonsense", …)` | error == `errUnknownHook` |
 | 5 | stdin `not json` | error == `errBadStdin` |
-| 6 | stdin valid JSON | approve envelope; runner not invoked |
+| 6 | stdin valid JSON | runner invoked once; only its result controls the envelope |
 | 7 | stdin containing `CANARY_XYZ` | envelope bytes lack `CANARY_XYZ` |
 
 **Acceptance criteria:**
@@ -322,7 +319,7 @@ graph TD
    ```
    (add `"fmt"` to the imports; `doc.Snapshots == nil` distinguishes a missing key from an empty array.)
 2. Add tests:
-   - fixture stdin (annex-c §4.1-shaped): `{"schema_version":"2.0","usage_enabled":true,"snapshots":[{"provider":"claude","confidence":"live","windows":[]},{"provider":"codex","confidence":"live","windows":[]}]}` → exact block envelope with `"critical_providers":["claude","codex"]` and reason `quota guard: 2 provider(s) at or above critical band`.
+   - runner stdout (annex-c §4.1-shaped): `{"schema_version":"2.0","usage_enabled":true,"snapshots":[{"provider":"claude","confidence":"live","windows":[]},{"provider":"codex","confidence":"live","windows":[]}]}` → exact block envelope with `"critical_providers":["claude","codex"]` and reason `quota guard: 2 provider(s) at or above critical band`.
    - fixture with empty array `{"snapshots":[]}` → approve envelope `no providers at or above critical band`.
    - fixture with duplicate providers → de-duplicated in first-seen order.
    - fixture missing `snapshots` key → empty output, nil error.
@@ -335,13 +332,13 @@ graph TD
 
 | # | input | want |
 |---|---|---|
-| 1 | stdin 2 providers | exact block envelope, providers in order |
-| 2 | stdin `{"snapshots":[]}` | exact approve envelope |
-| 3 | stdin duplicate providers | de-duplicated `critical_providers` |
-| 4 | stdin missing `snapshots` | empty output, nil error |
+| 1 | runner stdout 2 providers | exact block envelope, providers in order |
+| 2 | runner stdout `{"snapshots":[]}` | exact approve envelope |
+| 3 | runner stdout duplicate providers | de-duplicated `critical_providers` |
+| 4 | runner stdout missing `snapshots` | empty output, nil error |
 | 5 | runner exit 1 + valid stdout | empty output (fail-open) |
 | 6 | runner exit 0 + non-JSON stdout | empty output |
-| 7 | stdin with `CANARY_QUOTA` | envelope lacks it |
+| 7 | runner stdout with `CANARY_QUOTA` | envelope lacks it |
 | 8 | golden block envelope | byte-exact match |
 
 **Acceptance criteria:**
@@ -431,7 +428,7 @@ graph TD
    }
    ```
    Note `excluded_candidates` and `candidate` are carried as `json.RawMessage` (verbatim bytes inside the envelope — field names and values untouched, annex-c §4.2 fidelity).
-2. Add tests using fixture stdin (runner never called) and `fakeRunner` for exit codes:
+2. Add tests using fixtures returned by `fakeRunner` and `fakeRunner` for exit codes:
    - exit 0 with a 2-candidate pick fixture → approve envelope; `hookSpecificOutput.candidate` is the exact first candidate object bytes; reason `dispatch approved: cand-1`.
    - exit 0 with `"candidates":[]` → fail-open approve envelope with reason containing `exited 0`.
    - exit 4 with fixture `{"excluded_candidates":[{"route":{"provider":"claude"},"reason_code":"band_gated","reason":"at gate"},{"route":{"provider":"codex"},"reason_code":"auth_required","reason":"login"}]}` → block envelope; reason `all eligible providers band-gated: claude`; `hookSpecificOutput.excluded_candidates` is the verbatim array.
@@ -476,59 +473,60 @@ graph TD
 1. Add the `model-audit` arm:
    ```go
    case "model-audit":
-       if code != 0 {
-           return approveFailOpen("model-audit", code), nil
-       }
-       var doc map[string]json.RawMessage
-       if err := json.Unmarshal(out, &doc); err != nil {
-           return approveFailOpen("model-audit", 0), nil
-       }
-       candidateRaw, ok := doc["candidate"]
-       if !ok {
-           return approveFailOpen("model-audit", 0), nil
-       }
-       var cand struct {
-           Route struct {
-               ModelID string `json:"model_id"`
-           } `json:"route"`
-       }
-       if err := json.Unmarshal(candidateRaw, &cand); err != nil {
-           return approveFailOpen("model-audit", 0), nil
-       }
-       root := opts.RepoRoot
-       if root == "" {
-           return approveFailOpen("model-audit", 0), nil
-       }
-       evidenceDir := filepath.Join(root, ".which-model")
-       if err := os.MkdirAll(evidenceDir, 0o700); err != nil {
-           return approveFailOpen("model-audit", 0), nil
-       }
-       evidenceFile := filepath.Join(evidenceDir, "evidence.jsonl")
-       if err := appendLine(evidenceFile, out); err != nil {
-           return approveFailOpen("model-audit", 0), nil
-       }
-       mismatch := false
-       if dispatched := envOr(opts.Env, "WHICH_MODEL_DISPATCHED_MODEL", ""); dispatched != "" && dispatched != cand.Route.ModelID {
-           mismatch = true
-           rec := map[string]any{
-               "ts":              time.Now().UTC().Format(time.RFC3339),
-               "dispatched_model": dispatched,
-               "route_model_id":   cand.Route.ModelID,
-               "evidence":         json.RawMessage(out),
-           }
-           b, err := json.Marshal(rec)
-           if err == nil {
-               appendLine(filepath.Join(evidenceDir, "audit-mismatches.jsonl"), b)
-           }
-       }
-       return MarshalEnvelope(Envelope{
-           Decision: "approve",
-           Reason:   "dispatch evidence recorded",
-           HookSpecificOutput: map[string]any{
-               "evidence_logged": evidenceFile,
-               "mismatch":        mismatch,
-           },
-       }), nil
+   if code != 0 {
+   return approveFailOpen("model-audit", code), nil
+   }
+   var doc auditDocument
+   if err := json.Unmarshal(out, &doc); err != nil || doc.SchemaVersion != "2.0" || doc.Evidence == nil {
+   return approveFailOpen("model-audit", 0), nil
+   }
+   provider, modelID, ok := strings.Cut(doc.Candidate, ":")
+   if !ok || provider == "" || modelID == "" {
+   return approveFailOpen("model-audit", 0), nil
+   }
+   if expected := envOr(opts.Env, "WHICH_MODEL_CANDIDATE_ID", ""); expected != "" && expected != doc.Candidate {
+   return approveFailOpen("model-audit", 0), nil
+   }
+   // Decode only documented fields, then emit one compact JSONL record.
+   // Unrelated host/provider fields must never enter dispatch evidence.
+   out, err := json.Marshal(doc)
+   if err != nil {
+   return approveFailOpen("model-audit", 0), nil
+   }
+   root := opts.RepoRoot
+   if root == "" {
+   return approveFailOpen("model-audit", 0), nil
+   }
+   evidenceDir := filepath.Join(root, ".which-model")
+   if err := os.MkdirAll(evidenceDir, 0o700); err != nil {
+   return approveFailOpen("model-audit", 0), nil
+   }
+   evidenceFile := filepath.Join(evidenceDir, "evidence.jsonl")
+   if err := appendLine(evidenceFile, out); err != nil {
+   return approveFailOpen("model-audit", 0), nil
+   }
+   mismatch := false
+   if dispatched := envOr(opts.Env, "WHICH_MODEL_DISPATCHED_MODEL", ""); dispatched != "" && dispatched != modelID {
+   mismatch = true
+   rec := map[string]any{
+   "ts":               time.Now().UTC().Format(time.RFC3339),
+   "dispatched_model": dispatched,
+   "route_model_id":   modelID,
+   "evidence":         json.RawMessage(out),
+   }
+   b, err := json.Marshal(rec)
+   if err == nil {
+   appendLine(filepath.Join(evidenceDir, "audit-mismatches.jsonl"), b)
+   }
+   }
+   return MarshalEnvelope(Envelope{
+   Decision: "approve",
+   Reason:   "dispatch evidence recorded",
+   HookSpecificOutput: map[string]any{
+   "evidence_logged": evidenceFile,
+   "mismatch":        mismatch,
+   },
+   }), nil
    ```
    and helpers:
    ```go
@@ -547,16 +545,16 @@ graph TD
    ```
    (add `"path/filepath"`, `"time"` imports.) Note: the appended line is the FULL explain object (annex-c §3.3: "appends one `Evidence` object (§5) per dispatch"; the §4.3 root object includes `schema_version`, `candidate`, `evidence`).
 2. Add tests (each with a fresh `t.TempDir()` as `RepoRoot`):
-   - exit 0 with an explain fixture `{"schema_version":"2.0","usage_enabled":true,"candidate":{"candidate_id":"c-1","route":{"provider":"claude","model_id":"claude-sonnet-4-5","model":"Claude Sonnet 4.5","reasoning":"medium","window_ids":["w1"]}},"evidence":{"profile":"balanced_implementation","score_inputs":{},"route_provenance":"provider_live","excluded_candidates":[]}}` → approve envelope, `"mismatch":false`, `evidence_logged` ends with `/.which-model/evidence.jsonl`; file exists with exactly one line == the fixture bytes; file mode is `0600` (`os.Stat().Mode().Perm()`).
+   - exit 0 with an explain fixture `{"schema_version":"2.0","candidate":"claude:claude-sonnet-4-5","evidence":{"profile":"balanced_implementation","score_inputs":{},"route_provenance":"provider_live","excluded_candidates":[]}}` → approve envelope, `"mismatch":false`, `evidence_logged` ends with `/.which-model/evidence.jsonl`; file exists with exactly one line == the fixture bytes; file mode is `0600` (`os.Stat().Mode().Perm()`).
    - env `WHICH_MODEL_DISPATCHED_MODEL=claude-sonnet-4-5` (matching) → no mismatch file; envelope mismatch=false.
    - env `WHICH_MODEL_DISPATCHED_MODEL=gpt-5` (mismatch) → envelope mismatch=true; `audit-mismatches.jsonl` has one line; parse it: `dispatched_model == "gpt-5"`, `route_model_id == "claude-sonnet-4-5"`, `evidence` present.
    - second run appends a second line (both lines intact, JSONL).
    - exit 1 → fail-open approve; no evidence file created.
    - exit 0, fixture without `candidate` key → fail-open approve; no file.
-   - exit 0, fixture with `candidate` lacking `route` → fail-open approve; no file.
-   - canary: fixture containing `CANARY_EVIDENCE` in `evidence.score_inputs` → envelope bytes lack `CANARY_EVIDENCE`.
+   - exit 0, fixture with `candidate` lacking a provider/model separator → fail-open approve; no file.
+   - canary: unrelated top-level/nested evidence fields containing `CANARY_EVIDENCE` → envelope and evidence file bytes lack `CANARY_EVIDENCE`; a non-numeric score input fails open.
    - `RepoRoot` empty → fail-open approve, no error.
-   - passthrough: `Run("model-audit", ["--last"], Options{Runner: capturingRunner, Env: {"WHICH_MODEL_CANDIDATE_ID":"c-9"}})` → argv `["explain","c-9","--json","--last"]` (env id wins, passthrough appended).
+   - passthrough: `Run("model-audit", ["--last"], Options{Runner: capturingRunner, Env: {"WHICH_MODEL_CANDIDATE_ID":"c-9"}})` → argv `["explain","--last","--json","--last"]` (env candidate is correlation only).
 
 **Test cases (write these first):**
 
@@ -568,8 +566,8 @@ graph TD
 | 4 | second run | two JSONL lines, both intact |
 | 5 | exit 1 | fail-open approve; no file created |
 | 6 | fixture missing `candidate` | fail-open approve; no file |
-| 7 | fixture candidate missing `route` | fail-open approve; no file |
-| 8 | fixture with `CANARY_EVIDENCE` | envelope lacks it |
+| 7 | fixture candidate not a nonempty `provider:model_id` string | fail-open approve; no file |
+| 8 | fixture with `CANARY_EVIDENCE` | envelope and evidence file lack it |
 | 9 | `RepoRoot` empty | fail-open approve |
 | 10 | passthrough `--last` + env id | argv `["explain","c-9","--json","--last"]` |
 
@@ -788,7 +786,7 @@ graph TD
    - `hooks install --target codex` → exit 2.
    - `hooks install` with no repo root and no `--repo` (run with cwd in a temp dir outside any git repo via `t.Chdir`) → exit 1.
    - `hooks remove --repo <tmp>` → exit 0; settings.json, manifest, toml absent (no trace).
-   - `hooks run usage-refresh` with stdin piped from a fixture file (run via the root's Execute with `SetIn` if the F22 harness supports it, else invoke `hooks.Run` directly through the command's RunE with `cmd.SetIn`) → stdout is exactly the approve envelope; exit 0.
+   - `hooks run usage-refresh` with a host event object on stdin and a hermetic usage fetcher (run via the root's Execute with `SetIn` if the F22 harness supports it, else invoke `hooks.Run` directly through the command's RunE with `cmd.SetIn`) → stdout is exactly the approve envelope; exit 0.
    - `hooks run nonsense` → exit 2, stderr contains `unknown hook`.
    - `hooks run usage-refresh` with stdin `not json` → exit 2, stderr contains `not valid JSON`.
    - Execute both SessionStart hooks with `hooks.Run(..., hooks.Options{Runner: ExecuteCommand})`, a fake F24 fetch result, and a real temp config. `usage-refresh` must emit its approve envelope and `quota-guard` must emit `critical_providers`; this test must exercise the real Cobra command tree so nonexistent subcommands/providers/flags fail.
@@ -819,3 +817,17 @@ graph TD
 - [ ] no file outside the Files list modified
 
 **Run:** `go test ./internal/hooks/... && go test ./pkg/whichmodel/...`
+
+## Additional pinned regression rows — #162 / #163
+
+| Input/scenario | Required result |
+|---|---|
+| Host event object on each hook's stdin | Runner executes once; host fields never substitute for stdout or leak |
+| Empty/whitespace stdin | Normal command execution |
+| Array, scalar, null, malformed host JSON | Exit 2 before runner |
+| Nested CLI SessionStart execution | One final envelope reaches original stdout; flags restored |
+| Actual F26 explain --pick-id output, model ID containing colon | One compact JSONL line preserving documented evidence; correct mismatch comparison |
+| Candidate env differs from selected history record | Fail-open; evidence files unchanged |
+| Unknown top-level or nested evidence fields | Removed before evidence write |
+
+Corrections supersede the former stdout-on-stdin test seam and object-shaped candidate sketches. `auditDocument` is the private F26 decoding view in `internal/hooks/audit.go`; no canonical public type changes.

@@ -5,12 +5,14 @@ package whichmodel
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/WD-Mitchell/which-model/internal/hooks"
 	"github.com/WD-Mitchell/which-model/internal/skills"
 	"github.com/WD-Mitchell/which-model/internal/usage"
 )
@@ -166,22 +168,6 @@ func captureExecuteWithStdin(t *testing.T, args []string, stdin string) (code in
 	return 0, outBuf.String(), errBuf.String()
 }
 
-// Test 7: `hooks run usage-refresh` with a fixture piped on stdin → stdout
-// is exactly the approve envelope; exit 0.
-func TestHooksRunFixture(t *testing.T) {
-	skills.SetRepoDir("")
-	code, stdout, stderr := captureExecuteWithStdin(t,
-		[]string{"hooks", "run", "usage-refresh"},
-		`{"schema_version":"2.0","usage_enabled":true,"snapshots":[]}`)
-	if code != 0 {
-		t.Fatalf("hooks run: exit = %d, want 0 (stderr: %s)", code, stderr)
-	}
-	want := "{\"decision\":\"approve\",\"reason\":\"usage cache refreshed\",\"hookSpecificOutput\":{}}\n"
-	if stdout != want {
-		t.Errorf("stdout = %q, want %q", stdout, want)
-	}
-}
-
 // Test 8: `hooks run nonsense` → exit 2; stderr names the unknown hook.
 func TestHooksRunUnknownHook(t *testing.T) {
 	skills.SetRepoDir("")
@@ -244,12 +230,14 @@ func TestExecuteCommandInProcess(t *testing.T) {
 // unknown provider, subcommand, or flag.
 func TestSessionStartHooksExecuteUsageCommand(t *testing.T) {
 	oldFetch := fetchAllFunc
+	calls := 0
 	t.Cleanup(func() {
 		fetchAllFunc = oldFetch
 		Global = GlobalFlags{}
 	})
 	used := 80.0
 	fetchAllFunc = func(context.Context, FetchAllOptions) (*FetchResult, error) {
+		calls++
 		return &FetchResult{Snapshots: []usage.Snapshot{{
 			Provider: "claude",
 			Windows: []usage.Window{{
@@ -272,13 +260,88 @@ func TestSessionStartHooksExecuteUsageCommand(t *testing.T) {
 		t.Run(id, func(t *testing.T) {
 			Global = GlobalFlags{}
 			resetRegistryBuildCache()
-			out, err := hooks.Run(id, []string{"--config", cfg}, hooks.Options{Runner: ExecuteCommand})
-			if err != nil {
-				t.Fatal(err)
+			before := calls
+			code, out, stderr := captureExecuteWithStdin(t, []string{"hooks", "run", id, "--config", cfg}, `{"hook_event_name":"SessionStart","secret":"CANARY_HOST"}`)
+			if code != 0 || calls != before+1 {
+				t.Fatalf("code=%d calls=%d stderr=%s", code, calls-before, stderr)
+			}
+			if strings.Contains(out, "CANARY_HOST") {
+				t.Fatal("host context leaked")
 			}
 			if !strings.Contains(string(out), want) {
 				t.Fatalf("%s output = %q, want %s", id, out, want)
 			}
 		})
+	}
+}
+
+func TestHookInheritsOuterGlobalFlags(t *testing.T) {
+	oldFetch := fetchAllFunc
+	t.Cleanup(func() { fetchAllFunc = oldFetch; Global = GlobalFlags{} })
+	cfg := pickTestConfig(t, t.TempDir(), "[usage]\nbackend=\"native\"\n[providers.claude]\nenabled=true\n")
+	for _, override := range []bool{false, true} {
+		calls := 0
+		fetchAllFunc = func(_ context.Context, opts FetchAllOptions) (*FetchResult, error) {
+			calls++
+			want := 2 * time.Second
+			if override {
+				want = time.Second
+			}
+			if !opts.Offline || opts.Timeout != want || !opts.ForceRefresh {
+				t.Fatalf("lost outer/passthrough flags: %+v", opts)
+			}
+			return &FetchResult{Snapshots: []usage.Snapshot{}}, nil
+		}
+		args := []string{"--offline", "--config", cfg, "--timeout", "2s", "hooks", "run", "usage-refresh"}
+		if override {
+			args = append(args, "--timeout", "1s")
+		}
+		code, out, stderr := captureExecuteWithStdin(t, args, `{}`)
+		if code != 0 || calls != 1 || !strings.Contains(out, "usage cache refreshed") {
+			t.Fatalf("code=%d calls=%d out=%s stderr=%s", code, calls, out, stderr)
+		}
+	}
+}
+
+func TestModelAuditConsumesRealExplainOutput(t *testing.T) {
+	repo := hooksRepo(t)
+	t.Chdir(repo)
+	state := t.TempDir()
+	setStateDir(t, func() string { return state })
+	cfg := pickTestConfig(t, t.TempDir(), "")
+	const firstID = "01K20000000000000000000000"
+	seedExplainHistory(t, state,
+		explainHistoryEntry(firstID, "claude:model:revision", 90, f26FullEvidence()),
+		explainHistoryEntry("01K20000000000000000000001", "codex:latest", 80, f26FullEvidence()))
+	t.Setenv("WHICH_MODEL_CANDIDATE_ID", "claude:model:revision")
+	t.Setenv("WHICH_MODEL_DISPATCHED_MODEL", "model:revision")
+	t.Cleanup(func() { Global = GlobalFlags{} })
+	code, out, stderr := captureExecuteWithStdin(t,
+		[]string{"hooks", "run", "model-audit", "--pick-id", firstID, "--config", cfg},
+		`{"tool_name":"Task","secret":"CANARY_HOST"}`)
+	if code != 0 || !strings.Contains(out, `"mismatch":false`) {
+		t.Fatalf("code=%d out=%s stderr=%s", code, out, stderr)
+	}
+	path := filepath.Join(repo, ".which-model", "evidence.jsonl")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(string(b), "\n") != 1 || strings.Contains(string(b), "CANARY_HOST") {
+		t.Fatalf("invalid JSONL: %s", b)
+	}
+	var doc ExplainResult
+	if err := json.Unmarshal(b, &doc); err != nil || doc.Candidate != "claude:model:revision" || !reflect.DeepEqual(doc.Evidence, f26FullEvidence()) {
+		t.Fatalf("lost explain fields: %+v error=%v", doc, err)
+	}
+	// The latest record belongs to a different dispatch: do not log it as
+	// evidence for WHICH_MODEL_CANDIDATE_ID.
+	code, out, stderr = captureExecuteWithStdin(t, []string{"hooks", "run", "model-audit", "--config", cfg}, `{}`)
+	if code != 0 || !strings.Contains(out, "fail-open:") {
+		t.Fatalf("code=%d out=%s stderr=%s", code, out, stderr)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil || !bytes.Equal(b, after) {
+		t.Fatalf("uncorrelated evidence was appended: %s error=%v", after, err)
 	}
 }

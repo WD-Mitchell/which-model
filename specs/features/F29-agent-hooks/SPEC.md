@@ -26,7 +26,7 @@ Wire `which-model` into AI-agent dispatch lifecycles (Claude Code and the generi
    | `usage-refresh` | §3.1 session-start cache warm | `SessionStart` / `*` | 5 | `which-model usage --all --json --quiet --refresh-usage --timeout 5s` |
    | `quota-guard` | §3.4 quota-guard advisory | `SessionStart` / `*` | 5 | `which-model usage --all --json --band-at-or-above critical --quiet` |
    | `spawn-gate` | §3.2 pre-dispatch model resolution | `PreToolUse` / `Task` | 8 | `which-model pick --profile "${WHICH_MODEL_TASK_PROFILE:-balanced_implementation}" --strategy priority --json` |
-   | `model-audit` | §3.3 post-dispatch evidence recording | `PostToolUse` / `Task` | 5 | `which-model explain "$WHICH_MODEL_CANDIDATE_ID" --json`, falling back to `which-model explain --last --json` when the env var is unset |
+   | `model-audit` | §3.3 post-dispatch evidence recording | `PostToolUse` / `Task` | 5 | `which-model explain --last --json`; explicit passthrough `--pick-id <history ULID>` selects a record instead |
 
    `hooks run <hook> [args...]` appends any extra args AFTER the defaults, so an installed variant can override (`--no-usage --profile balanced_implementation --quiet`).
 
@@ -36,9 +36,9 @@ Wire `which-model` into AI-agent dispatch lifecycles (Claude Code and the generi
    ```
    `decision` is `"approve"` or `"block"`; `reason` a short human string; `hookSpecificOutput` a JSON object carrying hook payload (empty `{}` when the hook injects nothing). Envelope is written compact (no indentation) with a single trailing `\n`. Nothing is ever printed to stdout besides the envelope; diagnostics go to stderr.
 
-4. **`hooks run` execution model** — the hook executes its underlying command in-process via F22's `pkg/whichmodel.ExecuteCommand(args []string, stdout, stderr io.Writer) int` (no subprocess; annex-c §3 commands remain the installed command semantics). If stdin is non-empty, its bytes are treated as a fixture JSON document that REPLACES the underlying command's stdout (test seam; also used by the canary tests). Exit codes:
+4. **`hooks run` execution model** — the hook executes its underlying command in-process via F22's `pkg/whichmodel.ExecuteCommand(args []string, stdout, stderr io.Writer) int` (no subprocess; annex-c §3 commands remain the installed command semantics). Non-empty stdin is an object containing host event context, never a replacement command result. The underlying runner always executes once; tests inject its stdout through `Runner`. Empty/whitespace input is allowed; malformed JSON, arrays, null and scalars are rejected. Nested CLI execution builds fresh command objects and restores the outer flags and output streams so the envelope reaches the host. Exit codes:
    - `0` on every successfully-formed run, INCLUDING underlying command failure (fail-open, behaviour 6) — unless the failure mode demands silence (behaviour 6).
-   - `2` with a stderr message for: unknown hook name (`which-model hooks run nonsense`), or a non-empty stdin that is not valid JSON.
+   - `2` with a stderr message for: unknown hook name (`which-model hooks run nonsense`), or a non-empty stdin that is not a valid JSON object.
    - No other exit code is ever produced by `hooks run`.
 
 5. **Underlying exit-code interpretation** (global exit codes, `specs/global/SPEC.md` §5; annex-c §4.7):
@@ -59,7 +59,9 @@ Wire `which-model` into AI-agent dispatch lifecycles (Claude Code and the generi
      ```
      `critical_providers` = the provider names from the output's snapshots (field `provider`), in output order, de-duplicated. If the output lists no providers: `{"decision":"approve","reason":"no providers at or above critical band","hookSpecificOutput":{}}`.
    - `spawn-gate` (annex-c §3.2): underlying `pick` exit `0` → `{"decision":"approve","reason":"dispatch approved: <candidates[0].candidate_id>","hookSpecificOutput":{"candidate":{...}}}` where `candidate` is the FULL first candidate object from the pick JSON (annex-c §4.2), verbatim. Underlying exit `4` → `{"decision":"block","reason":"all eligible providers band-gated: <reason_code==\"band_gated\" exclusions, comma-joined>","hookSpecificOutput":{"excluded_candidates":[...]}}` where `excluded_candidates` is the full `excluded_candidates` array from the pick JSON, verbatim.
-   - `model-audit` (annex-c §3.3): underlying `explain` exit `0` → `{"decision":"approve","reason":"dispatch evidence recorded","hookSpecificOutput":{"evidence_logged":"<repoRoot>/.which-model/evidence.jsonl","mismatch":false}}`; appends the full explain JSON object (annex-c §4.3: `schema_version`, `candidate`, `evidence`) as ONE line to `<repoRoot>/.which-model/evidence.jsonl` (`O_APPEND|O_CREATE|O_WRONLY`, mode `0600`). If env `WHICH_MODEL_DISPATCHED_MODEL` is set AND differs from the explain output's `candidate.route.model_id`, append one line `{"ts":"<RFC3339 UTC>","dispatched_model":"<env>","route_model_id":"<candidate.route.model_id>","evidence":{...full explain object...}}` to `<repoRoot>/.which-model/audit-mismatches.jsonl` (same append semantics) and set `"mismatch":true` in the envelope.
+   - `model-audit` (annex-c §3.3): underlying `explain` exit `0` → `{"decision":"approve","reason":"dispatch evidence recorded","hookSpecificOutput":{"evidence_logged":"<repoRoot>/.which-model/evidence.jsonl","mismatch":false}}`; decodes only the documented F26 fields and appends the sanitized explain JSON object (annex-c §4.3: `schema_version`, `candidate`, `evidence`) as ONE line to `<repoRoot>/.which-model/evidence.jsonl` (`O_APPEND|O_CREATE|O_WRONLY`, mode `0600`). If env `WHICH_MODEL_DISPATCHED_MODEL` is set AND differs from the model-id portion of F26's `candidate` string (`provider:model_id`, split only at the first colon), append one line `{"ts":"<RFC3339 UTC>","dispatched_model":"<env>","route_model_id":"<model_id>","evidence":{...full explain object...}}` to `<repoRoot>/.which-model/audit-mismatches.jsonl` (same append semantics) and set `"mismatch":true` in the envelope.
+
+`WHICH_MODEL_CANDIDATE_ID`, when set, is an exact correlation check against the returned candidate string, not a history ULID or positional CLI argument. A mismatched candidate, missing evidence, unsupported schema, or invalid candidate string fails open without writing evidence. Explicit `--pick-id` suppresses the default `--last`.
 
 8. **Evidence files** — both files live under `<repoRoot>/.which-model/` (repo root resolved exactly as F28's `internal/skills.RepoRoot()`, incl. `--repo` override). Appends never rewrite existing content; a malformed explain output is treated as underlying failure (fail-open, no append). Evidence lines are sanitized per annex-c §5: only the documented JSON fields, never credential material (canary rule, behaviour 12).
 
@@ -131,3 +133,9 @@ All exit codes are within the fixed set (`specs/global/SPEC.md` §5): `0` succes
 - Runtime hook timeout enforcement (harness-owned; annex-c §3 tables).
 - Historical evidence replay/backfill, evidence-file rotation or size caps.
 - Shell-guard wrappers that self-detect usage state per turn (annex-c §3.5 explicitly rejects them).
+
+## Corrections — review issues #162 and #163 (2026-09-04)
+
+The former stdin fixture override contradicted normal host hook delivery and is superseded by mandatory execution with host context. The former positional explain command and object-shaped candidate contradicted F26's existing history selector and string candidate contracts; F26 remains authoritative. Sanitized JSONL preserves every documented F26 evidence field and removes unrelated fields.
+
+Explicit global flags before `hooks run` are parsed before the hook name and forwarded to the underlying command. Arguments after the hook name override them. JSON remains required for underlying machine output; outer text/JSON rendering flags do not alter hook protocol. A regression covers outer offline/config/timeout and later timeout override.

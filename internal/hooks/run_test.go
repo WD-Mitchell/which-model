@@ -47,7 +47,7 @@ const pickFirstCandidate = `{"candidate_id":"cand-1","route":{"provider":"claude
 
 const pickExit4Fixture = `{"excluded_candidates":[{"route":{"provider":"claude"},"reason_code":"band_gated","reason":"at gate"},{"route":{"provider":"codex"},"reason_code":"auth_required","reason":"login"}]}`
 
-const explainFixture = `{"schema_version":"2.0","usage_enabled":true,"candidate":{"candidate_id":"c-1","route":{"provider":"claude","model_id":"claude-sonnet-4-5","model":"Claude Sonnet 4.5","reasoning":"medium","window_ids":["w1"]}},"evidence":{"profile":"balanced_implementation","score_inputs":{},"route_provenance":"provider_live","excluded_candidates":[]}}`
+const explainFixture = `{"schema_version":"2.0","candidate":"claude:claude-sonnet-4-5","evidence":{"profile":"balanced_implementation","score_inputs":{},"route_provenance":"provider_live","excluded_candidates":[]}}`
 
 // envelopeBytes decodes a Run output into the envelope shape, keeping
 // hookSpecificOutput raw for verbatim comparisons.
@@ -116,34 +116,36 @@ func TestRunBadStdin(t *testing.T) {
 	}
 }
 
-// Test 6: valid-JSON stdin replaces the underlying stdout; the runner is
-// never invoked.
-func TestRunStdinFixtureSkipsRunner(t *testing.T) {
-	called := false
-	runner := func([]string, io.Writer, io.Writer) int {
-		called = true
-		return 0
-	}
-	out, err := Run("usage-refresh", nil, Options{Runner: runner, Stdin: []byte(`{"anything":1}`)})
-	if err != nil {
-		t.Fatalf("Run() error = %v", err)
-	}
-	if called {
-		t.Error("runner was called despite non-empty Stdin fixture")
-	}
-	if string(out) != usageRefreshGolden {
-		t.Errorf("output = %q, want %q", out, usageRefreshGolden)
+// Host context never substitutes for a command result.
+func TestRunHostStdinExecutesRunner(t *testing.T) {
+	for _, hook := range []string{"usage-refresh", "quota-guard", "spawn-gate", "model-audit"} {
+		t.Run(hook, func(t *testing.T) {
+			runner, calls := capturingRunner(`{"snapshots":[]}`, 2)
+			out, err := Run(hook, []string{"--quiet"}, Options{Runner: runner, Stdin: []byte(`{"tool_name":"Task","secret":"CANARY_HOST"}`)})
+			if err != nil || len(*calls) != 1 {
+				t.Fatalf("Run error=%v calls=%v", err, *calls)
+			}
+			if bytes.Contains(out, []byte("CANARY_HOST")) {
+				t.Fatalf("host context leaked: %s", out)
+			}
+			if hook == "usage-refresh" || hook == "quota-guard" {
+				if len(out) != 0 {
+					t.Fatalf("failed session hook must be silent: %s", out)
+				}
+			} else if !bytes.Contains(out, []byte("fail-open:")) {
+				t.Fatalf("missing fail-open: %s", out)
+			}
+		})
 	}
 }
 
-// Test 7 (canary): a canary string in stdin never reaches the envelope.
-func TestRunUsageRefreshCanary(t *testing.T) {
-	out, err := Run("usage-refresh", nil, Options{Stdin: []byte(`{"secret":"CANARY_XYZ"}`)})
-	if err != nil {
-		t.Fatalf("Run() error = %v", err)
-	}
-	if bytes.Contains(out, []byte("CANARY_XYZ")) {
-		t.Errorf("envelope leaks canary: %s", out)
+func TestRunRejectsNonObjectHostInput(t *testing.T) {
+	for _, input := range []string{"null", "[]", "1", `"hello"`, "true", "{} {}"} {
+		runner, calls := capturingRunner("", 0)
+		_, err := Run("usage-refresh", nil, Options{Runner: runner, Stdin: []byte(input)})
+		if !errors.Is(err, errBadStdin) || len(*calls) != 0 {
+			t.Errorf("input %s: error=%v calls=%v", input, err, *calls)
+		}
 	}
 }
 
@@ -151,7 +153,7 @@ func TestRunUsageRefreshCanary(t *testing.T) {
 
 // Test 1: two providers in order → exact block envelope.
 func TestQuotaGuardBlocks(t *testing.T) {
-	out, err := Run("quota-guard", nil, Options{Stdin: []byte(quotaFixture)})
+	out, err := Run("quota-guard", nil, Options{Runner: fakeRunner(0, quotaFixture)})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -163,7 +165,7 @@ func TestQuotaGuardBlocks(t *testing.T) {
 
 // Test 2: empty snapshots array → approve envelope.
 func TestQuotaGuardNoProviders(t *testing.T) {
-	out, err := Run("quota-guard", nil, Options{Stdin: []byte(`{"snapshots":[]}`)})
+	out, err := Run("quota-guard", nil, Options{Runner: fakeRunner(0, `{"snapshots":[]}`)})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -175,7 +177,7 @@ func TestQuotaGuardNoProviders(t *testing.T) {
 
 // Test 3: duplicate providers are de-duplicated in first-seen order.
 func TestQuotaGuardDeduplicates(t *testing.T) {
-	out, err := Run("quota-guard", nil, Options{Stdin: []byte(`{"snapshots":[{"provider":"codex"},{"provider":"claude"},{"provider":"codex"}]}`)})
+	out, err := Run("quota-guard", nil, Options{Runner: fakeRunner(0, `{"snapshots":[{"provider":"codex"},{"provider":"claude"},{"provider":"codex"}]}`)})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -191,7 +193,7 @@ func TestQuotaGuardDeduplicates(t *testing.T) {
 
 // Test 4: missing snapshots key → empty output, nil error (fail-open).
 func TestQuotaGuardMissingSnapshots(t *testing.T) {
-	out, err := Run("quota-guard", nil, Options{Stdin: []byte(`{"schema_version":"2.0"}`)})
+	out, err := Run("quota-guard", nil, Options{Runner: fakeRunner(0, `{"schema_version":"2.0"}`)})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -225,7 +227,7 @@ func TestQuotaGuardUnparseable(t *testing.T) {
 // Test 7 (canary): canary in an unrelated fixture field never reaches the
 // envelope.
 func TestQuotaGuardCanary(t *testing.T) {
-	out, err := Run("quota-guard", nil, Options{Stdin: []byte(`{"snapshots":[{"provider":"claude"}],"secret":"CANARY_QUOTA"}`)})
+	out, err := Run("quota-guard", nil, Options{Runner: fakeRunner(0, `{"snapshots":[{"provider":"claude"}],"secret":"CANARY_QUOTA"}`)})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -236,7 +238,7 @@ func TestQuotaGuardCanary(t *testing.T) {
 
 // Test 8: golden block envelope is byte-exact.
 func TestQuotaGuardGolden(t *testing.T) {
-	out, err := Run("quota-guard", nil, Options{Stdin: []byte(`{"snapshots":[{"provider":"claude"}]}`)})
+	out, err := Run("quota-guard", nil, Options{Runner: fakeRunner(0, `{"snapshots":[{"provider":"claude"}]}`)})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -250,7 +252,7 @@ func TestQuotaGuardGolden(t *testing.T) {
 // Test 1: exit 0 with a 2-candidate fixture → approve; candidate verbatim;
 // reason names the first candidate.
 func TestSpawnGateApprove(t *testing.T) {
-	out, err := Run("spawn-gate", nil, Options{Stdin: []byte(pickFixture)})
+	out, err := Run("spawn-gate", nil, Options{Runner: fakeRunner(0, pickFixture)})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -269,7 +271,7 @@ func TestSpawnGateApprove(t *testing.T) {
 // Test 2: exit 0 with an empty candidates array → fail-open approve naming
 // exit 0.
 func TestSpawnGateEmptyCandidates(t *testing.T) {
-	out, err := Run("spawn-gate", nil, Options{Stdin: []byte(`{"candidates":[]}`)})
+	out, err := Run("spawn-gate", nil, Options{Runner: fakeRunner(0, `{"candidates":[]}`)})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -395,7 +397,7 @@ func TestSpawnGateProfileEnv(t *testing.T) {
 
 // Test 9 (canary): only candidates[0] is echoed; extra fields never leak.
 func TestSpawnGateCanary(t *testing.T) {
-	out, err := Run("spawn-gate", nil, Options{Stdin: []byte(`{"candidates":[{"candidate_id":"cand-1"}],"secret":"CANARY_PICK"}`)})
+	out, err := Run("spawn-gate", nil, Options{Runner: fakeRunner(0, `{"candidates":[{"candidate_id":"cand-1"}],"secret":"CANARY_PICK"}`)})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -591,13 +593,20 @@ func TestModelAuditCandidateNoRoute(t *testing.T) {
 // envelope (nor the evidence file).
 func TestModelAuditCanary(t *testing.T) {
 	root := t.TempDir()
-	fixture := `{"schema_version":"2.0","candidate":{"candidate_id":"c-1","route":{"provider":"claude","model_id":"m1"}},"evidence":{"score_inputs":{"secret":"CANARY_EVIDENCE"}}}`
+	fixture := `{"schema_version":"2.0","candidate":"claude:m1","secret":"CANARY_EVIDENCE","evidence":{"profile":"balanced_implementation","score_inputs":{},"secret":"CANARY_EVIDENCE","route_provenance":"provider_live","excluded_candidates":[]}}`
 	out, err := Run("model-audit", nil, Options{Runner: fakeRunner(0, fixture), RepoRoot: root})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
 	if bytes.Contains(out, []byte("CANARY_EVIDENCE")) {
 		t.Errorf("envelope leaks canary: %s", out)
+	}
+	content, err := os.ReadFile(filepath.Join(root, ".which-model", "evidence.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(content, []byte("CANARY_EVIDENCE")) {
+		t.Fatalf("evidence leaks canary: %s", content)
 	}
 }
 
@@ -617,7 +626,7 @@ func TestModelAuditNoRepoRoot(t *testing.T) {
 }
 
 // Test 10: passthrough --last plus env candidate id → argv is
-// ["explain","c-9","--json","--last"] (env id wins, passthrough appended).
+// ["explain","--last","--json","--last"] (env id is correlation only).
 func TestModelAuditPassthrough(t *testing.T) {
 	runner, got := capturingRunner(explainFixture, 0)
 	if _, err := Run("model-audit", []string{"--last"}, Options{
@@ -630,7 +639,7 @@ func TestModelAuditPassthrough(t *testing.T) {
 	if len(*got) != 1 {
 		t.Fatalf("runner called %d times, want 1", len(*got))
 	}
-	want := []string{"explain", "c-9", "--json", "--last"}
+	want := []string{"explain", "--last", "--json", "--last"}
 	if !reflect.DeepEqual((*got)[0], want) {
 		t.Errorf("argv = %v, want %v", (*got)[0], want)
 	}
