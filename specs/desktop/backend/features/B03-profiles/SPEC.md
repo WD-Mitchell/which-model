@@ -72,3 +72,12 @@ Depends on: B02 (Services core, weight helpers), B01 (`[profiles.*]` schema), B1
 Configured custom groups are valid profile task metrics. Both Save and Create validate against the locked configuration's group vocabulary through F10's explicit category-aware entry point. Unknown or deleted group slugs fail validation. This corrects the previous static-validator call, which contradicted B05's custom-group scoring contract. CLI validation remains static.
 
 Pinned regressions: `TestProfileCustomGroupSaveAndRank` requires nonempty saved/override candidates and rejects unknown group keys; `TestRankWithCategoriesCustomGroupChangesWinner` verifies the custom group flips the winner with exact totals.
+
+
+## Request validation precedence correction — #171 review
+
+Save validates slug, built-in protection, reserved name, shares, and weights
+before decoding unrelated stored profiles. Create reports conflict for built-in
+slugs, validates request fields, then checks custom occupancy under the same
+write lock. Malformed stored profiles cannot mask an intrinsic request error.
+Pin `TestProfileRequestErrorsPrecedeStoredProfileDecode`.

@@ -112,3 +112,19 @@ Pinned regression: reducing a task weight to zero retains the same control, rais
 ## Review correction — #173: fresh saved details
 
 Configuration and recorded-pick events invalidate the mounted `profile` query prefix along with the profile list. Editors without a local draft render the refreshed saved weights and pick counts. Draft ownership follows the durable-save contract above, so a refresh cannot replace an in-flight local edit. The profile-prefix event regression verifies both saved edits and recorded-pick statistics are refetched.
+
+
+## Complete task vocabulary correction — #174 review
+
+Editable task rows are the union of F10's twelve canonical categories, catalog
+group slugs, and keys already stored on the profile. Include
+`planning_capability` even when no group or existing weight exposes it. An
+empty new profile must allow every canonical task weight to be set.
+
+
+## List-action persistence correction — #172 review
+
+After leaving an editor, list-row duplicate and delete wait for that entity's
+outstanding autosave to finish. Thus duplication reads committed edits and
+deletion cannot be followed by a queued save recreating the entity. Profile
+list actions suppress duplicate submissions while waiting.

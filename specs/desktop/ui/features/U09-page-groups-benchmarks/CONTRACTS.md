@@ -122,3 +122,11 @@ Membership changes enqueue a full-list snapshot immediately, with no debounce. O
 Pinned regressions: toggle then Back/open benchmark persists; controlled delayed writes finish in order with newest state retained; rename/duplicate receive final membership; deletion does not recreate a group; failures refetch persisted truth.
 
 The persistence barrier is shared by entity identity across editor mounts. Reopening an entity waits for the prior mount's final write and refetches before accepting edits; duplicate/delete/rename also wait for outstanding persistence. Pinned regression in the shared queue covers two mounts using the same key; the profile editor integration verifies disabled editing during the prior write.
+
+
+## List-action persistence correction — #172 review
+
+After leaving an editor, list-row duplicate and delete wait for that entity's
+outstanding autosave to finish. Thus duplication reads committed edits and
+deletion cannot be followed by a queued save recreating the entity. Profile
+list actions suppress duplicate submissions while waiting.

@@ -27,4 +27,25 @@ describe('group membership durability', () => {
   const detail = await host.catalog.groupDetail('custom')
   expect(detail.benchmarks.filter((b) => b.on)).toHaveLength(3)
  })
+ it('keeps persisted membership after a failed rename', async () => {
+  const host = getHost() as MockEngineHost
+  const names = await host.catalog.benchmarks()
+  host.data.groups.push({ slug: 'custom', builtin: false, benchmarks: [names[0]] })
+  const original = host.catalog.saveGroup.bind(host.catalog)
+  vi.spyOn(host.catalog, 'saveGroup').mockImplementation(async (slug, members, rename) => {
+   if (rename) throw new Error('rename collision')
+   return original(slug, members, rename)
+  })
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(<QueryClientProvider client={client}><ToastProvider><Events /><GroupsPage detail={{ kind: 'group', id: 'custom' }} openDetail={vi.fn()} closeDetail={vi.fn()} /></ToastProvider></QueryClientProvider>)
+  const name = await screen.findByDisplayValue('custom')
+  fireEvent.click(screen.getAllByRole('switch')[1])
+  fireEvent.change(name, { target: { value: 'collision' } })
+  fireEvent.blur(name)
+  await screen.findByText('rename collision')
+  const persisted = await host.catalog.groupDetail('custom')
+  expect(screen.getAllByRole('switch').filter(node => node.getAttribute('aria-checked') === 'true')).toHaveLength(persisted.benchmarks.filter(row => row.on).length)
+  expect((await screen.findByDisplayValue('custom'))).toBeDefined()
+ })
+
 })

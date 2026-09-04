@@ -29,6 +29,10 @@ import styles from './ProfilesPage.module.css'
 /** Core benchmarks are a fixed triple (engine tier 1); everything else is a
  *  benchmark group carried in tier 2. */
 const CORE_KEYS = ['intelligence', 'cost', 'speed'] as const
+// F10 canonical categories include score columns without a catalog group.
+const CATEGORY_KEYS = ['reasoning', 'knowledge', 'research', 'planning_capability',
+  'instruction_following', 'software_engineering', 'ui_visual', 'agentic_tools',
+  'finance', 'evidence_capture', 'security', 'data_ml'] as const
 
 // Mockup icon set (demo.dc.html L317-318). Never a literal "×" or "›".
 function TrashIcon({ size }: { size: 12 | 13 }) {
@@ -128,6 +132,17 @@ function SparkBar({ metric, tier }: { metric: { key: string; value: number }; ti
 export function ProfilesPage({ detail, openDetail, closeDetail }: PageComponentProps) {
   const toast = useToast()
   const { data: profiles } = useProfiles()
+
+  const pendingListActions = useRef(new Set<string>())
+  const [busyRows, setBusyRows] = useState(new Set<string>())
+  async function listAction(slug: string, action: () => Promise<unknown>) {
+    if (pendingListActions.current.has(slug)) return
+    pendingListActions.current.add(slug)
+    setBusyRows(new Set(pendingListActions.current))
+    try { await whenAutosaveIdle('profile:' + slug); await action() }
+    catch (e) { toast.show((e as { message?: string }).message ?? 'save failed') }
+    finally { pendingListActions.current.delete(slug); setBusyRows(new Set(pendingListActions.current)) }
+  }
 
   const profilesList = profiles ?? []
   const creatingRef = useRef(false)
@@ -235,11 +250,12 @@ export function ProfilesPage({ detail, openDetail, closeDetail }: PageComponentP
                   type="button"
                   className="btn btn-ghost"
                   style={{ fontSize: '11px', padding: '2px 6px' }}
+                  disabled={busyRows.has(p.slug)}
                   onClick={() =>
-                    void getHost()
+                    void listAction(p.slug, () => getHost()
                       .profiles.duplicate(p.slug)
                       .then(() => toast.show(`duplicated ${p.slug}`))
-                      .catch((e) => toast.show((e as { message?: string }).message ?? 'duplicate failed'))
+                      .catch((e) => toast.show((e as { message?: string }).message ?? 'duplicate failed')))
                   }
                 >
                   Duplicate
@@ -249,12 +265,12 @@ export function ProfilesPage({ detail, openDetail, closeDetail }: PageComponentP
                   className={'ib' + (p.builtin ? ' off' : '') + ' ' + styles.iconBtn}
                   title={p.builtin ? 'Built-in profile — cannot be deleted' : `Delete ${p.slug}`}
                   aria-label={p.builtin ? 'Built-in profile — cannot be deleted' : `Delete ${p.slug}`}
-                  disabled={p.builtin}
+                  disabled={p.builtin || busyRows.has(p.slug)}
                   onClick={() =>
-                    void getHost()
+                    void listAction(p.slug, () => getHost()
                       .profiles.delete(p.slug)
                       .then(() => toast.show(`deleted ${p.slug}`))
-                      .catch((e) => toast.show((e as { message?: string }).message ?? 'delete failed'))
+                      .catch((e) => toast.show((e as { message?: string }).message ?? 'delete failed')))
                   }
                 >
                   <TrashIcon size={12} />
@@ -356,7 +372,7 @@ function ProfileDetailView({
 
   const readOnly = current.builtin
   for (const key of Object.keys(current.tier2_weights)) knownTaskKeys.current.add(key)
-  const taskKeys = [...new Set([...(groupsQuery.data ?? []).map((g) => g.slug), ...knownTaskKeys.current])].sort()
+  const taskKeys = [...new Set([...CATEGORY_KEYS, ...(groupsQuery.data ?? []).map((g) => g.slug), ...knownTaskKeys.current])].sort()
   const weighted = weightedKeys(current)
   const total = 3 + taskKeys.length
 
