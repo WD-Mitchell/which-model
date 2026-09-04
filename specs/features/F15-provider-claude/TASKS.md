@@ -175,7 +175,7 @@ graph LR
    - `cred.Source == usage.AuthFile`: call `LoadFileCredential(dotPath, plainPath, time.Now())` with paths `filepath.Join(home, ".claude/.credentials.json")` then `filepath.Join(home, ".claude/credentials.json")` (`os.UserHomeDir()`); on hard error return it as `Snapshot.Failure`; on success with a token: expired → Failure `expired_credential`; else use that token and, when `BroadPermissions`, write the verbatim warning line to stderr via `log` and return the Snapshot with `Failure` unset. When the load returns no token, proceed with `cred.Token`.
    - Request `GET UsageURL`, allow-list `[]string{UsageURL}`, headers exactly per CONTRACTS §3 with `Authorization: Bearer <token>`.
    - Status 200 → `NormalizeUsage(body)`; failure → Failure with that error's code/message. Non-200 → `mapStatus("Claude", status)` per the table in CONTRACTS §6 (401/403 → `unauthorized` `Claude rejected the credential.`; 429 → `rate_limited` `Claude rate-limited the usage request.`; other → `provider_status` `Claude usage is unavailable (HTTP <status>).`).
-   - Success → `Snapshot{Provider:"claude", Windows: windows, FetchedAt: now, Source: usage.SourceOAuth, Confidence:"live"}`.
+   - Success → `Snapshot{Provider:"claude", Windows: windows, UsageKnown: slices.ContainsFunc(windows, func(w usage.Window) bool { return w.UsageKnown && !w.Synthetic }), FetchedAt: now, Source: usage.SourceOAuth, Confidence:"live"}`.
 4. Every Failure message is the fixed CONTRACTS §6 string; never include response bodies or tokens.
 
 **Test cases (write these first):**

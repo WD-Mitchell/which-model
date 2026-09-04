@@ -35,7 +35,7 @@ project: which-model
 
 11. **`additional_rate_limits` (annex-a §3.1; prototype does not consume them).** `value.additional_rate_limits ?? value.additionalRateLimits` array; per entry (field names `limit_name`/`limitName`, `metered_feature`/`meteredFeature`, `rate_limit`/`rateLimit`): window ID `additional:<slug(limitName)>`, Label `limitName`, `Unit: percent`, `ModelScope [meteredFeature]` when present, percent/reset/window-minutes from `rateLimit.primary_window` when present else `rateLimit.secondary_window` (chosen window's `used_percent`/`reset_at`/`limit_window_seconds`); skip the entry when no window yields a valid percent. `slug` = lowercase, runs of non-alphanumerics → `-`, trimmed.
 
-12. **Snapshot assembly.** `Snapshot{Provider:"codex", Windows, FetchedAt: now UTC, Source: SourceOAuth, Confidence:"live"}`. `Account` is NEVER set — the account ID is a request header only and must not leak into output (`.mjs` test asserts `/canary|acct-synthetic/` absent; annex-a §3.1). `Plan` empty.
+12. **Snapshot assembly.** `Snapshot{Provider:"codex", Windows, UsageKnown: any window is known and non-synthetic, FetchedAt: now UTC, Source: SourceOAuth, Confidence:"live"}`. `Account` is NEVER set — the account ID is a request header only and must not leak into output (`.mjs` test asserts `/canary|acct-synthetic/` absent; annex-a §3.1). `Plan` empty.
 
 13. **Descriptor constants.** `Timeout: 15s`, `CacheTTL: 60s` (annex-a §5 literal / §6 pattern), `Kind: KindSubscription`, `Tier: 1`, `DisplayName: "Codex"` (the `.mjs` report header, `codex.mjs:110,116`; supersedes the survey's "Codex / ChatGPT" phrasing). `Windows` descriptor list: `5h` (percent), `weekly` (percent), `credits` (credits, Optional) — all three Optional (emitted only when the response carries them). `init()` registers; duplicate ID panics.
 
@@ -68,3 +68,15 @@ All failures return `(zero Snapshot, *Error)` with `Error{Code, Message}` carryi
 - Keychain storage of codex credentials — the `.mjs` chain is file-only.
 - Build-tag `nousage` stubbing — F21's domain (global SPEC §4); DEPENDENCY-GRAPH §2 lists no `blocks` for F16.
 - Text rendering (`formatUsageReport` port) — F24's domain; this feature guarantees data-level parity.
+
+## Snapshot knowledge correction (#182)
+
+Successful fetches set the existing `Snapshot.UsageKnown` field to whether any normalized window has `UsageKnown && !Synthetic` (global CONTRACTS §1.5). A real zero reading, credits-only reading, or unlimited known window counts; synthetic-only and failed snapshots remain false. This corrects an omitted aggregate assignment without changing canonical types or the JSON schema. The aggregate flag survives F14 live fetch, cache serialization/replay, and JSON output.
+
+| Snapshot contents | `usage_known` |
+|---|---|
+| Real positive or zero reading | `true` |
+| Real credits-only or unlimited known reading, when supported | `true` |
+| Mixed real and synthetic windows, when supported | `true` |
+| Synthetic-only windows, when supported | `false` |
+| Provider failure | `false` |

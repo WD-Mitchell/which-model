@@ -35,7 +35,7 @@ project: which-model
    - The clock/sleep injection points exist for tests exactly as the `.mjs` (`now`/`sleep`); the `.mjs` wait sequences `[1000, 1000, 6000]` and `[1000, 6000, 11000]` are pinned by tests.
    - F12's `AuthOAuthDeviceFlow` resolver MUST delegate to these two functions (no duplicated state machine); the OAuth constants live here.
 
-10. **Snapshot assembly.** `Snapshot{Provider:"copilot", Windows, Account: <login>, FetchedAt: now UTC, Source: SourceOAuth, Confidence:"live"}`. `Account` is always the verified login (output gated by F24's `--show-identity`); `Plan` empty.
+10. **Snapshot assembly.** `Snapshot{Provider:"copilot", Windows, UsageKnown: any window is known and non-synthetic, Account: <login>, FetchedAt: now UTC, Source: SourceOAuth, Confidence:"live"}`. `Account` is always the verified login (output gated by F24's `--show-identity`); `Plan` empty.
 
 11. **Descriptor constants.** `Timeout: 15s`, `CacheTTL: 60s` (annex-a §5/§6), `Kind: KindSubscription`, `Tier: 1`, `DisplayName: "GitHub Copilot"` (the `.mjs` report header, `copilot.mjs:279`). `Windows` descriptor list (all Optional): `premium` (requests), `chat` (requests), `completions` (requests). `init()` registers; duplicate ID panics.
 
@@ -70,3 +70,15 @@ All failures return `(zero Snapshot, *Error)` with `Error{Code, Message}` carryi
 - Refresh of expired Copilot tokens — the prototype never refreshes; failure is terminal.
 - Build-tag `nousage` stubbing — F21's domain (global SPEC §4); DEPENDENCY-GRAPH §2 lists no `blocks` for F17.
 - Text rendering (`formatUsageReport` port, `--show-identity` gating) — F24's domain; this feature guarantees data-level parity.
+
+## Snapshot knowledge correction (#182)
+
+Successful fetches set the existing `Snapshot.UsageKnown` field to whether any normalized window has `UsageKnown && !Synthetic` (global CONTRACTS §1.5). A real zero reading, credits-only reading, or unlimited known window counts; synthetic-only and failed snapshots remain false. This corrects an omitted aggregate assignment without changing canonical types or the JSON schema. The aggregate flag survives F14 live fetch, cache serialization/replay, and JSON output.
+
+| Snapshot contents | `usage_known` |
+|---|---|
+| Real positive or zero reading | `true` |
+| Real credits-only or unlimited known reading, when supported | `true` |
+| Mixed real and synthetic windows, when supported | `true` |
+| Synthetic-only windows, when supported | `false` |
+| Provider failure | `false` |
