@@ -271,7 +271,7 @@ None. `which-model config show --json` (including its `_sources` map) is F22's c
 - F21-usage-toggle: `cfg.Usage.Enabled` (`UsageEnabled`, `specs/global/CONTRACTS.md` §5.1) + enumeration of `cfg.Providers` with `Enabled == true` for `auto` resolution (README §6.1); F21 resolves, F01 never does.
 - F22-cli-skeleton: `Load`, `LoadFile`, `Validate`, `ResolvePaths`, `ConfigError`/`ExitCode`; `--config` → `LoadOptions.Path`; `config show` renders via `MarshalTOML` (annex-d §2.7); `config show --json` derives from the same render (toml → map, F22 composition; `_sources` is F22's).
 - F19-bands / F20-strategies / F09-scoring / F23-cmd-catalog / F30-publishing: `cfg.UnmarshalKey("bands"|"strategy"|"scoring"|"catalog"|"catalog.publish", &ownStruct)` with own defaults + semantic validation.
-- F30-publishing: `Load(cfg)` + `UnmarshalKey("catalog.publish", …)` per DECISION B; F30 SPEC owns the full `[catalog.publish]` key table (annex-b §8).
+- F30-publishing: `Load(cfg)` + the complete shared `UnmarshalKey("catalog", …)` schema per DECISION B; F30 SPEC owns the full `[catalog.publish]` key table (annex-b §8).
 
 ### Review corrections (#167, #168)
 

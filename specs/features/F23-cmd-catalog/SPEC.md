@@ -235,7 +235,7 @@ type Config struct {
     (mutually exclusive; both → exit 2) and `--out <dir>`; the body returns
     `CodedError{Code: "workflow_unavailable", Message: "catalog workflow generation is provided by feature F30 (publishing)"}`
     → exit 1. The generator implementation and the `[catalog.publish]` schema are F30's
-    (F30 consumes `cfg.UnmarshalKey("catalog.publish", ...)` per Main DECISION B).
+    (F30 consumes `cfg.UnmarshalKey("catalog", ...)` per Main DECISION B).
 
 15. **Config loading**: every catalog subcommand loads `config.Load(LoadOptions{Path: Global.ConfigPath})`
     then `loadCatalogConfig`; config errors map to exit 2 via F22 `ExitCodeFor`

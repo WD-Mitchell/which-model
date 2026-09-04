@@ -1,6 +1,9 @@
 package config
 
 import (
+	"github.com/shopspring/decimal"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -185,5 +188,70 @@ func TestMarshalRejectsInvalidTypedEnv(t *testing.T) {
 		if _, err := c.MarshalTOML(); err == nil {
 			t.Errorf("%s: wanted invalid value error", key)
 		}
+	}
+}
+
+func TestRenderedEnvironmentReloadsThroughOwningSchemas(t *testing.T) {
+	cfg := Default()
+	path := filepath.Join(t.TempDir(), "source.toml")
+	if err := os.WriteFile(path, []byte("[strategy]\ndefault = \"priority\"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := cfg.DecodeFile(path); err != nil {
+		t.Fatal(err)
+	}
+	vars := map[string]string{"WHICH_MODEL_STRATEGY_TIER1_SHARE": "1", "WHICH_MODEL_STRATEGY_TIER2_SHARE": "99", "WHICH_MODEL_BANDS_GATE_ABOVE_USED_PERCENT": "0", "WHICH_MODEL_OUTPUT_IDENTITY_DEFAULT": "1", "WHICH_MODEL_CATALOG_PUBLISH_PR_TITLE": "001"}
+	entries := make([]string, 0, len(vars))
+	for k, v := range vars {
+		entries = append(entries, k+"="+v)
+	}
+	if err := ApplyEnv(cfg, func(k string) string { return vars[k] }, entries); err != nil {
+		t.Fatal(err)
+	}
+	data, err := cfg.MarshalTOML()
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved := filepath.Join(t.TempDir(), "saved.toml")
+	if err := os.WriteFile(saved, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	reloaded, err := LoadFile(saved)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var st struct {
+		Default string `toml:"default"`
+		Tier1   int    `toml:"tier1_share"`
+		Tier2   int    `toml:"tier2_share"`
+	}
+	if err := reloaded.UnmarshalKey("strategy", &st); err != nil || st.Default != "priority" || st.Tier1 != 1 || st.Tier2 != 99 {
+		t.Fatalf("strategy: %+v, %v", st, err)
+	}
+	var band struct {
+		Gate decimal.Decimal `toml:"gate_above_used_percent"`
+	}
+	if err := reloaded.UnmarshalKey("bands", &band); err != nil || !band.Gate.IsZero() {
+		t.Fatalf("band: %+v, %v", band, err)
+	}
+	var output struct {
+		Identity bool `toml:"identity_default"`
+	}
+	if err := reloaded.UnmarshalKey("output", &output); err != nil || !output.Identity {
+		t.Fatalf("output: %+v, %v", output, err)
+	}
+	var publish struct {
+		Title string `toml:"pr_title"`
+	}
+	if err := reloaded.UnmarshalKey("catalog.publish", &publish); err != nil || publish.Title != "001" {
+		t.Fatalf("publish: %+v, %v", publish, err)
+	}
+	var original struct {
+		Default string `toml:"default"`
+		Tier1   int    `toml:"tier1_share"`
+		Tier2   int    `toml:"tier2_share"`
+	}
+	if err := cfg.UnmarshalKey("strategy", &original); err != nil || original != st {
+		t.Fatalf("original config changed: %+v %v", original, err)
 	}
 }

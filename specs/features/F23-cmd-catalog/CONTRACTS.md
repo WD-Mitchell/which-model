@@ -21,7 +21,7 @@ project: which-model
 | `aa` (`internal/catalog/fetch/aa`) | F08 | consumed verbatim |
 | `score` (`internal/catalog/score`) | F09 | consumed verbatim |
 
-F23 adds no `internal/` packages; all F23 files live in `pkg/whichmodel/`.
+F23 adds no `internal/` packages; command files live in `pkg/whichmodel/` and the shared catalog/publishing configuration schema lives in existing `internal/catalog`.
 
 ## Stage table (master plan §7.5)
 
