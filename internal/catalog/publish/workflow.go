@@ -69,16 +69,20 @@ func Render(pc *PublishConfig) ([]byte, error) {
 	fmt.Fprintf(&b, "      matrix:\n")
 	fmt.Fprintf(&b, "        branch: [%s] # from [catalog.publish].branches, listed order\n", branchList(pc.Branches))
 	fmt.Fprintf(&b, "    steps:\n")
-	fmt.Fprintf(&b, "      - uses: actions/checkout@%s # v6.0.2\n", CheckoutPin)
+	fmt.Fprintf(&b, "      - uses: actions/checkout@%s # v7.0.1\n", CheckoutPin)
 	fmt.Fprintf(&b, "        with:\n")
 	fmt.Fprintf(&b, "          ref: ${{ matrix.branch }}\n")
 	fmt.Fprintf(&b, "          token: ${{ secrets.CSV_UPDATE_TOKEN || github.token }}\n")
-	fmt.Fprintf(&b, "      - run: python3 .daily-update/refresh-model-data.py\n")
+	fmt.Fprintf(&b, "      - run: |\n")
+	fmt.Fprintf(&b, "          python3 .daily-update/refresh-model-data.py --output %s\n", shellQuote(pc.RawCSVPath))
 	fmt.Fprintf(&b, "        env:\n")
 	fmt.Fprintf(&b, "          ARTIFICIAL_ANALYSIS_API: ${{ secrets.ARTIFICIAL_ANALYSIS_API }}\n")
+	fmt.Fprintf(&b, "      - run: |\n")
+	fmt.Fprintf(&b, "          python3 .daily-update/generate_scores.py --input %s --output %s\n", shellQuote(pc.RawCSVPath), shellQuote(pc.ScoresCSVPath))
+	fmt.Fprintf(&b, "          python3 -m unittest discover -s .daily-update/tests -v\n")
 	fmt.Fprintf(&b, "      - id: changes\n")
 	fmt.Fprintf(&b, "        run: |\n")
-	fmt.Fprintf(&b, "          git add -- %s\n", pc.RawCSVPath)
+	fmt.Fprintf(&b, "          git add -- %s %s\n", shellQuote(pc.RawCSVPath), shellQuote(pc.ScoresCSVPath))
 	fmt.Fprintf(&b, "          git diff --cached --quiet || echo \"changed=true\" >> \"$GITHUB_OUTPUT\"\n")
 	fmt.Fprintf(&b, "      - if: steps.changes.outputs.changed == 'true'\n")
 	fmt.Fprintf(&b, "        run: |\n")
@@ -235,4 +239,9 @@ func lineDiff(a, b []string) []string {
 		}
 	}
 	return out
+}
+
+// shellQuote preserves literal shell arguments, including quotes and expansions.
+func shellQuote(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
 }

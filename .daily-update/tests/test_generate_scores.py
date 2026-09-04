@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import io
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -171,6 +172,23 @@ class GenerateAvailableModelScoresTests(unittest.TestCase):
             self.assertEqual(self.run_generator(RAW_VALUES, second).returncode, 0)
             self.assertEqual(first.read_bytes(), second.read_bytes())
             self.assertEqual(first.read_bytes(), GENERATED_SCORES.read_bytes())
+
+    def test_refresh_workflow_publishes_a_generated_pair(self) -> None:
+        workflow = (REPOSITORY_ROOT / ".github/workflows/refresh-model-data.yml").read_text()
+        commands = [line.strip() for line in workflow.splitlines()]
+        refresh = next(line for line in commands if line.startswith("python3 .daily-update/refresh-model-data.py"))
+        derive = next(line for line in commands if line.startswith("python3 .daily-update/generate_scores.py"))
+        tests = "python3 -m unittest discover -s .daily-update/tests -v"
+        stage = next(line for line in commands if line.startswith("git add -- "))
+        refresh_args, derive_args = shlex.split(refresh), shlex.split(derive)
+        raw = refresh_args[refresh_args.index("--output") + 1]
+        scores = derive_args[derive_args.index("--output") + 1]
+        self.assertEqual(derive_args[derive_args.index("--input") + 1], raw)
+        self.assertEqual(shlex.split(stage)[3:], [raw, scores])
+        self.assertNotEqual(raw, scores)
+        self.assertLess(commands.index(refresh), commands.index(derive))
+        self.assertLess(commands.index(derive), commands.index(tests))
+        self.assertLess(commands.index(tests), commands.index(stage))
 
     def test_rejects_non_numeric_populated_values(self) -> None:
         content = raw_with_value("intelligence_index", "not-a-number")

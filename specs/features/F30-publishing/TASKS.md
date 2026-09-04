@@ -115,23 +115,14 @@ graph TD
 1. Add `Validate(pc *PublishConfig) error` per CONTRACTS §1: check `pc.Mode` ∈ {pull-request, direct-push} (error `catalog.publish.mode: unknown mode "<v>" (known: pull-request, direct-push)`); `pc.MergeMethod` ∈ {squash, merge, rebase} (error naming `merge_method`); `len(pc.Branches) == 0` → error `catalog.publish.branches must not be empty`; `ValidateCron(pc.Schedule)` errors are wrapped as `catalog.publish.schedule: <err>`; `pr_labels` deduplicated preserving order (mutate pc). Other fields are type-checked by the config layer (F01) — no further checks.
 2. Add `Load(cfg UnmarshalKeyer) (*PublishConfig, error)`:
    ```go
-   // Load reads [catalog.publish] plus [catalog].raw_csv_path, applies defaults
+   // Load decodes the complete [catalog] schema and both paths, applies defaults
    // for absent keys, and runs Validate. Missing section = all defaults.
    func Load(cfg UnmarshalKeyer) (*PublishConfig, error) {
-       pc := NewDefaults()
-       if err := cfg.UnmarshalKey("catalog.publish", pc); err != nil {
-           return nil, err
-       }
-       // Apply per-key defaults: strings that are "" get the default, slices
-       // with len 0 get the default; enabled=false remains a real value.
-       // NOTE: UnmarshalKey on a missing key leaves the out value untouched
-       // (F01 pin), so NewDefaults() already seeded everything; a present but
-       // empty branches=[] must still error in Validate.
-       var rawPath, scoresPath string
-       if err := cfg.UnmarshalKey("catalog.raw_csv_path", &rawPath); err != nil {
-           return nil, err
-       }
-       pc.RawCSVPath = firstNonEmpty(rawPath, "available-model-data-export/available_model_raw_values.csv")
+       cc := catalog.Config{Publish: *NewDefaults()}
+       if err := cfg.UnmarshalKey("catalog", &cc); err != nil { return nil, err }
+       pc := &cc.Publish
+       pc.RawCSVPath = firstNonEmpty(cc.RawCSVPath, "data/available_model_raw_values.csv")
+       pc.ScoresCSVPath = firstNonEmpty(cc.ScoresCSVPath, "data/available_model_scores.csv")
        if err := Validate(pc); err != nil {
            return nil, err
        }
@@ -139,17 +130,8 @@ graph TD
    }
    func firstNonEmpty(a, b string) string { if a != "" { return a }; return b }
    ```
-   Important: because `UnmarshalKey("catalog.publish", pc)` decodes INTO the defaults-seeded struct, a present key of the wrong type surfaces as an F01 validation error (propagated, exit 2 class); an absent `branches` key leaves the default slice; an explicit `branches = []` decodes to an empty slice → `Validate` errors.
-3. Create `internal/catalog/publish/load_test.go` with a fake:
-   ```go
-   type fakeCfg struct {
-       fn func(key string, out any) error
-   }
-   func (f fakeCfg) UnmarshalKey(key string, out any) error { return f.fn(key, out) }
-
-   func kv(key string, v any) fakeCfg { ... } // returns v for key, zero for others
-   ```
-   Cases below. For case 2 use a TOML parse? No — keep it simple: `kv` returns a `map[string]any` value for `catalog.publish` (the F01 layer decodes TOML into structs; our fake stands in) — for slices/bools use the natural Go types (`[]any{...}` decodes via the config layer in reality; the fake just needs to populate `pc` through reflection like F01 does — simplest: `fn` sets `out` via a typed switch per key, or use `json` round-trip through the struct. Use `encoding/json` to decode the provided value into `out` — mirrors F01's semantics closely enough for these tests).
+   Important: because `UnmarshalKey("catalog", &cc)` decodes INTO the defaults-seeded struct, a present key of the wrong type surfaces as an F01 validation error (propagated, exit 2 class); an absent `branches` key leaves the default slice; an explicit `branches = []` decodes to an empty slice → `Validate` errors.
+3. Create `internal/catalog/publish/load_test.go` using real TOML files and `config.LoadFile`, including sibling catalog keys and nested publishing values. A fake may test propagation of a sentinel error only; scalar-permissive fakes do not model F01's table-only contract.
 
 **Test cases (write these first):**
 
@@ -190,7 +172,7 @@ graph TD
    - `RepoRoot() (string, error)` — upward `.git` walk from cwd (same algorithm as `internal/skills.RepoRoot`; error `no repository root found (no .git ancestor)`).
    - `WorkflowPath(repoRoot string) string` — `filepath.Join(repoRoot, ".github", "workflows", DefaultWorkflowName)`.
    - `Render(pc *PublishConfig) ([]byte, error)` — returns `nil, nil` when `!pc.Enabled`; otherwise builds the YAML with `strings.Builder` + `fmt.Fprintf`, using the template in step 3 VERBATIM, then `[]byte(b.String())`. No template library; no map iteration (labels and branches are slices in listed order).
-3. The template is the exact output for the golden config with publishing defaults, branches `["main","release"]`, and `RawCSVPath:"available-model-data-export/available_model_raw_values.csv"`:
+3. The template is the exact output for the golden config with publishing defaults, branches `["main","release"]`, and `RawCSVPath:"data/available_model_raw_values.csv"`:
    ```yaml
    # GENERATED by `which-model catalog workflow --write` from [catalog.publish] — do not hand-edit.
    name: refresh-model-data
@@ -214,16 +196,20 @@ graph TD
          matrix:
            branch: ["main", "release"] # from [catalog.publish].branches, listed order
        steps:
-         - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+         - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
            with:
              ref: ${{ matrix.branch }}
              token: ${{ secrets.CSV_UPDATE_TOKEN || github.token }}
-         - run: python3 scripts/refresh-model-data.py
+         - run: |
+             python3 .daily-update/refresh-model-data.py --output 'data/available_model_raw_values.csv'
            env:
              ARTIFICIAL_ANALYSIS_API: ${{ secrets.ARTIFICIAL_ANALYSIS_API }}
+         - run: |
+             python3 .daily-update/generate_scores.py --input 'data/available_model_raw_values.csv' --output 'data/available_model_scores.csv'
+             python3 -m unittest discover -s .daily-update/tests -v
          - id: changes
            run: |
-             git add -- available-model-data-export/available_model_raw_values.csv
+             git add -- 'data/available_model_raw_values.csv' 'data/available_model_scores.csv'
              git diff --cached --quiet || echo "changed=true" >> "$GITHUB_OUTPUT"
          - if: steps.changes.outputs.changed == 'true'
            run: |
@@ -260,10 +246,10 @@ graph TD
                echo "refresh branch ${{ matrix.branch }}: failed" >> "$GITHUB_STEP_SUMMARY"
              fi
    ```
-   Substitutions (all else verbatim): cron line comment uses `pc.Timezone`; non-empty `pc.Environment` emits the quoted job-level `environment`; `matrix.branch` list = `["` + `pc.Branches` joined `", "` + `"]` (values quoted, listed order); `git add --` path = `pc.RawCSVPath`; commit `-m` = `pc.CommitMessage`; `--title "…"` = `pc.PRTitle`; one `--label <l>` per `pc.PRLabels`; `--<merge_method>` = `pc.MergeMethod`. Mode-dependent sections:
+   Substitutions (all else verbatim): cron line comment uses `pc.Timezone`; non-empty `pc.Environment` emits the quoted job-level `environment`; `matrix.branch` list = `["` + `pc.Branches` joined `", "` + `"]` (values quoted, listed order); `git add --` paths = shell-quoted `pc.RawCSVPath` and `pc.ScoresCSVPath`; commit `-m` = `pc.CommitMessage`; `--title "…"` = `pc.PRTitle`; one `--label <l>` per `pc.PRLabels`; `--<merge_method>` = `pc.MergeMethod`. Mode-dependent sections:
    - `direct-push`: `permissions:` has only `contents: write`; PR steps become one `id: publish` push step; its successful report vocabulary is `published`.
    - `pull-request`: optional `CSV_UPDATE_TOKEN` authenticates checkout, push, and PR creation; `github.token` approves the PAT-authored PR and enables auto-merge. Successful merge-request reporting is `auto-merge-enabled`, never `published`.
-   - The workflow never emits Go setup, build, tests, a `which-model` invocation, or a scores CSV path. The outcome-report step is always emitted last and keys success to `steps.publish.outcome` or `steps.merge.outcome`.
+   - The workflow never emits Go setup, build, tests, a `which-model` invocation, ; Python-generated scores are staged together with raw values. The outcome-report step is always emitted last and keys success to `steps.publish.outcome` or `steps.merge.outcome`.
 4. Write the golden file `testdata/refresh-model-data.golden.yml` = the exact template output above (byte-for-byte; the test compares `Render` output to it).
 5. Create `internal/catalog/publish/workflow_test.go`:
    - build a `pc` helper returning the golden config (`GoldenPC()` in the test file);
@@ -272,11 +258,11 @@ graph TD
    - Test 3: trailing bytes — last byte `\n`, no `\n\n` suffix, no `\r` anywhere.
    - Test 4: single branch `["main"]` → matrix line `branch: ["main"] # from [catalog.publish].branches, listed order`; concurrency group `refresh-model-data`; `cancel-in-progress: false`.
    - Test 5: `Mode:"direct-push"` → contains `git push origin HEAD:${{ matrix.branch }}`; NOT contains `gh pr`, `pull-requests: write`, `GH_TOKEN`.
-   - Test 6: standalone refresh step present; Go setup/build/tests/application invocation and scores CSV absent.
+   - Test 6: standalone refresh step present; Go setup/build/tests/application invocation absent; score generation/tests and paired artifact staging present.
    - Test 7: `AutoMerge:false` → contains `gh pr create`; NOT contains `gh pr merge`.
    - Test 8: `Enabled:false` → `Render` returns nil, nil.
    - Test 9: usage exclusion — output NOT contains `usage refresh`, `--refresh-usage`, `usage list`; secrets — `ARTIFICIAL_ANALYSIS_API` once, optional `CSV_UPDATE_TOKEN` references only in checkout/PR authentication and approval gating, and `github.token` for approval/merge.
-   - Test 10: pin — output contains `actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2`.
+   - Test 10: pin — output contains `actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1`.
    - Test 11: `pr_labels = ["a","b"]` → two `--label` flags in order; empty `pr_labels` → `gh pr create` line has no `--label` at all.
    - Test 12: `RepoRoot()` in a temp dir with `.git/` (create dir; `t.Chdir` it) returns the temp dir; without `.git` ancestor → error.
 
@@ -543,7 +529,7 @@ graph TD
    - **enabled=false lifecycle** (annex-b §8.6): (a) `Write` a workflow with Enabled=true, then `Write` with `Enabled:false` → file removed; `Check` with `Enabled:false` → nil; (b) create a STALE workflow file by hand (write arbitrary bytes), `Check` with `Enabled:false` → `*DriftError`; `Write` with `Enabled:false` → removed.
    - **multi-branch order** (annex-b §8.3): `Branches:["release","main","canary"]` (deliberately unsorted) → rendered matrix line is `branch: ["release", "main", "canary"] # from [catalog.publish].branches, listed order` — order preserved exactly as listed (not sorted).
    - **per-branch isolation structure**: with 3 branches, assert: `fail-fast: false` present once; every publish step (`commit`, `gh pr create`, `gh pr merge`, `git push`) references `${{ matrix.branch }}` (branch-scoped, one commit per branch, no cross-branch step); the outcome-report step exists, is LAST, has `if: always()`, and its `run:` block contains all three vocabulary strings `published`, `skipped-no-changes`, `failed`.
-   - **no app or usage in CI**: rendered output contains no Go setup/build/test, `which-model`, usage command, provider/benchmark config, or scores CSV; assert `secrets.ARTIFICIAL_ANALYSIS_API` count == 1 and it appears only on the standalone Python refresh step's env.
+   - **no app or usage in CI**: rendered output contains no Go setup/build/test, `which-model`, usage command, provider/benchmark config; score generation/tests and paired staging are required; assert `secrets.ARTIFICIAL_ANALYSIS_API` count == 1 and it appears only on the standalone Python refresh step's env.
    - **mode per invocation** (annex-b §8.4): `Mode:"direct-push"` with `Branches:["main","release"]` → exactly one push step referencing `matrix.branch`, no PR steps, and the same single outcome-report step.
    - **determinism across modes**: two renders of the direct-push config byte-equal.
 
@@ -565,3 +551,19 @@ graph TD
 - [ ] no file outside the Files list modified
 
 **Run:** `go test ./internal/catalog/publish/...`
+
+### Paired artifact publication correction (#165)
+
+This supersedes the former raw-only publication decision. Each refresh produces
+and publishes a coherent raw/scores pair. The standalone Python refresh receives
+`--output <RawCSVPath>`; `generate_scores.py` receives `--input <RawCSVPath>` and
+`--output <ScoresCSVPath>`. Before staging either artifact, run
+`python3 -m unittest discover -s .daily-update/tests -v`. Generation or test failure
+aborts publication. Both artifact arguments are shell-quoted consistently across
+refresh, generation, and staging. Equal normalized destinations are invalid.
+The score publication default is `data/available_model_scores.csv`, distinct from
+the CLI's cache-path default. PR CI runs the Python suite, preserving deterministic
+regeneration checks. The generator retains Python Decimal/schema behavior and
+requires no Go runtime. Checkout pins in the renderer, golden, and committed
+workflow remain synchronized. Regression cases cover custom paths, stage ordering,
+generator failure before staging, and repeat generation matching committed bytes.

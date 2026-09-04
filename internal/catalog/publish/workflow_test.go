@@ -1,7 +1,9 @@
 package publish
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -22,6 +24,7 @@ func GoldenPC() *PublishConfig {
 		PRTitle:       "chore(data): refresh available model scores",
 		PRLabels:      []string{"data", "automated"},
 		RawCSVPath:    "data/available_model_raw_values.csv",
+		ScoresCSVPath: "data/available_model_scores.csv",
 	}
 }
 
@@ -132,7 +135,7 @@ func TestRenderUsesStandaloneRawRefresh(t *testing.T) {
 	if !strings.Contains(s, "python3 .daily-update/refresh-model-data.py") {
 		t.Errorf("standalone refresh step missing: %s", out)
 	}
-	for _, forbidden := range []string{"setup-go", "go build", "go test", "./which-model", "available_model_scores.csv"} {
+	for _, forbidden := range []string{"setup-go", "go build", "go test", "./which-model"} {
 		if strings.Contains(s, forbidden) {
 			t.Errorf("workflow contains app-dependent content %q", forbidden)
 		}
@@ -220,7 +223,7 @@ func TestRenderPins(t *testing.T) {
 		t.Fatalf("Render() error = %v", err)
 	}
 	s := string(out)
-	if !strings.Contains(s, "actions/checkout@"+CheckoutPin+" # v6.0.2") {
+	if !strings.Contains(s, "actions/checkout@"+CheckoutPin+" # v7.0.1") {
 		t.Errorf("checkout pin missing: %s", s)
 	}
 }
@@ -282,5 +285,79 @@ func TestWorkflowPath(t *testing.T) {
 	got := WorkflowPath("/repo")
 	if got != filepath.Join("/repo", ".github", "workflows", "refresh-model-data.yml") {
 		t.Errorf("WorkflowPath() = %q", got)
+	}
+}
+
+func TestRenderPairedArtifactLifecycle(t *testing.T) {
+	pc := GoldenPC()
+	pc.RawCSVPath = "data/custom raw's $(touch SHOULD_NOT_EXIST).csv"
+	pc.ScoresCSVPath = "data/custom scores.csv"
+	out, err := Render(pc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(out)
+	var previous int
+	for _, command := range []string{"python3 .daily-update/refresh-model-data.py --output " + shellQuote(pc.RawCSVPath), "python3 .daily-update/generate_scores.py --input " + shellQuote(pc.RawCSVPath) + " --output " + shellQuote(pc.ScoresCSVPath), "python3 -m unittest discover -s .daily-update/tests -v", "git add -- " + shellQuote(pc.RawCSVPath) + " " + shellQuote(pc.ScoresCSVPath)} {
+		at := strings.Index(text, command)
+		if at < previous || at < 0 {
+			t.Fatalf("missing/out-of-order command %q in %s", command, text)
+		}
+		previous = at
+	}
+}
+
+// Run the generated collection/derivation/staging commands with inert tools.
+// A generator failure must stop before tests and any Git operation, and unusual
+// configured filenames must reach the tools as literal individual arguments.
+func TestGeneratedWorkflowStopsBeforeStagingOnGeneratorFailure(t *testing.T) {
+	pc := GoldenPC()
+	pc.RawCSVPath = "raw's $(touch SHOULD_NOT_EXIST).csv"
+	pc.ScoresCSVPath = "scores file.csv"
+	data, err := Render(pc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prefix := strings.Split(string(data), "      - if: steps.changes.outputs.changed")[0]
+	var commands []string
+	for _, line := range strings.Split(prefix, "\n") {
+		if strings.HasPrefix(line, "          python3 ") || strings.HasPrefix(line, "          git ") {
+			commands = append(commands, strings.TrimPrefix(line, "          "))
+		}
+	}
+	for _, fail := range []bool{true, false} {
+		t.Run(fmt.Sprint(fail), func(t *testing.T) {
+			dir := t.TempDir()
+			log := filepath.Join(dir, "calls")
+			for _, name := range []string{"python3", "git"} {
+				body := "#!/bin/sh\nprintf '%s\\n' \"$0\" \"$@\" >> \"$TEST_LOG\"\n"
+				if name == "python3" && fail {
+					body += "case \"$1\" in *.daily-update/generate_scores.py) exit 42;; esac\n"
+				}
+				if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			cmd := exec.Command("bash", "-e", "-c", strings.Join(commands, "\n"))
+			cmd.Dir = dir
+			cmd.Env = append(os.Environ(), "PATH="+dir+":/usr/bin:/bin", "TEST_LOG="+log, "GITHUB_OUTPUT="+filepath.Join(dir, "output"))
+			out, err := cmd.CombinedOutput()
+			if fail && err == nil || !fail && err != nil {
+				t.Fatalf("fail=%v: %v %s", fail, err, out)
+			}
+			calls, err := os.ReadFile(log)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Contains(string(calls), dir+"/git") == fail {
+				t.Fatalf("staging after failure=%v: %s", fail, calls)
+			}
+			if !strings.Contains(string(calls), pc.RawCSVPath+"\n") || !strings.Contains(string(calls), pc.ScoresCSVPath+"\n") {
+				t.Fatalf("paths were split or expanded: %s", calls)
+			}
+			if _, err := os.Stat(filepath.Join(dir, "SHOULD_NOT_EXIST")); !os.IsNotExist(err) {
+				t.Fatalf("shell expansion occurred: %v", err)
+			}
+		})
 	}
 }
