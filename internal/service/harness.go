@@ -110,7 +110,12 @@ func (h *HarnessService) seedIfEmpty() error {
 		h.s.mu.Unlock()
 		return nil
 	}
-	next := *h.s.cfg
+	next, cleanup, err := cloneConfig(h.s.cfg)
+	if err != nil {
+		h.s.mu.Unlock()
+		return err
+	}
+	defer cleanup()
 	for _, seed := range harnessSeeds {
 		if err := next.SetHarness(seed.slug, config.HarnessTOML{
 			Name: seed.name, Command: seed.command, Providers: seed.providers, Builtin: true,
@@ -128,7 +133,7 @@ func (h *HarnessService) seedIfEmpty() error {
 		h.s.mu.Unlock()
 		return err
 	}
-	h.s.cfg = &next
+	h.s.cfg = next
 	h.s.mu.Unlock()
 	h.s.emit(EventConfigChanged, map[string]string{"section": "harnesses"})
 	return nil
@@ -162,14 +167,19 @@ func (h *HarnessService) Save(ctx context.Context, in HarnessInfo) error {
 		h.s.mu.Unlock()
 		return fmt.Errorf("%w: harness %q is builtin: name and command are read-only", errBuiltinReadonly, in.Slug)
 	}
-	next := *h.s.cfg
+	next, cleanup, err := cloneConfig(h.s.cfg)
+	if err != nil {
+		h.s.mu.Unlock()
+		return err
+	}
+	defer cleanup()
 	if err := next.SetHarness(in.Slug, config.HarnessTOML{
 		Name: in.Name, Command: in.Command, Builtin: builtin, Providers: enabledProviders(in.Providers), Enabled: stored.Enabled,
 	}); err != nil {
 		h.s.mu.Unlock()
 		return err
 	}
-	return h.persist(&next)
+	return h.persist(next)
 }
 
 // Delete removes ANY harness, builtin or custom (SPEC Deviations). Unknown
@@ -186,9 +196,14 @@ func (h *HarnessService) Delete(ctx context.Context, slug string) error {
 		h.s.mu.Unlock()
 		return fmt.Errorf("%w: harness %q not found", errNotFound, slug)
 	}
-	next := *h.s.cfg
+	next, cleanup, err := cloneConfig(h.s.cfg)
+	if err != nil {
+		h.s.mu.Unlock()
+		return err
+	}
+	defer cleanup()
 	next.DeleteHarness(slug)
-	return h.persist(&next)
+	return h.persist(next)
 }
 
 // SetProvider toggles one provider in the harness allow-list (idempotent;
@@ -212,7 +227,12 @@ func (h *HarnessService) SetProvider(ctx context.Context, slug, provider string,
 		h.s.mu.Unlock()
 		return fmt.Errorf("%w: unknown provider %q", errValidation, provider)
 	}
-	next := *h.s.cfg
+	next, cleanup, err := cloneConfig(h.s.cfg)
+	if err != nil {
+		h.s.mu.Unlock()
+		return err
+	}
+	defer cleanup()
 	if err := next.SetHarness(slug, config.HarnessTOML{
 		Name: stored.Name, Command: stored.Command, Builtin: stored.Builtin,
 		Providers: toggleProvider(stored.Providers, provider, on), Enabled: stored.Enabled,
@@ -220,7 +240,7 @@ func (h *HarnessService) SetProvider(ctx context.Context, slug, provider string,
 		h.s.mu.Unlock()
 		return err
 	}
-	return h.persist(&next)
+	return h.persist(next)
 }
 
 // SetAllProviders sets every configured provider on/off for a harness:
@@ -247,14 +267,19 @@ func (h *HarnessService) SetAllProviders(ctx context.Context, slug string, on bo
 		}
 		sort.Strings(list)
 	}
-	next := *h.s.cfg
+	next, cleanup, err := cloneConfig(h.s.cfg)
+	if err != nil {
+		h.s.mu.Unlock()
+		return err
+	}
+	defer cleanup()
 	if err := next.SetHarness(slug, config.HarnessTOML{
 		Name: stored.Name, Command: stored.Command, Builtin: stored.Builtin, Providers: list, Enabled: stored.Enabled,
 	}); err != nil {
 		h.s.mu.Unlock()
 		return err
 	}
-	return h.persist(&next)
+	return h.persist(next)
 }
 
 // SetEnabled sets whether a harness is enabled. An explicit setting overrides
@@ -273,7 +298,12 @@ func (h *HarnessService) SetEnabled(ctx context.Context, slug string, on bool) e
 		h.s.mu.Unlock()
 		return fmt.Errorf("%w: harness %q not found", errNotFound, slug)
 	}
-	next := *h.s.cfg
+	next, cleanup, err := cloneConfig(h.s.cfg)
+	if err != nil {
+		h.s.mu.Unlock()
+		return err
+	}
+	defer cleanup()
 	if err := next.SetHarness(slug, config.HarnessTOML{
 		Name: stored.Name, Command: stored.Command, Builtin: stored.Builtin,
 		Providers: stored.Providers, Enabled: &on,
@@ -281,7 +311,7 @@ func (h *HarnessService) SetEnabled(ctx context.Context, slug string, on bool) e
 		h.s.mu.Unlock()
 		return err
 	}
-	return h.persist(&next)
+	return h.persist(next)
 }
 
 // persist applies a writer under the already-held write lock: it marshals the

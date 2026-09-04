@@ -130,3 +130,9 @@ Every mutation test asserts exactly one event via the B02 recorder; read/validat
 Save of an existing harness, SetProvider, and SetAllProviders preserve its stored `Enabled` pointer exactly: nil means installation detection, false explicitly disables, true explicitly enables. A new custom harness starts with nil; only SetEnabled changes the override. The derived boolean in HarnessInfo is not a persistence override.
 
 Pinned regression: `TestHarnessEditsPreserveEnabledOverride` covers all nine edit × nil/false/true combinations through persisted reload.
+
+## Review correction — #179: atomic harness mutations
+
+Every mutation, including initial seeding, Save, Delete, SetProvider, SetAllProviders, and SetEnabled, clones the complete configuration through `cloneConfig` while holding the write lock. It mutates only that independent document and publishes it after the atomic write succeeds. Clone cleanup and lock release occur on every error. Failed writes leave both live and persisted state unchanged and emit no event.
+
+Pinned regression: `TestHarnessFailedMutationLeavesLiveConfigUnchanged` forces all six mutations to fail at an invalid destination, verifies byte-identical live TOML and no event, then verifies a later successful write cannot leak the rejected change.
