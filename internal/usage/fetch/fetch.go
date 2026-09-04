@@ -434,7 +434,7 @@ func fetchCodexBarAll(ctx context.Context, providers []string, opts Options) ([]
 			if !opts.Refresh {
 				ttl := cache.EffectiveTTL(defaultCodexBarCacheTTL, opts.MaxAge)
 				snap, stale, err := store.Read(id, ttl)
-				if err == nil && !stale && snap.Failure == nil {
+				if err == nil && !stale && snap.Failure == nil && matchesRequestedSource(snap.Source, opts.Source) {
 					snap.Source = usage.SourceCache
 					snap.Confidence = "cached"
 					snap.Stale = false
@@ -535,4 +535,9 @@ func codexbarCredentialEnvironment(ctx context.Context, provider string, opts Op
 		return nil
 	}
 	return map[string]string{antigravity.CredentialsEnvironment: credentialsJSON}
+}
+
+// matchesRequestedSource checks original provenance before it is stamped as cache.
+func matchesRequestedSource(actual, requested usage.Source) bool {
+	return requested == "" || actual == requested
 }

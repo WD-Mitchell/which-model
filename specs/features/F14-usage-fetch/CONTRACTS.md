@@ -118,3 +118,11 @@ process. Because the OS keychain interface cannot cancel an active prompt,
 return on context cancellation and discard the late result; permit at most four
 outstanding such calls process-wide. Do not launch CodexBar after the lookup
 exhausts the budget. Pin blocked-keychain deadline and earlier-parent tests.
+
+
+## Cache source correction — #180 review
+
+Before reusing an online CodexBar cache entry for an explicitly requested source,
+compare its original source with the request. Only then stamp the returned
+snapshot as cached. A mismatching cache entry causes live collection with the
+requested source. Explicit cache-only reads retain their existing policy.
