@@ -66,3 +66,12 @@ Depends on: B02 (Services core, weight helpers), B01 (`[profiles.*]` schema), B1
 ## Review correction — #171: atomic profile creation
 
 `Create(ctx, detail)` adds create-only semantics while Save remains an upsert. After slug validation, Create checks both built-in and custom membership under the same writer lock used for validation and persistence. Any occupied slug returns `conflict`, without changing bytes or emitting an event. Successful creation emits exactly one `config:changed` event. Save/Create mutate an independent config clone, publishing it only after successful persistence. Duplicate retries Create conflicts; concurrent copies cannot overwrite one another.
+
+
+## Request validation precedence correction — #171 review
+
+Save validates slug, built-in protection, reserved name, shares, and weights
+before decoding unrelated stored profiles. Create reports conflict for built-in
+slugs, validates request fields, then checks custom occupancy under the same
+write lock. Malformed stored profiles cannot mask an intrinsic request error.
+Pin `TestProfileRequestErrorsPrecedeStoredProfileDecode`.
