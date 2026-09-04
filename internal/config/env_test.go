@@ -196,3 +196,17 @@ func TestApplyEnv(t *testing.T) {
 		})
 	}
 }
+
+func TestApplyEnvIgnoresHookRuntimeInputs(t *testing.T) {
+	cfg := Default()
+	vars := []string{"WHICH_MODEL_TASK_PROFILE=research", "WHICH_MODEL_CANDIDATE_ID=candidate-1", "WHICH_MODEL_DISPATCHED_MODEL=model-1"}
+	if err := ApplyEnv(cfg, func(string) string { return "runtime-value" }, vars); err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.env) != 0 {
+		t.Fatalf("hook inputs leaked into configuration: %#v", cfg.env)
+	}
+	if err := ApplyEnv(cfg, func(string) string { return "typo" }, []string{"WHICH_MODEL_CANDIDATE_IDS=typo"}); err == nil {
+		t.Fatal("unknown runtime-looking typo was accepted")
+	}
+}

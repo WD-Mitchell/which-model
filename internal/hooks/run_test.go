@@ -47,7 +47,7 @@ const pickFirstCandidate = `{"candidate_id":"cand-1","route":{"provider":"claude
 
 const pickExit4Fixture = `{"excluded_candidates":[{"route":{"provider":"claude"},"reason_code":"band_gated","reason":"at gate"},{"route":{"provider":"codex"},"reason_code":"auth_required","reason":"login"}]}`
 
-const explainFixture = `{"schema_version":"2.0","usage_enabled":true,"candidate":{"candidate_id":"c-1","route":{"provider":"claude","model_id":"claude-sonnet-4-5","model":"Claude Sonnet 4.5","reasoning":"medium","window_ids":["w1"]}},"evidence":{"profile":"balanced_implementation","score_inputs":{},"route_provenance":"provider_live","excluded_candidates":[]}}`
+const explainFixture = `{"schema_version":"2.0","candidate":"claude:claude-sonnet-4-5","evidence":{"profile":"balanced_implementation","score_inputs":{},"route_provenance":"provider_live","excluded_candidates":[]}}`
 
 // envelopeBytes decodes a Run output into the envelope shape, keeping
 // hookSpecificOutput raw for verbatim comparisons.
@@ -593,13 +593,20 @@ func TestModelAuditCandidateNoRoute(t *testing.T) {
 // envelope (nor the evidence file).
 func TestModelAuditCanary(t *testing.T) {
 	root := t.TempDir()
-	fixture := `{"schema_version":"2.0","candidate":{"candidate_id":"c-1","route":{"provider":"claude","model_id":"m1"}},"evidence":{"score_inputs":{"secret":"CANARY_EVIDENCE"}}}`
+	fixture := `{"schema_version":"2.0","candidate":"claude:m1","secret":"CANARY_EVIDENCE","evidence":{"profile":"balanced_implementation","score_inputs":{},"secret":"CANARY_EVIDENCE","route_provenance":"provider_live","excluded_candidates":[]}}`
 	out, err := Run("model-audit", nil, Options{Runner: fakeRunner(0, fixture), RepoRoot: root})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
 	if bytes.Contains(out, []byte("CANARY_EVIDENCE")) {
 		t.Errorf("envelope leaks canary: %s", out)
+	}
+	content, err := os.ReadFile(filepath.Join(root, ".which-model", "evidence.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(content, []byte("CANARY_EVIDENCE")) {
+		t.Fatalf("evidence leaks canary: %s", content)
 	}
 }
 
@@ -619,7 +626,7 @@ func TestModelAuditNoRepoRoot(t *testing.T) {
 }
 
 // Test 10: passthrough --last plus env candidate id → argv is
-// ["explain","c-9","--json","--last"] (env id wins, passthrough appended).
+// ["explain","--last","--json","--last"] (env id is correlation only).
 func TestModelAuditPassthrough(t *testing.T) {
 	runner, got := capturingRunner(explainFixture, 0)
 	if _, err := Run("model-audit", []string{"--last"}, Options{
@@ -632,7 +639,7 @@ func TestModelAuditPassthrough(t *testing.T) {
 	if len(*got) != 1 {
 		t.Fatalf("runner called %d times, want 1", len(*got))
 	}
-	want := []string{"explain", "c-9", "--json", "--last"}
+	want := []string{"explain", "--last", "--json", "--last"}
 	if !reflect.DeepEqual((*got)[0], want) {
 		t.Errorf("argv = %v, want %v", (*got)[0], want)
 	}

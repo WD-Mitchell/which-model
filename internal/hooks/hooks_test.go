@@ -105,7 +105,7 @@ func TestRegistryUnderlying(t *testing.T) {
 			name: "model-audit candidate env",
 			hook: "model-audit",
 			env:  map[string]string{"WHICH_MODEL_CANDIDATE_ID": "c-1"},
-			want: []string{"explain", "c-1", "--json"},
+			want: []string{"explain", "--last", "--json"},
 		},
 		{
 			name: "model-audit last",

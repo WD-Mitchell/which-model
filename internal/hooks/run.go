@@ -173,23 +173,21 @@ func dispatch(h Hook, code int, out []byte, opts Options) ([]byte, error) {
 		if code != 0 {
 			return approveFailOpen("model-audit", code), nil
 		}
-		var doc map[string]json.RawMessage
-		if err := json.Unmarshal(out, &doc); err != nil {
+		var doc auditDocument
+		if err := json.Unmarshal(out, &doc); err != nil || doc.SchemaVersion != "2.0" || doc.Evidence == nil {
 			return approveFailOpen("model-audit", 0), nil
 		}
-		candidateRaw, ok := doc["candidate"]
-		if !ok {
+		provider, modelID, ok := strings.Cut(doc.Candidate, ":")
+		if !ok || provider == "" || modelID == "" {
 			return approveFailOpen("model-audit", 0), nil
 		}
-		var cand struct {
-			Route struct {
-				ModelID string `json:"model_id"`
-			} `json:"route"`
-		}
-		if err := json.Unmarshal(candidateRaw, &cand); err != nil {
+		if expected := envOr(opts.Env, "WHICH_MODEL_CANDIDATE_ID", ""); expected != "" && expected != doc.Candidate {
 			return approveFailOpen("model-audit", 0), nil
 		}
-		if cand.Route.ModelID == "" {
+		// Decode only documented fields, then emit one compact JSONL record.
+		// Unrelated host/provider fields must never enter dispatch evidence.
+		out, err := json.Marshal(doc)
+		if err != nil {
 			return approveFailOpen("model-audit", 0), nil
 		}
 		root := opts.RepoRoot
@@ -205,12 +203,12 @@ func dispatch(h Hook, code int, out []byte, opts Options) ([]byte, error) {
 			return approveFailOpen("model-audit", 0), nil
 		}
 		mismatch := false
-		if dispatched := envOr(opts.Env, "WHICH_MODEL_DISPATCHED_MODEL", ""); dispatched != "" && dispatched != cand.Route.ModelID {
+		if dispatched := envOr(opts.Env, "WHICH_MODEL_DISPATCHED_MODEL", ""); dispatched != "" && dispatched != modelID {
 			mismatch = true
 			rec := map[string]any{
 				"ts":               time.Now().UTC().Format(time.RFC3339),
 				"dispatched_model": dispatched,
-				"route_model_id":   cand.Route.ModelID,
+				"route_model_id":   modelID,
 				"evidence":         json.RawMessage(out),
 			}
 			b, err := json.Marshal(rec)
