@@ -205,3 +205,15 @@ Per window: `utilization ?? used_percent` (number or numeric string, 0..100 fini
 3. F12 keychain resolver: service `"Claude Code-credentials"`, darwin-only; "not found" → no candidate; other errors → `keychain_unavailable`.
 4. F14 MUST invoke `Fetch` with the chain-resolved `usage.Credential` (zero value when the chain yielded nothing), under a `context.WithTimeout(ctx, descriptor.Timeout)`, with an `*http.Client` whose transport the tests may inject. F14 MUST NOT attach failure codes itself; it reads `Snapshot.Failure`.
 5. Fetch returns provider failures as `(Snapshot{Provider:"claude", Failure: ...}, nil)` — the `error` return is reserved for programming errors (never expected).
+
+## Snapshot knowledge correction (#182)
+
+Successful fetches set the existing `Snapshot.UsageKnown` field to whether any normalized window has `UsageKnown && !Synthetic` (global CONTRACTS §1.5). A real zero reading, credits-only reading, or unlimited known window counts; synthetic-only and failed snapshots remain false. This corrects an omitted aggregate assignment without changing canonical types or the JSON schema. The aggregate flag survives F14 live fetch, cache serialization/replay, and JSON output.
+
+| Snapshot contents | `usage_known` |
+|---|---|
+| Real positive or zero reading | `true` |
+| Real credits-only or unlimited known reading, when supported | `true` |
+| Mixed real and synthetic windows, when supported | `true` |
+| Synthetic-only windows, when supported | `false` |
+| Provider failure | `false` |

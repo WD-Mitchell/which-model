@@ -225,3 +225,15 @@ base_url = "https://other.example/v1"     # ignored unless active
 2. F12 chain entries for this provider MUST NOT carry `ExtraPaths` (SPEC D1) — the loader is the operational resolver.
 3. F14 MUST invoke `Fetch` with the chain-resolved `Credential` (zero value when empty) under `context.WithTimeout(ctx, descriptor.Timeout)`, and MUST forward `WithTrustedOrigin` context when F25 provided it. F14 reads `Snapshot.Failure`; it never attaches failure codes itself.
 4. Provider failures are `(Snapshot{Provider:"codex", Failure: ...}, nil)`; the `error` return is reserved for programming errors.
+
+## Snapshot knowledge correction (#182)
+
+Successful fetches set the existing `Snapshot.UsageKnown` field to whether any normalized window has `UsageKnown && !Synthetic` (global CONTRACTS §1.5). A real zero reading, credits-only reading, or unlimited known window counts; synthetic-only and failed snapshots remain false. This corrects an omitted aggregate assignment without changing canonical types or the JSON schema. The aggregate flag survives F14 live fetch, cache serialization/replay, and JSON output.
+
+| Snapshot contents | `usage_known` |
+|---|---|
+| Real positive or zero reading | `true` |
+| Real credits-only or unlimited known reading, when supported | `true` |
+| Mixed real and synthetic windows, when supported | `true` |
+| Synthetic-only windows, when supported | `false` |
+| Provider failure | `false` |
