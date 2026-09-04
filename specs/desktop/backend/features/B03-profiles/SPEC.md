@@ -9,7 +9,7 @@ project: which-model-desktop
 
 ## 1. Purpose
 
-`internal/service/profiles.go` is the profile surface of the service layer: it merges the 11 built-in engine profiles (`pick.Profiles`) with the user's custom `[profiles.*]` config sections into one `ProfileSummary`/`ProfileDetail` catalogue, attaches per-profile pick statistics (B11), and owns the mutations the Settings→Profiles page and popover "Save as profile" need: Save, Duplicate, Delete. It also publishes the fixed 5-slug complexity scale the popover slider maps onto.
+`internal/service/profiles.go` is the profile surface of the service layer: it merges the 11 built-in engine profiles (`pick.Profiles`) with the user's custom `[profiles.*]` config sections into one `ProfileSummary`/`ProfileDetail` catalogue, attaches per-profile pick statistics (B11), and owns the mutations the Settings→Profiles page and popover "Save as profile" need: Create, Save, Duplicate, Delete. It also publishes the fixed 5-slug complexity scale the popover slider maps onto.
 
 Depends on: B02 (Services core, weight helpers), B01 (`[profiles.*]` schema), B11 (pick stats). Inherits D00 + B00.
 
@@ -25,9 +25,9 @@ Depends on: B02 (Services core, weight helpers), B01 (`[profiles.*]` schema), B1
 
 5. **Get.** Looks up the merged set by slug; unknown slug → `not_found`.
 
-6. **Save.** Persists a custom profile at `[profiles.<slug>]`, creating or replacing. Fixed validation order (messages in CONTRACTS §5): (1) slug grammar `[a-z0-9_]+`, non-empty; (2) slug equal to a built-in slug → `builtin_readonly`; (3) `Name` equal to a built-in's name while the slug differs → `conflict`; (4) `CoreShare` in 10..90, step 5; (5) `engineWeights` on both tiers (weight > 5 rejected); (6) `engineProfile` → `pick.ValidateProfile` — any failure surfaces as `validation_failed` carrying the engine message verbatim. On success: write TOML (weights 1–5 only; 0-valued keys omitted), atomic persist, swap in-memory, emit `config:changed {"section":"profiles"}`. `Builtin`, `Picks`, `LastUsed` on the incoming DTO are ignored.
+6. **Save.** Persists a custom profile at `[profiles.<slug>]`, creating or replacing. Fixed validation order (messages in CONTRACTS §5): (1) slug grammar `[a-z0-9_]+`, non-empty; (2) slug equal to a built-in slug → `builtin_readonly`; (3) `Name` equal to a built-in's name while the slug differs → `conflict`; (4) `CoreShare` in 10..90, step 5; (5) `engineWeights` on both tiers (weight > 5 rejected); (6) `engineProfile` → `pick.ValidateProfileWithCategories` using `pick.CategoryNames` plus the configured group slugs, read under the persistence lock — any failure surfaces as `validation_failed` carrying the engine message verbatim. On success: write TOML (weights 1–5 only; 0-valued keys omitted), atomic persist, swap in-memory, emit `config:changed {"section":"profiles"}`. `Builtin`, `Picks`, `LastUsed` on the incoming DTO are ignored.
 
-7. **Duplicate.** `Duplicate(slug)` copies an existing profile (built-in or custom) to a new custom. New slug = source slug + `_copy`; if taken (in the merged built-in ∪ custom set), `_copy_2`, `_copy_3`, … first free wins. The copy takes the source's weights and `CoreShare`; `Builtin: false`, `Name` = new slug, `Picks: 0`, `LastUsed: ""`. Persisted immediately via the Save path (skipping §2.6 checks 2–3, which cannot fire) and emits `config:changed {"section":"profiles"}`; the new `ProfileDetail` is returned so the UI can open it for editing (mockup `onPfDuplicate`).
+7. **Duplicate.** `Duplicate(slug)` copies an existing profile (built-in or custom) to a new custom. New slug = source slug + `_copy`; if taken (in the merged built-in ∪ custom set), `_copy_2`, `_copy_3`, … first free wins. The copy takes the source's weights and `CoreShare`; `Builtin: false`, `Name` = new slug, `Picks: 0`, `LastUsed: ""`. Persisted via Create, retrying its atomic `conflict` result if another writer claims the candidate slug and emits `config:changed {"section":"profiles"}`; the new `ProfileDetail` is returned so the UI can open it for editing (mockup `onPfDuplicate`).
 
 8. **Delete.** Customs only: unknown slug → `not_found`; built-in slug → `builtin_readonly`. Removes the `[profiles.<slug>]` section, persists, emits `config:changed {"section":"profiles"}` (mockup `onPfDelete`).
 
@@ -62,3 +62,9 @@ Depends on: B02 (Services core, weight helpers), B01 (`[profiles.*]` schema), B1
 ## 6. Out of scope
 
 - Profile-driven ranking and Overrides handling — B04. History file format and aggregation — B11. `[profiles.*]` TOML decode/validation — B01. Weight-helper implementations — B02. UI editing flows — U08.
+
+## Review corrections — #171 and #185
+
+`Create(ctx, detail)` adds create-only semantics while Save remains an upsert. After slug validation, Create checks both built-in and custom membership under the same writer lock used for validation and persistence. Any occupied slug returns `conflict`, without changing bytes or emitting an event. Successful creation emits exactly one `config:changed` event. Save/Create mutate an independent config clone, publishing it only after successful persistence. Duplicate retries Create conflicts; concurrent copies cannot overwrite one another.
+
+Configured custom groups are valid profile task metrics. Both Save and Create validate against the locked configuration's group vocabulary through F10's explicit category-aware entry point. Unknown or deleted group slugs fail validation. This corrects the previous static-validator call, which contradicted B05's custom-group scoring contract. CLI validation remains static.

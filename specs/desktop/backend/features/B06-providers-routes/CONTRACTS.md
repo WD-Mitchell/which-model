@@ -161,3 +161,9 @@ Default fixture: routes table with providers `claude`,`codex` (≥2 models × �
 | `TestDiscoverLiveProviderModelsUsesProviderCommandsAndFallback` | fixed Cursor command and Antigravity primary/fallback order; parsed results use provider-live identities |
 | `TestRefreshRoutesDiscoversCursorAndAntigravityWithoutOpencodeAmbiguity`, `TestRefreshRoutesLiveDiscoveryFailureIsProviderLocal` | end-to-end service refresh adds scored Cursor/Antigravity detail models, explicit models.dev effort disambiguates OpenCode Kimi K3, and one missing live source does not suppress other providers |
 | all mutation tests | exactly one event with the §7 payload via the emit recorder |
+
+## Deviation — #183: explicit models.dev refresh
+
+An explicit RefreshRoutes operation, after successful benchmark refresh/reload, attempts the existing bounded models.dev fetch once even when a valid catalogue is cached. A successful nonempty parsed catalogue atomically replaces `modelsdev_providers.json` before route rebuilding. A fetch failure uses a valid cached catalogue and records a generic service warning; if no usable cache exists it returns the fetch error. Failure to persist a freshly fetched catalogue records a warning and permits route rebuilding from memory. Read-only List, Detail, Addable, and the cache parser never fetch, including for an old price-less schema.
+
+This supersedes the earlier cache-else-fetch refresh policy. There is no new timer, background network operation, or setting. Pinned regressions cover replacing a valid catalogue (including removals/pricing), one network attempt, unchanged cache on fetch failure, failure without a usable cache, and zero fetches from read-only methods.

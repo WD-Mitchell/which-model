@@ -344,3 +344,41 @@ func TestRankInvalidProfile(t *testing.T) {
 		t.Errorf("Rank: error = %v, want %q", err, "tier 1 and tier 2 shares must sum to 100")
 	}
 }
+
+// A custom category must affect scoring, not merely pass vocabulary validation.
+func TestRankWithCategoriesCustomGroupChangesWinner(t *testing.T) {
+	rows := []catalog.ScoreRow{
+		scoreRow("Generalist", "high", "90", "90", "90", map[string]string{"custom_group": "0"}),
+		scoreRow("Specialist", "high", "80", "80", "80", map[string]string{"custom_group": "100"}),
+	}
+	profile := catalog.Profile{
+		Name: "custom-profile", Tier1Share: decimal.NewFromInt(60), Tier2Share: decimal.NewFromInt(40),
+		Tier1Weights: map[string]decimal.Decimal{"intelligence": decimal.NewFromInt(1), "cost": decimal.NewFromInt(1), "speed": decimal.NewFromInt(1)},
+	}
+	available := []Identity{{Model: "Generalist", Reasoning: "high"}, {Model: "Specialist", Reasoning: "high"}}
+	baseline, err := Rank(rows, profile, available)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if baseline.CandidateCount != 2 || baseline.Recommendation.Model != "Generalist" || !baseline.Recommendation.Total.Equal(decimal.NewFromInt(90)) {
+		t.Fatalf("unexpected tier-1 baseline: %+v", baseline)
+	}
+	profile.Tier2Weights = map[string]decimal.Decimal{"custom_group": decimal.NewFromInt(5)}
+	// The canonical ranker retains its closed vocabulary for existing callers.
+	if _, err := Rank(rows, profile, available); err == nil {
+		t.Fatal("canonical Rank unexpectedly accepted a custom group")
+	}
+	ranked, err := RankWithCategories(rows, profile, available, append(append([]string(nil), CategoryNames...), "custom_group"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ranked.CandidateCount != 2 || len(ranked.Alternatives) != 1 || ranked.Recommendation.Model != "Specialist" || ranked.Alternatives[0].Model != "Generalist" {
+		t.Fatalf("custom group did not change ranking: %+v", ranked)
+	}
+	if !ranked.Recommendation.Total.Equal(decimal.NewFromInt(88)) || !ranked.Alternatives[0].Total.Equal(decimal.NewFromInt(54)) {
+		t.Fatalf("custom contribution not applied: winner=%s alternative=%s", ranked.Recommendation.Total, ranked.Alternatives[0].Total)
+	}
+	if ranked.Recommendation.Tier2 == nil || !ranked.Recommendation.Tier2.Equal(decimal.NewFromInt(100)) || len(ranked.Recommendation.Warnings) != 0 {
+		t.Fatalf("custom category evidence missing: %+v", ranked.Recommendation)
+	}
+}
