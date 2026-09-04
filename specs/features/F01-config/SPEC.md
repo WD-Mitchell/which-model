@@ -84,6 +84,23 @@ durations, and titles such as "true", "0", and "001". Invalid booleans or intege
 return `ConfigError{Kind: KindInvalidValue}` naming the dotted key. This supersedes
 the lossy bool-first inference in D16; rendering never mutates the source config.
 
+### Legacy migration correction (#168)
+
+`EnsureLegacyMigration(paths Paths, home string) error` reads the legacy root from
+`filepath.Join(home, ".which-model")`. `Load` passes its resolved `LoadOptions.Home`
+or `os.UserHomeDir` home explicitly. Destination paths remain those of ResolvePaths,
+including arbitrary XDG overrides. This corrects #39's inferred-home regression;
+canonical config wins, successful migrations are idempotent, and missing legacy
+data creates no migration artifacts.
+
+
+## Cross-device migration correction — #168 review
+
+Legacy migration supports an XDG destination on a different filesystem. When
+rename returns EXDEV, files are copied with atomic replacement before source
+removal; directory trees retain first-wins merging. A failed copy retains its
+source. Pin `TestLegacyCrossDeviceMove`.
+
 ## Catalog schema correction — #167 review
 
 All catalog consumers, including desktop benchmark-group loading, decode the
