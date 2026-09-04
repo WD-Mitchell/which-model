@@ -502,7 +502,7 @@ graph TD
      - `usage := map[string]any{}`; `usage["enabled"]` = `"auto"` for `UsageAuto`, `true` for `UsageTrue`, `false` for `UsageFalse` (round-trips through `UnmarshalTOML`, B13); `doc["usage"] = usage` always.
      - `providers := map[string]any{}`; for each `id` in sorted order: `p := c.Providers[id]`; `m := map[string]any{"enabled": p.Enabled}` (always rendered); add `priority` only when `!= 0`; `weight` only when NOT zero and NOT `1` (render `p.Weight.String()` — a TOML string, B13/D16); `cache_ttl` only when `!= 0` (render `p.CacheTTL.String()`); `source_preference` only when non-empty; `credential_path` and `trusted_fallback_origin` only when non-empty. `providers[id] = m`. Set `doc["providers"] = providers` only when `len(providers) > 0`.
      - Generic sections: for each `k, v` in `c.raw` with `k != "usage" && k != "providers"` (and `k` not starting with `providers.` — raw never contains dotted keys, but skip defensively): `doc[k] = deepCopyRaw(v)` (recursive copy of `map[string]any`/`[]any`; scalars shared).
-     - Env overlay: for each dotted `key, val` in `c.env` (sorted): `setKey(doc, key, inferEnvValue(val))` where `inferEnvValue` tries `strconv.ParseBool` → bool, then `strconv.Atoi` → int64, else the string unchanged (B13/D16); `setKey` splits the dotted key and walks/creates `map[string]any` subtables, then sets the leaf. (Providers/usage env keys are never in `c.env` — F01-T5 applies them to typed fields — so the overlay cannot collide with the typed render.)
+     - Env overlay: for each dotted `key, val` in `c.env` (sorted): `renderEnvValue(key, val)` followed by `setKey(doc, key, value)`: choose the documented dotted-key type, parse booleans with `strconv.ParseBool`, parse integer strategy shares with `strconv.ParseInt`, and leave other generic values as strings (B13/D16). A parse error returns `ConfigError{Kind: KindInvalidValue, Key: key}`; `setKey` splits the dotted key and walks/creates `map[string]any` subtables, then sets the leaf. (Providers/usage env keys are never in `c.env` — F01-T5 applies them to typed fields — so the overlay cannot collide with the typed render.)
    - Render in canonical section order `["usage", "scoring", "strategy", "bands", "catalog", "output", "providers"]` (annex-d §4.2) with a recursive helper:
      - `renderSection(w *strings.Builder, name string, m map[string]any)`: partition `m` (keys sorted) into `scalars` (non-table, non-array-of-tables values — plain `[]any`/`[]string` of scalars counts as scalar), `subs` (map values), `arrs` (`[]map[string]any` values — TOML arrays of tables). If `len(scalars) > 0`: write `"[" + name + "]\n"`, `toml.Marshal(scalars)` (error → `&ConfigError{Kind: KindInvalidValue, Key: name, Err: err}`), write the bytes + `"\n"`. Then for each sub (sorted): `renderSection(w, name + "." + subName, subMap)`; for each array (sorted): for each element: write `"[[" + name + "." + arrName + "]]\n"` + marshal + `"\n"`.
      - Sections missing from `doc` are skipped; providers render as `[providers.claude]` (each provider map is a flat scalar map, so the recursion emits the header correctly).
@@ -518,8 +518,8 @@ graph TD
 | 3 | `DecodeFile` on `[providers.claude]` `enabled = true, priority = 5, weight = 0.85, cache_ttl = "5m"`, `source_preference = ["native"]`, `credential_path = "/x"` | output contains `[providers.claude]`, `enabled = true`, `priority = 5`, `weight = "0.85"`, `cache_ttl = "5m"`, `source_preference = ["native"]`, `credential_path = "/x"` |
 | 4 | `DecodeFile` on `[scoring]` `normalizer = "minmax-linear"`, `aggregator = "weighted-arithmetic-mean"` | output contains `[scoring]`, both keys |
 | 5 | `DecodeFile` on `[catalog]` `cache_ttl = "30m"`; `cfg.env = {"catalog.cache_ttl": "1h"}` | output contains `cache_ttl = "1h"` under `[catalog]` (env wins over file) |
-| 6 | `cfg.env = {"strategy.tier1_share": "80"}` | output contains `tier1_share = 80` (int inference) |
-| 7 | `cfg.env = {"catalog.warn_on_stale_scores": "false"}` | output contains `warn_on_stale_scores = false` (bool inference) |
+| 6 | `cfg.env = {"strategy.tier1_share": "80"}` | output contains `tier1_share = 80` (documented integer key) |
+| 7 | `cfg.env = {"catalog.warn_on_stale_scores": "false"}` | output contains `warn_on_stale_scores = false` (documented boolean key) |
 | 8 | `cfg.env = {"catalog.publish.schedule": "0 6 * * *"}` | output contains `[catalog.publish]` and `schedule = "0 6 * * *"` (nested table from dotted env key) |
 | 9 | round-trip: output of a config with `cfg.env = {"catalog.cache_ttl": "1h"}` fed to `toml.Decode` into `map[string]any` | `rawLookup(doc2, "catalog.cache_ttl")` == `"1h"` (render parses as TOML) |
 | 10 | `DecodeFile` on `[usage]` + `[providers.claude]` | `strings.Index(out, "[usage]")` < `strings.Index(out, "[providers.claude]")` (canonical order) |
@@ -590,3 +590,15 @@ graph TD
 - [ ] workflow references no secret other than the default `GITHUB_TOKEN` (which it does not even name)
 
 **Run:** no Go test for this task; gate = the 8 content checks against the verbatim YAML block above, then `git status` shows only `.github/workflows/ci.yml` added.
+### Review regression cases (#167)
+
+The corrected T9 renderer must also pin these owning-schema round trips:
+
+| Input | Expected |
+|---|---|
+| Integer strategy shares `0` and `1` | Render and reload as integers, never booleans |
+| Decimal gate `0`/`1` and title `true`/`0`/`001` | Render as strings; decimal/text owners reload the exact value |
+| Boolean setting spelled `0`/`1` | Render false/true; reload as booleans |
+| Invalid integer or boolean spelling | Return `KindInvalidValue` naming the dotted key |
+| Render, save, `LoadFile`, then `UnmarshalKey` | Preserve effective values and leave the source config unchanged |
+| Every generic environment key | Exactly one declared render kind |
