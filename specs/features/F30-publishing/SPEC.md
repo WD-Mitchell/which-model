@@ -159,6 +159,6 @@ generator failure before staging, and repeat generation matching committed bytes
 ## Legacy run_tests compatibility — #167 review
 
 Accept the documented `catalog.publish.run_tests` boolean, including its
-environment override, as a legacy compatibility option. Publishing verification
-is mandatory; false cannot disable the Python suite. This supersedes the former
+environment override, as a legacy compatibility option. The option has no effect on the generated workflow; F30 governs its verification
+steps. Paired-artifact verification is introduced by #165. This supersedes the former
 conditional-test option without rejecting existing configurations.

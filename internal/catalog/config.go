@@ -13,7 +13,7 @@ type Config struct {
 
 // PublishConfig is the nested [catalog.publish] schema and resolved artifact paths.
 type PublishConfig struct {
-	RunTests bool `toml:"run_tests"` // legacy accepted option; publishing verification is mandatory
+	RunTests bool `toml:"run_tests"` // legacy accepted option; F30 owns workflow verification
 
 	Enabled       bool     `toml:"enabled"`
 	Schedule      string   `toml:"schedule"`

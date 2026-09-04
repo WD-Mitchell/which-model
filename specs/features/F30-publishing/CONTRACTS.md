@@ -201,6 +201,6 @@ workflow remain synchronized. Regression cases cover custom paths, stage orderin
 generator failure before staging, and repeat generation matching committed bytes.
 
 
-`catalog.PublishConfig.RunTests bool` decodes legacy `run_tests`; it cannot
-disable publishing verification. Every catalog consumer accepts this documented
+`catalog.PublishConfig.RunTests bool` decodes legacy `run_tests`; it does not
+change the generated verification steps. Every catalog consumer accepts this documented
 boolean consistently.
