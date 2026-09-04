@@ -6,6 +6,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/WD-Mitchell/which-model/internal/config"
 	"github.com/WD-Mitchell/which-model/internal/usage"
@@ -78,7 +79,11 @@ func TestFetchAllCodexBarInjectsManagedAntigravityOAuth(t *testing.T) {
 		return usage.Snapshot{}, nil
 	}
 	var injected string
-	codexbarFetchEnvironment = func(_ context.Context, provider string, _ usage.Source, environment map[string]string) (usage.Snapshot, error) {
+	codexbarFetchEnvironment = func(ctx context.Context, provider string, _ usage.Source, environment map[string]string) (usage.Snapshot, error) {
+		deadline, ok := ctx.Deadline()
+		if !ok || time.Until(deadline) > DefaultTimeoutSec {
+			t.Error("managed credential fetch needs the provider deadline")
+		}
 		injected = environment[antigravity.CredentialsEnvironment]
 		return usage.Snapshot{Provider: provider, Source: usage.SourceOAuth}, nil
 	}

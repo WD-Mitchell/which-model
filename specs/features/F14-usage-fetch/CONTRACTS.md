@@ -101,3 +101,11 @@ func SourceFor(cred usage.Credential, kind usage.Kind) usage.Source
 | Fresh CodexBar cache / two sequential online calls | No credential/subprocess/write on hit; one total live fetch |
 | Missing, stale, corrupt, or Refresh cache | One live fetch; successful result cached before identity redaction |
 | Two-minute cache, MaxAge 60s / 15m | Fetch / hit respectively |
+
+## Review regression contract (#181)
+
+| Scenario | Required result |
+|---|---|
+| Explicit CodexBar timeout / absent timeout | Provider context uses requested budget / 10s default |
+| Earlier parent deadline or cancellation | Parent remains the upper bound and returns batch error |
+| Blocked provider and successful sibling | `timeout` data for blocked provider; sibling retained |
