@@ -180,3 +180,77 @@ func TestFileResolver(t *testing.T) {
 		}
 	})
 }
+
+func TestFileResolverExpandedCandidates(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	override := t.TempDir()
+	t.Setenv("WHICH_MODEL_TEST_CREDENTIAL_DIR", override)
+	t.Setenv("WHICH_MODEL_TEST_EMPTY_DIR", "")
+	// Setting then unsetting ensures the caller environment is restored.
+	t.Setenv("WHICH_MODEL_TEST_MISSING_DIR", "")
+	if err := os.Unsetenv("WHICH_MODEL_TEST_MISSING_DIR"); err != nil {
+		t.Fatal(err)
+	}
+	writeCredFile(t, home, "auth.json", `{"token":"home-synthetic-token"}`, 0o600)
+	absolute := writeCredFile(t, override, "auth.json", `{"token":"override-synthetic-token"}`, 0o600)
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	relative, err := filepath.Rel(cwd, absolute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name  string
+		paths []string
+		want  string
+	}{
+		{"home", []string{"~/auth.json"}, "home-synthetic-token"},
+		{"environment", []string{"$WHICH_MODEL_TEST_CREDENTIAL_DIR/auth.json"}, "override-synthetic-token"},
+		{"braced environment", []string{"${WHICH_MODEL_TEST_CREDENTIAL_DIR}/auth.json"}, "override-synthetic-token"},
+		{"missing fallback", []string{"$WHICH_MODEL_TEST_MISSING_DIR/auth.json", "~/auth.json"}, "home-synthetic-token"},
+		{"empty fallback", []string{"$WHICH_MODEL_TEST_EMPTY_DIR/auth.json", "~/auth.json"}, "home-synthetic-token"},
+		{"precedence", []string{"$WHICH_MODEL_TEST_CREDENTIAL_DIR/auth.json", "~/auth.json"}, "override-synthetic-token"},
+		{"absolute", []string{absolute}, "override-synthetic-token"},
+		{"relative", []string{relative}, "override-synthetic-token"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cred, err := (&FileResolver{Paths: tc.paths, JSONPath: "token"}).Resolve(context.Background())
+			if err != nil || cred.Token != tc.want || cred.Source != usage.AuthFile {
+				t.Fatalf("expected file credential; got source=%v err=%v", cred.Source, err)
+			}
+		})
+	}
+}
+
+func TestFileResolverExpansionIsLiteral(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "$(touch marker)-`id`-$UNEXPANDED")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeCredFile(t, dir, "auth.json", `{"token":"literal-synthetic-token"}`, 0o600)
+	t.Setenv("WHICH_MODEL_TEST_LITERAL_DIR", dir)
+	cred, err := (&FileResolver{Paths: []string{"$WHICH_MODEL_TEST_LITERAL_DIR/auth.json"}, JSONPath: "token"}).Resolve(context.Background())
+	if err != nil || cred.Token != "literal-synthetic-token" {
+		t.Fatalf("literal environment path must resolve without recursive expansion: %v", err)
+	}
+}
+
+func TestExpandCredentialPathMissingVariables(t *testing.T) {
+	t.Setenv("WHICH_MODEL_TEST_MISSING_EXPANSION", "")
+	for _, variable := range []string{"$WHICH_MODEL_TEST_MISSING_EXPANSION", "${WHICH_MODEL_TEST_MISSING_EXPANSION}"} {
+		path, usable := expandCredentialPath(variable + "/auth.json")
+		if usable || path != "" {
+			t.Fatal("missing variable must invalidate the candidate, never select a root path")
+		}
+	}
+	if err := os.Unsetenv("WHICH_MODEL_TEST_MISSING_EXPANSION"); err != nil {
+		t.Fatal(err)
+	}
+	if _, usable := expandCredentialPath("$WHICH_MODEL_TEST_MISSING_EXPANSION/auth.json"); usable {
+		t.Fatal("unset variable must invalidate candidate")
+	}
+}

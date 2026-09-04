@@ -247,3 +247,13 @@ func CheckExpired(exp time.Time, now time.Time) error
 | Dependencies added | `github.com/zalando/go-keyring` (darwin build only) |
 | Depends on | F05, F11 (per `specs/DEPENDENCY-GRAPH.md` §2) |
 | Blocks | F14, F15, F16, F17, F25 (per `specs/DEPENDENCY-GRAPH.md` §2) |
+
+## Review regression contract (#176)
+
+| Scenario | Required result |
+|---|---|
+| `~/auth.json`, `$VAR/auth.json`, `${VAR}/auth.json` | Resolve temporary synthetic credential |
+| Missing/empty override followed by a valid home path | Skip override, resolve home credential |
+| Multiple valid candidates | First candidate wins |
+| Literal absolute/relative paths or shell-like text in environment value | Preserve literal path; no execution or recursive expansion |
+| Native descriptor using override/home paths | Resolve the file credential before native fetch |
