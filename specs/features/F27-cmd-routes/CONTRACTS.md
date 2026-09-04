@@ -203,3 +203,17 @@ F27 consumes `ReadScores` (via seam `readScoresFunc`) for verify; the CSV path c
 - Routes contain no credential material (provider ids, model ids, and window ids only); nothing to redact — but `add`/`remove` never echo flag values into output beyond the route id.
 - The scores CSV hash is read-only metadata; verify never writes or modifies the CSV.
 - `refresh` never deletes user_declared routes (F18's merge guarantees it; F27's compare-and-skip preserves the file when nothing changed).
+
+### Shared catalog schema correction (#166)
+
+All catalog consumers decode the complete `catalog` table through F01's strict,
+table-only `UnmarshalKey`. `internal/catalog.Config` owns all existing catalog
+fields plus `Publish PublishConfig` (`toml:"publish"`); `catalog.PublishConfig`
+owns the existing nested publishing fields. `whichmodel.CatalogConfig` and
+`publish.PublishConfig` remain public aliases. Unknown catalog and publish keys
+are errors; valid nested publishing settings coexist with configured raw/scores
+paths, including environment-only overrides. Publishing seeds nested defaults,
+then reads raw artifact paths from the decoded root. Pick validates catalog
+configuration before loading scores and propagates config errors as exit 2.
+Empty consumer paths retain their previous defaults. This corrects scalar
+accessor guidance that contradicted F01's table-only contract.

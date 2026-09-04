@@ -242,3 +242,14 @@ The JSON array-of-objects form of the same identity syntax (`{"model","reasoning
 - F27 (`which-model routes refresh`) resolves `<cache_dir>` and the scores-CSV hash via F01 config and F06 csvstore provenance, calls `ProduceRoutes`, persists via `SaveTable` per the SPEC §2.8/§3 rules, and renders `ProvenanceCounts` + `Unrouted` in `verify`/`list`.
 - `internal/pick` (F20/F26) consumes `Table.Routes` as the availability set: a `(Model, Reasoning)` identity is available iff at least one route carries it (master plan §4.3); `routes verify` reports coverage so unrouted score rows are listed, never silently dropped (global SPEC §8 M3 done-when).
 - F18 compiles under `-tags nousage` unchanged (SPEC §5).
+
+### Catalog join optimization (#170)
+
+Route production builds a single invocation-local cleaned-name index and matches
+provider entries only against their name bucket. Buckets preserve catalog order;
+no cross-call cache or input mutation is allowed. Explicit effort matching,
+default/high collapse, sole-identity fallback, ambiguity candidates and errors,
+provider isolation, source precedence, and route/unrouted/warning order are
+unchanged. The production benchmark includes index construction and 1,000 unique
+provider-native IDs drawn deterministically from the committed score identities,
+with declared matching efforts and allocation reporting.

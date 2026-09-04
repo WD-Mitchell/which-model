@@ -1,9 +1,11 @@
 package config
 
 import (
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
+	"syscall"
 )
 
 // EnsureLegacyMigration moves a pre-platform-layout `~/.which-model` tree
@@ -15,8 +17,8 @@ import (
 // recovery. The legacy root is removed after a successful move. Safe to
 // call on every start: a no-op without a legacy tree, and a completed
 // migration removes it.
-func EnsureLegacyMigration(paths Paths) error {
-	legacyRoot := filepath.Join(legacyHome(paths), ".which-model")
+func EnsureLegacyMigration(paths Paths, home string) error {
+	legacyRoot := filepath.Join(home, ".which-model")
 	if info, err := os.Stat(legacyRoot); err != nil || !info.IsDir() {
 		return nil
 	}
@@ -32,7 +34,7 @@ func EnsureLegacyMigration(paths Paths) error {
 
 	legacyConfig := filepath.Join(legacyRoot, "config.toml")
 	if fileRegular(legacyConfig) {
-		if err := os.Rename(legacyConfig, paths.UserConfigFile); err != nil {
+		if err := moveLegacy(legacyConfig, paths.UserConfigFile); err != nil {
 			return err
 		}
 	}
@@ -54,26 +56,11 @@ func EnsureLegacyMigration(paths Paths) error {
 		return err
 	}
 	for _, entry := range entries {
-		if err := os.Rename(filepath.Join(legacyRoot, entry.Name()), filepath.Join(paths.ConfigDir, ".legacy-"+entry.Name())); err != nil {
+		if err := moveLegacy(filepath.Join(legacyRoot, entry.Name()), filepath.Join(paths.ConfigDir, ".legacy-"+entry.Name())); err != nil {
 			return err
 		}
 	}
 	return os.Remove(legacyRoot)
-}
-
-// legacyHome resolves the home directory the legacy `~/.which-model` tree
-// lives under: strip the per-OS layout segments from the resolved config
-// dir ("Library/Application Support" on darwin, ".config" for the XDG
-// default, honoring XDG_CONFIG_HOME overrides).
-func legacyHome(paths Paths) string {
-	dir := filepath.Dir(paths.ConfigDir)
-	if filepath.Base(dir) == "Application Support" && filepath.Base(filepath.Dir(dir)) == "Library" {
-		return filepath.Dir(filepath.Dir(dir))
-	}
-	if filepath.Base(dir) == "which-model" && filepath.Base(filepath.Dir(dir)) == ".config" {
-		return filepath.Dir(filepath.Dir(dir))
-	}
-	return dir
 }
 
 func fileRegular(path string) bool {
@@ -113,13 +100,55 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, info.Mode().Perm())
+	out, err := os.CreateTemp(filepath.Dir(dst), ".legacy-copy-*")
 	if err != nil {
 		return err
 	}
-	if _, err := io.Copy(out, in); err != nil {
-		out.Close()
+	defer os.Remove(out.Name())
+	defer out.Close()
+	if err := out.Chmod(info.Mode().Perm()); err != nil {
 		return err
 	}
-	return out.Close()
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+	if err := out.Sync(); err != nil {
+		return err
+	}
+	if err := out.Close(); err != nil {
+		return err
+	}
+	// Link publishes the complete copy without overwriting a first-wins target.
+	if err := os.Link(out.Name(), dst); err != nil && !os.IsExist(err) {
+		return err
+	}
+	return nil
+}
+
+// Cross-device migration copies completely before removing its source.
+var renameLegacy = os.Rename
+
+func moveLegacy(src, dst string) error {
+	err := renameLegacy(src, dst)
+	if !errors.Is(err, syscall.EXDEV) {
+		return err
+	}
+	info, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		if err := mergeTree(src, dst); err != nil {
+			return err
+		}
+		return os.RemoveAll(src)
+	}
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	if err := AtomicWriteFile(dst, data); err != nil {
+		return err
+	}
+	return os.Remove(src)
 }

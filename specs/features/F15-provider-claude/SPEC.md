@@ -31,7 +31,7 @@ project: which-model
 
 9. **`extraUsage` and `limits` are ported per annex-a §3.2** (CodexBar fields the prototype does not consume; `codexbar-provider-survey.md:136-143`). `extraUsage` (object) → window ID `extra_usage`, Label `Extra usage`, `Unit: usd`, `Used = usedCredits` (finite ≥ 0), `Limit = monthlyLimit` (finite ≥ 0), `UsedPercent = utilization` (0..100), included when at least one of those three fields is valid; `isEnabled` is not consulted (presence of valid numbers governs). Each `limits[i]` (object) with valid `percent` (0..100) → window ID `limit:<slug(kind_group)>`, Label `group` when non-empty else `kind`, `UsedPercent = percent`, `ResetsAt = resetText(resetsAt)`, `ModelScope [scope.model.id]` when present; `isActive` is not consulted. `slug` = lowercase, runs of non-alphanumerics → `-`.
 
-10. **Snapshot assembly.** `Snapshot{Provider:"claude", Windows, FetchedAt: now UTC, Source: SourceOAuth, Confidence:"live"}` (annex-a §3.2 "All windows ... Source = SourceOAuth"). `Account`/`Plan` stay empty (the prototype never verifies identity for Claude).
+10. **Snapshot assembly.** `Snapshot{Provider:"claude", Windows, UsageKnown: any window is known and non-synthetic, FetchedAt: now UTC, Source: SourceOAuth, Confidence:"live"}` (annex-a §3.2 "All windows ... Source = SourceOAuth"). `Account`/`Plan` stay empty (the prototype never verifies identity for Claude).
 
 11. **Descriptor constants.** `Timeout: 15s` (annex-a §5 literal + §6 15-30s pattern), `CacheTTL: 60s` (annex-a §6 HTTP-fetched default), `Kind: KindSubscription`, `Tier: 1`, `DisplayName: "Claude"` (the `.mjs` report header name, `claude.mjs:63`, supersedes any longer product name so `formatUsageReport`-style text output stays verbatim). `Windows` descriptor list: `5h` (percent), `weekly`, `sonnet_7d`, `opus_7d`, `oauth_apps_7d`, `routines_7d`, `extra_usage` (usd) — `5h` is not Optional (always present, real or synthetic); the rest are Optional (emitted only when the response carries them). `init()` registers the Descriptor; a duplicate ID panics (registry contract, annex-a §5).
 
@@ -67,3 +67,15 @@ All failures return `(zero Snapshot, *Error)` where `Error{Code, Message}` carri
 - Keychain resolution internals, `~`/env expansion, device-flow — F12's domain; this feature only declares the chain.
 - Build-tag `nousage` stubbing — F21's domain (global SPEC §4); nothing in this feature requires it (DEPENDENCY-GRAPH §2 lists no `blocks` for F15).
 - Text rendering of windows (`formatUsageReport` port) — F24's domain; this feature guarantees data-level parity.
+
+## Snapshot knowledge correction (#182)
+
+Successful fetches set the existing `Snapshot.UsageKnown` field to whether any normalized window has `UsageKnown && !Synthetic` (global CONTRACTS §1.5). A real zero reading, credits-only reading, or unlimited known window counts; synthetic-only and failed snapshots remain false. This corrects an omitted aggregate assignment without changing canonical types or the JSON schema. The aggregate flag survives F14 live fetch, cache serialization/replay, and JSON output.
+
+| Snapshot contents | `usage_known` |
+|---|---|
+| Real positive or zero reading | `true` |
+| Real credits-only or unlimited known reading, when supported | `true` |
+| Mixed real and synthetic windows, when supported | `true` |
+| Synthetic-only windows, when supported | `false` |
+| Provider failure | `false` |

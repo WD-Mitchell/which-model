@@ -112,3 +112,7 @@ Inherited from `docs/plan/research/usage-allowance-checks-spec.md` §9. Non-nego
 | Usage checker spec | `docs/plan/research/usage-allowance-checks-spec.md` |
 | Pipeline spec | `docs/plan/research/model-data-pipeline-spec.md` |
 | Provider survey | `docs/plan/research/codexbar-provider-survey.md` |
+
+## 9. npm fallback distribution (#161)
+
+When the platform optional package is unavailable, postinstall may fetch the version-matched release binary. Decode only `checksums.txt` as UTF-8 and parse sha256sum LF/CRLF records (including the binary marker). Hash and write the binary as unchanged bytes, with executable mode on Unix. Missing, malformed or mismatched checksums and download failures must leave no installed fallback and warn without failing npm installation. Existing optional binaries and `WHICH_MODEL_SKIP_DOWNLOAD=1` perform no fallback requests. Validate with `node --test npm/which-model/install.test.js` and the existing npm smoke test.

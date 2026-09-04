@@ -55,7 +55,7 @@ func MarshalEnvelope(e Envelope) []byte
 type Runner func(args []string, stdout, stderr io.Writer) int
 
 // Options carries execution inputs. Stdin is a host JSON object; Runner
-// is always invoked and is the only output-fixture seam (SPEC behaviour 4).
+// always supplies the underlying command result (SPEC behaviour 4).
 // Env overrides os.Environ for
 // WHICH_MODEL_TASK_PROFILE / WHICH_MODEL_CANDIDATE_ID /
 // WHICH_MODEL_DISPATCHED_MODEL. RepoRoot is the evidence-file base dir.
@@ -207,3 +207,7 @@ score-input map, route provenance, and exclusions array, including enum values
 and optional age/date/band bounds. Missing or null required fields fail open
 without writing a plausible but incomplete audit record. Empty maps and arrays
 remain valid. Pin `TestAuditRejectsIncompleteEvidence`.
+
+## Execution correction — #162
+
+`ExecuteCommand` builds fresh commands and restores the caller's flags and streams. Stdin is empty/whitespace or a JSON object containing host context; it never replaces command output. Only Runner injects output fixtures. Explicit outer global flags are forwarded ahead of passthrough flags; underlying output remains JSON.

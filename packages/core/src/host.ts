@@ -27,6 +27,7 @@ export interface EngineHost {
   profiles: {
     list(): Promise<ProfileSummary[]>
     get(slug: string): Promise<ProfileDetail>
+    create(p: ProfileDetail): Promise<void>
     save(p: ProfileDetail): Promise<void>
     duplicate(slug: string): Promise<ProfileDetail>
     delete(slug: string): Promise<void>

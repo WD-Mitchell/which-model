@@ -61,7 +61,7 @@ func Load(opts LoadOptions) (*Config, error) {
 	}
 
 	cfg := Default()
-	if err := EnsureLegacyMigration(ResolvePaths(goos, home, getenv)); err != nil {
+	if err := EnsureLegacyMigration(ResolvePaths(goos, home, getenv), home); err != nil {
 		return nil, err
 	}
 	userFile := UserConfigFile(goos, home, getenv)

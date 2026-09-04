@@ -194,6 +194,11 @@ type PickResult struct {
 
 // pickFetchOptions is the F26-owned fetch seam input (CONTRACTS §8.3).
 type pickFetchOptions struct {
+	Backend   config.UsageBackend
+	Offline   bool
+	Refresh   bool
+	MaxAge    time.Duration
+	Timeout   time.Duration
 	Providers []string
 }
 
@@ -272,6 +277,7 @@ type timeValue = time.Time
 // adapters (score rows, snapshots, evidence inputs). Single-threaded: set
 // at RunPick start, restored on exit.
 type runState struct {
+	fetchOptions   pickFetchOptions
 	cfg            *config.Config
 	strategyConfig strategy.Config
 	profile        string
@@ -333,6 +339,8 @@ func scoreInputsFor(ms pick.ModelScore) map[string]float64 {
 // Returns per-provider snapshots plus the last-verified map. Named
 // pickFetchAllFunc because F24's usage.go owns fetchAllFunc in the
 // default build; this F26-owned seam works in both build tags.
+var pickUsageFetchAll = fetch.FetchAll
+
 var pickFetchAllFunc = func(ctx context.Context, providers []string, opts pickFetchOptions) (map[string]*usageSnapshot, map[string]timeValue, error) {
 	enabled := make(map[string]bool, len(providers))
 	for _, p := range providers {
@@ -346,7 +354,12 @@ var pickFetchAllFunc = func(ctx context.Context, providers []string, opts pickFe
 			return nil, nil, err
 		}
 	}
-	snaps, _, err := fetch.FetchAll(ctx, providers, fetch.Options{
+	snaps, _, err := pickUsageFetchAll(ctx, providers, fetch.Options{
+		Backend:                opts.Backend,
+		Offline:                opts.Offline,
+		Refresh:                opts.Refresh,
+		MaxAge:                 opts.MaxAge,
+		Timeout:                opts.Timeout,
 		Enabled:                enabled,
 		StateDir:               stateDirFunc(),
 		DisableManagedKeychain: !auth.UseKeychain,
@@ -528,7 +541,7 @@ func applyUsageStage(cands *[]Candidate, excluded *[]ExcludedCandidate, st *runS
 			providers = append(providers, c.Route.Provider)
 		}
 	}
-	snaps, lastVerified, err := pickFetchAllFunc(context.Background(), providers, pickFetchOptions{})
+	snaps, lastVerified, err := pickFetchAllFunc(context.Background(), providers, st.fetchOptions)
 	if err != nil {
 		return &CodedError{Code: "runtime", Message: err.Error()}
 	}
@@ -897,6 +910,9 @@ func RunPick(args PickArgs, stdout, stderr io.Writer) error {
 	if err != nil {
 		return &UsageError{Message: err.Error()}
 	}
+	if _, err := loadCatalogConfig(cfg); err != nil {
+		return err
+	}
 	var strategyConfig strategy.Config
 	if err := cfg.UnmarshalKey("strategy", &strategyConfig); err != nil {
 		return &UsageError{Message: err.Error()}
@@ -916,6 +932,7 @@ func RunPick(args PickArgs, stdout, stderr io.Writer) error {
 		}
 	}
 	st := &runState{cfg: cfg, strategyConfig: strategyConfig, profile: profile, dryRun: args.DryRun, scores: loadScoreRows(cfg), dataDir: stateDirFunc()}
+	st.fetchOptions = pickFetchOptions{Backend: cfg.Usage.Backend, Offline: args.Offline, Refresh: args.Refresh, MaxAge: args.MaxAge, Timeout: args.Timeout}
 	prev := pickRun
 	pickRun = st
 	defer func() { pickRun = prev }()

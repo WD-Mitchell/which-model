@@ -118,11 +118,11 @@ func TestFetchSuccess(t *testing.T) {
 		t.Errorf("URL = %q, want %q", req.URL.String(), UsageURL)
 	}
 	wantHeaders := map[string]string{
-		"Accept":          "application/json",
-		"Authorization":   "Bearer " + canaryToken,
-		"Content-Type":    "application/json",
-		"anthropic-beta":  "oauth-2025-04-20",
-		"User-Agent":      "claude-code/2.1.0",
+		"Accept":         "application/json",
+		"Authorization":  "Bearer " + canaryToken,
+		"Content-Type":   "application/json",
+		"anthropic-beta": "oauth-2025-04-20",
+		"User-Agent":     "claude-code/2.1.0",
 	}
 	if len(req.Header) != len(wantHeaders) {
 		t.Errorf("header count = %d, want exactly %d: %v", len(req.Header), len(wantHeaders), req.Header)
@@ -136,11 +136,11 @@ func TestFetchSuccess(t *testing.T) {
 
 func TestFetchStatusMapping(t *testing.T) {
 	tests := []struct {
-		name       string
-		status     int
-		body       string
-		wantCode   string
-		wantMsg    string
+		name     string
+		status   int
+		body     string
+		wantCode string
+		wantMsg  string
 	}{
 		{name: "401 unauthorized", status: 401, body: `{"message":"` + canaryToken + `"}`, wantCode: "unauthorized", wantMsg: "Claude rejected the credential."},
 		{name: "403 unauthorized", status: 403, wantCode: "unauthorized", wantMsg: "Claude rejected the credential."},
@@ -400,4 +400,31 @@ func (b *blockingTransport) RoundTrip(req *http.Request) (*http.Response, error)
 	close(b.started)
 	<-req.Context().Done()
 	return nil, req.Context().Err()
+}
+
+func TestFetchSnapshotUsageKnown(t *testing.T) {
+	for _, tc := range []struct {
+		name, body string
+		status     int
+		known      bool
+	}{
+		{"positive", oauthBasicBody, 200, true},
+		{"zero", `{"five_hour":{"utilization":0}}`, 200, true},
+		{"synthetic only", `{"five_hour":null}`, 200, false},
+		{"mixed", `{"five_hour":null,"seven_day":{"utilization":20}}`, 200, true},
+		{"failure", oauthBasicBody, 401, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			snap, err := Fetch(context.Background(), usage.Credential{Token: canaryToken}, &http.Client{Transport: &stubTransport{status: tc.status, body: tc.body}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if snap.UsageKnown != tc.known {
+				t.Errorf("snapshot known=%v want=%v", snap.UsageKnown, tc.known)
+			}
+			if (snap.Failure != nil) != (tc.status != 200) {
+				t.Errorf("unexpected failure: %v", snap.Failure)
+			}
+		})
+	}
 }

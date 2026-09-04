@@ -193,3 +193,7 @@ func (r *emitRecorder) Events() []recordedEvent // copy, mutex-guarded
 ## 10. External symbols referenced
 
 `score.ParseScoresCSV`, `score.ParseBenchmarkConfig`, `score.BenchmarkConfig` (`internal/catalog/score`); `catalog.ScoreRow`, `catalog.Profile` (`internal/catalog`); `routing.LoadTable`, `routing.SaveTable`, `routing.Table`, `routing.TableSchemaVersion` (`internal/routing`); `config.Paths`, `config.Config`, `config.MarshalTOML` (`internal/config`); `config.AtomicWriteFile` (B01); `decimal.Decimal.Round/InexactFloat64/NewFromInt` (`shopspring/decimal`).
+
+## Review correction — #32: host error normalization
+
+`ToErrorDTO(err error) ErrorDTO` exports the existing canonical mapper for the native adapter. Nil maps to an empty DTO, existing value/pointer DTOs pass through, wrapped sentinels retain their stable codes, and unknown errors retain existing sanitization. Binding wrappers must keep successful nil errors nil instead of returning the empty DTO as an error. No new error codes or message parsing are introduced.
