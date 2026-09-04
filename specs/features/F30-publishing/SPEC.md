@@ -9,7 +9,7 @@ project: which-model
 
 ## Purpose
 
-The deterministic generator `which-model catalog workflow --write|--check` renders `.github/workflows/refresh-model-data.yml` from `[catalog.publish]`. The generated Action invokes the standalone `scripts/refresh-model-data.py`, which discovers every models.dev provider and the union of every models.dev benchmark plus every supported Artificial Analysis benchmark, without checked-in provider or benchmark configuration, and updates only `data/available_model_raw_values.csv`. Provider aliases that bridge previously separate identities are merged deterministically when their Artificial Analysis family does not conflict; when display name and provider ID match different AA families, display name wins. It never builds or invokes the Go application and never runs project tests.
+The deterministic generator `which-model catalog workflow --write|--check` renders `.github/workflows/refresh-model-data.yml` from `[catalog.publish]`. The generated Action invokes the standalone `.daily-update/refresh-model-data.py`, which discovers every models.dev provider and the union of every models.dev benchmark plus every supported Artificial Analysis benchmark, without checked-in provider or benchmark configuration, and updates the configured raw CSV and its generated score CSV as one verified pair. Provider aliases that bridge previously separate identities are merged deterministically when their Artificial Analysis family does not conflict; when display name and provider ID match different AA families, display name wins. It runs the Python score generator and Python tests against that same configured pair before staging either artifact; it does not build or invoke the Go application.
 
 ## Behaviour
 

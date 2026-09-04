@@ -31,6 +31,9 @@ jobs:
       - run: |
           python3 .daily-update/generate_scores.py --input 'data/available_model_raw_values.csv' --output 'data/available_model_scores.csv'
           python3 -m unittest discover -s .daily-update/tests -v
+        env:
+          WHICH_MODEL_TEST_RAW_CSV: "data/available_model_raw_values.csv"
+          WHICH_MODEL_TEST_SCORES_CSV: "data/available_model_scores.csv"
       - id: changes
         run: |
           git add -- 'data/available_model_raw_values.csv' 'data/available_model_scores.csv'

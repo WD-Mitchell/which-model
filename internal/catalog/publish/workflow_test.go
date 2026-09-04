@@ -361,3 +361,22 @@ func TestGeneratedWorkflowStopsBeforeStagingOnGeneratorFailure(t *testing.T) {
 		})
 	}
 }
+
+func TestWorkflowVerificationUsesConfiguredPair(t *testing.T) {
+	for _, paths := range [][2]string{{"custom/raw.csv", "data/available_model_scores.csv"}, {"data/available_model_raw_values.csv", "custom/scores.csv"}} {
+		pc := NewDefaults()
+		pc.RawCSVPath, pc.ScoresCSVPath = paths[0], paths[1]
+		data, err := Render(pc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, path := range paths {
+			if !strings.Contains(string(data), path) {
+				t.Fatalf("missing %s", path)
+			}
+		}
+		if !strings.Contains(string(data), "WHICH_MODEL_TEST_RAW_CSV: "+fmt.Sprintf("%q", paths[0])) || !strings.Contains(string(data), "WHICH_MODEL_TEST_SCORES_CSV: "+fmt.Sprintf("%q", paths[1])) {
+			t.Fatal("verification does not select generated pair")
+		}
+	}
+}
