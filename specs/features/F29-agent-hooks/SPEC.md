@@ -148,3 +148,7 @@ score-input map, route provenance, and exclusions array, including enum values
 and optional age/date/band bounds. Missing or null required fields fail open
 without writing a plausible but incomplete audit record. Empty maps and arrays
 remain valid. Pin `TestAuditRejectsIncompleteEvidence`.
+
+## Execution correction — #162
+
+The former stdin fixture override contradicted normal host event delivery and is superseded by mandatory underlying execution. Malformed/non-object context fails before execution. Nested commands use fresh Cobra objects and restore outer globals/streams. Explicit global flags before the hook name are parsed and forwarded; later passthrough options override them. The JSON decision protocol remains fixed.

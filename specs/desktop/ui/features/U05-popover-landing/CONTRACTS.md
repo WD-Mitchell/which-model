@@ -102,3 +102,12 @@ Harness menu width 158px (right 16, bottom 44); app menu width 176px (right 14, 
 | close after launch | `close_popover_after_launch:true` → `window.hidePopover()` called; false → not called |
 | harness memory | pick harness in menu → label updates; `settings.set` / `harnesses.save` never called |
 | event invalidation smoke | fire `config:changed` on mock host → `['profiles']` and `['rank', …]` queries refetch; `settings:changed` → `['settings']` |
+
+
+## Completed empty ranking correction — #175 review
+
+When an enabled ranking query completes successfully with zero candidates,
+clear the native tray pick and pending launch state. Loading and failed
+requests preserve the last successful tray state. Do not publish results from
+a disabled query or a superseded request. This rule governs the popover-to-tray
+bridge as well as the S02 native host.

@@ -76,3 +76,11 @@ Source: `docs/plan/annex-d-cli-reference.md` §1.1a (env prefix), §1.2 (`--conf
 ## Hook runtime environment correction — #163
 
 F29 owns `WHICH_MODEL_TASK_PROFILE`, `WHICH_MODEL_CANDIDATE_ID`, and `WHICH_MODEL_DISPATCHED_MODEL`. `ApplyEnv` excludes those exact names from configuration overrides, preserving their values for hooks without saving them in TOML. Unknown prefixed names and misspellings still fail eagerly. This lets the real `explain` command run under dispatch correlation variables.
+
+
+## Catalog schema correction — #167 review
+
+All catalog consumers, including desktop benchmark-group loading, decode the
+complete shared catalog schema. The legacy `catalog.publish.run_tests` boolean
+remains accepted for config/env compatibility; the option does not change generated workflow behavior. F30 owns the
+verification steps (paired-artifact verification is introduced by #165).

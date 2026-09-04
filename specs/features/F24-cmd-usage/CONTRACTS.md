@@ -232,3 +232,7 @@ Expected file: `internal/usage/registry.go`. Used for arg validation (SPEC §2.6
 - Never render credential/token material under any flag; every output path is canary-tested (global SPEC §6.5).
 - stdout carries report data only; all diagnostics to stderr (annex-d §1.3).
 - No network, credential, or cache access is performed by F24 itself — everything goes through F14 (with F12/F13 underneath).
+
+## Forced-source execution correction (#184)
+
+After #28 validates `--source`, F14 enforces it for the resolved credential, including managed fallback, before native fetch. A mismatch yields sanitized `login_required` without invoking the provider. A fresh online cache is eligible only when its original source matches the forced source; unknown/mismatched provenance proceeds to the matching live path. Empty source preserves automatic precedence; `--source cache` and offline mode remain cache-only. Regression coverage is pinned in F14 CONTRACTS: managed OAuth/API mismatch, matching/auto fallback, and matching/mismatched/unknown stored provenance. Human codeowner review is required before merge.

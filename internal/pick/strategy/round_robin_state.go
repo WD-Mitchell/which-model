@@ -52,10 +52,7 @@ func loadCursor(dataDir, key string) (int, error) {
 	if err != nil {
 		return 0, nil
 	}
-	var m roundRobinFile
-	if err := json.Unmarshal(data, &m); err != nil {
-		return 0, nil
-	}
+	m := decodeCursorState(data)
 	doc, ok := m[key]
 	if !ok {
 		return 0, nil
@@ -85,7 +82,7 @@ func saveCursor(dataDir, key string, index int) error {
 
 	m := make(roundRobinFile)
 	if data, err := os.ReadFile(path); err == nil {
-		_ = json.Unmarshal(data, &m) // corrupt/empty content -> start fresh
+		m = decodeCursorState(data)
 	}
 	m[key] = cursorDoc{Index: index, UpdatedAt: time.Now().UTC().Format(time.RFC3339)}
 
@@ -132,7 +129,7 @@ func nextCursor(dataDir, key string, dryRun bool) (int, error) {
 
 	m := make(roundRobinFile)
 	if data, err := os.ReadFile(path); err == nil {
-		_ = json.Unmarshal(data, &m) // corrupt/empty content -> start fresh
+		m = decodeCursorState(data)
 	}
 	index := m[key].Index
 	if dryRun {
@@ -154,4 +151,20 @@ func nextCursor(dataDir, key string, dryRun bool) (int, error) {
 		return 0, err
 	}
 	return index, nil
+}
+
+// Decode errors invalidate the whole document; invalid indices reset only their scope.
+func decodeCursorState(data []byte) roundRobinFile {
+	var m roundRobinFile
+	if err := json.Unmarshal(data, &m); err != nil || m == nil {
+		return make(roundRobinFile)
+	}
+	maxInt := int(^uint(0) >> 1)
+	for key, doc := range m {
+		if doc.Index < 0 || doc.Index == maxInt {
+			doc.Index = 0
+			m[key] = doc
+		}
+	}
+	return m
 }

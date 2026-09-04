@@ -78,3 +78,14 @@ Depends on: F07, F08, F11
 - The usage toggle (`-tags nousage` stubs, three-state enablement, degraded `pick`) — F21; F18 compiles unchanged under `-tags nousage` because it consumes only `usage.Kind` (types), which F21's stub surface keeps compiled in.
 - Band evaluation, gating, and strategy scoring — F19/F20.
 - Refresh scheduling and trigger detection — F27.
+
+## 6. Catalog join optimization (#170)
+
+Route production builds a single invocation-local cleaned-name index and matches
+provider entries only against their name bucket. Buckets preserve catalog order;
+no cross-call cache or input mutation is allowed. Explicit effort matching,
+default/high collapse, sole-identity fallback, ambiguity candidates and errors,
+provider isolation, source precedence, and route/unrouted/warning order are
+unchanged. The production benchmark includes index construction and 1,000 unique
+provider-native IDs drawn deterministically from the committed score identities,
+with declared matching efforts and allocation reporting.
