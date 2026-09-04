@@ -12,10 +12,12 @@ import (
 // Non-config WHICH_MODEL inputs have separate owners; retain strict rejection
 // for every other unknown prefixed name.
 var runtimeEnvKeys = map[string]bool{
-	"WHICH_MODEL_CONFIG":           true,
-	"WHICH_MODEL_TASK_PROFILE":     true,
-	"WHICH_MODEL_CANDIDATE_ID":     true,
-	"WHICH_MODEL_DISPATCHED_MODEL": true,
+	"WHICH_MODEL_CLAUDE_OAUTH_TOKEN": true,
+	"WHICH_MODEL_NONINTERACTIVE":     true,
+	"WHICH_MODEL_CONFIG":             true,
+	"WHICH_MODEL_TASK_PROFILE":       true,
+	"WHICH_MODEL_CANDIDATE_ID":       true,
+	"WHICH_MODEL_DISPATCHED_MODEL":   true,
 }
 
 var envKeys = map[string]bool{

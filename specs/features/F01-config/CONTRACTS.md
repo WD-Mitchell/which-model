@@ -297,3 +297,11 @@ overrides. `ApplyEnv` leaves them to their owner, just like `WHICH_MODEL_CONFIG`
 is consumed by `Load`. Unknown prefixed variables still fail eagerly, including
 misspellings of these three names. This correction keeps hook-launched pick and
 explain processes compatible with F01's strict config vocabulary.
+
+F15's `WHICH_MODEL_CLAUDE_OAUTH_TOKEN` and F25's
+`WHICH_MODEL_NONINTERACTIVE` are also exact reserved runtime inputs. Configuration
+loading accepts them without decoding, storing, rendering, or changing their
+values; their owning credential/login layers consume them. Other prefixed names,
+including misspellings, retain strict rejection. A real `config.Load` regression
+must verify this separation and prevent the credential value appearing in saved
+TOML. This extends the #166 runtime-input correction across native usage/auth.
