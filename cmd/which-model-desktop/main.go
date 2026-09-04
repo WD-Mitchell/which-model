@@ -65,6 +65,7 @@ func main() {
 			}
 		}
 	})
+	defer bridge.Close()
 
 	catalogMissing := false
 	svc, err := service.New(paths, cfg, bridge.Emit)
@@ -129,6 +130,9 @@ func main() {
 		// stops intercepting and allows clean teardown.
 		OnShutdown: func() {
 			setQuitting(true)
+			cancelTrayTimers()
+			cancelPopoverTimers()
+			bridge.Close()
 		},
 	})
 
