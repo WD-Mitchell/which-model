@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -149,7 +150,7 @@ enabled = true
 `))
 	fetched := 0
 	prev := fetchModelsDevCatalogue
-	fetchModelsDevCatalogue = func() ([]modelsdev.ProviderModel, error) {
+	fetchModelsDevCatalogue = func(context.Context) ([]modelsdev.ProviderModel, error) {
 		fetched++
 		return nil, nil
 	}
@@ -193,7 +194,7 @@ backend = "native"
 func stubModelsDevFetch(t *testing.T, models []modelsdev.ProviderModel) {
 	t.Helper()
 	prev := fetchModelsDevCatalogue
-	fetchModelsDevCatalogue = func() ([]modelsdev.ProviderModel, error) {
+	fetchModelsDevCatalogue = func(context.Context) ([]modelsdev.ProviderModel, error) {
 		return models, nil
 	}
 	t.Cleanup(func() { fetchModelsDevCatalogue = prev })
@@ -221,7 +222,7 @@ func TestModelsDevExplicitRefreshReplacesValidCache(t *testing.T) {
 	old := fetchModelsDevCatalogue
 	t.Cleanup(func() { fetchModelsDevCatalogue = old })
 	calls := 0
-	fetchModelsDevCatalogue = func() ([]modelsdev.ProviderModel, error) {
+	fetchModelsDevCatalogue = func(context.Context) ([]modelsdev.ProviderModel, error) {
 		calls++
 		return []modelsdev.ProviderModel{{Provider: "anthropic", ModelID: "claude-opus-5", Name: "Claude Opus 5", EffortLevels: []string{"max"}}}, nil
 	}
@@ -257,11 +258,14 @@ func TestModelsDevRefreshFailureFallsBackWithoutTouchingCache(t *testing.T) {
 	old := fetchModelsDevCatalogue
 	t.Cleanup(func() { fetchModelsDevCatalogue = old })
 	calls := 0
-	fetchModelsDevCatalogue = func() ([]modelsdev.ProviderModel, error) { calls++; return nil, fmt.Errorf("synthetic fetch failure") }
+	fetchModelsDevCatalogue = func(context.Context) ([]modelsdev.ProviderModel, error) {
+		calls++
+		return nil, fmt.Errorf("synthetic fetch failure")
+	}
 	if _, ok := readModelsDevCache(path); !ok || calls != 0 {
 		t.Fatalf("cache read calls=%d", calls)
 	}
-	got, err := svc.Providers().loadOrFetchModelsDev()
+	got, err := svc.Providers().loadOrFetchModelsDev(context.Background())
 	if err != nil || len(got) != 1 || calls != 1 {
 		t.Fatalf("fallback=%+v error=%v calls=%d", got, err, calls)
 	}
@@ -275,7 +279,7 @@ func TestModelsDevRefreshFailureFallsBackWithoutTouchingCache(t *testing.T) {
 	if err = os.WriteFile(path, []byte("invalid"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = svc.Providers().loadOrFetchModelsDev(); err == nil {
+	if _, err = svc.Providers().loadOrFetchModelsDev(context.Background()); err == nil {
 		t.Fatal("corrupt cache hid fetch error")
 	}
 }
@@ -325,7 +329,7 @@ func TestModelsDevRefreshUpdatesDetailPricesAndRemovesCatalogueModel(t *testing.
 	old := fetchModelsDevCatalogue
 	t.Cleanup(func() { fetchModelsDevCatalogue = old })
 	calls := 0
-	fetchModelsDevCatalogue = func() ([]modelsdev.ProviderModel, error) {
+	fetchModelsDevCatalogue = func(context.Context) ([]modelsdev.ProviderModel, error) {
 		calls++
 		return []modelsdev.ProviderModel{{Provider: "anthropic", ModelID: "claude-opus-5", Name: "Claude Opus 5", EffortLevels: []string{"max"}, InputCostUSDPerM: fptr(3), OutputCostUSDPerM: fptr(15)}}, nil
 	}
@@ -339,5 +343,23 @@ func TestModelsDevRefreshUpdatesDetailPricesAndRemovesCatalogueModel(t *testing.
 	assertDetail(true, 3, 15)
 	if calls != 1 {
 		t.Fatalf("refresh plus detail reads performed %d fetches, want one", calls)
+	}
+}
+
+func TestModelsDevRefreshCancellationDoesNotFallBackOrWrite(t *testing.T) {
+	svc, _ := newTestServices(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	prior := fetchModelsDevCatalogue
+	t.Cleanup(func() { fetchModelsDevCatalogue = prior })
+	fetchModelsDevCatalogue = func(context.Context) ([]modelsdev.ProviderModel, error) {
+		cancel()
+		return []modelsdev.ProviderModel{{Provider: "claude", ModelID: "cancelled"}}, nil
+	}
+	_, err := svc.Providers().loadOrFetchModelsDev(ctx)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("got %v", err)
+	}
+	if _, err := os.Stat(modelsDevCachePath(svc.paths.CacheDir)); !os.IsNotExist(err) {
+		t.Fatalf("cancelled fetch cached: %v", err)
 	}
 }

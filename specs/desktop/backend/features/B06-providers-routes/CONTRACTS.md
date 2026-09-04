@@ -167,3 +167,11 @@ Default fixture: routes table with providers `claude`,`codex` (≥2 models × �
 An explicit RefreshRoutes operation, after successful benchmark refresh/reload, attempts the existing bounded models.dev fetch once even when a valid catalogue is cached. A successful nonempty parsed catalogue atomically replaces `modelsdev_providers.json` before route rebuilding. A fetch failure uses a valid cached catalogue and records a generic service warning; if no usable cache exists it returns the fetch error. Failure to persist a freshly fetched catalogue records a warning and permits route rebuilding from memory. Read-only List, Detail, Addable, and the cache parser never fetch, including for an old price-less schema.
 
 This supersedes the earlier cache-else-fetch refresh policy. There is no new timer, background network operation, or setting. Pinned regressions cover replacing a valid catalogue (including removals/pricing), one network attempt, unchanged cache on fetch failure, failure without a usable cache, and zero fetches from read-only methods.
+
+
+## Refresh cancellation correction — #183 review
+
+The caller context reaches models.dev HTTP collection. A cancelled fetch returns
+cancellation before cache fallback or cache writes. Route publication checks
+cancellation under its write lock; cancelled live discovery must not publish a
+degraded replacement table. Pin `TestModelsDevRefreshCancellationDoesNotFallBackOrWrite`.
