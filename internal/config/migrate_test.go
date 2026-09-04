@@ -45,7 +45,7 @@ func TestEnsureLegacyMigrationMovesTree(t *testing.T) {
 	home := newLegacyHome(t)
 	paths := ResolvePaths("darwin", home, nil)
 
-	if err := EnsureLegacyMigration(paths); err != nil {
+	if err := EnsureLegacyMigration(paths, home); err != nil {
 		t.Fatalf("EnsureLegacyMigration: %v", err)
 	}
 	if !fileExists(paths.UserConfigFile) {
@@ -66,7 +66,7 @@ func TestEnsureLegacyMigrationMovesTree(t *testing.T) {
 		t.Errorf("legacy tree still present: %v", err)
 	}
 	// Idempotent: a second run is a no-op.
-	if err := EnsureLegacyMigration(paths); err != nil {
+	if err := EnsureLegacyMigration(paths, home); err != nil {
 		t.Fatalf("second EnsureLegacyMigration: %v", err)
 	}
 }
@@ -81,7 +81,7 @@ func TestEnsureLegacyMigrationSkipsWhenCanonicalExists(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := EnsureLegacyMigration(paths); err != nil {
+	if err := EnsureLegacyMigration(paths, home); err != nil {
 		t.Fatalf("EnsureLegacyMigration: %v", err)
 	}
 	// Canonical config untouched.
@@ -98,7 +98,7 @@ func TestEnsureLegacyMigrationSkipsWhenCanonicalExists(t *testing.T) {
 func TestEnsureLegacyMigrationNoLegacyTree(t *testing.T) {
 	home := t.TempDir()
 	paths := ResolvePaths("darwin", home, nil)
-	if err := EnsureLegacyMigration(paths); err != nil {
+	if err := EnsureLegacyMigration(paths, home); err != nil {
 		t.Fatalf("EnsureLegacyMigration with no legacy tree: %v", err)
 	}
 	if _, err := os.Stat(paths.ConfigDir); !errors.Is(err, os.ErrNotExist) {
@@ -123,5 +123,41 @@ func TestCopyTreeMovesNestedFiles(t *testing.T) {
 	got, err := os.ReadFile(filepath.Join(dst, "moved", "a", "b", "f.txt"))
 	if err != nil || string(got) != "x" {
 		t.Errorf("copied file = %q, err = %v", got, err)
+	}
+}
+
+func TestLoadMigratesLinuxLegacyHome(t *testing.T) {
+	for _, custom := range []bool{false, true} {
+		t.Run(map[bool]string{false: "defaults", true: "xdg"}[custom], func(t *testing.T) {
+			home := newLegacyHome(t)
+			xdg := t.TempDir()
+			getenv := func(key string) string {
+				if custom && (key == "XDG_CONFIG_HOME" || key == "XDG_CACHE_HOME" || key == "XDG_STATE_HOME") {
+					return filepath.Join(xdg, key)
+				}
+				return ""
+			}
+			opts := LoadOptions{GOOS: "linux", Home: home, CWD: t.TempDir(), Getenv: getenv}
+			cfg, err := Load(opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if cfg.Usage.Enabled != UsageFalse {
+				t.Fatalf("legacy usage lost: %s", cfg.Usage.Enabled)
+			}
+			paths := ResolvePaths("linux", home, getenv)
+			for path, want := range map[string]string{paths.UserConfigFile: "[usage]\nenabled = false\n", filepath.Join(paths.CacheDir, "routes.json"): "{}", filepath.Join(paths.StateDir, "pick", "history.jsonl"): "line1\n"} {
+				data, err := os.ReadFile(path)
+				if err != nil || string(data) != want {
+					t.Errorf("migrated file %q = %q, %v", path, data, err)
+				}
+			}
+			if _, err := os.Stat(filepath.Join(home, ".which-model")); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("legacy tree remains: %v", err)
+			}
+			if _, err := Load(opts); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }

@@ -9,9 +9,9 @@ import (
 
 func TestMarshalTOML(t *testing.T) {
 	tests := []struct {
-		name string
-		file string
-		env  map[string]string
+		name  string
+		file  string
+		env   map[string]string
 		check func(t *testing.T, out string)
 	}{
 		{
@@ -47,8 +47,8 @@ func TestMarshalTOML(t *testing.T) {
 			file: "[scoring]\nnormalizer = \"minmax-linear\"\naggregator = \"weighted-arithmetic-mean\"\n",
 			check: func(t *testing.T, out string) {
 				if !strings.Contains(out, "[scoring]") || !strings.Contains(out, "normalizer = \"minmax-linear\"") || !strings.Contains(out, "aggregator = \"weighted-arithmetic-mean\"") {
-				t.Fatalf("out = %q", out)
-			}
+					t.Fatalf("out = %q", out)
+				}
 			},
 		},
 		{
@@ -139,5 +139,51 @@ func TestMarshalTOML(t *testing.T) {
 			}
 			tt.check(t, string(out))
 		})
+	}
+}
+
+func TestMarshalEnvScalarTypesRoundTrip(t *testing.T) {
+	for _, tc := range []struct {
+		key, value string
+		want       any
+	}{
+		{"strategy.tier1_share", "1", int64(1)}, {"strategy.tier2_share", "0", int64(0)},
+		{"strategy.tier1_share", "100", int64(100)}, {"strategy.tier2_share", "99", int64(99)},
+		{"bands.gate_above_used_percent", "0", "0"}, {"bands.gate_above_used_percent", "1", "1"},
+		{"output.identity_default", "0", false}, {"output.identity_default", "1", true},
+		{"catalog.publish.pr_title", "true", "true"}, {"catalog.publish.pr_title", "0", "0"}, {"catalog.publish.pr_title", "001", "001"},
+	} {
+		t.Run(tc.key+"="+tc.value, func(t *testing.T) {
+			c := Default()
+			c.env = map[string]string{tc.key: tc.value}
+			data, err := c.MarshalTOML()
+			if err != nil {
+				t.Fatal(err)
+			}
+			var doc map[string]any
+			if err := toml.Unmarshal(data, &doc); err != nil {
+				t.Fatal(err)
+			}
+			var got any = doc
+			for _, segment := range strings.Split(tc.key, ".") {
+				got = got.(map[string]any)[segment]
+			}
+			if got != tc.want {
+				t.Fatalf("rendered %T(%v), want %T(%v)", got, got, tc.want, tc.want)
+			}
+			if c.env[tc.key] != tc.value {
+				t.Fatal("render mutated config")
+			}
+		})
+	}
+}
+
+func TestMarshalRejectsInvalidTypedEnv(t *testing.T) {
+	for _, key := range []string{"strategy.tier1_share", "output.identity_default"} {
+		c := Default()
+		c.env = map[string]string{key: "invalid"}
+		if _, err := c.MarshalTOML(); err == nil {
+			t.Errorf("%s: wanted invalid value error", key)
+		}
 	}
 }

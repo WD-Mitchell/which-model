@@ -195,3 +195,21 @@ func envSuffix(rest string) (string, bool) {
 	}
 	return "", false
 }
+
+// Render generic environment scalars by their owning schema, never by spelling.
+type envRenderKind uint8
+
+const (
+	envString envRenderKind = iota + 1
+	envBool
+	envInt
+)
+
+var envRenderKinds = map[string]envRenderKind{
+	"strategy.default": envString, "strategy.default_profile": envString, "strategy.tier1_share": envInt, "strategy.tier2_share": envInt,
+	"bands.direction": envString, "bands.gate_above_used_percent": envString,
+	"scoring.normalizer": envString, "scoring.aggregator": envString,
+	"catalog.raw_csv_path": envString, "catalog.scores_csv_path": envString, "catalog.provider_config_path": envString, "catalog.benchmark_config_path": envString, "catalog.cache_ttl": envString, "catalog.warn_on_stale_scores": envBool,
+	"catalog.publish.enabled": envBool, "catalog.publish.schedule": envString, "catalog.publish.timezone": envString, "catalog.publish.mode": envString, "catalog.publish.auto_merge": envBool, "catalog.publish.merge_method": envString, "catalog.publish.commit_message": envString, "catalog.publish.pr_title": envString, "catalog.publish.run_tests": envBool,
+	"output.color": envString, "output.timestamps": envString, "output.identity_default": envBool,
+}
