@@ -644,3 +644,18 @@ func TestModelAuditPassthrough(t *testing.T) {
 		t.Errorf("argv = %v, want %v", (*got)[0], want)
 	}
 }
+
+func TestAuditRejectsIncompleteEvidence(t *testing.T) {
+	for _, evidence := range []string{`{}`, `{"profile":"p","score_inputs":{},"route_provenance":"invalid","excluded_candidates":[]}`, `{"profile":"p","score_inputs":{},"route_provenance":"provider_live"}`} {
+		t.Run(evidence, func(t *testing.T) {
+			root := t.TempDir()
+			out, err := Run("model-audit", nil, Options{Runner: fakeRunner(0, `{"schema_version":"2.0","candidate":"claude:m1","evidence":`+evidence+`}`), RepoRoot: root})
+			if err != nil || !strings.Contains(string(out), "fail-open") {
+				t.Fatalf("got %s, %v", out, err)
+			}
+			if _, err := os.Stat(filepath.Join(root, ".which-model")); !os.IsNotExist(err) {
+				t.Fatalf("incomplete evidence created audit directory: %v", err)
+			}
+		})
+	}
+}
