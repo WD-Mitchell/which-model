@@ -51,7 +51,7 @@ var DefaultPRLabels = []string{"data", "automated"}
 // func (c *Config) UnmarshalKey(key string, out any) error).
 type UnmarshalKeyer interface{ UnmarshalKey(key string, out any) error }
 
-// Load reads [catalog.publish] and [catalog].raw_csv_path, applies defaults for
+// Load decodes the complete [catalog] table, applies publishing defaults for
 // absent keys, and runs Validate. Missing section = all defaults.
 func Load(cfg UnmarshalKeyer) (*PublishConfig, error)
 
@@ -165,3 +165,17 @@ None — uses the fixed `0`/`1`/`2` set (`specs/global/SPEC.md §5`); `--check` 
 ## 7. Flags owned
 
 `--write`, `--check`, `--out <path>` on `catalog workflow` (all others belong to F23's other subcommands).
+
+### Shared catalog schema correction (#166)
+
+All catalog consumers decode the complete `catalog` table through F01's strict,
+table-only `UnmarshalKey`. `internal/catalog.Config` owns all existing catalog
+fields plus `Publish PublishConfig` (`toml:"publish"`); `catalog.PublishConfig`
+owns the existing nested publishing fields. `whichmodel.CatalogConfig` and
+`publish.PublishConfig` remain public aliases. Unknown catalog and publish keys
+are errors; valid nested publishing settings coexist with configured raw/scores
+paths, including environment-only overrides. Publishing seeds nested defaults,
+then reads raw artifact paths from the decoded root. Pick validates catalog
+configuration before loading scores and propagates config errors as exit 2.
+Empty consumer paths retain their previous defaults. This corrects scalar
+accessor guidance that contradicted F01's table-only contract.

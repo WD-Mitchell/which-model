@@ -139,10 +139,11 @@ func routesPath(cfg *config.Config) (string, error) {
 // scoresCSVPath resolves the scores CSV from [catalog] scores_csv_path,
 // defaulting to the cache tree like the catalog pipeline.
 func scoresCSVPath(cfg *config.Config) (string, error) {
-	p := ""
-	if err := cfg.UnmarshalKey("catalog.scores_csv_path", &p); err != nil {
+	cc, err := loadCatalogConfig(cfg)
+	if err != nil {
 		return "", err
 	}
+	p := cc.ScoresCSVPath
 	if p == "" {
 		p = filepath.Join(defaultPaths().CacheDir, "catalog", "available_model_scores.csv")
 	}

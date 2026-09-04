@@ -208,13 +208,17 @@ registry; F23's files are all under `pkg/whichmodel/`.
     `pkg/whichmodel/catalog_config.go`:
 
     ```go
-    type CatalogConfig struct {
+    type CatalogConfig = catalog.Config
+
+// internal/catalog.Config (shared schema):
+type Config struct {
         RawCSVPath          string `toml:"raw_csv_path"`
         ScoresCSVPath       string `toml:"scores_csv_path"`
         ProviderConfigPath  string `toml:"provider_config_path"`
         BenchmarkConfigPath string `toml:"benchmark_config_path"`
         CacheTTL            string `toml:"cache_ttl"`            // default "24h"; models.dev catalogue freshness
         WarnOnStaleScores   bool   `toml:"warn_on_stale_scores"` // default true
+    Publish            PublishConfig `toml:"publish"`
     }
     ```
 
@@ -298,3 +302,17 @@ F06's error, exit 1.
 - `--refresh-usage` semantics — F24's usage cache; F23 treats it as a no-op stage.
 - The aa_page data as its own subcommand — `--add aa_page` only (annex-d §2.3).
 - Cached-catalogue freshness for the `providers` view — the view reads at any age (D4).
+
+### Shared catalog schema correction (#166)
+
+All catalog consumers decode the complete `catalog` table through F01's strict,
+table-only `UnmarshalKey`. `internal/catalog.Config` owns all existing catalog
+fields plus `Publish PublishConfig` (`toml:"publish"`); `catalog.PublishConfig`
+owns the existing nested publishing fields. `whichmodel.CatalogConfig` and
+`publish.PublishConfig` remain public aliases. Unknown catalog and publish keys
+are errors; valid nested publishing settings coexist with configured raw/scores
+paths, including environment-only overrides. Publishing seeds nested defaults,
+then reads raw artifact paths from the decoded root. Pick validates catalog
+configuration before loading scores and propagates config errors as exit 2.
+Empty consumer paths retain their previous defaults. This corrects scalar
+accessor guidance that contradicted F01's table-only contract.

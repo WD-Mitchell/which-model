@@ -47,13 +47,17 @@ func NewCatalogCmd() *cobra.Command // Use "catalog"; registered via init(); ord
 ### `catalog_config.go` — F23-owned `[catalog]` section schema (F01 DECISION B)
 
 ```go
-type CatalogConfig struct {
+type CatalogConfig = catalog.Config
+
+// internal/catalog.Config (shared schema):
+type Config struct {
     RawCSVPath          string `toml:"raw_csv_path"`
     ScoresCSVPath       string `toml:"scores_csv_path"`
     ProviderConfigPath  string `toml:"provider_config_path"`
     BenchmarkConfigPath string `toml:"benchmark_config_path"`
     CacheTTL            string `toml:"cache_ttl"`            // default "24h"; models.dev catalogue freshness
     WarnOnStaleScores   bool   `toml:"warn_on_stale_scores"` // default true
+    Publish            PublishConfig `toml:"publish"`
 }
 
 func DefaultCatalogConfig() CatalogConfig
@@ -386,3 +390,17 @@ text per `csvstore.StaleWarning`; list table via F03 `RenderTable` headers
   fields are preserved verbatim by `WriteAtomicBytes`.
 - The models.dev catalogue cache is F23-owned JSON (`[]ProviderModel`); Collect enforces
   `cache_ttl` via mtime; the providers view reads it at any age (D4, D20).
+
+### Shared catalog schema correction (#166)
+
+All catalog consumers decode the complete `catalog` table through F01's strict,
+table-only `UnmarshalKey`. `internal/catalog.Config` owns all existing catalog
+fields plus `Publish PublishConfig` (`toml:"publish"`); `catalog.PublishConfig`
+owns the existing nested publishing fields. `whichmodel.CatalogConfig` and
+`publish.PublishConfig` remain public aliases. Unknown catalog and publish keys
+are errors; valid nested publishing settings coexist with configured raw/scores
+paths, including environment-only overrides. Publishing seeds nested defaults,
+then reads raw artifact paths from the decoded root. Pick validates catalog
+configuration before loading scores and propagates config errors as exit 2.
+Empty consumer paths retain their previous defaults. This corrects scalar
+accessor guidance that contradicted F01's table-only contract.
