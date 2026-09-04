@@ -125,6 +125,10 @@ Manual checklist (macOS primary; run before G-gate sign-off):
 7. Record a pick / edit config via CLI while running: label updates without restart (events bridge live).
 8. Quit and relaunch repeatedly: no zombie processes, `launch.log`/stderr free of dropped-event spam at idle.
 
+## Review correction — #175: completed empty frontend ranking
+
+After a successful empty ranking, the popover calls `SetTrayPick("", "", "", "")`. This clears both recommendation lines and the provider icon while retaining frontend ownership. Host refresh must not substitute the default profile's recommendation. Initial pending queries and temporary query-key transitions publish nothing; a later successful nonempty rank restores the matching text and provider. Pinned regressions cover initial pending, valid → empty → valid, and frontend ownership after an empty push.
+
 
 ## Shutdown lifecycle correction — #51
 

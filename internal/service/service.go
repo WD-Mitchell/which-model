@@ -288,6 +288,9 @@ func (s *Services) saveRoutesLocked() error {
 // an ErrorDTO (or *ErrorDTO) passes through; then errors.Is against the
 // sentinels per CONTRACTS §5; then usage ctx errors -> usage_unavailable;
 // everything else -> io_error with a sanitised message.
+// ToErrorDTO exposes the canonical boundary mapping to native binding adapters.
+func ToErrorDTO(err error) ErrorDTO { return toErrorDTO(err) }
+
 func toErrorDTO(err error) ErrorDTO {
 	if err == nil {
 		return ErrorDTO{Code: "", Message: ""}

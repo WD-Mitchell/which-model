@@ -36,9 +36,9 @@ Wire `which-model` into AI-agent dispatch lifecycles (Claude Code and the generi
    ```
    `decision` is `"approve"` or `"block"`; `reason` a short human string; `hookSpecificOutput` a JSON object carrying hook payload (empty `{}` when the hook injects nothing). Envelope is written compact (no indentation) with a single trailing `\n`. Nothing is ever printed to stdout besides the envelope; diagnostics go to stderr.
 
-4. **`hooks run` execution model** — the hook executes its underlying command in-process via F22's `pkg/whichmodel.ExecuteCommand(args []string, stdout, stderr io.Writer) int` (no subprocess; annex-c §3 commands remain the installed command semantics). If stdin is non-empty, its bytes are treated as a fixture JSON document that REPLACES the underlying command's stdout (test seam; also used by the canary tests). Exit codes:
+4. **`hooks run` execution model** — the hook executes its underlying command in-process via F22's `pkg/whichmodel.ExecuteCommand(args []string, stdout, stderr io.Writer) int` (no subprocess; annex-c §3 commands remain the installed command semantics). Non-empty stdin is an object containing host event context, never a replacement command result. The underlying runner always executes once; tests inject its stdout through `Runner`. Empty/whitespace input is allowed; malformed JSON, arrays, null and scalars are rejected. Nested CLI execution builds fresh command objects and restores the outer flags and output streams so the envelope reaches the host. Exit codes:
    - `0` on every successfully-formed run, INCLUDING underlying command failure (fail-open, behaviour 6) — unless the failure mode demands silence (behaviour 6).
-   - `2` with a stderr message for: unknown hook name (`which-model hooks run nonsense`), or a non-empty stdin that is not valid JSON.
+   - `2` with a stderr message for: unknown hook name (`which-model hooks run nonsense`), or a non-empty stdin that is not a valid JSON object.
    - No other exit code is ever produced by `hooks run`.
 
 5. **Underlying exit-code interpretation** (global exit codes, `specs/global/SPEC.md` §5; annex-c §4.7):
@@ -92,7 +92,7 @@ Wire `which-model` into AI-agent dispatch lifecycles (Claude Code and the generi
 | `hooks run <known>` underlying success | 0 | envelope JSON + `\n` | — |
 | `hooks run <known>` underlying non-zero (fail-open) | 0 | per behaviour 6 (silence or approve envelope) | — |
 | `hooks run <unknown-hook>` | 2 | — | `which-model hooks: unknown hook "<name>" (known: usage-refresh, quota-guard, spawn-gate, model-audit)` |
-| `hooks run <known>` with non-empty, invalid-JSON stdin | 2 | — | `which-model hooks: stdin fixture is not valid JSON` |
+| `hooks run <known>` with non-empty stdin that is not a JSON object | 2 | — | `which-model hooks run: [arguments] stdin is not valid JSON object` |
 | `hooks install --usage --no-usage` | 2 | — | `which-model hooks: --usage and --no-usage are mutually exclusive` |
 | `hooks install --target nonsense` / `--target codex` | 2 | — | `which-model hooks: unknown target "<t>" (known: claude, generic)` |
 | `hooks install` when `settings.json` exists but is invalid JSON | 1 | — | parse error detail |
@@ -110,7 +110,7 @@ All exit codes are within the fixed set (`specs/global/SPEC.md` §5): `0` succes
 | `quota-guard` decision | `"block"` when any provider is at/above the critical band | Assignment requires block/warn when gated; recorded deviation from annex-c §3.4's advisory-only posture, with fail-open preserved (errors/timeouts emit nothing and never block) |
 | Fail-open output | SessionStart hooks: empty stdout; dispatch hooks: `approve` envelope | Empty stdout is the cleanest "inject nothing" for `SessionStart`; an explicit `approve` keeps `PreToolUse`/`PostToolUse` behavior deterministic for the harness |
 | Underlying execution | In-process via F22 `pkg/whichmodel.ExecuteCommand`, never a subprocess | No shell quoting issues, no env leakage into a child process, deterministic capture of stdout/stderr |
-| Test seam | Non-empty stdin = fixture JSON replacing underlying stdout | Hermetic protocol tests without a live provider/network (annex-c §3's fail-open posture makes this safe) |
+| Test seam | Injected `Runner` supplies command output; stdin remains host context | Hermetic tests exercise the same execution path as installed hooks |
 | Claude merge strategy | Sidecar manifest `.claude/which-model-hooks.json` listing owned (event, matcher, command) triples; replace only manifest-listed entries | Ownership must survive JSON round-trips; foreign hooks are never identifiable by convention, so explicit ownership is required |
 | Claude file format | Semantic JSON round-trip (`MarshalIndent`, 2-space, trailing `\n`), not byte-preserving | A JSON config cannot be spliced safely; semantic preservation is the contract |
 | Generic merge strategy | Marker block `# === which-model managed hooks (do not edit) ===` … `# === end which-model managed hooks ===` in `agents/hooks.toml`; outside content byte-preserved | TOML splicing without parse/rewrite keeps foreign comments and formatting intact; the marker block is this project's own convention (annex-c §3 caveat: generic shape is ours, not a verified upstream schema) |
@@ -131,3 +131,7 @@ All exit codes are within the fixed set (`specs/global/SPEC.md` §5): `0` succes
 - Runtime hook timeout enforcement (harness-owned; annex-c §3 tables).
 - Historical evidence replay/backfill, evidence-file rotation or size caps.
 - Shell-guard wrappers that self-detect usage state per turn (annex-c §3.5 explicitly rejects them).
+
+## Execution correction — #162
+
+The former stdin fixture override contradicted normal host event delivery and is superseded by mandatory underlying execution. Malformed/non-object context fails before execution. Nested commands use fresh Cobra objects and restore outer globals/streams. Explicit global flags before the hook name are parsed and forwarded; later passthrough options override them. The JSON decision protocol remains fixed.
