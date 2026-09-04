@@ -430,4 +430,4 @@ graph TD
 | Usage disabled | Fetch seam is never called; existing degraded-mode rows remain authoritative |
 | Offline plus targeted refresh | F14 cache-only path performs no provider I/O |
 
-The regression traverses Cobra → PickArgs → RunPick state → production pick adapter; it mocks only F14's external work.
+The regression traverses Cobra → PickArgs → RunPick state → production pick adapter → F14 call boundary. Routes, scores, toggle, bands, and strategy use controlled pipeline fixtures, and F14 work is mocked. The backend-off case forces the toggle on to inspect adapter forwarding; production disabled-usage tests separately verify that fetching is skipped.

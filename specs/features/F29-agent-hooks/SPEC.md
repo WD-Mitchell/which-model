@@ -94,7 +94,7 @@ Wire `which-model` into AI-agent dispatch lifecycles (Claude Code and the generi
 | `hooks run <known>` underlying success | 0 | envelope JSON + `\n` | — |
 | `hooks run <known>` underlying non-zero (fail-open) | 0 | per behaviour 6 (silence or approve envelope) | — |
 | `hooks run <unknown-hook>` | 2 | — | `which-model hooks: unknown hook "<name>" (known: usage-refresh, quota-guard, spawn-gate, model-audit)` |
-| `hooks run <known>` with non-empty, invalid-JSON stdin | 2 | — | `which-model hooks: stdin fixture is not valid JSON` |
+| `hooks run <known>` with non-empty stdin that is not a JSON object | 2 | — | `which-model hooks run: [arguments] stdin is not valid JSON object` |
 | `hooks install --usage --no-usage` | 2 | — | `which-model hooks: --usage and --no-usage are mutually exclusive` |
 | `hooks install --target nonsense` / `--target codex` | 2 | — | `which-model hooks: unknown target "<t>" (known: claude, generic)` |
 | `hooks install` when `settings.json` exists but is invalid JSON | 1 | — | parse error detail |
@@ -112,14 +112,14 @@ All exit codes are within the fixed set (`specs/global/SPEC.md` §5): `0` succes
 | `quota-guard` decision | `"block"` when any provider is at/above the critical band | Assignment requires block/warn when gated; recorded deviation from annex-c §3.4's advisory-only posture, with fail-open preserved (errors/timeouts emit nothing and never block) |
 | Fail-open output | SessionStart hooks: empty stdout; dispatch hooks: `approve` envelope | Empty stdout is the cleanest "inject nothing" for `SessionStart`; an explicit `approve` keeps `PreToolUse`/`PostToolUse` behavior deterministic for the harness |
 | Underlying execution | In-process via F22 `pkg/whichmodel.ExecuteCommand`, never a subprocess | No shell quoting issues, no env leakage into a child process, deterministic capture of stdout/stderr |
-| Test seam | Non-empty stdin = fixture JSON replacing underlying stdout | Hermetic protocol tests without a live provider/network (annex-c §3's fail-open posture makes this safe) |
+| Test seam | Injected `Runner` supplies command output; stdin remains host context | Hermetic tests exercise the same execution path as installed hooks |
 | Claude merge strategy | Sidecar manifest `.claude/which-model-hooks.json` listing owned (event, matcher, command) triples; replace only manifest-listed entries | Ownership must survive JSON round-trips; foreign hooks are never identifiable by convention, so explicit ownership is required |
 | Claude file format | Semantic JSON round-trip (`MarshalIndent`, 2-space, trailing `\n`), not byte-preserving | A JSON config cannot be spliced safely; semantic preservation is the contract |
 | Generic merge strategy | Marker block `# === which-model managed hooks (do not edit) ===` … `# === end which-model managed hooks ===` in `agents/hooks.toml`; outside content byte-preserved | TOML splicing without parse/rewrite keeps foreign comments and formatting intact; the marker block is this project's own convention (annex-c §3 caveat: generic shape is ours, not a verified upstream schema) |
 | Generic file deletion on remove | Delete `agents/hooks.toml` iff post-removal content is empty/whitespace-only | No sidecar manifest for TOML; whitespace-only post-removal proves nothing else lived there |
 | Variant detection | At install time only, via F21 `usage.Enabled(cfg)`, or forced by `--usage`/`--no-usage`; never at runtime | Hook config is static data read by the harness before `which-model` runs (annex-c §3.5) |
 | Variant B hook set | Only `spawn-gate` (UserPromptSubmit, 10s) + `model-audit` (PostToolUse, 5s) | Annex-c §3.5 verbatim: usage-dependent hooks are not installed-and-failing |
-| `model-audit` candidate resolution | env `WHICH_MODEL_CANDIDATE_ID` when set, else `--last`; `--last` may be passed explicitly | Matches annex-c §3.3 (`$WHICH_MODEL_CANDIDATE_ID`) and §3.5 (`explain --last --json`) |
+| `model-audit` history resolution | Explicit `--pick-id` or default `--last`; candidate env is correlation only | F26 history IDs select records; candidate IDs identify routes, correcting the annex example |
 | `usage-refresh` payload | Empty `hookSpecificOutput` always | Annex-c §3.1 injects nothing; the hook exists only to warm the cache |
 | Evidence file mode | `0600`, `O_APPEND` single-write lines | Usage-derived data is sensitive; appends must not interleave |
 | Repo-root resolution | F28's `internal/skills.RepoRoot()` (`.git` upward walk + `--repo`) | Single source of truth for repo discovery (F29 depends on F28) |

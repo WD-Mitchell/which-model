@@ -165,7 +165,7 @@ F26 decodes the complete shared `strategy.Config` once per run. Resolution prece
 | `--last` | bool | `false` | Last history record; exactly one of `--last`/`--pick-id` |
 | `--pick-id` | string | `""` | ULID to explain; exactly one of the two |
 
-Consumed globals: `--json`, `--no-usage`, `--config` (→ `Global.ConfigPath`), `--normalizer`, `--aggregator` (→ `Global.Normalizer`/`Global.Aggregator`).
+Consumed globals: `--offline`, `--refresh-usage`, `--max-age`, `--timeout`, `--json`, `--no-usage`, `--config` (→ `Global.ConfigPath`), `--normalizer`, `--aggregator` (→ `Global.Normalizer`/`Global.Aggregator`).
 
 ## 4. Exit codes (F26-registered via `RegisterExitCode` in `init()`)
 
@@ -310,13 +310,16 @@ const Compiled bool
 ### 8.3 F14 `internal/usage/fetch` (canonical owner: `specs/features/F14-usage-fetch/CONTRACTS.md`)
 
 ```go
-func FetchAll(ctx context.Context, opts FetchAllOptions) (*FetchResult, error)
-// FetchAllOptions{Providers []string; All bool; Source usage.Source;
-//   ForceRefresh, MaxAge, Timeout, Offline, IncludeIdentity ...}
-// FetchResult{Snapshots []usage.Snapshot; LastVerified map[string]time.Time}
+// Canonical F14 call; fetch.Options is owned by F14.
+func FetchAll(ctx context.Context, providers []string, opts fetch.Options) ([]usage.Snapshot, []credential.Warning, error)
 ```
 
-F26 calls it with the survivor providers (usage stage, SPEC §2.2e); F26's seam `fetchAllFunc` (defined in `pick.go`, default `fetch.FetchAll`) is injectable in tests. `LastVerified[provider]` feeds Evidence `last_verified` (single timestamp of the picked provider) and `confidence: "live"`; absence → `"cached"`.
+F26 calls this with survivor providers at the usage stage. Its private
+`pickFetchAllFunc` seam receives provider IDs plus `pickFetchOptions`. The
+production adapter forwards request policy to `pickUsageFetchAll` (default
+`fetch.FetchAll`) and maps returned snapshots by provider, including their
+`FetchedAt` timestamps for last-verified evidence. Tests can substitute either
+boundary; neither introduces a second public fetch API.
 
 ### 8.4 F19 `internal/usage/band` (canonical owner: `specs/features/F19-usage-bands/CONTRACTS.md`)
 

@@ -45,7 +45,7 @@ package hooks
 type Envelope struct {
     Decision           string         `json:"decision"`
     Reason             string         `json:"reason,omitempty"`
-    HookSpecificOutput map[string]any `json:"hookSpecificOutput,omitempty"`
+    HookSpecificOutput map[string]any `json:"hookSpecificOutput"`
 }
 
 func MarshalEnvelope(e Envelope) []byte

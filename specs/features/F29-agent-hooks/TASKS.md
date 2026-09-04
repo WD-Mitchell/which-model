@@ -191,23 +191,23 @@ graph TD
    // silence) or an error for exit-2-class conditions. Never errors for
    // underlying command failures (fail-open).
    func Run(name string, passthrough []string, opts Options) ([]byte, error) {
-   	h, ok := Get(name)
-   	if !ok {
-   		return nil, errUnknownHook
-   	}
-   	input := bytes.TrimSpace(opts.Stdin)
-   	if len(input) > 0 && (!json.Valid(input) || input[0] != '{') {
-   		return nil, errBadStdin
-   	}
-   	runner := opts.Runner
-   	if runner == nil {
-   		// A missing command runner is an underlying failure, never success.
-   		runner = func([]string, io.Writer, io.Writer) int { return 1 }
-   	}
-   	var stdout, stderr bytes.Buffer
-   	code := runner(h.Underlying(passthrough, opts.Env), &stdout, &stderr)
-   	out := stdout.Bytes()
-   	return dispatch(h, code, out, opts)
+    h, ok := Get(name)
+    if !ok {
+        return nil, errUnknownHook
+    }
+    input := bytes.TrimSpace(opts.Stdin)
+    if len(input) > 0 && (!json.Valid(input) || input[0] != '{') {
+        return nil, errBadStdin
+    }
+    runner := opts.Runner
+    if runner == nil {
+        // A missing command runner is an underlying failure, never success.
+        runner = func([]string, io.Writer, io.Writer) int { return 1 }
+    }
+    var stdout, stderr bytes.Buffer
+    code := runner(h.Underlying(passthrough, opts.Env), &stdout, &stderr)
+    out := stdout.Bytes()
+    return dispatch(h, code, out, opts)
    }
    ```
 2. Add the per-hook switch, starting with the two SessionStart hooks and error plumbing:
@@ -473,60 +473,60 @@ graph TD
 1. Add the `model-audit` arm:
    ```go
    case "model-audit":
-   if code != 0 {
-   return approveFailOpen("model-audit", code), nil
-   }
-   var doc auditDocument
-   if err := json.Unmarshal(out, &doc); err != nil || doc.SchemaVersion != "2.0" || doc.Evidence == nil {
-   return approveFailOpen("model-audit", 0), nil
-   }
-   provider, modelID, ok := strings.Cut(doc.Candidate, ":")
-   if !ok || provider == "" || modelID == "" {
-   return approveFailOpen("model-audit", 0), nil
-   }
-   if expected := envOr(opts.Env, "WHICH_MODEL_CANDIDATE_ID", ""); expected != "" && expected != doc.Candidate {
-   return approveFailOpen("model-audit", 0), nil
-   }
-   // Decode only documented fields, then emit one compact JSONL record.
-   // Unrelated host/provider fields must never enter dispatch evidence.
-   out, err := json.Marshal(doc)
-   if err != nil {
-   return approveFailOpen("model-audit", 0), nil
-   }
-   root := opts.RepoRoot
-   if root == "" {
-   return approveFailOpen("model-audit", 0), nil
-   }
-   evidenceDir := filepath.Join(root, ".which-model")
-   if err := os.MkdirAll(evidenceDir, 0o700); err != nil {
-   return approveFailOpen("model-audit", 0), nil
-   }
-   evidenceFile := filepath.Join(evidenceDir, "evidence.jsonl")
-   if err := appendLine(evidenceFile, out); err != nil {
-   return approveFailOpen("model-audit", 0), nil
-   }
-   mismatch := false
-   if dispatched := envOr(opts.Env, "WHICH_MODEL_DISPATCHED_MODEL", ""); dispatched != "" && dispatched != modelID {
-   mismatch = true
-   rec := map[string]any{
-   "ts":               time.Now().UTC().Format(time.RFC3339),
-   "dispatched_model": dispatched,
-   "route_model_id":   modelID,
-   "evidence":         json.RawMessage(out),
-   }
-   b, err := json.Marshal(rec)
-   if err == nil {
-   appendLine(filepath.Join(evidenceDir, "audit-mismatches.jsonl"), b)
-   }
-   }
-   return MarshalEnvelope(Envelope{
-   Decision: "approve",
-   Reason:   "dispatch evidence recorded",
-   HookSpecificOutput: map[string]any{
-   "evidence_logged": evidenceFile,
-   "mismatch":        mismatch,
-   },
-   }), nil
+       if code != 0 {
+           return approveFailOpen("model-audit", code), nil
+       }
+       var doc auditDocument
+       if err := json.Unmarshal(out, &doc); err != nil || doc.SchemaVersion != "2.0" || doc.Evidence == nil {
+           return approveFailOpen("model-audit", 0), nil
+       }
+       provider, modelID, ok := strings.Cut(doc.Candidate, ":")
+       if !ok || provider == "" || modelID == "" {
+           return approveFailOpen("model-audit", 0), nil
+       }
+       if expected := envOr(opts.Env, "WHICH_MODEL_CANDIDATE_ID", ""); expected != "" && expected != doc.Candidate {
+           return approveFailOpen("model-audit", 0), nil
+       }
+       // Decode only documented fields, then emit one compact JSONL record.
+       // Unrelated host/provider fields must never enter dispatch evidence.
+       out, err := json.Marshal(doc)
+       if err != nil {
+           return approveFailOpen("model-audit", 0), nil
+       }
+       root := opts.RepoRoot
+       if root == "" {
+           return approveFailOpen("model-audit", 0), nil
+       }
+       evidenceDir := filepath.Join(root, ".which-model")
+       if err := os.MkdirAll(evidenceDir, 0o700); err != nil {
+           return approveFailOpen("model-audit", 0), nil
+       }
+       evidenceFile := filepath.Join(evidenceDir, "evidence.jsonl")
+       if err := appendLine(evidenceFile, out); err != nil {
+           return approveFailOpen("model-audit", 0), nil
+       }
+       mismatch := false
+       if dispatched := envOr(opts.Env, "WHICH_MODEL_DISPATCHED_MODEL", ""); dispatched != "" && dispatched != modelID {
+           mismatch = true
+           rec := map[string]any{
+               "ts":               time.Now().UTC().Format(time.RFC3339),
+               "dispatched_model": dispatched,
+               "route_model_id":   modelID,
+               "evidence":         json.RawMessage(out),
+           }
+           b, err := json.Marshal(rec)
+           if err == nil {
+               appendLine(filepath.Join(evidenceDir, "audit-mismatches.jsonl"), b)
+           }
+       }
+       return MarshalEnvelope(Envelope{
+           Decision: "approve",
+           Reason:   "dispatch evidence recorded",
+           HookSpecificOutput: map[string]any{
+               "evidence_logged": evidenceFile,
+               "mismatch":        mismatch,
+           },
+       }), nil
    ```
    and helpers:
    ```go
@@ -569,7 +569,7 @@ graph TD
 | 7 | fixture candidate not a nonempty `provider:model_id` string | fail-open approve; no file |
 | 8 | fixture with `CANARY_EVIDENCE` | envelope and evidence file lack it |
 | 9 | `RepoRoot` empty | fail-open approve |
-| 10 | passthrough `--last` + env id | argv `["explain","c-9","--json","--last"]` |
+| 10 | passthrough `--last` + env id | argv `["explain","--last","--json","--last"]` |
 
 **Acceptance criteria:**
 - [ ] `go test ./internal/hooks/...` passes with the test cases above
