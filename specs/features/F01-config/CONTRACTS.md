@@ -272,3 +272,11 @@ None. `which-model config show --json` (including its `_sources` map) is F22's c
 - F22-cli-skeleton: `Load`, `LoadFile`, `Validate`, `ResolvePaths`, `ConfigError`/`ExitCode`; `--config` → `LoadOptions.Path`; `config show` renders via `MarshalTOML` (annex-d §2.7); `config show --json` derives from the same render (toml → map, F22 composition; `_sources` is F22's).
 - F19-bands / F20-strategies / F09-scoring / F23-cmd-catalog / F30-publishing: `cfg.UnmarshalKey("bands"|"strategy"|"scoring"|"catalog"|"catalog.publish", &ownStruct)` with own defaults + semantic validation.
 - F30-publishing: `Load(cfg)` + the complete shared `UnmarshalKey("catalog", …)` schema per DECISION B; F30 SPEC owns the full `[catalog.publish]` key table (annex-b §8).
+
+
+## Catalog schema correction — #167 review
+
+All catalog consumers, including desktop benchmark-group loading, decode the
+complete shared catalog schema. The legacy `catalog.publish.run_tests` boolean
+remains accepted for config/env compatibility; publishing verification is
+mandatory and the option cannot disable it.

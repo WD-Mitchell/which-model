@@ -72,3 +72,11 @@ Source: `docs/plan/annex-d-cli-reference.md` §1.1a (env prefix), §1.2 (`--conf
 - Provider identity/registry knowledge (which ids exist, priority semantics, source-preference meaning) → F15-F17 (Annex A registry).
 - `nousage` build tag and its stubs → F21; F01 compiles identically under both variants (it never touches `internal/usage`).
 - The `providers.toml`/`benchmarks.toml` catalog data files → F23/F30 (their `provider_config_path`/`benchmark_config_path` keys are read via `UnmarshalKey("catalog", …)`).
+
+
+## Catalog schema correction — #167 review
+
+All catalog consumers, including desktop benchmark-group loading, decode the
+complete shared catalog schema. The legacy `catalog.publish.run_tests` boolean
+remains accepted for config/env compatibility; publishing verification is
+mandatory and the option cannot disable it.
