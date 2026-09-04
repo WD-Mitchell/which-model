@@ -188,6 +188,13 @@ func TestPopoverPickWins(t *testing.T) {
 		t.Fatalf("popoverPick() = %q / %q / %q", top, bottom, provider)
 	}
 
+	// A completed empty frontend rank clears all fields but retains ownership,
+	// so a host refresh cannot substitute its different default-profile rank.
+	setTrayPickFromUI("", "", "", "")
+	if top, bottom, provider, ok := popoverPick(); !ok || top != "" || bottom != "" || provider != "" {
+		t.Fatalf("empty pick = %q / %q / %q ownership=%v", top, bottom, provider, ok)
+	}
+
 	// A pick with no reasoning must not render an empty bracket.
 	setTrayPickFromUI("Research", "GPT-5.6 Sol", "", "codex")
 	if _, bottom, _, _ := popoverPick(); bottom != "GPT-5.6 Sol" {

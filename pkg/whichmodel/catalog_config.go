@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/WD-Mitchell/which-model/internal/catalog"
 	"github.com/WD-Mitchell/which-model/internal/config"
 )
 
@@ -20,14 +21,7 @@ const (
 )
 
 // CatalogConfig is the F23-owned [catalog] config section (F01 DECISION B).
-type CatalogConfig struct {
-	RawCSVPath          string `toml:"raw_csv_path"`
-	ScoresCSVPath       string `toml:"scores_csv_path"`
-	ProviderConfigPath  string `toml:"provider_config_path"`
-	BenchmarkConfigPath string `toml:"benchmark_config_path"`
-	CacheTTL            string `toml:"cache_ttl"`
-	WarnOnStaleScores   bool   `toml:"warn_on_stale_scores"`
-}
+type CatalogConfig = catalog.Config
 
 // DefaultCatalogConfig returns the [catalog] defaults.
 func DefaultCatalogConfig() CatalogConfig {

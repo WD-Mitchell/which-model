@@ -227,3 +227,30 @@ func TestFetchWindows(t *testing.T) {
 		t.Errorf("window = %+v, want chat remaining 10 limit 20", w2)
 	}
 }
+
+func TestFetchSnapshotUsageKnown(t *testing.T) {
+	for _, tc := range []struct {
+		name, body string
+		status     int
+		known      bool
+	}{
+		{"positive", case15Fixture, 200, true},
+		{"zero", `{"quota_snapshots":{"chat":{"percent_remaining":100}}}`, 200, true},
+		{"unlimited", `{"quota_snapshots":{"chat":{"unlimited":true}}}`, 200, true},
+		{"failure", case15Fixture, 401, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stub := &stubTransport{queue: []stubResponse{{status: 200, body: `{"login":"synthetic-user"}`}, {status: tc.status, body: tc.body}}}
+			snap, err := Fetch(context.Background(), usage.Credential{Token: canaryToken}, &http.Client{Transport: stub})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if snap.UsageKnown != tc.known {
+				t.Errorf("snapshot known=%v want=%v", snap.UsageKnown, tc.known)
+			}
+			if (snap.Failure != nil) != (tc.status != 200) {
+				t.Errorf("unexpected failure: %v", snap.Failure)
+			}
+		})
+	}
+}

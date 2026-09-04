@@ -83,3 +83,10 @@ All remaining generic overrides are strings, including decimal gate values,
 durations, and titles such as "true", "0", and "001". Invalid booleans or integers
 return `ConfigError{Kind: KindInvalidValue}` naming the dotted key. This supersedes
 the lossy bool-first inference in D16; rendering never mutates the source config.
+
+## Catalog schema correction — #167 review
+
+All catalog consumers, including desktop benchmark-group loading, decode the
+complete shared catalog schema. The legacy `catalog.publish.run_tests` boolean
+remains accepted for config/env compatibility; the option does not change generated workflow behavior. F30 owns the
+verification steps (paired-artifact verification is introduced by #165).
