@@ -56,3 +56,7 @@ Depends on: S02, S03, all B* implementations, U01 (for `packages/core` — see U
 All bound engine facets normalize errors through exported `service.ToErrorDTO` before Wails serialization. `bindingError(nil)` remains nil and `bindingResult` preserves successful values. The mapper retains the existing sentinel, DTO pass-through, and sanitization behavior. Wails RuntimeError carries the serialized ErrorDTO in `cause`; frontend normalization accepts either a validated direct DTO (mocks) or one validated cause object. Code must be a known D00 code and message a string; arrays, null, malformed/unknown codes, and ordinary errors use `io_error`. Human-readable messages are never parsed for codes.
 
 Pinned regressions marshal invalid-slug/missing-profile native errors, preserve nil success, and exercise the installed RuntimeError class plus a generated-call rejection and malformed cause cases.
+
+## Create-only profile binding — #171
+
+ProfilesAPI additionally binds `Create(ProfileDetail) error`; bindings are regenerated through the pinned Wails generator. An occupied slug crosses the native boundary as `conflict`, verified by `TestProfilesBindingStructuredErrors`.

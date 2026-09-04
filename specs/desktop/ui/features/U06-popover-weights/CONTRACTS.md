@@ -81,5 +81,9 @@ Add-metric popup 180px wide, max-height 150px, anchored left 0 / bottom 26px; he
 | addable list | equals `[intelligence, cost, speed, …groups()]` minus present keys, in order |
 | revert | `revert(profile)` restores base values, rank key returns to `'none'` hash after `clear`; toast `weights reverted to {slug}` |
 | copy model id | with pick → `window.copyToClipboard(model_id)` once + toast `copied  {model_id}`; without → toast `nothing to copy`, no clipboard call |
-| save-as-profile happy path | `profiles.save` called once with slug `{base}_custom`, name `{name} (custom)`, `builtin:false`; toast `saved as {base}_custom`; store cleared; `onSaved` called with final slug |
-| save conflict retry | mock save rejects `conflict` twice → third call uses `{base}_custom_3` / `(custom 3)`; exactly 3 save calls; non-conflict rejection → no retry, toast message |
+| save-as-profile happy path | `profiles.create` called once with slug `{base}_custom`, name `{name} (custom)`, `builtin:false`; toast `saved as {base}_custom`; store cleared; `onSaved` called with final slug |
+| save conflict retry | mock create rejects `conflict` twice → third call uses `{base}_custom_3` / `(custom 3)`; exactly 3 create calls; non-conflict rejection → no retry, toast message |
+
+## Review correction — #171: create without replacing
+
+Save as profile snapshots the current draft and uses the create-only API, retrying only `conflict` with `_custom`, `_custom_2`, etc. The action is disabled while pending; other failures retain the draft. Existing saved weights cannot be replaced by this flow. The collision regression verifies that the previous custom profile retains its values.

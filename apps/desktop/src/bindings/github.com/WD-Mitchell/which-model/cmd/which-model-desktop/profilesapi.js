@@ -23,6 +23,14 @@ export function ComplexityScale() {
 }
 
 /**
+ * @param {service$0.ProfileDetail} p
+ * @returns {$CancellablePromise<void>}
+ */
+export function Create(p) {
+    return $Call.ByName("main.ProfilesAPI.Create", p);
+}
+
+/**
  * @param {string} slug
  * @returns {$CancellablePromise<void>}
  */

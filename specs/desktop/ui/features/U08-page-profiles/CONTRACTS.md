@@ -29,7 +29,7 @@ DTOs (`ProfileSummary`/`ProfileDetail`), `EngineHost.profiles`, error codes: D00
 // header's pageAction callback ("New profile").
 export function ProfilesPage(props: PageComponentProps): JSX.Element
 // queries: ['profiles'] -> ProfileSummary[]; ['settings'] (weight_control)
-// mutations: duplicate(slug), delete(slug), create (save of the new-profile
+// mutations: duplicate(slug), delete(slug), create (create-only persistence of the new-profile
 //   payload, retrying on ErrorDTO.code === 'conflict' with N+1)
 
 export interface ProfileDetailProps {   // rendered by the detail stack
@@ -86,7 +86,11 @@ Both test files use `createMockEngineHost` (U00 CONTRACTS §4) wrapped in a Quer
 | duplicate opens detail | detail view, click Duplicate | `profiles.duplicate(slug)` called once; `onOpenSlug` called with returned slug; toast `editing {newSlug}` |
 | list duplicate stays | list view, click row Duplicate | `profiles.duplicate` called; no navigation; toast `duplicated {slug}`; row click not triggered (propagation stopped) |
 | delete returns to list | custom detail, click trash | `profiles.delete(slug)` called; `onBack` invoked; toast `deleted {slug}` |
-| new-profile conflict retry | seed mock so `profile_{N}` exists (first save rejects `conflict`) | `profiles.save` called again with `profile_{N+1}`; detail opened for it; toast `new profile created` |
+| new-profile conflict retry | seed mock so `profile_{N}` exists (first create rejects `conflict`) | `profiles.create` called again with `profile_{N+1}`; detail opened for it; toast `new profile created` |
 | debounced save single call | custom detail; 3 weight edits within 300ms; advance timers | UI reflects each edit immediately; `profiles.save` called exactly once, with the final draft |
 | flush on back | edit then immediately `onBack` before 300ms | pending save flushed exactly once |
 | sparkbar weighted-only | profile with a zero-weight tier2 key | that key absent from `ProfileWeightSparkbar` props |
+
+## Review correction — #171: create without replacing
+
+New profile uses atomic `profiles.create`, starts at list count + 1, retries the next integer only on conflict, and disables submission while pending. The list-count collision regression verifies that an existing profile retains its weights while the new profile opens at the next free slug.

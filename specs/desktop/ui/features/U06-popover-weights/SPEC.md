@@ -38,11 +38,11 @@ Depends on: U01, U03 (WeightEditor/WeightRow/BalanceSlider), U04 (RankCarousel),
 
 8. **Footer (weights variant).** Via U05's `PopoverFooter` children: primary button `Copy model id`, secondary `Save as profile`.
    - **Copy model id:** with a current pick → `window.copyToClipboard(pick.model_id)` then toast `copied  {model_id}` (two spaces, mockup verbatim); no pick → toast `nothing to copy`, no clipboard call.
-   - **Save as profile:** build a non-builtin `ProfileDetail` from the store with `slug = "{baseSlug}_custom"`, `name = "{profile.name} (custom)"`, `picks: 0`, `last_used: ""`, and call `profiles.save`. On rejection with code `conflict`, retry with a numeric suffix starting at 2: `{baseSlug}_custom_2` / name `{profile.name} (custom 2)`, then `_custom_3` / `(custom 3)`, … incrementing until save resolves (only `conflict` retries; any other code stops and toasts its message). On success: toast `saved as {finalSlug}`, `clear()` the store, set the saved slug as U05's active profile, and switch back to landing. (`config:changed` refreshes `['profiles']` via U05's invalidation.)
+   - **Save as profile:** build a non-builtin `ProfileDetail` from the store with `slug = "{baseSlug}_custom"`, `name = "{profile.name} (custom)"`, `picks: 0`, `last_used: ""`, and call `profiles.create`. On rejection with code `conflict`, retry with a numeric suffix starting at 2: `{baseSlug}_custom_2` / name `{profile.name} (custom 2)`, then `_custom_3` / `(custom 3)`, … incrementing until save resolves (only `conflict` retries; any other code stops and toasts its message). On success: toast `saved as {finalSlug}`, `clear()` the store, set the saved slug as U05's active profile, and switch back to landing. (`config:changed` refreshes `['profiles']` via U05's invalidation.)
 
 ## 3. Error behaviour
 
-- `profiles.save` non-conflict rejection → toast `ErrorDTO.message`; store untouched; view stays on weights.
+- `profiles.create` non-conflict rejection → toast `ErrorDTO.message`; store untouched; view stays on weights.
 - Rank query error while dirty → carousel shows the U05 §3 placeholder state; edits remain in the store.
 - Store actions are total: out-of-range inputs are clamped (`setWeight` to 0..5 integers, `setCoreShare` per D00 §6), never thrown.
 
@@ -64,3 +64,7 @@ Depends on: U01, U03 (WeightEditor/WeightRow/BalanceSlider), U04 (RankCarousel),
 - WeightEditor/WeightRow/BalanceSlider internals and drag hook — U03/U02.
 - Profile management pages (duplicate/delete/rename) — U08.
 - Engine-side ephemeral ranking semantics — backend features (D00 §2 is the contract).
+
+## Review correction — #171: create without replacing
+
+Save as profile snapshots the current draft and uses the create-only API, retrying only `conflict` with `_custom`, `_custom_2`, etc. The action is disabled while pending; other failures retain the draft. Existing saved weights cannot be replaced by this flow. The collision regression verifies that the previous custom profile retains its values.
