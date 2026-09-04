@@ -158,3 +158,7 @@ project: which-model
 - The F21 toggle internals and the `nousage` stubs: F21 owns; F26 consumes `toggle.ResolveUsageEnabled` and compiles under `-tags nousage`.
 - Route CRUD: F27 (`routes` command) owns; F26 only joins existing routes.
 - History rotation/cleanup policies beyond append-only.
+
+## Correction — usage request options (#164, 2026-09-04)
+
+The pick usage stage honors the configured backend (`off`, `native`, `codexbar`) and normalized global `--offline`, `--refresh-usage`, `--max-age`, and `--timeout` flags. Per-run input is captured before fetching and forwarded unchanged to F14. Offline remains read-only even with targeted refresh set; `--no-usage` bypasses fetching. This corrects the adapter omission, without changing F14 or the public pick JSON shape.
