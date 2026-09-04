@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, useToast } from '@which-model/ui'
 import type { ErrorDTO, ProfileDetail, RankedModel } from '@which-model/core'
 import {
@@ -111,13 +111,23 @@ export function PopoverApp() {
 
   // Seed the overrides store whenever the active profile changes
   // (clear() + re-seed discards any ephemeral edits, U05 §2.7).
-  const activeProfile = useProfile(activeSlug).data
+  const activeProfileQuery = useProfile(activeSlug)
+  const activeProfile = activeProfileQuery.data
   useEffect(() => {
-    if (activeProfile && useOverridesStore.getState().baseSlug !== activeSlug) {
-      useOverridesStore.getState().clear()
-      useOverridesStore.getState().seed(activeProfile)
-    }
+    if (activeProfile) useOverridesStore.getState().reconcile(activeProfile)
   }, [activeProfile, activeSlug])
+
+  useEffect(() => {
+    if (!activeProfileQuery.isError || (activeProfileQuery.error as unknown as ErrorDTO).code !== 'not_found') return
+    const fallback = scale.find((slug) => profiles.some((profile) => profile.slug === slug))
+    if (fallback) {
+      useOverridesStore.getState().clear()
+      setActiveSlug(fallback)
+      setStop(scale.indexOf(fallback))
+      setSelectedIndex(0)
+    }
+  }, [activeProfileQuery.isError, activeProfileQuery.error, profiles, scale])
+
 
   // Content-driven window height (U05 divergence from the fixed 620 window):
   // the design's panel is content-sized, so the host window follows the
@@ -182,11 +192,16 @@ export function PopoverApp() {
     // profile and no rank yet, and pushing those would blank the menu bar for
     // a beat every time the popover mounts. Until the first real pick, the
     // host's own startup ranking holds the title.
-    if (!activeName || !pick) return
+    if (!rankQuery.isSuccess) return
+    if (!pick) {
+      void getHost().window.setTrayPick('', '', '', '').catch(() => {})
+      return
+    }
+    if (!activeName) return
     void getHost()
       .window.setTrayPick(activeName, pick.model_name, pick.reasoning, pick.provider)
       .catch(() => {})
-  }, [activeName, pick?.model_name, pick?.reasoning, pick?.provider])
+  }, [rankQuery.isSuccess, activeName, pick?.model_name, pick?.reasoning, pick?.provider])
 
   const handleSelectProfile = useCallback((slug: string, scaleIndex: number | null) => {
     setSelectedIndex(0)
@@ -351,9 +366,14 @@ function WeightsActions({
   const toast = useToast()
   const store = useOverridesStore()
   const baseSlug = store.baseSlug
+  const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
 
   const handleSave = async () => {
-    if (!baseProfile) return
+    if (!baseProfile || savingRef.current) return
+    savingRef.current = true
+    setSaving(true)
+    try {
     let n = 1
     // eslint-disable-next-line no-constant-condition
     while (true) {
@@ -371,7 +391,7 @@ function WeightsActions({
         last_used: '',
       }
       try {
-        await getHost().profiles.save(detail)
+        await getHost().profiles.create(detail)
         toast.show(`saved as ${slug}`)
         store.clear()
         onSaved(slug)
@@ -385,6 +405,7 @@ function WeightsActions({
         return
       }
     }
+    } finally { savingRef.current = false; setSaving(false) }
   }
 
   return (
@@ -392,7 +413,7 @@ function WeightsActions({
       {/* Copy model id moved to the footer (both tabs offer it). What is left
           is the one action that only makes sense here, at the action row's
           `xs` scale, bordered as this tab's committing action. */}
-      <Button variant="secondary" size="xs" onClick={() => void handleSave()}>
+      <Button variant="secondary" size="xs" disabled={saving} onClick={() => void handleSave()}>
         Save as profile
       </Button>
     </>

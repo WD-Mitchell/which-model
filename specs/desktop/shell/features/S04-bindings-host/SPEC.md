@@ -19,7 +19,7 @@ Depends on: S02, S03, all B* implementations, U01 (for `packages/core` — see U
 
 2. **Registration.** `services.go` exposes `registerServices(app *application.App, svc *service.Services, win *WindowService) []application.Service` returning `application.NewService(...)` entries for all nine structs; `main.go` (S02) passes the result to `application.Options.Services`. Every method listed in CONTRACTS §2 MUST be exported and bound; no extra exported methods may exist on the bound structs (the surface check fails on extras too).
 
-3. **Promise translation.** Go methods return `(DTO, error)` or `error`. Wails maps these to `Promise<DTO>` / `Promise<void>`: a nil error resolves with the JSON-serialised DTO (snake_case keys per D00 §2); a non-nil error rejects. Engine errors are `*service.Error` values that JSON-serialise to the `ErrorDTO` shape `{code, message}` (D00 §2/§4); wrappers return them unmodified so the rejection payload is ErrorDTO-shaped.
+3. **Promise translation.** Go methods return `(DTO, error)` or `error`. Wails maps these to `Promise<DTO>` / `Promise<void>`: a nil error resolves with the JSON-serialised DTO (snake_case keys per D00 §2); a non-nil error rejects. Engine errors are `service.ErrorDTO` values that JSON-serialise to the `ErrorDTO` shape `{code, message}` (D00 §2/§4); wrappers return them unmodified so the rejection payload is ErrorDTO-shaped.
 
 4. **Bindings generation.** `task desktop:bindings` (S00 CONTRACTS §2) runs `wails3 generate bindings` with output directed to `apps/desktop/src/bindings`. Generated files are COMMITTED and regenerated only via the task (S00 SPEC §2.6 risk register) — never hand-edited, never regenerated implicitly by dev/build tasks. Regeneration is required whenever a bound struct's method set or a DTO shape changes.
 
@@ -50,3 +50,9 @@ Depends on: S02, S03, all B* implementations, U01 (for `packages/core` — see U
 ## 5. Out of scope
 
 - Contents of `packages/core/src/host.ts` / `mock.ts` (D00/U01). Tray, windows, `EmitFunc` bridge (S02/S03). Hotkey/login-item/clipboard integrations and the `host:notice` event (S05). Query wiring over the host (U05+).
+
+## Review correction — #32: structured native error envelope
+
+All bound engine facets normalize errors through exported `service.ToErrorDTO` before Wails serialization. `bindingError(nil)` remains nil and `bindingResult` preserves successful values. The mapper retains the existing sentinel, DTO pass-through, and sanitization behavior. Wails RuntimeError carries the serialized ErrorDTO in `cause`; frontend normalization accepts either a validated direct DTO (mocks) or one validated cause object. Code must be a known D00 code and message a string; arrays, null, malformed/unknown codes, and ordinary errors use `io_error`. Human-readable messages are never parsed for codes.
+
+ProfilesAPI additionally binds `Create(ProfileDetail) error` (#171); bindings are regenerated through the pinned Wails generator. Pinned regressions marshal invalid-slug/missing-profile/create-conflict native errors, preserve nil success, and exercise the installed RuntimeError class plus a generated-call rejection and malformed cause cases.

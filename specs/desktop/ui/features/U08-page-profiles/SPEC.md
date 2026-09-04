@@ -21,7 +21,7 @@ Depends on: U04 (`ProfileWeightSparkbar`), U07 (settings shell, `DetailHeader`, 
 
 3. **Row actions.** *Duplicate*: `profiles.duplicate(slug)`, toast `duplicated {slug}`, stay on the list (refresh via `config:changed` invalidation). *Delete*: enabled (`ib`) with title `Delete {slug}` for custom profiles → `profiles.delete(slug)`, toast `deleted {slug}`; for builtins the trash is disabled (`ib off`), title `Built-in profile — cannot be deleted`, click inert. Both action clicks stop propagation (must not open the row).
 
-4. **New profile (page action).** The header's primary action (label `New profile`, U07 `pageAction`) creates name `profile {N}` where N = current profile count + 1, slug = name with spaces replaced by underscores (`profile_4`). On `conflict` from `profiles.save`, retry with the next integer until it succeeds. Payload: `builtin:false`, `core_share:60`, `tier1_weights:{intelligence:3, cost:3, speed:3}`, `tier2_weights:{}`, picks 0. Then open its detail view and toast `new profile created`.
+4. **New profile (page action).** The header's primary action (label `New profile`, U07 `pageAction`) creates name `profile {N}` where N = current profile count + 1, slug = name with spaces replaced by underscores (`profile_4`). On `conflict` from `profiles.create`, retry with the next integer until it succeeds. Payload: `builtin:false`, `core_share:60`, `tier1_weights:{intelligence:3, cost:3, speed:3}`, `tier2_weights:{}`, picks 0. Then open its detail view and toast `new profile created`.
 
 5. **Detail view.** Query `['profile', slug]` → `profiles.get(slug)`. Header via U07 `DetailHeader`: back link labelled `Profiles`, title = slug, blurb = builtin ? "A built-in profile — its weights are read-only. Duplicate it to make a version you can change." : "Drag a weight to change how much this profile cares about each benchmark. Zero means the benchmark is ignored.", no page action. Summary strip: builtin badge `built-in · read-only` (tag-neutral, 8.5px) when builtin; `pfSummary` text `{weighted} of {total} benchmarks weighted · {picks} picks` (weighted = count of weight>0 keys across both tiers; total = 3 + group count; picks localized); right-aligned `Duplicate & edit` (builtin) / `Duplicate` (custom) ghost button and trash icon-button (same enable/title rules as §3).
 
@@ -57,3 +57,15 @@ Depends on: U04 (`ProfileWeightSparkbar`), U07 (settings shell, `DetailHeader`, 
 - Settings shell, nav, `DetailHeader`, page registry, `PageComponentProps` — U07.
 - Popover profile picking and ephemeral overrides — U05/U06.
 - Backend profile CRUD, slug validation, pick aggregation — B03/B11.
+
+## Review corrections — #171, #172, #173, #174, #185
+
+New profile uses atomic `profiles.create`, starts at list count + 1, retries the next integer only on conflict, and disables submission while pending.
+
+Each detail editor is keyed by slug and owns one serialized autosave queue. It retains the latest snapshot, debounces profile edits by 300ms, and flushes exactly once on navigation/unmount. Duplicate waits for the queue; Delete disables editing, drains the queue, deletes the identity, and cancels retained work before navigation. An older completion or error cannot clear a newer draft. Successful saves refetch the detail; failures toast and refetch persisted truth. Clean editors render fresh server data directly.
+
+Task controls use the sorted union of available catalogue group slugs and persisted keys seen during this editor session, independent of the sparse saved weights. Zero removes a saved task key while its row remains as ignored and can be raised again. Newly created empty profiles still expose task rows. Group-loading failure offers Retry without removing existing controls. The summary denominator is three core axes plus displayed task rows. Core weights remain 1–5. Configured custom groups are supported by #185's category-aware backend.
+
+Pinned regressions: edit then Back before 300ms saves once; duplicate contains pending weights; delete never recreates the profile; older delayed save/error retains a newer draft; ignore/re-enable preserves the control and sparse persistence; list-count collisions preserve existing profiles.
+
+The persistence barrier is shared by entity identity across editor mounts. Reopening an entity waits for the prior mount's final write and refetches before accepting edits; duplicate/delete/rename also wait for outstanding persistence. Regression: delay a flushed write, navigate away and reopen, then edit again; the final saved snapshot includes both edits in order.

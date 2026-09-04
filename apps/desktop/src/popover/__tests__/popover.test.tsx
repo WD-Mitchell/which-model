@@ -322,3 +322,67 @@ function Probe() {
   useRank(initialScaleProfile, 'none', 5)
   return null
 }
+describe('review regressions: profile refresh and empty tray state', () => {
+ beforeEach(() => { resetHost(); useOverridesStore.getState().clear() })
+ afterEach(() => { cleanup(); vi.restoreAllMocks() })
+
+ it('refreshes clean saved weights, preserves dirty overrides, and reverts to the latest save', async () => {
+  const host = getHost() as MockEngineHost
+  const profile = { ...(await host.profiles.get('planning')), slug: 'my_saved', name: 'My Saved', builtin: false }
+  await host.profiles.create(profile)
+  const rank = vi.spyOn(host.pick, 'rank')
+  renderApp()
+  await settle()
+  await pickProfile('My Saved')
+  await waitFor(() => expect(useOverridesStore.getState().baseSlug).toBe('my_saved'))
+  rank.mockClear()
+  await act(async () => { await host.profiles.save({ ...profile, core_share: 75 }) })
+  await waitFor(() => expect(useOverridesStore.getState().coreShare).toBe(75))
+  expect(rank.mock.calls.every(([request]) => request.overrides === undefined)).toBe(true)
+  await act(async () => { useOverridesStore.getState().setWeight('intelligence', 1) })
+  await act(async () => { await host.profiles.save({ ...profile, core_share: 80 }) })
+  await waitFor(() => expect(useOverridesStore.getState().isDirty(profile)).toBe(true))
+  expect(useOverridesStore.getState().tier1.intelligence).toBe(1)
+  await showSliders()
+  fireEvent.click(screen.getByRole('button', { name: 'Revert' }))
+  await waitFor(() => expect(useOverridesStore.getState().coreShare).toBe(80))
+  expect(useOverridesStore.getState().isDirty(profile)).toBe(false)
+ })
+
+ it('clears a completed empty rank from the tray and restores it after re-enabling', async () => {
+  const host = getHost() as MockEngineHost
+  const tray = vi.spyOn(host.window, 'setTrayPick')
+  renderApp()
+  expect(tray).not.toHaveBeenCalled()
+  await settle()
+  await waitFor(() => expect(tray).toHaveBeenCalled())
+  await act(async () => { for (const provider of await host.providers.list()) await host.providers.setEnabled(provider.id, false) })
+  await waitFor(() => expect(tray).toHaveBeenLastCalledWith('', '', '', ''))
+  await act(async () => { await host.providers.setEnabled('claude', true) })
+  await waitFor(() => expect(tray.mock.calls.at(-1)?.[3]).toBe('claude'))
+ })
+
+ it('uses a free create suffix and preserves the earlier custom profile', async () => {
+  const host = getHost() as MockEngineHost
+  const profile = await host.profiles.get(initialScaleProfile)
+  await host.profiles.create({ ...profile, slug: `${initialScaleProfile}_custom`, builtin: false, core_share: 75 })
+  renderApp()
+  await settle()
+  await showSliders()
+  fireEvent.click(screen.getByRole('button', { name: 'Save as profile' }))
+  await waitFor(() => expect(useOverridesStore.getState().baseSlug).toBe(`${initialScaleProfile}_custom_2`))
+  expect((await host.profiles.get(`${initialScaleProfile}_custom`)).core_share).toBe(75)
+ })
+
+ it('clears overrides and selects a valid profile after the active custom profile is deleted', async () => {
+  const host = getHost() as MockEngineHost
+  const profile = { ...(await host.profiles.get('planning')), slug: 'my_saved', name: 'My Saved', builtin: false }
+  await host.profiles.create(profile)
+  renderApp()
+  await settle()
+  await pickProfile('My Saved')
+  await waitFor(() => expect(useOverridesStore.getState().baseSlug).toBe('my_saved'))
+  await act(async () => { useOverridesStore.getState().setWeight('intelligence', 1); await host.profiles.delete('my_saved') })
+  await waitFor(() => expect(useOverridesStore.getState().baseSlug).toBe('simple_action_execution'))
+ })
+})

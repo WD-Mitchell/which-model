@@ -12,11 +12,13 @@ export const CORE_KEYS = ['intelligence', 'cost', 'speed'] as const
 export type WeightMap = Record<string, number>
 
 interface OverridesState {
+  baseline: ProfileDetail | null
   baseSlug: string
   coreShare: number
   tier1: WeightMap
   tier2: WeightMap
   seed(profile: ProfileDetail): void
+  reconcile(profile: ProfileDetail): void
   setWeight(key: string, v: number): void
   addMetric(key: string): void
   removeMetric(key: string): void
@@ -26,7 +28,7 @@ interface OverridesState {
   isDirty(profile: ProfileDetail): boolean
 }
 
-const EMPTY = { baseSlug: '', coreShare: 0, tier1: {}, tier2: {} }
+const EMPTY = { baseline: null, baseSlug: '', coreShare: 0, tier1: {}, tier2: {} }
 
 function tierOf(key: string): 'tier1' | 'tier2' {
   return (CORE_KEYS as readonly string[]).includes(key) ? 'tier1' : 'tier2'
@@ -53,11 +55,17 @@ export const useOverridesStore = create<OverridesState>((set, get) => ({
 
   seed(profile) {
     set({
+      baseline: { ...profile, tier1_weights: { ...profile.tier1_weights }, tier2_weights: { ...profile.tier2_weights } },
       baseSlug: profile.slug,
       coreShare: profile.core_share,
       tier1: { ...profile.tier1_weights },
       tier2: { ...profile.tier2_weights },
     })
+  },
+
+  reconcile(profile) {
+    const s = get()
+    if (s.baseSlug !== profile.slug || !s.isDirty(profile)) s.seed(profile)
   },
 
   setWeight(key, v) {
@@ -89,11 +97,7 @@ export const useOverridesStore = create<OverridesState>((set, get) => ({
   },
 
   revert(profile) {
-    set({
-      coreShare: profile.core_share,
-      tier1: { ...profile.tier1_weights },
-      tier2: { ...profile.tier2_weights },
-    })
+    get().seed(profile)
   },
 
   clear() {
@@ -102,11 +106,12 @@ export const useOverridesStore = create<OverridesState>((set, get) => ({
 
   isDirty(profile) {
     const s = get()
-    if (s.baseSlug !== profile.slug) return false
+    if (s.baseSlug !== profile.slug || !s.baseline) return false
+    const baseline = s.baseline
     return (
-      s.coreShare !== profile.core_share ||
-      !mapEqual(s.tier1, profile.tier1_weights) ||
-      !mapEqual(s.tier2, profile.tier2_weights)
+      s.coreShare !== baseline.core_share ||
+      !mapEqual(s.tier1, baseline.tier1_weights) ||
+      !mapEqual(s.tier2, baseline.tier2_weights)
     )
   },
 }))

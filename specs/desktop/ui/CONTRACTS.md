@@ -47,11 +47,11 @@ export function usePointerFraction(
 
 | Event | Invalidated query keys |
 |---|---|
-| `config:changed` | `['profiles']`, `['providers']`, `['provider', *]`, `['harnesses']`, `['favourites']`, `['rank']*`, `['catalog-line']`, `['catalog-models']` |
+| `config:changed` | `['profiles']`, `['profile', *]`, `['providers']`, `['provider', *]`, `['harnesses']`, `['favourites']`, `['rank']*`, `['catalog-line']`, `['catalog-models']` |
 | `catalog:changed` | `['groups']`, `['group', *]`, `['benchmarks']`, `['benchmark', *]`, `['catalog-models']`, `['rank']*` |
 | `usage:updated` | `['usage']`, `['providers']` |
 | `settings:changed` | `['settings']`, `['rank']*` |
-| `pick:recorded` | `['profiles']` (pick counts), `['catalog-line']` |
+| `pick:recorded` | `['profiles']`, `['profile', *]` (pick counts), `['catalog-line']` |
 
 `['rank']*` = prefix invalidation of all rank queries.
 
