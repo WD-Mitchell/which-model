@@ -29,6 +29,10 @@ import styles from './ProfilesPage.module.css'
 /** Core benchmarks are a fixed triple (engine tier 1); everything else is a
  *  benchmark group carried in tier 2. */
 const CORE_KEYS = ['intelligence', 'cost', 'speed'] as const
+// F10 canonical categories include score columns without a catalog group.
+const CATEGORY_KEYS = ['reasoning', 'knowledge', 'research', 'planning_capability',
+  'instruction_following', 'software_engineering', 'ui_visual', 'agentic_tools',
+  'finance', 'evidence_capture', 'security', 'data_ml'] as const
 
 // Mockup icon set (demo.dc.html L317-318). Never a literal "×" or "›".
 function TrashIcon({ size }: { size: 12 | 13 }) {
@@ -356,7 +360,7 @@ function ProfileDetailView({
 
   const readOnly = current.builtin
   for (const key of Object.keys(current.tier2_weights)) knownTaskKeys.current.add(key)
-  const taskKeys = [...new Set([...(groupsQuery.data ?? []).map((g) => g.slug), ...knownTaskKeys.current])].sort()
+  const taskKeys = [...new Set([...CATEGORY_KEYS, ...(groupsQuery.data ?? []).map((g) => g.slug), ...knownTaskKeys.current])].sort()
   const weighted = weightedKeys(current)
   const total = 3 + taskKeys.length
 
