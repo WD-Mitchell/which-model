@@ -398,3 +398,15 @@ func TestToErrorDTO(t *testing.T) {
 		}
 	})
 }
+
+func TestToErrorDTOExportPreservesBoundaryMapping(t *testing.T) {
+	for _, code := range []string{"validation_failed", "not_found", "conflict"} {
+		original := ErrorDTO{Code: code, Message: "synthetic"}
+		if got := ToErrorDTO(original); got != original {
+			t.Fatalf("mapped %+v to %+v", original, got)
+		}
+	}
+	if got := ToErrorDTO(nil); got.Code != "" || got.Message != "" {
+		t.Fatalf("nil=%+v", got)
+	}
+}

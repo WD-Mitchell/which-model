@@ -20,10 +20,18 @@ import {
 // toEngineError guarantees every rejection reaching UI code is ErrorDTO-shaped
 // (S04 SPEC §3): an ErrorDTO-shaped rejection passes through; anything else
 // wraps as io_error.
+const ERROR_CODES = new Set(['validation_failed', 'builtin_readonly', 'not_found', 'conflict', 'io_error', 'usage_unavailable', 'launch_failed'])
+
+function isErrorDTO(value: unknown): value is ErrorDTO {
+  return value !== null && typeof value === 'object' && !Array.isArray(value) &&
+    'code' in value && typeof value.code === 'string' && ERROR_CODES.has(value.code) &&
+    'message' in value && typeof value.message === 'string'
+}
+
 export function toEngineError(err: unknown): ErrorDTO {
-  if (err && typeof err === 'object' && 'code' in err && 'message' in err) {
-    const e = err as { code: string; message: string }
-    return { code: e.code, message: e.message }
+  if (isErrorDTO(err)) return { code: err.code, message: err.message }
+  if (err !== null && typeof err === 'object' && 'cause' in err && isErrorDTO(err.cause)) {
+    return { code: err.cause.code, message: err.cause.message }
   }
   return { code: 'io_error', message: err instanceof Error ? err.message : String(err) }
 }
