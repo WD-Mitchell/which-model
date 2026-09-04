@@ -100,7 +100,11 @@ func (c *Config) MarshalTOML() ([]byte, error) {
 	}
 	sort.Strings(envKeys)
 	for _, key := range envKeys {
-		setKey(doc, key, inferEnvValue(c.env[key]))
+		value, err := renderEnvValue(key, c.env[key])
+		if err != nil {
+			return nil, err
+		}
+		setKey(doc, key, value)
 	}
 
 	// B01 SPEC §2.6: fixed render list, then any remaining top-level raw
@@ -163,14 +167,23 @@ func deepCopyRaw(value any) any {
 	}
 }
 
-func inferEnvValue(value string) any {
-	if parsed, err := strconv.ParseBool(value); err == nil {
-		return parsed
+func renderEnvValue(key, value string) (any, error) {
+	var parsed any
+	var err error
+	switch envRenderKinds[key] {
+	case envBool:
+		parsed, err = strconv.ParseBool(value)
+	case envInt:
+		parsed, err = strconv.ParseInt(value, 10, 64)
+	case envString:
+		return value, nil
+	default:
+		err = fmt.Errorf("unknown environment key")
 	}
-	if parsed, err := strconv.Atoi(value); err == nil {
-		return int64(parsed)
+	if err != nil {
+		return nil, &ConfigError{Kind: KindInvalidValue, Key: key, Err: err}
 	}
-	return value
+	return parsed, nil
 }
 
 func setKey(doc map[string]any, dotted string, value any) {
