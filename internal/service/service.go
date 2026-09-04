@@ -63,18 +63,8 @@ func (s *Services) SetCatalogRefresh(fn CatalogRefreshFunc) {
 	s.catalogRefresh = fn
 }
 
-// catalogConfig mirrors the F23-owned [catalog] config section so
-// internal/service can read catalog.benchmark_config_path without importing
-// pkg/whichmodel (B00 CONTRACTS §1 forbids it). Unknown keys are rejected by
-// config.UnmarshalKey, so the full schema is decoded, not a subset.
-type catalogConfig struct {
-	RawCSVPath          string `toml:"raw_csv_path"`
-	ScoresCSVPath       string `toml:"scores_csv_path"`
-	ProviderConfigPath  string `toml:"provider_config_path"`
-	BenchmarkConfigPath string `toml:"benchmark_config_path"`
-	CacheTTL            string `toml:"cache_ttl"`
-	WarnOnStaleScores   bool   `toml:"warn_on_stale_scores"`
-}
+// catalogConfig uses the complete shared schema, including publishing options.
+type catalogConfig = catalog.Config
 
 // Sentinel errors; features wrap them (fmt.Errorf("%w: ...", errValidation))
 // so toErrorDTO recovers the code via errors.Is (B02 CONTRACTS §3).
@@ -298,6 +288,9 @@ func (s *Services) saveRoutesLocked() error {
 // an ErrorDTO (or *ErrorDTO) passes through; then errors.Is against the
 // sentinels per CONTRACTS §5; then usage ctx errors -> usage_unavailable;
 // everything else -> io_error with a sanitised message.
+// ToErrorDTO exposes the canonical boundary mapping to native binding adapters.
+func ToErrorDTO(err error) ErrorDTO { return toErrorDTO(err) }
+
 func toErrorDTO(err error) ErrorDTO {
 	if err == nil {
 		return ErrorDTO{Code: "", Message: ""}

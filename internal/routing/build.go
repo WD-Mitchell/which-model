@@ -134,6 +134,12 @@ func (e *AmbiguityError) Error() string {
 // ProduceRoutes derives the route table for every configured provider.
 func ProduceRoutes(in Input) (BuildResult, error) {
 	result := BuildResult{}
+	// One invocation-local name index preserves catalog order within each bucket.
+	catalogByName := make(map[string][]identity.Identity, len(in.CatalogRows))
+	for _, row := range in.CatalogRows {
+		clean := identity.CleanModelName(row.Model)
+		catalogByName[clean] = append(catalogByName[clean], row)
+	}
 	if in.Degraded && len(in.Providers) > 0 {
 		result.Warnings = append(result.Warnings, "live provider model lists unavailable; routes built from models-dev and user-declared sources only")
 	}
@@ -229,8 +235,8 @@ func ProduceRoutes(in Input) (BuildResult, error) {
 		autoRoutes := make([]Route, 0, len(order))
 		for _, modelID := range order {
 			source := seen[modelID]
-			levels, candidates, unmatched := joinModel(source.entry, in.CatalogRows)
 			clean := identity.CleanModelName(source.entry.Name)
+			levels, candidates, unmatched := joinModel(source.entry, catalogByName[clean])
 			if len(candidates) == 0 {
 				providerUnrouted = append(providerUnrouted, UnroutedModel{
 					Provider: provider.Provider,

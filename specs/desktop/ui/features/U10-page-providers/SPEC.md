@@ -73,3 +73,14 @@ Depends on: U02 (Toggle, Button, DragList, useToast), U07 (settings shell, `Deta
 
 - **Default sort (§2.1, §4):** changed from provider id A–Z (`name-asc`) to `enabled-first` in PR #146 (issue #140). The mockup has no settings-page provider list to carry a default, so A–Z was a planning assumption, not a mockup norm; the project owner defined the intended behaviour in #140 ("default sorting for provider should be enabled -> disabled"). This section amends the spec in the same change set as the behaviour, per the spec-sync decision above.
 - **List control persistence (§2.2, §4):** added in PR #147 (issue #142). Original §2.2–2.10 renumbered to §2.3–2.11 when the persistence clause was inserted as §2.2. The list previously held its controls in view-local `useState`, which the U07 list-XOR-detail switch destroyed on every detail round-trip.
+
+
+## Account mutation ordering correction — #38 review
+
+Account-list replacements are FIFO and retain the latest pending list. Add,
+API-key save, and OAuth sign-in/re-authentication are unavailable while a
+replacement is queued or running; handler guards enforce this even before the
+next render. Removal is unavailable during credential persistence or sign-in.
+Every failed replacement reports its error, including an older failed write
+followed by a newer queued edit. This prevents a queued whole-list replacement
+from deleting an account that authentication just created.

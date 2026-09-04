@@ -3,6 +3,7 @@ package strategy
 import (
 	"errors"
 	"os"
+	"strconv"
 	"sync"
 	"testing"
 
@@ -165,4 +166,33 @@ func TestRoundRobinPick(t *testing.T) {
 			t.Errorf("Name() = %v, want StrategyRoundRobin", (RoundRobin{}).Name())
 		}
 	})
+}
+
+func TestRoundRobinInvalidStateRecovery(t *testing.T) {
+	candidates := []pick.Candidate{newCandidate("claude", "a", "max", score(80)), newCandidate("codex", "b", "max", score(80))}
+	key := scopeKey("p", []string{RouteKey(candidates[0]), RouteKey(candidates[1])})
+	for _, raw := range []string{"null", "[]", "not json", `{"` + key + `":{"index":-1}}`, `{"` + key + `":{"index":` + strconv.Itoa(int(^uint(0)>>1)) + `}}`, `{"` + key + `":{"index":1},"bad":{"index":"broken"}}`} {
+		t.Run(raw, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := writeRawState(t, dir, raw); err != nil {
+				t.Fatal(err)
+			}
+			st := &State{Profile: "p", DataDir: dir, DryRun: true}
+			got, _, err := (RoundRobin{}).Pick(candidates, st)
+			if err != nil || RouteKey(got) != RouteKey(candidates[0]) {
+				t.Fatalf("dry run: %+v, %v", got, err)
+			}
+			bytes, err := os.ReadFile(stateFilePath(dir))
+			if err != nil || string(bytes) != raw {
+				t.Fatalf("dry run changed file: %s %v", bytes, err)
+			}
+			st.DryRun = false
+			for i := 0; i < 2; i++ {
+				got, _, err := (RoundRobin{}).Pick(candidates, st)
+				if err != nil || RouteKey(got) != RouteKey(candidates[i]) {
+					t.Fatalf("pick %d: %+v, %v", i, got, err)
+				}
+			}
+		})
+	}
 }
