@@ -56,31 +56,21 @@ export function overridesHashOf(o: ProfileDetail | null): string {
   return o === null ? 'none' : stableStringify(o)
 }
 
-function mapEqual(a: Record<string, number>, b: Record<string, number>): boolean {
-  const ak = Object.keys(a)
-  const bk = Object.keys(b)
-  if (ak.length !== bk.length) return false
-  for (const k of ak) if (a[k] !== b[k]) return false
-  return true
-}
-
 // Reassemble the overrides DTO from the U06 store (U06 §2.3) when it is
 // dirty for the active slug; null (⇒ hash 'none', overrides omitted) when
 // clean or not seeded.
 function useReassembledOverrides(slug: string, base: ProfileDetail | undefined): ProfileDetail | null {
+  const baseline = useOverridesStore((s) => s.baseline)
   const baseSlug = useOverridesStore((s) => s.baseSlug)
   const coreShare = useOverridesStore((s) => s.coreShare)
   const tier1 = useOverridesStore((s) => s.tier1)
   const tier2 = useOverridesStore((s) => s.tier2)
   return useMemo(() => {
     if (!base || baseSlug !== slug) return null
-    const dirty =
-      base.core_share !== coreShare ||
-      !mapEqual(base.tier1_weights, tier1) ||
-      !mapEqual(base.tier2_weights, tier2)
+    const dirty = useOverridesStore.getState().isDirty(base)
     if (!dirty) return null
     return { ...base, core_share: coreShare, tier1_weights: tier1, tier2_weights: tier2 }
-  }, [base, baseSlug, slug, coreShare, tier1, tier2])
+  }, [base, baseline, baseSlug, slug, coreShare, tier1, tier2])
 }
 
 /** Current overrides hash for a profile slug ('none' when clean). */

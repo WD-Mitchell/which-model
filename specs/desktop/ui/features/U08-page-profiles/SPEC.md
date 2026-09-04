@@ -76,6 +76,10 @@ Task controls use the sorted union of available catalogue group slugs and persis
 
 Pinned regression: reducing a task weight to zero retains the same control, raising it again updates the draft, and immediate unmount persists the final value exactly once.
 
+## Review correction — #173: fresh saved details
+
+Configuration and recorded-pick events invalidate the mounted `profile` query prefix along with the profile list. Editors without a local draft render the refreshed saved weights and pick counts. Draft ownership follows the durable-save contract above, so a refresh cannot replace an in-flight local edit. The profile-prefix event regression verifies both saved edits and recorded-pick statistics are refetched.
+
 
 ## Complete task vocabulary correction — #174 review
 

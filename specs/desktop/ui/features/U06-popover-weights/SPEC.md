@@ -24,7 +24,7 @@ Depends on: U01, U03 (WeightEditor/WeightRow/BalanceSlider), U04 (RankCarousel),
    - `setCoreShare(v)` — clamped 10..90 step 5 (D00 §6).
    - `revert(profile)` — resets `coreShare`/`tier1`/`tier2` to the given base `ProfileDetail`; keeps `baseSlug`.
    - `clear()` — empties the store (`baseSlug: ''`), making rank queries clean again.
-   Derived `isDirty(profile)`: true iff seeded and `coreShare`/`tier1`/`tier2` deep-differ from the base profile. Every mutating action also resets U05's `selectedIndex` to 0 (mockup `resultIndex: 0`).
+   Derived `isDirty(profile)`: true iff seeded and `coreShare`/`tier1`/`tier2` deep-differ from the cloned baseline stored at seed time. Every mutating action also resets U05's `selectedIndex` to 0 (mockup `resultIndex: 0`).
 
 3. **Rank with overrides.** When dirty, U05's `useRank` sends `RankRequest.overrides` = the store re-assembled as a `ProfileDetail` (base profile's slug/name/builtin/picks/last_used, store's `core_share`/`tier1_weights`/`tier2_weights`); `overridesHash` = stable JSON stringify of that DTO (U00 §6), so every edit changes the query key `['rank', slug, overridesHash, holds]`. Clean store → `overrides` omitted, hash `'none'`. Overrides ranking is ephemeral engine-side too (D00 §2 RankRequest): no history, no writes — the frontend must NEVER call `profiles.save` from an edit.
 
@@ -68,3 +68,9 @@ Depends on: U01, U03 (WeightEditor/WeightRow/BalanceSlider), U04 (RankCarousel),
 ## Review correction — #171: create without replacing
 
 Save as profile snapshots the current draft and uses the create-only API, retrying only `conflict` with `_custom`, `_custom_2`, etc. The action is disabled while pending; other failures retain the draft. Existing saved weights cannot be replaced by this flow. The collision regression verifies that the previous custom profile retains its values.
+
+## Review correction — #173: reconcile saved profile changes
+
+The overrides store retains a cloned saved baseline. `isDirty` compares weights to that baseline, so the render before a refetch reconciliation cannot send old clean weights as new overrides. `reconcile(profile)` seeds new saved data only when clean or switching identity; dirty edits retain their baseline and values. Revert seeds the newest fetched profile. A deleted active custom profile clears overrides and selects the first available complexity-scale profile. Config and pick events invalidate mounted profile details as well as summaries.
+
+Pinned regressions: external Save refreshes clean controls without a stale override request; dirty values survive the same event; Revert uses the new persisted values; deleting the active custom profile selects a valid fallback; event tests refetch profile details and updated pick counts.

@@ -87,3 +87,9 @@ Add-metric popup 180px wide, max-height 150px, anchored left 0 / bottom 26px; he
 ## Review correction — #171: create without replacing
 
 Save as profile snapshots the current draft and uses the create-only API, retrying only `conflict` with `_custom`, `_custom_2`, etc. The action is disabled while pending; other failures retain the draft. Existing saved weights cannot be replaced by this flow. The collision regression verifies that the previous custom profile retains its values.
+
+## Review correction — #173: reconcile saved profile changes
+
+The overrides store retains a cloned saved baseline. `isDirty` compares weights to that baseline, so the render before a refetch reconciliation cannot send old clean weights as new overrides. `reconcile(profile)` seeds new saved data only when clean or switching identity; dirty edits retain their baseline and values. Revert seeds the newest fetched profile. A deleted active custom profile clears overrides and selects the first available complexity-scale profile. Config and pick events invalidate mounted profile details as well as summaries.
+
+Pinned regressions: external Save refreshes clean controls without a stale override request; dirty values survive the same event; Revert uses the new persisted values; deleting the active custom profile selects a valid fallback; event tests refetch profile details and updated pick counts.

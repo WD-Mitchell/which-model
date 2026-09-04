@@ -111,13 +111,23 @@ export function PopoverApp() {
 
   // Seed the overrides store whenever the active profile changes
   // (clear() + re-seed discards any ephemeral edits, U05 §2.7).
-  const activeProfile = useProfile(activeSlug).data
+  const activeProfileQuery = useProfile(activeSlug)
+  const activeProfile = activeProfileQuery.data
   useEffect(() => {
-    if (activeProfile && useOverridesStore.getState().baseSlug !== activeSlug) {
-      useOverridesStore.getState().clear()
-      useOverridesStore.getState().seed(activeProfile)
-    }
+    if (activeProfile) useOverridesStore.getState().reconcile(activeProfile)
   }, [activeProfile, activeSlug])
+
+  useEffect(() => {
+    if (!activeProfileQuery.isError || (activeProfileQuery.error as unknown as ErrorDTO).code !== 'not_found') return
+    const fallback = scale.find((slug) => profiles.some((profile) => profile.slug === slug))
+    if (fallback) {
+      useOverridesStore.getState().clear()
+      setActiveSlug(fallback)
+      setStop(scale.indexOf(fallback))
+      setSelectedIndex(0)
+    }
+  }, [activeProfileQuery.isError, activeProfileQuery.error, profiles, scale])
+
 
   // Content-driven window height (U05 divergence from the fixed 620 window):
   // the design's panel is content-sized, so the host window follows the
