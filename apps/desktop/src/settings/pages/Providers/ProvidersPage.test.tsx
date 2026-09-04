@@ -604,6 +604,9 @@ describe('Providers page account setup', () => {
         screen.getByText('No accounts yet. Add an account to authenticate this provider.'),
       ).toBeDefined(),
     )
+    expect((screen.getByRole('button', { name: 'Add account' }) as HTMLButtonElement).disabled).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Add account' }))
+    expect(screen.queryByLabelText('Account name')).toBeNull()
     // The first call is in flight.
     expect(inFlight.length).toBe(1)
     expect(inFlight[0].accounts).toEqual([{ name: 'Play', kind: 'oauth', ref: '' }])
@@ -630,5 +633,6 @@ describe('Providers page account setup', () => {
     })
     const detail = await host.providers.detail('claude')
     expect(detail.accounts).toEqual([])
+    await waitFor(() => expect((screen.getByRole('button', { name: 'Add account' }) as HTMLButtonElement).disabled).toBe(false))
   })
 })
