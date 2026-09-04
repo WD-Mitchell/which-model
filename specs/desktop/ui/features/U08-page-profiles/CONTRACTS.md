@@ -102,3 +102,9 @@ Each detail editor is keyed by slug and owns one serialized autosave queue. It r
 The persistence barrier is shared by entity identity across editor mounts. Reopening an entity waits for the prior mount's final write and refetches before accepting edits; duplicate/delete/rename also wait for outstanding persistence.
 
 Pinned regressions: duplicate contains pending weights; delete never recreates the profile; delayed completion/error retains a newer draft; delay a flushed write, navigate away and reopen, then edit again—the final saved snapshot includes both edits in order.
+
+## Review correction — #174: stable task controls
+
+Task controls use the sorted union of available catalogue group slugs and persisted keys seen during this editor session, independent of the sparse saved weights. Zero removes a saved task key while its row remains as ignored and can be raised again. Newly created empty profiles still expose task rows. Existing persisted controls remain available while group data is absent. The summary denominator is three core axes plus displayed task rows. Core weights remain 1–5. Configured custom groups use the category-aware backend vocabulary.
+
+Pinned regression: reducing a task weight to zero retains the same control, raising it again updates the draft, and immediate unmount persists the final value exactly once.

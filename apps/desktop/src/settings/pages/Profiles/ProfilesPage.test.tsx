@@ -22,6 +22,19 @@ async function custom() {
 describe('profile editor persistence', () => {
  beforeEach(() => resetHost())
  afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.useRealTimers() })
+ it('keeps ignored rows available to re-enable and flushes pending edits once on unmount', async () => {
+  const { host } = await custom()
+  const save = vi.spyOn(host.profiles, 'save')
+  const view = renderPage('custom')
+  const task = await screen.findByRole('slider', { name: 'planning_capability' })
+  fireEvent.keyDown(task, { key: 'ArrowLeft' })
+  expect(screen.getByRole('slider', { name: 'planning_capability' }).getAttribute('aria-valuenow')).toBe('0')
+  fireEvent.keyDown(task, { key: 'ArrowRight' })
+  view.unmount()
+  await waitFor(() => expect(save).toHaveBeenCalledTimes(1))
+  expect(save.mock.calls[0][0].tier2_weights.planning_capability).toBe(1)
+  expect((await host.profiles.get('custom')).tier2_weights.planning_capability).toBe(1)
+ })
  it('flushes before duplicate and before delete without resurrecting a deleted profile', async () => {
   const { host } = await custom()
   const view = renderPage('custom')
