@@ -9,6 +9,15 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// Non-config WHICH_MODEL inputs have separate owners; retain strict rejection
+// for every other unknown prefixed name.
+var runtimeEnvKeys = map[string]bool{
+	"WHICH_MODEL_CONFIG":           true,
+	"WHICH_MODEL_TASK_PROFILE":     true,
+	"WHICH_MODEL_CANDIDATE_ID":     true,
+	"WHICH_MODEL_DISPATCHED_MODEL": true,
+}
+
 var envKeys = map[string]bool{
 	"enabled":                 true,
 	"backend":                 true,
@@ -102,7 +111,7 @@ func ApplyEnv(c *Config, getenv func(string) string, environ []string) error {
 			continue
 		}
 		name := entry[:equal]
-		if !strings.HasPrefix(name, "WHICH_MODEL_") || name == "WHICH_MODEL_CONFIG" {
+		if !strings.HasPrefix(name, "WHICH_MODEL_") || runtimeEnvKeys[name] {
 			continue
 		}
 		rest := strings.ToLower(strings.TrimPrefix(name, "WHICH_MODEL_"))

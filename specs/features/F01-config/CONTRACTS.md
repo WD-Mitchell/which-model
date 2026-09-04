@@ -290,3 +290,10 @@ or `os.UserHomeDir` home explicitly. Destination paths remain those of ResolvePa
 including arbitrary XDG overrides. This corrects #39's inferred-home regression;
 canonical config wins, successful migrations are idempotent, and missing legacy
 data creates no migration artifacts.
+
+F29 runtime variables `WHICH_MODEL_TASK_PROFILE`, `WHICH_MODEL_CANDIDATE_ID`, and
+`WHICH_MODEL_DISPATCHED_MODEL` are reserved inputs to hooks, not configuration
+overrides. `ApplyEnv` leaves them to their owner, just like `WHICH_MODEL_CONFIG`
+is consumed by `Load`. Unknown prefixed variables still fail eagerly, including
+misspellings of these three names. This correction keeps hook-launched pick and
+explain processes compatible with F01's strict config vocabulary.
