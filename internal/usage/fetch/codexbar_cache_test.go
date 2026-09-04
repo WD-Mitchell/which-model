@@ -4,6 +4,7 @@ package fetch
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -192,5 +193,104 @@ func TestFetchAllCodexBarCacheWriteFailureWarns(t *testing.T) {
 	}
 	if len(warns) != 1 || !strings.Contains(warns[0].Message, "failed to cache usage for provider codex") {
 		t.Fatalf("warnings = %v, want one containing %q", warns, "failed to cache usage for provider codex")
+	}
+}
+
+func seedCodexBarCacheAge(t *testing.T, dir string, source usage.Source, age time.Duration) {
+	t.Helper()
+	payload, err := json.Marshal(struct {
+		Snapshot  usage.Snapshot `json:"snapshot"`
+		FetchedAt time.Time      `json:"fetched_at"`
+	}{usage.Snapshot{Provider: "antigravity", Source: source, Account: "private@example.com", Plan: "synthetic-plan", Stale: true}, time.Now().Add(-age)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "antigravity.json"), payload, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCodexBarCacheFirst(t *testing.T) {
+	for _, tc := range []struct {
+		name                                    string
+		age                                     time.Duration
+		maxAge                                  time.Duration
+		refresh, missing, corrupt, showIdentity bool
+		stored, forced                          usage.Source
+		wantCalls                               int
+	}{
+		{name: "fresh"},
+		{name: "show identity", showIdentity: true},
+		{name: "stale", age: time.Hour, wantCalls: 1},
+		{name: "missing", missing: true, wantCalls: 1},
+		{name: "corrupt", corrupt: true, wantCalls: 1},
+		{name: "refresh", refresh: true, wantCalls: 1},
+		{name: "force max age", age: 2 * time.Minute, maxAge: time.Minute, wantCalls: 1},
+		{name: "normal max age", age: 2 * time.Minute, maxAge: 15 * time.Minute},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if !tc.missing {
+				seedCodexBarCacheAge(t, dir, tc.stored, tc.age)
+			}
+			if tc.corrupt {
+				if err := os.WriteFile(filepath.Join(dir, "antigravity.json"), []byte("invalid"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			before, _ := os.ReadFile(filepath.Join(dir, "antigravity.json"))
+			calls := 0
+			stubCodexBar(t, func(_ context.Context, id string, source usage.Source) (usage.Snapshot, error) {
+				calls++
+				return usage.Snapshot{Provider: id, Source: source, Account: "private@example.com", Plan: "synthetic-plan"}, nil
+			})
+			old := codexbarFetchEnvironment
+			codexbarFetchEnvironment = func(context.Context, string, usage.Source, map[string]string) (usage.Snapshot, error) {
+				t.Error("unexpected credential injection")
+				return usage.Snapshot{}, errors.New("unexpected credential injection")
+			}
+			t.Cleanup(func() { codexbarFetchEnvironment = old })
+			opts := Options{Backend: config.UsageBackendCodexBar, Enabled: map[string]bool{"antigravity": true}, CacheDir: dir, StateDir: t.TempDir(), DisableManagedKeychain: true, MaxAge: tc.maxAge, Refresh: tc.refresh, Source: tc.forced, ShowIdentity: tc.showIdentity}
+			snaps, warnings, err := FetchAll(context.Background(), []string{"antigravity"}, opts)
+			if err != nil || len(warnings) != 0 || len(snaps) != 1 {
+				t.Fatalf("fetch result: snapshots=%d warnings=%v err=%v", len(snaps), warnings, err)
+			}
+			if calls != tc.wantCalls {
+				t.Errorf("provider invocations=%d want=%d", calls, tc.wantCalls)
+			}
+			if tc.wantCalls == 0 {
+				if snaps[0].Source != usage.SourceCache || snaps[0].Confidence != "cached" || snaps[0].Stale {
+					t.Errorf("invalid fresh cache provenance: %+v", snaps[0])
+				}
+				after, _ := os.ReadFile(filepath.Join(dir, "antigravity.json"))
+				if string(after) != string(before) {
+					t.Error("fresh hit rewrote cache")
+				}
+			}
+			if tc.showIdentity {
+				if snaps[0].Account != "private@example.com" || snaps[0].Plan != "synthetic-plan" {
+					t.Error("identity missing")
+				}
+			} else if snaps[0].Account != "" || snaps[0].Plan != "" {
+				t.Error("identity was not redacted")
+			}
+		})
+	}
+}
+
+func TestCodexBarConsecutiveOnlineCallsUseCache(t *testing.T) {
+	calls := 0
+	stubCodexBar(t, func(_ context.Context, id string, _ usage.Source) (usage.Snapshot, error) {
+		calls++
+		return usage.Snapshot{Provider: id, Source: usage.SourceCLI}, nil
+	})
+	opts := Options{Backend: config.UsageBackendCodexBar, Enabled: map[string]bool{"codex": true}, CacheDir: t.TempDir()}
+	for i := 0; i < 2; i++ {
+		if _, _, err := FetchAll(context.Background(), []string{"codex"}, opts); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if calls != 1 {
+		t.Fatalf("two online calls invoked provider %d times, want 1", calls)
 	}
 }

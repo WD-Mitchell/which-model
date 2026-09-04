@@ -59,3 +59,7 @@ F14 is the usage subsystem's orchestrator: one call (`FetchAll`) turns a list of
 - Rendering/exit-code logic (`login_required` prompting, offline exit 1) — F24.
 - `nousage` stub for this package — F21.
 - Any per-provider retry/backoff beyond httpkit's default 1×500ms — provider-owned (F15+).
+
+## Review correction (#180)
+
+The CodexBar backend follows the same online cache-first pipeline: use `cache.EffectiveTTL(15*time.Minute, opts.MaxAge)` for reads, bypass online reads only with `Refresh`, and return fresh cache entries before credential/keychain/subprocess work. A cache hit never writes, sets cache/cached provenance and `Stale=false`, and applies identity redaction only to the returned copy. Missing, corrupt, stale, or failed cache entries proceed to live fetch; failures are never written. B08's normal 15-minute and force 60-second ages therefore work without unconditional refresh.

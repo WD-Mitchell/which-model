@@ -400,10 +400,7 @@ func fetchCodexBarAll(ctx context.Context, providers []string, opts Options) ([]
 	store := &cache.Store{Dir: dir}
 
 	if opts.Offline || cacheOnlySource(opts.Source) {
-		ttl := opts.MaxAge
-		if ttl <= 0 {
-			ttl = defaultCodexBarCacheTTL
-		}
+		ttl := cache.EffectiveTTL(defaultCodexBarCacheTTL, opts.MaxAge)
 		results := make([]usage.Snapshot, 0, len(active))
 		for _, id := range active {
 			snap := store.OfflineRead(id, ttl)
@@ -434,6 +431,21 @@ func fetchCodexBarAll(ctx context.Context, providers []string, opts Options) ([]
 	for i, id := range active {
 		i, id := i, id
 		g.Go(func() error {
+			if !opts.Refresh {
+				ttl := cache.EffectiveTTL(defaultCodexBarCacheTTL, opts.MaxAge)
+				snap, stale, err := store.Read(id, ttl)
+				if err == nil && !stale && snap.Failure == nil {
+					snap.Source = usage.SourceCache
+					snap.Confidence = "cached"
+					snap.Stale = false
+					if !opts.ShowIdentity {
+						snap.Account = ""
+						snap.Plan = ""
+					}
+					results[i] = snap
+					return nil
+				}
+			}
 			environment := codexbarCredentialEnvironment(gctx, id, opts)
 			var snap usage.Snapshot
 			var err error
