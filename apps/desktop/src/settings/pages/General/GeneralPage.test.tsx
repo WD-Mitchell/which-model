@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { screen, render, fireEvent, cleanup, waitFor } from '@testing-library/react'
 
 afterEach(() => cleanup())
@@ -150,4 +150,42 @@ describe('GeneralPage benchmarks data source', () => {
       expect(updated.layout).toBe('list')
     })
   })
+  it('persists source selections without requiring a text-field blur', async () => {
+    renderApp(host)
+    const select = await screen.findByRole('combobox', { name: 'Data source' })
+    fireEvent.change(select, { target: { value: 'local' } })
+    await waitFor(async () => expect((await host.settings.get()).use_local_aa).toBe(true))
+    fireEvent.change(select, { target: { value: 'official' } })
+    await waitFor(async () => {
+      expect((await host.settings.get()).use_local_aa).toBe(false)
+      expect((await host.settings.get()).catalog_repo).toBe('WD-Mitchell/which-model')
+    })
+  })
+
+  it('serializes rapid changes against the last committed snapshot and recovers after failure', async () => {
+    const original = host.settings.set.bind(host.settings)
+    let release!: () => void
+    const gate = new Promise<void>(resolve => { release = resolve })
+    const write = vi.spyOn(host.settings, 'set').mockImplementationOnce(async value => {
+      await gate
+      await original(value)
+    })
+    renderApp(host)
+    const holds = await screen.findByRole('combobox', { name: 'Ranks held per pick' })
+    fireEvent.change(holds, { target: { value: '5' } })
+    await waitFor(() => expect(write).toHaveBeenCalledTimes(1))
+    fireEvent.change(screen.getByRole('combobox', { name: 'Weight control' }), { target: { value: 'bar' } })
+    expect(write).toHaveBeenCalledTimes(1)
+    release()
+    await waitFor(async () => {
+      expect((await host.settings.get()).holds).toBe(5)
+      expect((await host.settings.get()).weight_control).toBe('bar')
+    })
+    write.mockRejectedValueOnce(new Error('save rejected'))
+    fireEvent.change(holds, { target: { value: '3' } })
+    await screen.findByText('save rejected')
+    fireEvent.change(holds, { target: { value: '1' } })
+    await waitFor(async () => expect((await host.settings.get()).holds).toBe(1))
+  })
+
 })
