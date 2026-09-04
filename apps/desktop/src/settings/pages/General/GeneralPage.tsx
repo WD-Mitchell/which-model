@@ -6,7 +6,7 @@
 // stop short of the content edge and there is no hover tint (the mockup rows
 // carry no class="row"). <main> supplies no padding of its own (U07 contract),
 // and the config-path footer now lives in the sidebar, not on this page.
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Input, SegmentedControl, Toggle, useToast } from '@which-model/ui'
 import type { GUISettings } from '@which-model/core'
 import { useSettings } from '../../../lib/queries'
@@ -101,27 +101,29 @@ const TOGGLES: ReadonlyArray<{
 export function GeneralPage(_props: PageComponentProps) {
   const toast = useToast()
   const { data: settings } = useSettings()
-  const [draft, setDraft] = useState<GUISettings | null>(null)
   const [repoDraft, setRepoDraft] = useState<string | null>(null)
   const [aaKeyDraft, setAaKeyDraft] = useState('')
-  const current = draft ?? settings
+  // In-flight data-source pick ('self-hosted' writes an empty catalog_repo
+  // that the engine normalises back to the default — see mock.ts/Go guiConfig
+  // — so the pick must wait for the repo input's blur to commit).
+  const [sourceDraft, setSourceDraft] = useState<'official' | 'self-hosted' | 'local' | null>(
+    null,
+  )
+  const current = settings
 
-  useEffect(() => {
-    if (settings && !draft) setDraft(settings)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings])
-
+  // U12 SPEC §3 — no local optimistic state: controls render straight from
+  // the settings query cache, so invalidation (e.g. settings:changed from
+  // another surface) re-renders them even mid-session; a rejected
+  // settings.set toasts and the (unchanged) cache re-renders the control.
   const persist = useCallback(
     async (next: GUISettings) => {
-      setDraft(next)
       try {
         await getHost().settings.set(next)
       } catch (e) {
         toast.show((e as { message?: string }).message ?? 'save failed')
-        setDraft(settings ?? null)
       }
     },
-    [settings, toast],
+    [toast],
   )
 
   if (!current) {
@@ -237,28 +239,16 @@ export function GeneralPage(_props: PageComponentProps) {
             className="wmsel"
             aria-label="Data source"
             value={
-              current.use_local_aa
+              sourceDraft ??
+              (current.use_local_aa
                 ? 'local'
-                : current.catalog_repo && current.catalog_repo !== 'WD-Mitchell/which-model'
+                : current.catalog_repo !== 'WD-Mitchell/which-model'
                   ? 'self-hosted'
-                  : 'official'
+                  : 'official')
             }
-            onChange={(e) => {
-              const val = e.target.value
-              if (val === 'official') {
-                set({ use_local_aa: false, catalog_repo: 'WD-Mitchell/which-model' })
-              } else if (val === 'self-hosted') {
-                set({
-                  use_local_aa: false,
-                  catalog_repo:
-                    current.catalog_repo === 'WD-Mitchell/which-model'
-                      ? ''
-                      : current.catalog_repo,
-                })
-              } else if (val === 'local') {
-                set({ use_local_aa: true })
-              }
-            }}
+            onChange={(e) =>
+              setSourceDraft(e.target.value as 'official' | 'self-hosted' | 'local')
+            }
           >
             <option value="official">Official</option>
             <option value="self-hosted">Self-Hosted</option>
@@ -266,8 +256,12 @@ export function GeneralPage(_props: PageComponentProps) {
           </select>
         </div>
 
-        {!current.use_local_aa &&
-        current.catalog_repo !== 'WD-Mitchell/which-model' ? (
+        {/* The repo field shows whenever the committed state says self-hosted
+            OR the user has just picked self-hosted (sourceDraft) — the pick
+            commits on this input's blur along with the repo value. */}
+        {(!current.use_local_aa || sourceDraft === 'self-hosted') &&
+        (current.catalog_repo !== 'WD-Mitchell/which-model' ||
+          sourceDraft === 'self-hosted') ? (
           <div className={styles.row}>
             <span className={styles.labelBlock}>
               <span className={styles.label}>Self-hosted repo</span>
@@ -277,19 +271,36 @@ export function GeneralPage(_props: PageComponentProps) {
             </span>
             <Input
               className={styles.catalogInput}
-              value={repoDraft ?? current.catalog_repo}
+              value={repoDraft ?? (sourceDraft === 'self-hosted' ? '' : current.catalog_repo)}
               placeholder="owner/repo"
               onChange={setRepoDraft}
               onBlur={() => {
-                const next = (repoDraft ?? current.catalog_repo).trim() || 'WD-Mitchell/which-model'
+                const picked = sourceDraft ?? (current.use_local_aa ? 'local' : current.catalog_repo !== 'WD-Mitchell/which-model' ? 'self-hosted' : 'official')
+                setSourceDraft(null)
+                if (picked === 'official') {
+                  setRepoDraft(null)
+                  set({ use_local_aa: false, catalog_repo: 'WD-Mitchell/which-model' })
+                  return
+                }
+                const next = (repoDraft ?? (picked === 'self-hosted' ? '' : current.catalog_repo)).trim()
                 setRepoDraft(null)
-                if (next !== current.catalog_repo) set({ catalog_repo: next })
+                if (picked === 'local') {
+                  if (!current.use_local_aa) set({ use_local_aa: true })
+                  return
+                }
+                const repo = next || 'WD-Mitchell/which-model'
+                if (repo !== current.catalog_repo || current.use_local_aa) {
+                  set({ use_local_aa: false, catalog_repo: repo })
+                }
               }}
             />
           </div>
         ) : null}
 
-        {current.use_local_aa ? (
+        {/* Shown when committed state says local, OR the user just picked
+            Local Only — the pick commits on this input's blur (empty blur
+            commits the pick alone; spec: empty input is a no-op). */}
+        {current.use_local_aa || sourceDraft === 'local' ? (
           <div className={styles.row}>
             <span className={styles.labelBlock}>
               <span className={styles.label}>Artificial Analysis API key</span>
@@ -306,10 +317,17 @@ export function GeneralPage(_props: PageComponentProps) {
               placeholder={current.aa_api_key_set ? 'saved' : 'ARTIFICIAL_ANALYSIS_API'}
               onChange={setAaKeyDraft}
               onBlur={() => {
+                const picked = sourceDraft ?? (current.use_local_aa ? 'local' : 'official')
+                setSourceDraft(null)
                 const next = aaKeyDraft.trim()
-                if (!next) return
                 setAaKeyDraft('')
-                void persist({ ...current, aa_api_key: next })
+                if (picked !== 'local') {
+                  // Blur while a pending non-local pick exists: commit it.
+                  set({ use_local_aa: false, catalog_repo: 'WD-Mitchell/which-model' })
+                  return
+                }
+                if (next) void persist({ ...current, aa_api_key: next })
+                else if (!current.use_local_aa) set({ use_local_aa: true })
               }}
             />
           </div>
