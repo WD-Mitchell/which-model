@@ -23,176 +23,191 @@ var ctx = context.Background()
 type ProfilesAPI struct{ svc *service.Services }
 
 func (a *ProfilesAPI) List() ([]service.ProfileSummary, error) {
-	return a.svc.Profiles().List(ctx)
+	return bindingResult(a.svc.Profiles().List(ctx))
 }
 func (a *ProfilesAPI) Get(slug string) (service.ProfileDetail, error) {
-	return a.svc.Profiles().Get(ctx, slug)
+	return bindingResult(a.svc.Profiles().Get(ctx, slug))
 }
+func bindingError(err error) error {
+	if err == nil {
+		return nil
+	}
+	return service.ToErrorDTO(err)
+}
+
+func bindingResult[T any](value T, err error) (T, error) {
+	return value, bindingError(err)
+}
+
+func (a *ProfilesAPI) Create(p service.ProfileDetail) error {
+	return bindingError(a.svc.Profiles().Create(ctx, p))
+}
+
 func (a *ProfilesAPI) Save(p service.ProfileDetail) error {
-	return a.svc.Profiles().Save(ctx, p)
+	return bindingError(a.svc.Profiles().Save(ctx, p))
 }
 func (a *ProfilesAPI) Duplicate(slug string) (service.ProfileDetail, error) {
-	return a.svc.Profiles().Duplicate(ctx, slug)
+	return bindingResult(a.svc.Profiles().Duplicate(ctx, slug))
 }
 func (a *ProfilesAPI) Delete(slug string) error {
-	return a.svc.Profiles().Delete(ctx, slug)
+	return bindingError(a.svc.Profiles().Delete(ctx, slug))
 }
 func (a *ProfilesAPI) ComplexityScale() ([]string, error) {
-	return a.svc.Profiles().ComplexityScale(), nil
+	return bindingResult(a.svc.Profiles().ComplexityScale(), nil)
 }
 
 // PickAPI — EngineHost.pick.
 type PickAPI struct{ svc *service.Services }
 
 func (a *PickAPI) Rank(req service.RankRequest) (service.RankResponse, error) {
-	return a.svc.Rank(ctx, req)
+	return bindingResult(a.svc.Rank(ctx, req))
 }
 func (a *PickAPI) RecordPick(profileSlug, routeKey string) error {
-	return a.svc.RecordPick(ctx, profileSlug, routeKey)
+	return bindingError(a.svc.RecordPick(ctx, profileSlug, routeKey))
 }
 func (a *PickAPI) CatalogLine() (service.CatalogSummary, error) {
-	return a.svc.CatalogLine(ctx)
+	return bindingResult(a.svc.CatalogLine(ctx))
 }
 
 // CatalogAPI — EngineHost.catalog.
 type CatalogAPI struct{ svc *service.Services }
 
 func (a *CatalogAPI) Benchmarks() ([]string, error) {
-	return a.svc.Catalog().Benchmarks(ctx)
+	return bindingResult(a.svc.Catalog().Benchmarks(ctx))
 }
 func (a *CatalogAPI) BenchmarkDetail(name string) (service.BenchmarkDetail, error) {
-	return a.svc.Catalog().BenchmarkDetail(ctx, name)
+	return bindingResult(a.svc.Catalog().BenchmarkDetail(ctx, name))
 }
 func (a *CatalogAPI) ModelDetail(model, reasoning string) (service.ModelScoreDetail, error) {
-	return a.svc.Catalog().ModelDetail(ctx, model, reasoning)
+	return bindingResult(a.svc.Catalog().ModelDetail(ctx, model, reasoning))
 }
 func (a *CatalogAPI) Model(name string) (service.CatalogModelDetail, error) {
-	return a.svc.Catalog().Model(ctx, name)
+	return bindingResult(a.svc.Catalog().Model(ctx, name))
 }
 func (a *CatalogAPI) Models() ([]service.CatalogModel, error) {
-	return a.svc.Catalog().Models(ctx)
+	return bindingResult(a.svc.Catalog().Models(ctx))
 }
 func (a *CatalogAPI) Groups() ([]service.GroupSummary, error) {
-	return a.svc.Catalog().Groups(ctx)
+	return bindingResult(a.svc.Catalog().Groups(ctx))
 }
 func (a *CatalogAPI) GroupDetail(slug string) (service.GroupDetail, error) {
-	return a.svc.Catalog().GroupDetail(ctx, slug)
+	return bindingResult(a.svc.Catalog().GroupDetail(ctx, slug))
 }
 func (a *CatalogAPI) SaveGroup(slug string, benchmarks []string, renameTo string) error {
-	return a.svc.Catalog().SaveGroup(ctx, slug, benchmarks, renameTo)
+	return bindingError(a.svc.Catalog().SaveGroup(ctx, slug, benchmarks, renameTo))
 }
 func (a *CatalogAPI) DuplicateGroup(slug string) (service.GroupDetail, error) {
-	return a.svc.Catalog().DuplicateGroup(ctx, slug)
+	return bindingResult(a.svc.Catalog().DuplicateGroup(ctx, slug))
 }
 func (a *CatalogAPI) DeleteGroup(slug string) error {
-	return a.svc.Catalog().DeleteGroup(ctx, slug)
+	return bindingError(a.svc.Catalog().DeleteGroup(ctx, slug))
 }
 
 // ProvidersAPI — EngineHost.providers.
 type ProvidersAPI struct{ svc *service.Services }
 
 func (a *ProvidersAPI) List() ([]service.ProviderInfo, error) {
-	return a.svc.Providers().List(ctx)
+	return bindingResult(a.svc.Providers().List(ctx))
 }
 func (a *ProvidersAPI) Add(id string) error {
-	return a.svc.Providers().Add(ctx, id)
+	return bindingError(a.svc.Providers().Add(ctx, id))
 }
 func (a *ProvidersAPI) Addable() ([]string, error) {
-	return a.svc.Providers().Addable(ctx)
+	return bindingResult(a.svc.Providers().Addable(ctx))
 }
 func (a *ProvidersAPI) Delete(id string) error {
-	return a.svc.Providers().Delete(ctx, id)
+	return bindingError(a.svc.Providers().Delete(ctx, id))
 }
 func (a *ProvidersAPI) Duplicate(id string) (string, error) {
-	return a.svc.Providers().Duplicate(ctx, id)
+	return bindingResult(a.svc.Providers().Duplicate(ctx, id))
 }
 func (a *ProvidersAPI) SetAccounts(id string, accounts []service.ProviderAccountDTO) error {
-	return a.svc.Providers().SetAccounts(ctx, id, accounts)
+	return bindingError(a.svc.Providers().SetAccounts(ctx, id, accounts))
 }
 func (a *ProvidersAPI) SetEnabled(id string, on bool) error {
-	return a.svc.Providers().SetEnabled(ctx, id, on)
+	return bindingError(a.svc.Providers().SetEnabled(ctx, id, on))
 }
 func (a *ProvidersAPI) Reorder(orderedIds []string) error {
-	return a.svc.Providers().Reorder(ctx, orderedIds)
+	return bindingError(a.svc.Providers().Reorder(ctx, orderedIds))
 }
 func (a *ProvidersAPI) Detail(id string) (service.ProviderDetail, error) {
-	return a.svc.Providers().Detail(ctx, id)
+	return bindingResult(a.svc.Providers().Detail(ctx, id))
 }
 func (a *ProvidersAPI) SetRouteEnabled(id, modelId, reasoning string, on bool) error {
-	return a.svc.Providers().SetRouteEnabled(ctx, id, modelId, reasoning, on)
+	return bindingError(a.svc.Providers().SetRouteEnabled(ctx, id, modelId, reasoning, on))
 }
 func (a *ProvidersAPI) SetAllRoutes(id string, on bool) error {
-	return a.svc.Providers().SetAllRoutes(ctx, id, on)
+	return bindingError(a.svc.Providers().SetAllRoutes(ctx, id, on))
 }
 func (a *ProvidersAPI) RefreshRoutes() error {
-	return a.svc.Providers().RefreshRoutes(ctx)
+	return bindingError(a.svc.Providers().RefreshRoutes(ctx))
 }
 
 // HarnessesAPI — EngineHost.harnesses.
 type HarnessesAPI struct{ svc *service.Services }
 
 func (a *HarnessesAPI) List() ([]service.HarnessInfo, error) {
-	return a.svc.Harnesses().List(ctx)
+	return bindingResult(a.svc.Harnesses().List(ctx))
 }
 func (a *HarnessesAPI) Save(h service.HarnessInfo) error {
-	return a.svc.Harnesses().Save(ctx, h)
+	return bindingError(a.svc.Harnesses().Save(ctx, h))
 }
 func (a *HarnessesAPI) Delete(slug string) error {
-	return a.svc.Harnesses().Delete(ctx, slug)
+	return bindingError(a.svc.Harnesses().Delete(ctx, slug))
 }
 func (a *HarnessesAPI) SetProvider(slug, provider string, on bool) error {
-	return a.svc.Harnesses().SetProvider(ctx, slug, provider, on)
+	return bindingError(a.svc.Harnesses().SetProvider(ctx, slug, provider, on))
 }
 func (a *HarnessesAPI) SetEnabled(slug string, enabled bool) error {
-	return a.svc.Harnesses().SetEnabled(ctx, slug, enabled)
+	return bindingError(a.svc.Harnesses().SetEnabled(ctx, slug, enabled))
 }
 func (a *HarnessesAPI) SetAllProviders(slug string, on bool) error {
-	return a.svc.Harnesses().SetAllProviders(ctx, slug, on)
+	return bindingError(a.svc.Harnesses().SetAllProviders(ctx, slug, on))
 }
 func (a *HarnessesAPI) Launch(slug, routeKey, profileSlug string) (service.LaunchResult, error) {
-	return a.svc.Harnesses().Launch(ctx, slug, routeKey, profileSlug)
+	return bindingResult(a.svc.Harnesses().Launch(ctx, slug, routeKey, profileSlug))
 }
 
 // UsageAPI — EngineHost.usage.
 type UsageAPI struct{ svc *service.Services }
 
 func (a *UsageAPI) Snapshots(force bool) ([]service.UsageDTO, error) {
-	return a.svc.Snapshots(ctx, force)
+	return bindingResult(a.svc.Snapshots(ctx, force))
 }
 func (a *UsageAPI) SetMode(mode string) error {
-	return a.svc.SetMode(ctx, mode)
+	return bindingError(a.svc.SetMode(ctx, mode))
 }
 func (a *UsageAPI) SetBackend(backend string) error {
-	return a.svc.SetBackend(ctx, backend)
+	return bindingError(a.svc.SetBackend(ctx, backend))
 }
 func (a *UsageAPI) Mode() (service.UsageMode, error) {
-	return a.svc.Mode(ctx)
+	return bindingResult(a.svc.Mode(ctx))
 }
 
 // FavouritesAPI — EngineHost.favourites.
 type FavouritesAPI struct{ svc *service.Services }
 
 func (a *FavouritesAPI) List() ([]service.Favourite, error) {
-	return a.svc.Favourites().List(ctx)
+	return bindingResult(a.svc.Favourites().List(ctx))
 }
 func (a *FavouritesAPI) Pin(routeKey string) error {
-	return a.svc.Favourites().Pin(ctx, routeKey)
+	return bindingError(a.svc.Favourites().Pin(ctx, routeKey))
 }
 func (a *FavouritesAPI) Unpin(routeKey string) error {
-	return a.svc.Favourites().Unpin(ctx, routeKey)
+	return bindingError(a.svc.Favourites().Unpin(ctx, routeKey))
 }
 
 // SettingsAPI — EngineHost.settings.
 type SettingsAPI struct{ svc *service.Services }
 
 func (a *SettingsAPI) Get() (service.GUISettings, error) {
-	return a.svc.Settings().Get(ctx)
+	return bindingResult(a.svc.Settings().Get(ctx))
 }
 func (a *SettingsAPI) Set(s service.GUISettings) error {
-	return a.svc.Settings().Set(ctx, s)
+	return bindingError(a.svc.Settings().Set(ctx, s))
 }
 func (a *SettingsAPI) ShellSnippets() (service.ShellSnippets, error) {
-	return a.svc.Settings().ShellSnippets(ctx)
+	return bindingResult(a.svc.Settings().ShellSnippets(ctx))
 }
 
 // SignInAPI — EngineHost.signin. OAuth methods drive interactive provider
@@ -200,19 +215,19 @@ func (a *SettingsAPI) ShellSnippets() (service.ShellSnippets, error) {
 type SignInAPI struct{ svc *service.Services }
 
 func (a *SignInAPI) Start(provider string) (service.SignInStart, error) {
-	return a.svc.SignIn().Start(ctx, provider)
+	return bindingResult(a.svc.SignIn().Start(ctx, provider))
 }
 func (a *SignInAPI) Confirm(provider, flowID, accountName string) error {
-	return a.svc.SignIn().Confirm(ctx, provider, flowID, accountName)
+	return bindingError(a.svc.SignIn().Confirm(ctx, provider, flowID, accountName))
 }
 func (a *SignInAPI) Cancel(provider, flowID string) error {
-	return a.svc.SignIn().Cancel(provider, flowID)
+	return bindingError(a.svc.SignIn().Cancel(provider, flowID))
 }
 func (a *SignInAPI) SubmitCode(provider, flowID, code string) error {
-	return a.svc.SignIn().SubmitCode(provider, flowID, code)
+	return bindingError(a.svc.SignIn().SubmitCode(provider, flowID, code))
 }
 func (a *SignInAPI) SaveAPIKey(provider, accountName, apiKey string) error {
-	return a.svc.SignIn().SaveAPIKey(ctx, provider, accountName, apiKey)
+	return bindingError(a.svc.SignIn().SaveAPIKey(ctx, provider, accountName, apiKey))
 }
 
 // registerServices builds the application.Service entries for every engine

@@ -81,3 +81,17 @@ Depends on: B02. Inherits: D00, B00 (order/enabled/availability invariants §6.1
   - In `Detail`, each executable route ID is listed with its corresponding level, deduplicating fast-mode, thinking, and `-max` duplicates while maintaining 1:1 parity with executable routes and `SetRouteEnabled` keys.
   - Representative selection: for each `(base, effort)`, the highest-scoring raw variant wins (plain > thinking > fast > thinking-fast); exact score ties keep the first row seen in command output. Context-window-only `-max` rows inside an effort-bearing family (e.g. `kimi-k3-max`) do not create an entry, per the issue's "must not create separate entries" requirement. An unsuffixed id in an effort-bearing family (e.g. `gpt-5.3-codex`) is NOT a context-window row: it is the provider's advertised default launch target and is preserved as its own executable route with empty reasoning.
   - Antigravity is unaffected by the Cursor variant grammar: a `-max` id remains effort `max` there, and its display-name cleanup stays limited to `Fast`, `Thinking`, and the matched effort label, so legitimate names ending in `Max`/`Maximum`/`1M` with no matching effort suffix survive (e.g. `Gemini 3.1 Pro 1M` keeps its name).
+
+## Deviation — #183: explicit models.dev refresh
+
+An explicit RefreshRoutes operation, after successful benchmark refresh/reload, attempts the existing bounded models.dev fetch once even when a valid catalogue is cached. A successful nonempty parsed catalogue atomically replaces `modelsdev_providers.json` before route rebuilding. A fetch failure uses a valid cached catalogue and records a generic service warning; if no usable cache exists it returns the fetch error. Failure to persist a freshly fetched catalogue records a warning and permits route rebuilding from memory. Read-only List, Detail, Addable, and the cache parser never fetch, including for an old price-less schema.
+
+This supersedes the earlier cache-else-fetch refresh policy. There is no new timer, background network operation, or setting. Pinned regressions cover replacing a valid catalogue (including removals/pricing), one network attempt, unchanged cache on fetch failure, failure without a usable cache, and zero fetches from read-only methods.
+
+
+## Refresh cancellation correction — #183 review
+
+The caller context reaches models.dev HTTP collection. A cancelled fetch returns
+cancellation before cache fallback or cache writes. Route publication checks
+cancellation under its write lock; cancelled live discovery must not publish a
+degraded replacement table. Pin `TestModelsDevRefreshCancellationDoesNotFallBackOrWrite`.

@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -233,6 +234,7 @@ func finishFetch(now time.Time, body json.RawMessage) (usage.Snapshot, error) {
 	return usage.Snapshot{
 		Provider:   "codex",
 		Windows:    windows,
+		UsageKnown: slices.ContainsFunc(windows, func(w usage.Window) bool { return w.UsageKnown && !w.Synthetic }),
 		FetchedAt:  now,
 		Source:     usage.SourceOAuth,
 		Confidence: "live",

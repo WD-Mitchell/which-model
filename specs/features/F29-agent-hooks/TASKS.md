@@ -246,7 +246,7 @@ graph TD
    - same with `fakeRunner(5, "auth needed")` → empty bytes, nil error.
    - `Run("nonsense", nil, Options{})` → error equal to `errUnknownHook`.
    - `Run("usage-refresh", nil, Options{Stdin: []byte("not json")})` → error equal to `errBadStdin`.
-   - `Run("usage-refresh", nil, Options{Stdin: []byte(`{"anything":1}`), Runner: fakeRunner(0, `{"snapshots":[]}`)})` → the approve envelope (host context path executes the runner once; assert invocation and use its exit code).
+   - `Run("usage-refresh", nil, Options{Stdin: []byte(`{"anything":1}`), Runner: fakeRunner(0, `{"snapshots":[]}`)})` → the approve envelope (host context executes the runner exactly once; its result controls the envelope).
    - canary: `Run("usage-refresh", nil, Options{Stdin: []byte(`{"secret":"CANARY_XYZ"}`)})` → output bytes do NOT contain `CANARY_XYZ` (envelope is constant; canary rule, SPEC behaviour 12).
    - malformed run error messages: assert `errUnknownHook`/`errBadStdin` are the sentinel values (callers map them to exit 2).
 
@@ -829,5 +829,6 @@ graph TD
 | Actual F26 explain --pick-id output, model ID containing colon | One compact JSONL line preserving documented evidence; correct mismatch comparison |
 | Candidate env differs from selected history record | Fail-open; evidence files unchanged |
 | Unknown top-level or nested evidence fields | Removed before evidence write |
+| Outer offline/config/timeout with a later timeout override | Request policy reaches usage; later flags win |
 
 Corrections supersede the former stdout-on-stdin test seam and object-shaped candidate sketches. `auditDocument` is the private F26 decoding view in `internal/hooks/audit.go`; no canonical public type changes.

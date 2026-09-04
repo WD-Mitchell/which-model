@@ -42,6 +42,23 @@ const trayLabelGap = "\u2009"
 // certainly executed, short enough that the user has not reached for the mouse.
 const trayMenuFallbackDelay = 2 * time.Second
 
+var (
+	// trayMu guards trayFallbackTimer, which tracks the fallback menu-start
+	// timer so normal startup and shutdown can cancel it.
+	trayMu            sync.Mutex
+	trayFallbackTimer *time.Timer
+)
+
+// cancelTrayTimers stops the tracked menu fallback timer, if any.
+func cancelTrayTimers() {
+	trayMu.Lock()
+	defer trayMu.Unlock()
+	if trayFallbackTimer != nil {
+		trayFallbackTimer.Stop()
+		trayFallbackTimer = nil
+	}
+}
+
 // errNoTopPick is returned by rankTopPick when ranking succeeded but produced
 // no route — an empty catalog, or every provider disabled. The label is then
 // empty: a lone em dash sitting in the menu bar reads as breakage, not as
@@ -126,11 +143,18 @@ func setupTray(app *application.App, svc *service.Services, pop *application.Web
 	// start marks the menu ready and redraws the title: Start is where the
 	// first real profile selection appears, and the title names it.
 	start := func() {
+		trayMu.Lock()
+		if trayFallbackTimer != nil {
+			trayFallbackTimer.Stop()
+			trayFallbackTimer = nil
+		}
+		trayMu.Unlock()
 		menu.Start()
 		if refresh != nil {
 			refresh()
 		}
 	}
+
 	app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
 		start()
 	})
@@ -138,7 +162,9 @@ func setupTray(app *application.App, svc *service.Services, pop *application.Web
 	// menu would silently not exist, which is the whole feature. Start is
 	// idempotent (the second call finds the signature unchanged and returns),
 	// and by trayMenuFallbackDelay the app is long past applySmartDefaults.
-	time.AfterFunc(trayMenuFallbackDelay, start)
+	trayMu.Lock()
+	trayFallbackTimer = time.AfterFunc(trayMenuFallbackDelay, start)
+	trayMu.Unlock()
 
 	// Diagnostic harness (WM_SELFTEST=1 only, never in a shipped run). Drives
 	// the same code paths a tray click drives, from a timer, so the show path

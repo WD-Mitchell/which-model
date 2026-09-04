@@ -9,7 +9,7 @@ export interface DetailHeaderProps {
   blurb: string
   backLabel?: string
   onBack?(): void
-  action?: { label: string; onAction(): void }
+  action?: { label: string; onAction(): void; disabled?: boolean }
 }
 
 export function DetailHeader({ title, blurb, backLabel, onBack, action }: DetailHeaderProps) {
@@ -47,6 +47,7 @@ export function DetailHeader({ title, blurb, backLabel, onBack, action }: Detail
               className="btn btn-primary"
               style={{ fontSize: '12px', padding: '5px 11px', whiteSpace: 'nowrap' }}
               onClick={action.onAction}
+              disabled={action.disabled}
             >
               {action.label}
             </button>

@@ -23,6 +23,10 @@ No config keys, no flags beyond the tables below are owned; F26 writes ONE state
 ```go
 // PickArgs is the fully-validated pick command input.
 type PickArgs struct {
+    Offline bool // Global.Offline
+    Refresh bool // Global.RefreshUsage
+    MaxAge time.Duration // Global.MaxAge
+    Timeout time.Duration // Global.Timeout
     Profile      string   // resolved profile id (after --task-category mapping)
     TaskCategory string   // raw --task-category (resolved in T2)
     Complexity   string   // raw --complexity
@@ -161,7 +165,7 @@ F26 decodes the complete shared `strategy.Config` once per run. Resolution prece
 | `--last` | bool | `false` | Last history record; exactly one of `--last`/`--pick-id` |
 | `--pick-id` | string | `""` | ULID to explain; exactly one of the two |
 
-Consumed globals: `--json`, `--no-usage`, `--config` (→ `Global.ConfigPath`), `--normalizer`, `--aggregator` (→ `Global.Normalizer`/`Global.Aggregator`).
+Consumed globals: `--offline`, `--refresh-usage`, `--max-age`, `--timeout`, `--json`, `--no-usage`, `--config` (→ `Global.ConfigPath`), `--normalizer`, `--aggregator` (→ `Global.Normalizer`/`Global.Aggregator`).
 
 ## 4. Exit codes (F26-registered via `RegisterExitCode` in `init()`)
 
@@ -306,13 +310,16 @@ const Compiled bool
 ### 8.3 F14 `internal/usage/fetch` (canonical owner: `specs/features/F14-usage-fetch/CONTRACTS.md`)
 
 ```go
-func FetchAll(ctx context.Context, opts FetchAllOptions) (*FetchResult, error)
-// FetchAllOptions{Providers []string; All bool; Source usage.Source;
-//   ForceRefresh, MaxAge, Timeout, Offline, IncludeIdentity ...}
-// FetchResult{Snapshots []usage.Snapshot; LastVerified map[string]time.Time}
+// Canonical F14 call; fetch.Options is owned by F14.
+func FetchAll(ctx context.Context, providers []string, opts fetch.Options) ([]usage.Snapshot, []credential.Warning, error)
 ```
 
-F26 calls it with the survivor providers (usage stage, SPEC §2.2e); F26's seam `fetchAllFunc` (defined in `pick.go`, default `fetch.FetchAll`) is injectable in tests. `LastVerified[provider]` feeds Evidence `last_verified` (single timestamp of the picked provider) and `confidence: "live"`; absence → `"cached"`.
+F26 calls this with survivor providers at the usage stage. Its private
+`pickFetchAllFunc` seam receives provider IDs plus `pickFetchOptions`. The
+production adapter forwards request policy to `pickUsageFetchAll` (default
+`fetch.FetchAll`) and maps returned snapshots by provider, including their
+`FetchedAt` timestamps for last-verified evidence. Tests can substitute either
+boundary; neither introduces a second public fetch API.
 
 ### 8.4 F19 `internal/usage/band` (canonical owner: `specs/features/F19-usage-bands/CONTRACTS.md`)
 
@@ -379,3 +386,7 @@ F26's seam `scoreFunc` (default `scoring.Score`) is injectable in tests; the inp
 - No credential material in any output; usage failure messages come from F14 sanitized (global SPEC §6.5); canary test covers the canonical `Failure` redaction boundary.
 - `explain` reveals only the recorded evidence — which never contains credentials (history record fields are fixed, §2).
 - History file is append-only; F26 never rewrites it (write failure → stderr warning, exit unaffected, SPEC D-12).
+
+## Usage request policy correction (#164)
+
+The private `pickFetchOptions` seam carries `Backend config.UsageBackend`, `Offline bool`, `Refresh bool`, `MaxAge time.Duration`, and `Timeout time.Duration`. `runPickE` copies normalized global flags into `PickArgs`; `RunPick` captures these and `cfg.Usage.Backend` once in per-run state. The production adapter forwards all five fields unchanged to F14 `fetch.Options`, alongside provider enablement and managed-auth settings. F14 owns offline/cache/deadline semantics. `--no-usage` skips this stage entirely.

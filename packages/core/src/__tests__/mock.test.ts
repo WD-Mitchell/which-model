@@ -480,3 +480,16 @@ describe('createMockEngineHost — remaining surfaces', () => {
     expect(await host.usage.mode()).toEqual({ mode: 'off', backend: 'codexbar' })
   })
 })
+
+describe('profile create-only contract', () => {
+ it('rejects existing custom and built-in slugs without writes or events', async () => {
+  const host = createMockEngineHost()
+  let events = 0
+  host.on('config:changed', () => events++)
+  await host.profiles.create(customProfile)
+  await expectCode(host.profiles.create({ ...customProfile, core_share: 70 }), 'conflict')
+  await expectCode(host.profiles.create({ ...customProfile, slug: 'planning' }), 'conflict')
+  expect((await host.profiles.get(customProfile.slug)).core_share).toBe(customProfile.core_share)
+  expect(events).toBe(1)
+ })
+})

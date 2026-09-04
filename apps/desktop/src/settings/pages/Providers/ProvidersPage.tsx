@@ -778,6 +778,11 @@ function AccountsSection({
   onError(message: string): void
 }) {
   const [pendingAccounts, setPendingAccounts] = useState<ProviderAccount[] | null>(null)
+  const commitSeq = useRef(0)
+  const saveChain = useRef<Promise<void>>(Promise.resolve())
+  const pendingWrites = useRef(0)
+  const [removing, setRemoving] = useState(false)
+  const credentialWrite = useRef(false)
   const rows = pendingAccounts ?? accounts
   const [addOpen, setAddOpen] = useState(false)
   const [accountName, setAccountName] = useState('')
@@ -810,13 +815,27 @@ function AccountsSection({
 
   const replaceAccounts = useCallback(
     (next: ProviderAccount[]) => {
+      if (signInLock.current || credentialWrite.current) return
+      pendingWrites.current++
+      setRemoving(true)
+      const seq = ++commitSeq.current
       setPendingAccounts(next)
-      void getHost()
-        .providers.setAccounts(id, next)
-        .then(() => setPendingAccounts(null))
+      saveChain.current = saveChain.current
+        .then(() => getHost().providers.setAccounts(id, next))
+        .then(() => {
+          if (commitSeq.current === seq) {
+            setPendingAccounts(null)
+          }
+        })
         .catch((error) => {
-          setPendingAccounts(null)
+          if (commitSeq.current === seq) {
+            setPendingAccounts(null)
+          }
           onError(errText(error, 'could not save accounts'))
+        })
+        .finally(() => {
+          pendingWrites.current--
+          if (pendingWrites.current === 0) setRemoving(false)
         })
     },
     [id, onError],
@@ -833,7 +852,7 @@ function AccountsSection({
   // OAuth sign-in: device-code providers copy the code and poll; Claude
   // opens the authorize URL and waits for a pasted code via submitCode.
   const onSignIn = (name: string) => {
-    if (signInLock.current) return
+    if (signInLock.current || pendingWrites.current || credentialWrite.current) return
     const lock = { cancelled: false, flowId: null as string | null }
     signInLock.current = lock
     setPastedCode('')
@@ -887,6 +906,7 @@ function AccountsSection({
   }
 
   const submitAccount = async () => {
+    if (pendingWrites.current || credentialWrite.current || signInLock.current) return
     const name = accountName.trim()
     if (!name) {
       onError('Enter an account name')
@@ -902,6 +922,7 @@ function AccountsSection({
       onError('Enter an API key')
       return
     }
+    credentialWrite.current = true
     setSaving(true)
     try {
       await getHost().signin.saveAPIKey(id, name, key)
@@ -910,6 +931,8 @@ function AccountsSection({
     } catch (error) {
       setSaving(false)
       onError(errText(error, 'could not save API key'))
+    } finally {
+      credentialWrite.current = false
     }
   }
 
@@ -928,7 +951,9 @@ function AccountsSection({
         <Button
           variant="primary"
           size="xs"
+          disabled={removing || saving || !!signIn}
           onClick={() => {
+            if (pendingWrites.current || credentialWrite.current || signInLock.current) return
             setMethod(oauthSupported ? 'oauth' : 'api_key')
             setAddOpen(true)
           }}
@@ -956,6 +981,7 @@ function AccountsSection({
                   <Button
                     variant="secondary"
                     size="xs"
+                    disabled={removing || saving || !!signIn}
                     onClick={() => onSignIn(account.name)}
                   >
                     {account.ref || authenticatedAccounts.has(account.name)
@@ -967,6 +993,7 @@ function AccountsSection({
                   type="button"
                   className={cx('ib', styles.accountDelete)}
                   title={`Remove ${account.name}`}
+                  disabled={saving || !!signIn}
                   onClick={() =>
                     replaceAccounts(rows.filter((_, rowIndex) => rowIndex !== index))
                   }
@@ -992,7 +1019,7 @@ function AccountsSection({
             <Button
               variant="primary"
               size="xs"
-              disabled={saving || !accountName.trim() || (method === 'api_key' && !apiKey.trim())}
+              disabled={removing || saving || !!signIn || !accountName.trim() || (method === 'api_key' && !apiKey.trim())}
               onClick={() => void submitAccount()}
             >
               {saving ? 'Saving…' : method === 'oauth' ? 'Sign in with OAuth' : 'Save account'}
