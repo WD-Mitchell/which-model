@@ -185,11 +185,12 @@ func ProduceRoutes(in Input) (BuildResult, error)
 
 Follow this recipe exactly:
 - `result := BuildResult{}` (no `Errors` entry yet).
+- Build one invocation-local `catalogByName` index of `in.CatalogRows`, keyed by cleaned model name and preserving catalog order within each bucket.
 - For each provider in `in.Providers` order:
   - `excluded` = set of `ExcludedModelIDs`. `seen` = map `ModelID -> struct{ entry ModelEntry; src Provenance }`; `order` = `[]string` of first-appearance order.
   - Pass 1 — collect auto sources: iterate `ModelsDev` in order, then `LiveModels` in order. For each entry: if `ModelID` is in `excluded`, skip. If already in `seen`: when the existing source is `ProvenanceModelsDev` and the new entry comes from `LiveModels`, upgrade the entry's source to `ProvenanceProviderLive` (position unchanged); otherwise keep the existing entry. Else record first appearance: append to `order`, store `{entry, src}` with `src = ProvenanceModelsDev` for the models.dev list and `ProvenanceProviderLive` for the live list. Same-source duplicates dedupe silently (first wins).
   - Pass 2 — derive: `providerErr := error(nil)`; `autoRoutes := []Route{}`; `providerUnrouted := []UnroutedModel{}`. For each `modelID` in `order`:
-    - `levels, candidates, unmatched := joinModel(seen[modelID].entry, in.CatalogRows)`; `clean := identity.CleanModelName(seen[modelID].entry.Name)`.
+    - `clean := identity.CleanModelName(seen[modelID].entry.Name)`; `levels, candidates, unmatched := joinModel(seen[modelID].entry, catalogByName[clean])`. Production passes only the matching name bucket; `joinModel` retains its existing signature.
     - `len(candidates) == 0` (absent, SPEC §2.7): append `UnroutedModel{Provider, modelID, clean, "", "no_catalog_row"}` and the warning `unrouted provider model <provider>/<modelID> (<clean>): no catalog row matches`; continue.
     - ambiguous: only when `entry.Reasoning` is empty and fewer same-name candidates are covered than matched; set `providerErr = &AmbiguityError{Provider, modelID, clean, candidates}` and BREAK out of pass 2 (this provider's auto routes so far are discarded — SPEC §2.8). Explicit declared efforts select their matching identities; undeclared score efforts are not provider candidates.
     - else: for each `joinedLevel` in `levels`: append `Route{Provider, modelID, clean, level, BindWindowIDs(provider.Windows, modelID, clean), seen[modelID].src}`.

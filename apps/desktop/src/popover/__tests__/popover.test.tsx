@@ -67,6 +67,23 @@ async function pickProfile(query: string) {
   fireEvent.keyDown(input, { key: 'Enter' })
 }
 
+describe('completed empty tray ranking', () => {
+ beforeEach(() => { resetHost(); useOverridesStore.getState().clear() })
+ afterEach(() => { cleanup(); vi.restoreAllMocks() })
+ it('clears a completed empty rank from the tray and restores it after re-enabling', async () => {
+  const host = getHost() as MockEngineHost
+  const tray = vi.spyOn(host.window, 'setTrayPick')
+  renderApp()
+  expect(tray).not.toHaveBeenCalled()
+  await settle()
+  await waitFor(() => expect(tray).toHaveBeenCalled())
+  await act(async () => { for (const provider of await host.providers.list()) await host.providers.setEnabled(provider.id, false) })
+  await waitFor(() => expect(tray).toHaveBeenLastCalledWith('', '', '', ''))
+  await act(async () => { await host.providers.setEnabled('claude', true) })
+  await waitFor(() => expect(tray.mock.calls.at(-1)?.[3]).toBe('claude'))
+ })
+})
+
 describe('popover landing', () => {
   beforeEach(() => {
     resetHost()

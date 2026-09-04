@@ -4,11 +4,13 @@ package fetch
 
 import (
 	"context"
+	"errors"
 	"os"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/WD-Mitchell/which-model/internal/config"
 	"github.com/WD-Mitchell/which-model/internal/usage"
 )
 
@@ -140,4 +142,97 @@ func dirNames(t *testing.T, dir string) []string {
 		names = append(names, e.Name())
 	}
 	return names
+}
+
+func TestCodexBarWorkerDeadline(t *testing.T) {
+	for _, tc := range []struct {
+		name                         string
+		timeout, parentTimeout, want time.Duration
+	}{
+		{"explicit", 5 * time.Second, 0, 5 * time.Second},
+		{"default", 0, 0, 10 * time.Second},
+		{"parent earlier", 10 * time.Second, 5 * time.Second, 5 * time.Second},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cacheDir := t.TempDir()
+			ctx := context.Background()
+			if tc.parentTimeout > 0 {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, tc.parentTimeout)
+				defer cancel()
+			}
+			stubCodexBar(t, func(ctx context.Context, id string, _ usage.Source) (usage.Snapshot, error) {
+				deadline, ok := ctx.Deadline()
+				if !ok {
+					t.Error("provider context has no deadline")
+				} else if remaining := time.Until(deadline); remaining > tc.want || remaining < tc.want-time.Second {
+					t.Errorf("provider budget=%v want approximately %v", remaining, tc.want)
+				}
+				return usage.Snapshot{Provider: id}, nil
+			})
+			_, _, err := FetchAll(ctx, []string{"codex"}, Options{Backend: config.UsageBackendCodexBar, Enabled: map[string]bool{"codex": true}, CacheDir: cacheDir, Timeout: tc.timeout})
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestCodexBarTimeoutPreservesSibling(t *testing.T) {
+	stubCodexBar(t, func(ctx context.Context, id string, _ usage.Source) (usage.Snapshot, error) {
+		if id == "claude" {
+			return usage.Snapshot{Provider: id}, nil
+		}
+		// A bounded guard keeps the red-phase test safe before worker deadlines exist.
+		guard := time.NewTimer(500 * time.Millisecond)
+		defer guard.Stop()
+		select {
+		case <-ctx.Done():
+			return usage.Snapshot{}, errors.New("synthetic-secret must not leak")
+		case <-guard.C:
+			return usage.Snapshot{}, errors.New("worker deadline was absent")
+		}
+	})
+	dir := t.TempDir()
+	snaps, _, err := FetchAll(context.Background(), []string{"codex", "claude"}, Options{Backend: config.UsageBackendCodexBar, Enabled: map[string]bool{"codex": true, "claude": true}, CacheDir: dir, Timeout: 10 * time.Millisecond})
+	if err != nil || len(snaps) != 2 {
+		t.Fatalf("batch failed: err=%v snapshots=%d", err, len(snaps))
+	}
+	if snaps[0].Provider != "claude" || snaps[0].Failure != nil {
+		t.Errorf("successful sibling lost: %+v", snaps[0])
+	}
+	if snaps[1].Failure == nil || snaps[1].Failure.Code != "timeout" || snaps[1].Failure.Message != "codexbar usage request timed out" {
+		t.Errorf("expected sanitized timeout: %+v", snaps[1].Failure)
+	}
+	entries := dirNames(t, dir)
+	if !reflect.DeepEqual(entries, []string{"claude.json"}) {
+		t.Errorf("timeout must not be cached: %v", entries)
+	}
+}
+
+func TestCodexBarParentCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stubCodexBar(t, func(ctx context.Context, id string, _ usage.Source) (usage.Snapshot, error) {
+		cancel()
+		<-ctx.Done()
+		return usage.Snapshot{}, ctx.Err()
+	})
+	_, _, err := FetchAll(ctx, []string{"codex"}, Options{Backend: config.UsageBackendCodexBar, Enabled: map[string]bool{"codex": true}, CacheDir: t.TempDir()})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("batch cancellation = %v", err)
+	}
+}
+
+func TestCodexBarParentDeadlineIsBatchError(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	stubCodexBar(t, func(ctx context.Context, id string, _ usage.Source) (usage.Snapshot, error) {
+		<-ctx.Done()
+		return usage.Snapshot{}, ctx.Err()
+	})
+	snaps, _, err := FetchAll(ctx, []string{"codex"}, Options{Backend: config.UsageBackendCodexBar, Enabled: map[string]bool{"codex": true}, CacheDir: t.TempDir(), Timeout: time.Second})
+	if !errors.Is(err, context.DeadlineExceeded) || len(snaps) != 1 || snaps[0].Failure == nil || snaps[0].Failure.Code != "timeout" {
+		t.Fatalf("parent deadline did not propagate with timeout snapshot: err=%v snapshots=%+v", err, snaps)
+	}
 }
