@@ -191,3 +191,21 @@ func TestCatalogWorkflowOutOverride(t *testing.T) {
 		t.Fatalf("check --out exit = %d; stderr=%s", code, stderr)
 	}
 }
+
+func TestCatalogWorkflowCustomRawPathAndSiblings(t *testing.T) {
+	_, path := workflowRepo(t, "enabled = true\n")
+	if err := os.WriteFile(path, []byte("[catalog]\nraw_csv_path = \"custom raw.csv\"\nscores_csv_path = \"custom scores.csv\"\ncache_ttl = \"12h\"\n[catalog.publish]\nenabled = true\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	code, _, stderr := captureExecuteFresh(t, []string{"catalog", "workflow", "--config", path})
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	data, err := os.ReadFile(".github/workflows/refresh-model-data.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "custom raw.csv") {
+		t.Fatalf("configured staging path missing: %s", data)
+	}
+}

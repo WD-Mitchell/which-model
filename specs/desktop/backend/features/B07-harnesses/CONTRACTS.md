@@ -124,3 +124,9 @@ All seeded with `builtin = true`. Seed provider lists mirror the mockup's `hp` i
 9. **Spawn success**: `$SHELL=/bin/sh`, command `echo ok`; Launch returns `{Copied:false}`, `<StateDir>/launch.log` eventually contains `ok`, recordPick called once (unix-only test; skipped on Windows).
 
 Every mutation test asserts exactly one event via the B02 recorder; read/validation-failure paths assert zero (B00 §6.5).
+
+## Review correction — #178: preserve enabled overrides
+
+Save of an existing harness, SetProvider, and SetAllProviders preserve its stored `Enabled` pointer exactly: nil means installation detection, false explicitly disables, true explicitly enables. A new custom harness starts with nil; only SetEnabled changes the override. The derived boolean in HarnessInfo is not a persistence override.
+
+Pinned regression: `TestHarnessEditsPreserveEnabledOverride` covers all nine edit × nil/false/true combinations through persisted reload.

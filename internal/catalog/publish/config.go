@@ -2,6 +2,7 @@ package publish
 
 import (
 	"fmt"
+	"github.com/WD-Mitchell/which-model/internal/catalog"
 	"strconv"
 	"strings"
 )
@@ -17,20 +18,7 @@ func (e *ValidationError) ExitCode() int { return 2 }
 
 // PublishConfig mirrors [catalog.publish] plus the raw CSV path staged by the
 // generated workflow.
-type PublishConfig struct {
-	Enabled       bool     `toml:"enabled"`
-	Schedule      string   `toml:"schedule"`
-	Timezone      string   `toml:"timezone"`
-	Environment   string   `toml:"environment"`
-	Branches      []string `toml:"branches"`
-	Mode          string   `toml:"mode"` // "pull-request" | "direct-push"
-	AutoMerge     bool     `toml:"auto_merge"`
-	MergeMethod   string   `toml:"merge_method"` // "squash" | "merge" | "rebase"
-	CommitMessage string   `toml:"commit_message"`
-	PRTitle       string   `toml:"pr_title"`
-	PRLabels      []string `toml:"pr_labels"`
-	RawCSVPath    string   `toml:"-"` // from [catalog].raw_csv_path; blank -> default
-}
+type PublishConfig = catalog.PublishConfig
 
 // Defaults (annex-b §8.1; SPEC behaviour 2).
 const (
@@ -68,22 +56,16 @@ func NewDefaults() *PublishConfig {
 	}
 }
 
-// Load reads [catalog.publish] and [catalog].raw_csv_path, applies defaults for
+// Load decodes the complete [catalog] schema, applies publishing defaults for
 // absent keys, and runs Validate. Missing section = all defaults. Returns typed
 // errors (→ exit 2).
 func Load(cfg UnmarshalKeyer) (*PublishConfig, error) {
-	pc := NewDefaults()
-	if err := cfg.UnmarshalKey("catalog.publish", pc); err != nil {
+	cc := catalog.Config{Publish: *NewDefaults()}
+	if err := cfg.UnmarshalKey("catalog", &cc); err != nil {
 		return nil, err
 	}
-	// UnmarshalKey on a missing key leaves the out value untouched (F01
-	// pin), so NewDefaults() already seeded everything; a present but
-	// empty branches=[] must still error in Validate.
-	var rawPath string
-	if err := cfg.UnmarshalKey("catalog.raw_csv_path", &rawPath); err != nil {
-		return nil, err
-	}
-	pc.RawCSVPath = firstNonEmpty(rawPath, "data/available_model_raw_values.csv")
+	pc := &cc.Publish
+	pc.RawCSVPath = firstNonEmpty(cc.RawCSVPath, "data/available_model_raw_values.csv")
 	if err := Validate(pc); err != nil {
 		return nil, err
 	}

@@ -69,3 +69,19 @@ Depends on: S01 (scaffold, wails config), B02 (`service.New`, `StartRefresher`, 
 ## Review correction — #175: completed empty frontend ranking
 
 After a successful empty ranking, the popover calls `SetTrayPick("", "", "", "")`. This clears both recommendation lines and the provider icon while retaining frontend ownership. Host refresh must not substitute the default profile's recommendation. Initial pending queries and temporary query-key transitions publish nothing; a later successful nonempty rank restores the matching text and provider. Pinned regressions cover initial pending, valid → empty → valid, and frontend ownership after an empty push.
+
+
+## Shutdown lifecycle correction — #51
+
+Application shutdown first marks the application as quitting, then cancels the
+tracked tray startup fallback and popover focus-reclaim timers, and closes the
+event bridge. The normal ApplicationStarted callback cancels its fallback timer;
+hiding the popover cancels its pending focus timer. Focus callbacks check the
+show generation and quitting state before touching the window. Timer cancellation
+is idempotent. Closing the bridge is safe concurrently through sync.Once and
+signals its drain goroutine to exit; main also defers Close for early returns.
+Already-running callbacks retain their existing native-runtime lifetime constraints.
+
+Pinned regressions in cmd/which-model-desktop/shutdown_test.go verify repeated
+timer cancellation, hide cancellation, and concurrent bridge closure.
+Run: `go test -race ./cmd/which-model-desktop`.
