@@ -9,6 +9,7 @@ import { getHost } from './host'
 const INVALIDATION: Record<EngineEvent, QueryKey[]> = {
   'config:changed': [
     ['profiles'],
+    ['profile'],
     ['providers'],
     ['provider'],
     ['harnesses'],
@@ -21,7 +22,7 @@ const INVALIDATION: Record<EngineEvent, QueryKey[]> = {
   'catalog:changed': [['groups'], ['group'], ['benchmarks'], ['benchmark'], ['model-score'], ['catalog-models'], ['catalog-model'], ['rank']],
   'usage:updated': [['usage'], ['providers']],
   'settings:changed': [['settings'], ['rank']],
-  'pick:recorded': [['profiles'], ['catalog-line']],
+  'pick:recorded': [['profiles'], ['profile'], ['catalog-line']],
 }
 
 const EVENTS = Object.keys(INVALIDATION) as EngineEvent[]

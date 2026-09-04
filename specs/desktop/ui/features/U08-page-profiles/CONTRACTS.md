@@ -108,3 +108,7 @@ Pinned regressions: duplicate contains pending weights; delete never recreates t
 Task controls use the sorted union of available catalogue group slugs and persisted keys seen during this editor session, independent of the sparse saved weights. Zero removes a saved task key while its row remains as ignored and can be raised again. Newly created empty profiles still expose task rows. Existing persisted controls remain available while group data is absent. The summary denominator is three core axes plus displayed task rows. Core weights remain 1–5. Configured custom groups use the category-aware backend vocabulary.
 
 Pinned regression: reducing a task weight to zero retains the same control, raising it again updates the draft, and immediate unmount persists the final value exactly once.
+
+## Review correction — #173: fresh saved details
+
+Configuration and recorded-pick events invalidate the mounted `profile` query prefix along with the profile list. Editors without a local draft render the refreshed saved weights and pick counts. Draft ownership follows the durable-save contract above, so a refresh cannot replace an in-flight local edit. The profile-prefix event regression verifies both saved edits and recorded-pick statistics are refetched.
