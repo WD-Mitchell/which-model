@@ -83,3 +83,11 @@ Editable task rows are the union of F10's twelve canonical categories, catalog
 group slugs, and keys already stored on the profile. Include
 `planning_capability` even when no group or existing weight exposes it. An
 empty new profile must allow every canonical task weight to be set.
+
+
+## List-action persistence correction — #172 review
+
+After leaving an editor, list-row duplicate and delete wait for that entity's
+outstanding autosave to finish. Thus duplication reads committed edits and
+deletion cannot be followed by a queued save recreating the entity. Profile
+list actions suppress duplicate submissions while waiting.

@@ -133,6 +133,17 @@ export function ProfilesPage({ detail, openDetail, closeDetail }: PageComponentP
   const toast = useToast()
   const { data: profiles } = useProfiles()
 
+  const pendingListActions = useRef(new Set<string>())
+  const [busyRows, setBusyRows] = useState(new Set<string>())
+  async function listAction(slug: string, action: () => Promise<unknown>) {
+    if (pendingListActions.current.has(slug)) return
+    pendingListActions.current.add(slug)
+    setBusyRows(new Set(pendingListActions.current))
+    try { await whenAutosaveIdle('profile:' + slug); await action() }
+    catch (e) { toast.show((e as { message?: string }).message ?? 'save failed') }
+    finally { pendingListActions.current.delete(slug); setBusyRows(new Set(pendingListActions.current)) }
+  }
+
   const profilesList = profiles ?? []
   const creatingRef = useRef(false)
   const [creating, setCreating] = useState(false)
@@ -239,11 +250,12 @@ export function ProfilesPage({ detail, openDetail, closeDetail }: PageComponentP
                   type="button"
                   className="btn btn-ghost"
                   style={{ fontSize: '11px', padding: '2px 6px' }}
+                  disabled={busyRows.has(p.slug)}
                   onClick={() =>
-                    void getHost()
+                    void listAction(p.slug, () => getHost()
                       .profiles.duplicate(p.slug)
                       .then(() => toast.show(`duplicated ${p.slug}`))
-                      .catch((e) => toast.show((e as { message?: string }).message ?? 'duplicate failed'))
+                      .catch((e) => toast.show((e as { message?: string }).message ?? 'duplicate failed')))
                   }
                 >
                   Duplicate
@@ -253,12 +265,12 @@ export function ProfilesPage({ detail, openDetail, closeDetail }: PageComponentP
                   className={'ib' + (p.builtin ? ' off' : '') + ' ' + styles.iconBtn}
                   title={p.builtin ? 'Built-in profile — cannot be deleted' : `Delete ${p.slug}`}
                   aria-label={p.builtin ? 'Built-in profile — cannot be deleted' : `Delete ${p.slug}`}
-                  disabled={p.builtin}
+                  disabled={p.builtin || busyRows.has(p.slug)}
                   onClick={() =>
-                    void getHost()
+                    void listAction(p.slug, () => getHost()
                       .profiles.delete(p.slug)
                       .then(() => toast.show(`deleted ${p.slug}`))
-                      .catch((e) => toast.show((e as { message?: string }).message ?? 'delete failed'))
+                      .catch((e) => toast.show((e as { message?: string }).message ?? 'delete failed')))
                   }
                 >
                   <TrashIcon size={12} />

@@ -99,3 +99,25 @@ it('offers canonical task controls on a profile with no saved task weights', asy
  await waitFor(async () => expect((await host.profiles.get('custom')).tier2_weights.planning_capability).toBe(1))
  cleanup(); vi.restoreAllMocks()
 })
+
+it('list delete waits for the previous editor save', async () => {
+ resetHost()
+ const { host } = await custom()
+ let release!: () => void
+ const original = host.profiles.save.bind(host.profiles)
+ vi.spyOn(host.profiles, 'save').mockImplementationOnce(async profile => {
+  await new Promise<void>(resolve => { release = resolve })
+  await original(profile)
+ })
+ const deleted = vi.spyOn(host.profiles, 'delete')
+ const editor = renderPage('custom')
+ fireEvent.keyDown(await screen.findByRole('slider', { name: 'intelligence' }), { key: 'ArrowLeft' })
+ editor.unmount()
+ const list = renderPage()
+ fireEvent.click(await screen.findByRole('button', { name: 'Delete custom' }))
+ expect(deleted).not.toHaveBeenCalled()
+ await act(async () => { release() })
+ await waitFor(() => expect(deleted).toHaveBeenCalledTimes(1))
+ await expect(host.profiles.get('custom')).rejects.toMatchObject({ code: 'not_found' })
+ list.unmount(); vi.restoreAllMocks()
+})
