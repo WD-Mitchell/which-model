@@ -6,6 +6,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/WD-Mitchell/which-model/internal/config"
 	"github.com/WD-Mitchell/which-model/internal/usage"
@@ -78,7 +79,11 @@ func TestFetchAllCodexBarInjectsManagedAntigravityOAuth(t *testing.T) {
 		return usage.Snapshot{}, nil
 	}
 	var injected string
-	codexbarFetchEnvironment = func(_ context.Context, provider string, _ usage.Source, environment map[string]string) (usage.Snapshot, error) {
+	codexbarFetchEnvironment = func(ctx context.Context, provider string, _ usage.Source, environment map[string]string) (usage.Snapshot, error) {
+		deadline, ok := ctx.Deadline()
+		if !ok || time.Until(deadline) > DefaultTimeoutSec {
+			t.Error("managed credential fetch needs the provider deadline")
+		}
 		injected = environment[antigravity.CredentialsEnvironment]
 		return usage.Snapshot{Provider: provider, Source: usage.SourceOAuth}, nil
 	}
@@ -96,5 +101,26 @@ func TestFetchAllCodexBarInjectsManagedAntigravityOAuth(t *testing.T) {
 	if !strings.Contains(injected, `"access_token":"managed-access"`) ||
 		!strings.Contains(injected, `"client_secret":"client-secret"`) {
 		t.Fatal("CodexBar did not receive the selected managed OAuth credential JSON")
+	}
+}
+
+func TestCodexBarManagedInjectionHonorsForcedSource(t *testing.T) {
+	token, err := antigravity.EncodeCredential(antigravity.Credentials{AccessToken: "synthetic-access", RefreshToken: "synthetic-refresh", ClientID: "synthetic-client", ClientSecret: "synthetic-secret"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := credential.ManagedStore{StateDir: t.TempDir()}
+	if err := store.Save("antigravity", token); err != nil {
+		t.Fatal(err)
+	}
+	for _, source := range []usage.Source{"", usage.SourceOAuth, usage.SourceAPI} {
+		environment := codexbarCredentialEnvironment(context.Background(), "antigravity", Options{Source: source, StateDir: store.StateDir, DisableManagedKeychain: true})
+		if source == usage.SourceAPI {
+			if len(environment) != 0 {
+				t.Error("forced API must not inject managed OAuth credential")
+			}
+		} else if len(environment) != 1 {
+			t.Errorf("matching/auto source %q should inject managed OAuth credential", source)
+		}
 	}
 }

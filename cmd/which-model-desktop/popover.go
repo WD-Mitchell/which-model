@@ -81,6 +81,9 @@ var (
 	popoverShowGen uint64
 	// popoverReclaimed makes the focus reclaim at most once per show.
 	popoverReclaimed bool
+	// popoverFocusTimer is the pending focus reclaim timer, tracked so it can
+	// be cancelled during hide and application shutdown.
+	popoverFocusTimer *time.Timer
 )
 
 // newPopoverWindow creates the hidden popover window with the S02 CONTRACTS §3
@@ -158,17 +161,20 @@ func reclaimPopoverFocus(w *application.WebviewWindow) {
 	}
 	popoverReclaimed = true
 	gen := popoverShowGen
-	popoverMu.Unlock()
-
-	time.AfterFunc(popoverFocusReclaim, func() {
+	if popoverFocusTimer != nil {
+		popoverFocusTimer.Stop()
+		popoverFocusTimer = nil
+	}
+	popoverFocusTimer = time.AfterFunc(popoverFocusReclaim, func() {
 		popoverMu.Lock()
 		stale := popoverShowGen != gen
 		popoverMu.Unlock()
-		if stale || !w.IsVisible() {
+		if stale || applicationIsQuitting() || !w.IsVisible() {
 			return
 		}
 		w.Focus()
 	})
+	popoverMu.Unlock()
 }
 
 // markPopoverShown records a show for the grace-period rule. Called on every
@@ -223,10 +229,26 @@ func showPopoverAt(tray *application.SystemTray, w *application.WebviewWindow) {
 // hidePopover hides the popover, never closing/destroying it (S02 SPEC §2.7).
 // Idempotent and nil-safe.
 func hidePopover(w *application.WebviewWindow) {
+	popoverMu.Lock()
+	if popoverFocusTimer != nil {
+		popoverFocusTimer.Stop()
+		popoverFocusTimer = nil
+	}
+	popoverMu.Unlock()
 	if w == nil {
 		return
 	}
 	w.Hide()
+}
+
+// cancelPopoverTimers stops the tracked focus reclaim timer, if any.
+func cancelPopoverTimers() {
+	popoverMu.Lock()
+	defer popoverMu.Unlock()
+	if popoverFocusTimer != nil {
+		popoverFocusTimer.Stop()
+		popoverFocusTimer = nil
+	}
 }
 
 // togglePopover flips the popover's visibility (hotkey path, S05 SPEC §2.1).

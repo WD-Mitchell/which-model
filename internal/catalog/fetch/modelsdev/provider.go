@@ -120,13 +120,18 @@ type providerRecord struct {
 // FetchModelsDevProvidersFrom fetches and maps the models.dev providers
 // endpoint at url. Records with status "deprecated" are dropped.
 func FetchModelsDevProvidersFrom(client *httpkit.Client, url string) ([]ProviderModel, error) {
+	return FetchModelsDevProvidersFromContext(context.Background(), client, url)
+}
+
+// FetchModelsDevProvidersFromContext propagates cancellation to the HTTP request.
+func FetchModelsDevProvidersFromContext(ctx context.Context, client *httpkit.Client, url string) ([]ProviderModel, error) {
 	client.SetAllowList([]string{url})
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, &fetch.Error{Code: "network", Err: err}
 	}
 	req.Header.Set("Accept", "application/json")
-	body, err := client.Do(context.Background(), req)
+	body, err := client.Do(ctx, req)
 	if err != nil {
 		return nil, wrapHTTPError(err)
 	}

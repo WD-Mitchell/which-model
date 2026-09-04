@@ -235,3 +235,15 @@ Per window: `Unlimited = (unlimited === true)`; `Remaining = remaining` (finite 
 3. F12's `AuthOAuthDeviceFlow` resolver for this provider MUST call `copilot.StartDeviceFlow` and `copilot.PollDeviceFlow` — no duplicated state machine (SPEC D11).
 4. F14 MUST invoke `Fetch` with the chain-resolved `Credential` (zero value when empty) under `context.WithTimeout(ctx, descriptor.Timeout)`; it reads `Snapshot.Failure` and never attaches codes itself. `Snapshot.Account` (verified login) is output-gated by F24's `--show-identity`.
 5. Provider failures are `(Snapshot{Provider:"copilot", Failure: ...}, nil)`; the `error` return is reserved for programming errors.
+
+## Snapshot knowledge correction (#182)
+
+Successful fetches set the existing `Snapshot.UsageKnown` field to whether any normalized window has `UsageKnown && !Synthetic` (global CONTRACTS §1.5). A real zero reading, credits-only reading, or unlimited known window counts; synthetic-only and failed snapshots remain false. This corrects an omitted aggregate assignment without changing canonical types or the JSON schema. The aggregate flag survives F14 live fetch, cache serialization/replay, and JSON output.
+
+| Snapshot contents | `usage_known` |
+|---|---|
+| Real positive or zero reading | `true` |
+| Real credits-only or unlimited known reading, when supported | `true` |
+| Mixed real and synthetic windows, when supported | `true` |
+| Synthetic-only windows, when supported | `false` |
+| Provider failure | `false` |

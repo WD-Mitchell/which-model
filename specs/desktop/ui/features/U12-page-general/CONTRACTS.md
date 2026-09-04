@@ -51,3 +51,17 @@ export function GeneralPage(props: PageComponentProps): JSX.Element
 - **Select dimming.** With `auto_update: false` the Check-for-updates row has opacity `.38`; with `true`, opacity `1`; changing the select still fires while dimmed.
 - **No redundant writes.** Clicking the selected seg option / selected swatch fires no `set`.
 - Swatch visuals: selected swatch has the 1.5px accent ring and opacity 1; unselected has opacity .55.
+
+
+## Persistence correction — #41 review
+
+General-page writes are FIFO. Each action reads the host's latest committed
+settings immediately before applying its patch; a failed write reports an error
+and does not prevent the next action. Toggle actions invert the latest saved
+value. Displayed settings continue to come from the invalidated settings query.
+Official and Local Only persist on selection. Only an incomplete Self-Hosted
+repository is a temporary draft; blur commits its repository and disables local
+collection. Saving a nonempty AA key enables local collection. These rules
+supersede any instruction to spread a potentially stale rendered settings value.
+Pinned regressions: source selection without blur; delayed first write followed
+by a different setting; a rejected write followed by a successful write.

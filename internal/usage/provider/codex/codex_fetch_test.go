@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	canaryToken = "canary-secret-token-123"
-	canaryAcct  = "acct-synthetic"
+	canaryToken  = "canary-secret-token-123"
+	canaryAcct   = "acct-synthetic"
 	fixtureCase6 = `{"rate_limit":{"primary_window":{"used_percent":20,"reset_at":1900000000}}}`
 )
 
@@ -309,5 +309,32 @@ func TestFetchNetworkError(t *testing.T) {
 	}
 	if snap.Failure == nil || snap.Failure.Code != "network" || snap.Failure.Message != "The provider request failed." {
 		t.Fatalf("Failure = %+v, want network", snap.Failure)
+	}
+}
+
+func TestFetchSnapshotUsageKnown(t *testing.T) {
+	for _, tc := range []struct {
+		name, body string
+		status     int
+		known      bool
+	}{
+		{"positive", fixtureCase6, 200, true},
+		{"zero", `{"rate_limit":{"primary_window":{"used_percent":0}}}`, 200, true},
+		{"credits only", `{"credits":{"balance":0}}`, 200, true},
+		{"failure", fixtureCase6, 401, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			writeAuth(t, `{"tokens":{"access_token":"`+canaryToken+`","account_id":"`+canaryAcct+`"}}`)
+			snap, err := Fetch(context.Background(), usage.Credential{}, &http.Client{Transport: &stubTransport{fn: canned(tc.status, tc.body)}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if snap.UsageKnown != tc.known {
+				t.Errorf("snapshot known=%v want=%v", snap.UsageKnown, tc.known)
+			}
+			if (snap.Failure != nil) != (tc.status != 200) {
+				t.Errorf("unexpected failure: %v", snap.Failure)
+			}
+		})
 	}
 }

@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/WD-Mitchell/which-model/internal/security"
@@ -187,6 +188,7 @@ func Fetch(ctx context.Context, cred usage.Credential, client *http.Client) (usa
 	return usage.Snapshot{
 		Provider:   "claude",
 		Windows:    windows,
+		UsageKnown: slices.ContainsFunc(windows, func(w usage.Window) bool { return w.UsageKnown && !w.Synthetic }),
 		FetchedAt:  now,
 		Source:     usage.SourceOAuth,
 		Confidence: "live",
