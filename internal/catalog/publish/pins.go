@@ -1,4 +1,4 @@
 package publish
 
-// CheckoutPin is actions/checkout v6.0.2.
-const CheckoutPin = "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
+// CheckoutPin is actions/checkout v7.0.1.
+const CheckoutPin = "3d3c42e5aac5ba805825da76410c181273ba90b1"
