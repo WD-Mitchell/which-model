@@ -297,3 +297,23 @@ func TestCodexBarConsecutiveOnlineCallsUseCache(t *testing.T) {
 		t.Fatalf("two online calls invoked provider %d times, want 1", calls)
 	}
 }
+
+func TestCodexBarForcedSourceRejectsDifferentCacheProvenance(t *testing.T) {
+	dir := t.TempDir()
+	store := cache.Store{Dir: dir}
+	if err := store.Write("codex", usage.Snapshot{Provider: "codex", FetchedAt: time.Now(), Source: usage.SourceOAuth}); err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	stubCodexBar(t, func(_ context.Context, provider string, source usage.Source) (usage.Snapshot, error) {
+		calls++
+		if source != usage.SourceCLI {
+			t.Fatalf("source = %s", source)
+		}
+		return usage.Snapshot{Provider: provider, Source: source}, nil
+	})
+	_, _, err := FetchAll(context.Background(), []string{"codex"}, Options{Backend: config.UsageBackendCodexBar, Enabled: map[string]bool{"codex": true}, CacheDir: dir, Source: usage.SourceCLI})
+	if err != nil || calls != 1 {
+		t.Fatalf("calls = %d err = %v", calls, err)
+	}
+}

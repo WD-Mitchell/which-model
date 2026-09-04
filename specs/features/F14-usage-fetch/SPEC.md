@@ -73,3 +73,19 @@ Each live CodexBar worker has a context timeout of positive `Options.Timeout` or
 Following #28 source validation, a nonempty forced source constrains actual credentials, including managed fallback: after resolution and before native `Fetch`, `SourceFor(cred, desc.Kind)` must match or return fixed `login_required` with no external fetch. CodexBar managed credential injection is likewise limited to matching sources. Auto mode retains existing precedence. Online cache reuse under a forced non-cache source requires matching original stored `Snapshot.Source` before stamping `SourceCache`; unknown or mismatched provenance is a miss. Explicit cache source and offline mode retain their cache-only behavior.
 
 This correction changes credential eligibility; #184 requires human codeowner review before merge.
+
+## Managed lookup deadline correction — #181 review
+
+The provider budget bounds managed keychain lookup as well as the CodexBar
+process. Because the OS keychain interface cannot cancel an active prompt,
+return on context cancellation and discard the late result; permit at most four
+outstanding such calls process-wide. Do not launch CodexBar after the lookup
+exhausts the budget. Pin blocked-keychain deadline and earlier-parent tests.
+
+
+## Cache source correction — #180 review
+
+Before reusing an online CodexBar cache entry for an explicitly requested source,
+compare its original source with the request. Only then stamp the returned
+snapshot as cached. A mismatching cache entry causes live collection with the
+requested source. Explicit cache-only reads retain their existing policy.
