@@ -6,7 +6,7 @@ import { screen, render, act, fireEvent, cleanup, waitFor, within } from '@testi
 
 afterEach(() => cleanup())
 import { createMockEngineHost } from '@which-model/core/mock'
-import type { EngineHost } from '@which-model/core'
+import type { EngineHost, ProviderAccount } from '@which-model/core'
 import { ToastProvider } from '@which-model/ui'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { resetHost } from '../../../lib/host'
@@ -577,5 +577,58 @@ describe('Providers page account setup', () => {
       { name: 'Production', kind: 'token', ref: 'which-model' },
     ])
     expect(JSON.stringify(detail)).not.toContain('sk-ui-canary-123')
+  })
+
+  it('keeps the newest pending accounts and serializes saves when earlier save resolves late', async () => {
+    await host.providers.setAccounts('claude', [
+      { name: 'Work', kind: 'oauth', ref: 'creds' },
+      { name: 'Play', kind: 'oauth', ref: '' },
+    ])
+    const realSetAccounts = host.providers.setAccounts.bind(host.providers)
+    const inFlight: Array<{ id: string; accounts: ProviderAccount[]; resolve: () => void }> = []
+    vi.spyOn(host.providers, 'setAccounts').mockImplementation((id, accounts) => {
+      return new Promise<void>((resolve) => {
+        inFlight.push({ id, accounts: accounts.map((a) => ({ ...a })), resolve })
+      })
+    })
+    await openProviderDetail(host, 'claude')
+    expect(await screen.findByText('Work')).toBeDefined()
+    expect(screen.getByText('Play')).toBeDefined()
+
+    // Delete both accounts back to back.
+    fireEvent.click(screen.getByTitle('Remove Work'))
+    await waitFor(() => expect(screen.queryByText('Work')).toBeNull())
+    fireEvent.click(screen.getByTitle('Remove Play'))
+    await waitFor(() =>
+      expect(
+        screen.getByText('No accounts yet. Add an account to authenticate this provider.'),
+      ).toBeDefined(),
+    )
+    // The first call is in flight.
+    expect(inFlight.length).toBe(1)
+    expect(inFlight[0].accounts).toEqual([{ name: 'Play', kind: 'oauth', ref: '' }])
+
+    // Resolving the first call allows the serialized second call to fire.
+    const older = inFlight[0]
+    await act(async () => {
+      await realSetAccounts(older.id, older.accounts)
+      older.resolve()
+    })
+    // UI still shows No accounts yet (not snapped back to Play).
+    await waitFor(() => expect(screen.queryByText('Play')).toBeNull())
+    await waitFor(() => expect(screen.queryByText('Work')).toBeNull())
+
+    // Second call is now dispatched in serialized order.
+    await waitFor(() => expect(inFlight.length).toBe(2))
+    expect(inFlight[1].accounts).toEqual([])
+
+    // Resolving the second call completes persistence.
+    const newer = inFlight[1]
+    await act(async () => {
+      await realSetAccounts(newer.id, newer.accounts)
+      newer.resolve()
+    })
+    const detail = await host.providers.detail('claude')
+    expect(detail.accounts).toEqual([])
   })
 })

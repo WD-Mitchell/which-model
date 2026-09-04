@@ -778,6 +778,8 @@ function AccountsSection({
   onError(message: string): void
 }) {
   const [pendingAccounts, setPendingAccounts] = useState<ProviderAccount[] | null>(null)
+  const commitSeq = useRef(0)
+  const saveChain = useRef<Promise<void>>(Promise.resolve())
   const rows = pendingAccounts ?? accounts
   const [addOpen, setAddOpen] = useState(false)
   const [accountName, setAccountName] = useState('')
@@ -810,13 +812,20 @@ function AccountsSection({
 
   const replaceAccounts = useCallback(
     (next: ProviderAccount[]) => {
+      const seq = ++commitSeq.current
       setPendingAccounts(next)
-      void getHost()
-        .providers.setAccounts(id, next)
-        .then(() => setPendingAccounts(null))
+      saveChain.current = saveChain.current
+        .then(() => getHost().providers.setAccounts(id, next))
+        .then(() => {
+          if (commitSeq.current === seq) {
+            setPendingAccounts(null)
+          }
+        })
         .catch((error) => {
-          setPendingAccounts(null)
-          onError(errText(error, 'could not save accounts'))
+          if (commitSeq.current === seq) {
+            setPendingAccounts(null)
+            onError(errText(error, 'could not save accounts'))
+          }
         })
     },
     [id, onError],
