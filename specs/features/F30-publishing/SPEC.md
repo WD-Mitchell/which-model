@@ -9,7 +9,7 @@ project: which-model
 
 ## Purpose
 
-The deterministic generator `which-model catalog workflow --write|--check` renders `.github/workflows/refresh-model-data.yml` from `[catalog.publish]`. The generated Action invokes the standalone `scripts/refresh-model-data.py`, which discovers every models.dev provider and the union of every models.dev benchmark plus every supported Artificial Analysis benchmark, without checked-in provider or benchmark configuration, and updates only `available-model-data-export/available_model_raw_values.csv`. Provider aliases that bridge previously separate identities are merged deterministically when their Artificial Analysis family does not conflict; when display name and provider ID match different AA families, display name wins. It never builds or invokes the Go application and never runs project tests.
+The deterministic generator `which-model catalog workflow --write|--check` renders `.github/workflows/refresh-model-data.yml` from `[catalog.publish]`. The generated Action invokes the standalone `.daily-update/refresh-model-data.py`, which discovers every models.dev provider and the union of every models.dev benchmark plus every supported Artificial Analysis benchmark, without checked-in provider or benchmark configuration, and updates the configured raw CSV and its generated score CSV as one verified pair. Provider aliases that bridge previously separate identities are merged deterministically when their Artificial Analysis family does not conflict; when display name and provider ID match different AA families, display name wins. It runs the Python score generator and Python tests against that same configured pair before staging either artifact; it does not build or invoke the Go application.
 
 ## Behaviour
 
@@ -20,7 +20,7 @@ The deterministic generator `which-model catalog workflow --write|--check` rende
    - `--write` and `--check` are mutually exclusive → both given is an invocation error, exit `2` (annex-d §2.3a).
    - `--out PATH` overrides the output path; default is `<repoRoot>/.github/workflows/refresh-model-data.yml`, where `repoRoot` = nearest ancestor of cwd containing `.git/` (self-contained upward walk — no F28 dependency; `docs/plan/annex-d-cli-reference.md` §2.3 `--out` row).
 
-2. **`[catalog.publish]` config ownership** (annex-b §8.1 verbatim; DECISION B): F30 owns `internal/catalog/publish/config.go` — `PublishConfig` + `Load`, reading via F01's `cfg.UnmarshalKey("catalog.publish", &pc)` (dotted key; missing key = zero value). Missing section → all defaults apply; an explicitly present `branches = []` is a validation error. Defaults:
+2. **`[catalog.publish]` config ownership** (annex-b §8.1 verbatim; DECISION B): F30 owns `internal/catalog/publish/config.go` — `PublishConfig` (alias of `catalog.PublishConfig`) + `Load`, decoding the shared root with `cfg.UnmarshalKey("catalog", &cc)` after seeding `cc.Publish` defaults. Missing section → all defaults apply; an explicitly present `branches = []` is a validation error. Defaults:
 
    | key | default |
    |---|---|
@@ -36,7 +36,7 @@ The deterministic generator `which-model catalog workflow --write|--check` rende
    | `pr_title` | `"chore(data): refresh available model scores"` |
    | `pr_labels` | `["data", "automated"]` |
 
-   F30 also reads `[catalog].raw_csv_path` (blank → `available-model-data-export/available_model_raw_values.csv`) as the sole `git add` path in the generated workflow.
+   F30 also reads `[catalog].raw_csv_path` (blank → `data/available_model_raw_values.csv`) and `[catalog].scores_csv_path` (blank → `data/available_model_scores.csv`) as the paired `git add` paths in the generated workflow.
 
 3. **Validation** (all errors are typed, mapped to exit `2`):
    - `schedule`: exactly 5 whitespace-separated fields (minute, hour, day-of-month, month, day-of-week). Per-field tokens: `*`, single number, `A-B` range, `*/N` step, `A-B/N`, or comma-lists of those. Bounds: minute 0–59, hour 0–23, day-of-month 1–31, month 1–12, day-of-week 0–6; month/day-of-week also accept the 3-letter English names (case-insensitive) as single tokens or list elements (`JAN`..`DEC`, `SUN`..`SAT`), never inside ranges/steps. Reject: 6-field (seconds) crons, `@`-keywords (`@daily`, `@hourly`, …), empty fields, out-of-bounds numbers, names in ranges/steps. Decision recorded in `## Decisions` (grammar is the GitHub Actions documented subset).
@@ -54,7 +54,7 @@ The deterministic generator `which-model catalog workflow --write|--check` rende
    - `permissions:` — mode-dependent least privilege (Decision): `pull-request` → `contents: write` + `pull-requests: write` (needed for `gh pr create`); `direct-push` → `contents: write` only.
    - `concurrency:` — group `refresh-model-data` constant (Decision: the §8.7 excerpt's `refresh-model-data-main` hardcodes the default branch; the constant name is branch-agnostic), `cancel-in-progress: false`.
    - One job `refresh`: `runs-on: ubuntu-latest`, `timeout-minutes: 15`; optional `environment: "<environment>"` when configured; `strategy.fail-fast: false` with `matrix.branch: [<branches in listed order>]` and comment `# from [catalog.publish].branches, listed order` (annex-b §8.3).
-   - Steps in order: pinned `actions/checkout`, using optional `CSV_UPDATE_TOKEN` with `github.token` fallback; `python3 scripts/refresh-model-data.py` with `env: ARTIFICIAL_ANALYSIS_API: ${{ secrets.ARTIFICIAL_ANALYSIS_API }}`; the `changes` step (`id: changes`, `git add -- <raw>` + the unchanged diff check); commit, publish, and outcome steps. The workflow contains no Go setup, build, test, `which-model` invocation, provider config, benchmark config, or scores CSV staging.
+   - Steps in order: pinned `actions/checkout`, using optional `CSV_UPDATE_TOKEN` with `github.token` fallback; `python3 .daily-update/refresh-model-data.py --output <quoted raw>` with `env: ARTIFICIAL_ANALYSIS_API: ${{ secrets.ARTIFICIAL_ANALYSIS_API }}`; Python score generation with the configured raw/scores paths followed by the Python test suite; the `changes` step (`id: changes`, `git add -- <quoted raw> <quoted scores>` + the unchanged diff check); commit, publish, and outcome steps. The workflow contains no Go setup, build, test, `which-model` invocation, provider config, or benchmark config; score generation and Python tests precede staging both CSVs.
 
 5. **Publish modes** (annex-b §8.4; `mode` selects per invocation, not per branch):
    - `pull-request`: assign the unique branch `head_branch="refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}"`, push the generated commit, then create the PR using `${{ secrets.CSV_UPDATE_TOKEN || github.token }}`. When `CSV_UPDATE_TOKEN` is present, the PAT-authored PR is approved by `github.token`; this keeps the PAT repository-scoped while satisfying protected branches that require an approval. When `auto_merge` is true, run `gh pr merge --auto --<merge_method> "${head_branch}"` as step `id: merge`. Auto-merge still waits for every required status check.
@@ -111,7 +111,7 @@ The deterministic generator `which-model catalog workflow --write|--check` rende
 | `auto_merge` / `merge_method` in `direct-push` mode | Validated for type/enum, then ignored (no error) | annex-b §8.1 says auto_merge is "pull-request mode only"; ignoring keeps configs toggle-friendly |
 | `mode` selection | Per invocation, never per branch | annex-b §8.4 verbatim |
 | Empty `branches = []` | Validation error, exit 2 | An explicit empty list is ambiguous; default only applies when the key is absent |
-| Artifact path in `git add` | From `[catalog].raw_csv_path`, defaulting to `available-model-data-export/available_model_raw_values.csv` | The master refresh publishes the checked-in raw source values |
+| Artifact paths in `git add` | From `[catalog].raw_csv_path` and `.scores_csv_path`, defaulting to `data/available_model_raw_values.csv` and `data/available_model_scores.csv` | The master refresh publishes raw source values and their deterministically generated scores together |
 | Repo-root resolution | `--out` wins; else nearest `.git` ancestor of cwd | Annex-d §2.3 `--out` default; self-contained |
 | `gh pr merge --auto` | Emitted as `id: merge` when `auto_merge`; merge method verbatim | Branch protection and required checks remain enforced; a configured PAT authors the PR and `github.token` supplies the distinct approval |
 | Outcome vocabulary | PR mode: `auto-merge-enabled`; direct-push: `published`; both: `skipped-no-changes` / `failed` | Never claim a deferred PR was already published; key the report to the actual mode step outcome |
@@ -124,3 +124,41 @@ The deterministic generator `which-model catalog workflow --write|--check` rende
 - Usage refresh in CI (annex-b §8.5 — deliberately absent).
 - `workflow_dispatch` input parameters, schedules other than the literal cron, and Actions version upgrades beyond the two pinned actions.
 - The `--out` flag for other `catalog` subcommands (F23-owned).
+
+### Shared catalog schema correction (#166)
+
+All catalog consumers decode the complete `catalog` table through F01's strict,
+table-only `UnmarshalKey`. `internal/catalog.Config` owns all existing catalog
+fields plus `Publish PublishConfig` (`toml:"publish"`); `catalog.PublishConfig`
+owns the existing nested publishing fields. `whichmodel.CatalogConfig` and
+`publish.PublishConfig` remain public aliases. Unknown catalog and publish keys
+are errors; valid nested publishing settings coexist with configured raw/scores
+paths, including environment-only overrides. Publishing seeds nested defaults,
+then reads raw artifact paths from the decoded root. Pick validates catalog
+configuration before loading scores and propagates config errors as exit 2.
+Empty consumer paths retain their previous defaults. This corrects scalar
+accessor guidance that contradicted F01's table-only contract.
+
+### Paired artifact publication correction (#165)
+
+This supersedes the former raw-only publication decision. Each refresh produces
+and publishes a coherent raw/scores pair. The standalone Python refresh receives
+`--output <RawCSVPath>`; `generate_scores.py` receives `--input <RawCSVPath>` and
+`--output <ScoresCSVPath>`. Before staging either artifact, run
+`python3 -m unittest discover -s .daily-update/tests -v`. Generation or test failure
+aborts publication. Both artifact arguments are shell-quoted consistently across
+refresh, generation, and staging. Equal normalized destinations are invalid.
+The score publication default is `data/available_model_scores.csv`, distinct from
+the CLI's cache-path default. PR CI runs the Python suite, preserving deterministic
+regeneration checks. The generator retains Python Decimal/schema behavior and
+requires no Go runtime. Checkout pins in the renderer, golden, and committed
+workflow remain synchronized. Regression cases cover custom paths, stage ordering,
+generator failure before staging, and repeat generation matching committed bytes.
+
+
+## Legacy run_tests compatibility — #167 review
+
+Accept the documented `catalog.publish.run_tests` boolean, including its
+environment override, as a legacy compatibility option. The option has no effect on the generated workflow; F30 governs its verification
+steps. Paired-artifact verification is introduced by #165. This supersedes the former
+conditional-test option without rejecting existing configurations.

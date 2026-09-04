@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/WD-Mitchell/which-model/internal/usage"
 )
@@ -242,5 +243,32 @@ func TestManagedStoreErrorsRedactKeychainDetails(t *testing.T) {
 	err := store.Remove("copilot")
 	if err == nil || strings.Contains(err.Error(), canary) {
 		t.Fatalf("Remove error = %v", err)
+	}
+}
+
+type blockingManagedKeychain struct {
+	fakeManagedKeychain
+	release chan struct{}
+}
+
+func (s *blockingManagedKeychain) Get(string, string) (string, error) {
+	<-s.release
+	return "late-token", nil
+}
+func TestManagedKeychainReadHonorsDeadline(t *testing.T) {
+	keychain := &blockingManagedKeychain{release: make(chan struct{})}
+	defer close(keychain.release)
+	store := ManagedStore{StateDir: t.TempDir(), UseKeychain: true, Keychain: keychain}
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Millisecond)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { _, _, err := store.Resolve(ctx, "claude"); done <- err }()
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("got %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("keychain read ignored deadline")
 	}
 }

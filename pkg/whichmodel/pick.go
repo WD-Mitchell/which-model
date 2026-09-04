@@ -897,6 +897,9 @@ func RunPick(args PickArgs, stdout, stderr io.Writer) error {
 	if err != nil {
 		return &UsageError{Message: err.Error()}
 	}
+	if _, err := loadCatalogConfig(cfg); err != nil {
+		return err
+	}
 	var strategyConfig strategy.Config
 	if err := cfg.UnmarshalKey("strategy", &strategyConfig); err != nil {
 		return &UsageError{Message: err.Error()}

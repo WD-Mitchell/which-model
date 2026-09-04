@@ -28,9 +28,10 @@ type emitBridge struct {
 	ch  chan emitMsg // capacity 64
 	tap func(string) // host-side listener (tray label refresh); called on the drain goroutine
 
-	app    *application.App
-	closed chan struct{}
-	once   sync.Once // guards SetApp starting the drain goroutine
+	app       *application.App
+	closed    chan struct{}
+	once      sync.Once // guards SetApp starting the drain goroutine
+	closeOnce sync.Once // guards closing the drain goroutine signal
 }
 
 // newEmitBridge returns a bridge that queues events until SetApp hands it the
@@ -63,14 +64,11 @@ func (b *emitBridge) Emit(name string, data any) {
 	}
 }
 
-// Close stops the drain goroutine. Idempotent.
+// Close stops the drain goroutine. Idempotent, including concurrent calls.
 func (b *emitBridge) Close() {
-	select {
-	case <-b.closed:
-		return
-	default:
+	b.closeOnce.Do(func() {
 		close(b.closed)
-	}
+	})
 }
 
 // drain delivers queued events. It runs until Close. For each event it first

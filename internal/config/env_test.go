@@ -196,3 +196,21 @@ func TestApplyEnv(t *testing.T) {
 		})
 	}
 }
+
+func TestEveryGenericEnvKeyHasRenderKind(t *testing.T) {
+	count := 0
+	for section, keys := range envSections {
+		if section == "usage" {
+			continue
+		}
+		for key := range keys {
+			count++
+			if envRenderKinds[section+"."+key] == 0 {
+				t.Errorf("no render kind: %s.%s", section, key)
+			}
+		}
+	}
+	if count != len(envRenderKinds) {
+		t.Fatalf("render kinds = %d, generic keys = %d", len(envRenderKinds), count)
+	}
+}

@@ -80,3 +80,9 @@ Depends on: B02 (Services core, sentinels, test helper). Consumes B04's `RecordP
 - Clipboard write for copy mode, toast, popover close — frontend (U05) and host (S05).
 - Harness auto-detection from each harness's own config files (mockup footnote "read from each harness' own config on launch") — follow-up; v1 detection is PATH-only.
 - Terminal-window spawning; Windows/Linux launch polish beyond compiling and basic spawn.
+
+## Review correction — #178: preserve enabled overrides
+
+Save of an existing harness, SetProvider, and SetAllProviders preserve its stored `Enabled` pointer exactly: nil means installation detection, false explicitly disables, true explicitly enables. A new custom harness starts with nil; only SetEnabled changes the override. The derived boolean in HarnessInfo is not a persistence override.
+
+Pinned regression: `TestHarnessEditsPreserveEnabledOverride` covers all nine edit × nil/false/true combinations through persisted reload.

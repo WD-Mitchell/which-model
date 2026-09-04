@@ -179,38 +179,30 @@ graph TD
 
    var (
        errUnknownHook   = errors.New("unknown hook")
-       errBadStdin      = errors.New("stdin fixture is not valid JSON")
+       errBadStdin      = errors.New("stdin is not valid JSON object")
    )
 
    // Run executes hook. Returns stdout bytes (possibly empty = fail-open
    // silence) or an error for exit-2-class conditions. Never errors for
    // underlying command failures (fail-open).
    func Run(name string, passthrough []string, opts Options) ([]byte, error) {
-       h, ok := Get(name)
-       if !ok {
-           return nil, errUnknownHook
-       }
-       code := 0
-       var out []byte
-       if len(opts.Stdin) > 0 {
-           if !json.Valid(opts.Stdin) {
-               return nil, errBadStdin
-           }
-           out = opts.Stdin // fixture replaces underlying stdout
-       } else {
-           runner := opts.Runner
-           if runner == nil {
-               runner = func([]string, io.Writer, io.Writer) int {
-                   // CLI layer always supplies ExecuteCommand; a nil runner
-                   // is a test authoring error — treat as failure (fail-open).
-                   return 1
-               }
-           }
-           var stdout, stderr bytes.Buffer
-           code = runner(h.Underlying(passthrough, opts.Env), &stdout, &stderr)
-           out = stdout.Bytes()
-       }
-       return dispatch(h, code, out, opts)
+    h, ok := Get(name)
+    if !ok {
+        return nil, errUnknownHook
+    }
+    input := bytes.TrimSpace(opts.Stdin)
+    if len(input) > 0 && (!json.Valid(input) || input[0] != '{') {
+        return nil, errBadStdin
+    }
+    runner := opts.Runner
+    if runner == nil {
+        // A missing command runner is an underlying failure, never success.
+        runner = func([]string, io.Writer, io.Writer) int { return 1 }
+    }
+    var stdout, stderr bytes.Buffer
+    code := runner(h.Underlying(passthrough, opts.Env), &stdout, &stderr)
+    out := stdout.Bytes()
+    return dispatch(h, code, out, opts)
    }
    ```
 2. Add the per-hook switch, starting with the two SessionStart hooks and error plumbing:
@@ -249,7 +241,7 @@ graph TD
    - same with `fakeRunner(5, "auth needed")` → empty bytes, nil error.
    - `Run("nonsense", nil, Options{})` → error equal to `errUnknownHook`.
    - `Run("usage-refresh", nil, Options{Stdin: []byte("not json")})` → error equal to `errBadStdin`.
-   - `Run("usage-refresh", nil, Options{Stdin: []byte(`{"anything":1}`)})` → the approve envelope (fixture path skips the runner entirely; assert the runner was NEVER called via a flag-closing fake).
+   - `Run("usage-refresh", nil, Options{Stdin: []byte(`{"anything":1}`), Runner: fakeRunner(0, `{"snapshots":[]}`)})` → the approve envelope (host context executes the runner exactly once; its result controls the envelope).
    - canary: `Run("usage-refresh", nil, Options{Stdin: []byte(`{"secret":"CANARY_XYZ"}`)})` → output bytes do NOT contain `CANARY_XYZ` (envelope is constant; canary rule, SPEC behaviour 12).
    - malformed run error messages: assert `errUnknownHook`/`errBadStdin` are the sentinel values (callers map them to exit 2).
 
@@ -262,7 +254,7 @@ graph TD
 | 3 | `usage-refresh`, runner exit 5 | empty output, nil error |
 | 4 | `Run("nonsense", …)` | error == `errUnknownHook` |
 | 5 | stdin `not json` | error == `errBadStdin` |
-| 6 | stdin valid JSON | approve envelope; runner not invoked |
+| 6 | stdin valid JSON | runner invoked once; only its result controls the envelope |
 | 7 | stdin containing `CANARY_XYZ` | envelope bytes lack `CANARY_XYZ` |
 
 **Acceptance criteria:**
@@ -322,7 +314,7 @@ graph TD
    ```
    (add `"fmt"` to the imports; `doc.Snapshots == nil` distinguishes a missing key from an empty array.)
 2. Add tests:
-   - fixture stdin (annex-c §4.1-shaped): `{"schema_version":"2.0","usage_enabled":true,"snapshots":[{"provider":"claude","confidence":"live","windows":[]},{"provider":"codex","confidence":"live","windows":[]}]}` → exact block envelope with `"critical_providers":["claude","codex"]` and reason `quota guard: 2 provider(s) at or above critical band`.
+   - runner stdout (annex-c §4.1-shaped): `{"schema_version":"2.0","usage_enabled":true,"snapshots":[{"provider":"claude","confidence":"live","windows":[]},{"provider":"codex","confidence":"live","windows":[]}]}` → exact block envelope with `"critical_providers":["claude","codex"]` and reason `quota guard: 2 provider(s) at or above critical band`.
    - fixture with empty array `{"snapshots":[]}` → approve envelope `no providers at or above critical band`.
    - fixture with duplicate providers → de-duplicated in first-seen order.
    - fixture missing `snapshots` key → empty output, nil error.
@@ -335,13 +327,13 @@ graph TD
 
 | # | input | want |
 |---|---|---|
-| 1 | stdin 2 providers | exact block envelope, providers in order |
-| 2 | stdin `{"snapshots":[]}` | exact approve envelope |
-| 3 | stdin duplicate providers | de-duplicated `critical_providers` |
-| 4 | stdin missing `snapshots` | empty output, nil error |
+| 1 | runner stdout 2 providers | exact block envelope, providers in order |
+| 2 | runner stdout `{"snapshots":[]}` | exact approve envelope |
+| 3 | runner stdout duplicate providers | de-duplicated `critical_providers` |
+| 4 | runner stdout missing `snapshots` | empty output, nil error |
 | 5 | runner exit 1 + valid stdout | empty output (fail-open) |
 | 6 | runner exit 0 + non-JSON stdout | empty output |
-| 7 | stdin with `CANARY_QUOTA` | envelope lacks it |
+| 7 | runner stdout with `CANARY_QUOTA` | envelope lacks it |
 | 8 | golden block envelope | byte-exact match |
 
 **Acceptance criteria:**
@@ -431,7 +423,7 @@ graph TD
    }
    ```
    Note `excluded_candidates` and `candidate` are carried as `json.RawMessage` (verbatim bytes inside the envelope — field names and values untouched, annex-c §4.2 fidelity).
-2. Add tests using fixture stdin (runner never called) and `fakeRunner` for exit codes:
+2. Add tests using fixtures returned by `fakeRunner` and `fakeRunner` for exit codes:
    - exit 0 with a 2-candidate pick fixture → approve envelope; `hookSpecificOutput.candidate` is the exact first candidate object bytes; reason `dispatch approved: cand-1`.
    - exit 0 with `"candidates":[]` → fail-open approve envelope with reason containing `exited 0`.
    - exit 4 with fixture `{"excluded_candidates":[{"route":{"provider":"claude"},"reason_code":"band_gated","reason":"at gate"},{"route":{"provider":"codex"},"reason_code":"auth_required","reason":"login"}]}` → block envelope; reason `all eligible providers band-gated: claude`; `hookSpecificOutput.excluded_candidates` is the verbatim array.
@@ -788,7 +780,7 @@ graph TD
    - `hooks install --target codex` → exit 2.
    - `hooks install` with no repo root and no `--repo` (run with cwd in a temp dir outside any git repo via `t.Chdir`) → exit 1.
    - `hooks remove --repo <tmp>` → exit 0; settings.json, manifest, toml absent (no trace).
-   - `hooks run usage-refresh` with stdin piped from a fixture file (run via the root's Execute with `SetIn` if the F22 harness supports it, else invoke `hooks.Run` directly through the command's RunE with `cmd.SetIn`) → stdout is exactly the approve envelope; exit 0.
+   - `hooks run usage-refresh` with a host event object on stdin and a hermetic usage fetcher (run via the root's Execute with `SetIn` if the F22 harness supports it, else invoke `hooks.Run` directly through the command's RunE with `cmd.SetIn`) → stdout is exactly the approve envelope; exit 0.
    - `hooks run nonsense` → exit 2, stderr contains `unknown hook`.
    - `hooks run usage-refresh` with stdin `not json` → exit 2, stderr contains `not valid JSON`.
    - Execute both SessionStart hooks with `hooks.Run(..., hooks.Options{Runner: ExecuteCommand})`, a fake F24 fetch result, and a real temp config. `usage-refresh` must emit its approve envelope and `quota-guard` must emit `critical_providers`; this test must exercise the real Cobra command tree so nonexistent subcommands/providers/flags fail.
@@ -819,3 +811,13 @@ graph TD
 - [ ] no file outside the Files list modified
 
 **Run:** `go test ./internal/hooks/... && go test ./pkg/whichmodel/...`
+
+## Pinned regressions — #162
+
+| Scenario | Result |
+|---|---|
+| Host context supplied to each hook | Runner executes once; context never leaks as output |
+| Empty or whitespace input | Normal execution |
+| Null, array, scalar or malformed context | Exit 2 before Runner |
+| Nested SessionStart CLI | Final envelope reaches the original output stream |
+| Outer offline/config/timeout with a later timeout override | Request policy reaches usage; later flags win |

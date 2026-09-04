@@ -58,7 +58,7 @@ function main() {
   download(`${base}/checksums.txt`)
     .then((checksums) => download(`${base}/${asset}`).then((body) => ({ checksums, body })))
     .then(({ checksums, body }) => {
-      const want = parseChecksum(checksums, asset);
+      const want = parseChecksum(checksums.toString("utf8"), asset);
       if (want === null) {
         throw new Error(`no checksum entry for ${asset} in checksums.txt`);
       }
