@@ -102,3 +102,11 @@ Each detail editor is keyed by slug and owns one serialized autosave queue. It r
 The persistence barrier is shared by entity identity across editor mounts. Reopening an entity waits for the prior mount's final write and refetches before accepting edits; duplicate/delete/rename also wait for outstanding persistence.
 
 Pinned regressions: duplicate contains pending weights; delete never recreates the profile; delayed completion/error retains a newer draft; delay a flushed write, navigate away and reopen, then edit again—the final saved snapshot includes both edits in order.
+
+
+## List-action persistence correction — #172 review
+
+After leaving an editor, list-row duplicate and delete wait for that entity's
+outstanding autosave to finish. Thus duplication reads committed edits and
+deletion cannot be followed by a queued save recreating the entity. Profile
+list actions suppress duplicate submissions while waiting.

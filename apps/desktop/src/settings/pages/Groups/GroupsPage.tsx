@@ -137,8 +137,7 @@ function GroupsListView({ openDetail }: { openDetail(d: Detail): void }) {
   // duplicating is how you get an editable version of a built-in group.
   const handleDuplicate = useCallback(
     (slug: string) => {
-      void getHost()
-        .catalog.duplicateGroup(slug)
+      void whenAutosaveIdle('group:' + slug).then(() => getHost().catalog.duplicateGroup(slug))
         .then((copy) => {
           toast.show(`editing ${copy.slug}`)
           openDetail({ kind: 'group', id: copy.slug })
@@ -150,8 +149,7 @@ function GroupsListView({ openDetail }: { openDetail(d: Detail): void }) {
 
   const handleDelete = useCallback(
     (slug: string) => {
-      void getHost()
-        .catalog.deleteGroup(slug)
+      void whenAutosaveIdle('group:' + slug).then(() => getHost().catalog.deleteGroup(slug))
         .then(() => toast.show(`deleted ${slug}`))
         .catch((e) => toast.show(errText(e, 'delete failed')))
     },
