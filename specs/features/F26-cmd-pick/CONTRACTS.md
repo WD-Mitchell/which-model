@@ -23,6 +23,10 @@ No config keys, no flags beyond the tables below are owned; F26 writes ONE state
 ```go
 // PickArgs is the fully-validated pick command input.
 type PickArgs struct {
+    Offline bool // Global.Offline
+    Refresh bool // Global.RefreshUsage
+    MaxAge time.Duration // Global.MaxAge
+    Timeout time.Duration // Global.Timeout
     Profile      string   // resolved profile id (after --task-category mapping)
     TaskCategory string   // raw --task-category (resolved in T2)
     Complexity   string   // raw --complexity
@@ -379,3 +383,7 @@ F26's seam `scoreFunc` (default `scoring.Score`) is injectable in tests; the inp
 - No credential material in any output; usage failure messages come from F14 sanitized (global SPEC §6.5); canary test covers the canonical `Failure` redaction boundary.
 - `explain` reveals only the recorded evidence — which never contains credentials (history record fields are fixed, §2).
 - History file is append-only; F26 never rewrites it (write failure → stderr warning, exit unaffected, SPEC D-12).
+
+## Usage request policy correction (#164)
+
+The private `pickFetchOptions` seam carries `Backend config.UsageBackend`, `Offline bool`, `Refresh bool`, `MaxAge time.Duration`, and `Timeout time.Duration`. `runPickE` copies normalized global flags into `PickArgs`; `RunPick` captures these and `cfg.Usage.Backend` once in per-run state. The production adapter forwards all five fields unchanged to F14 `fetch.Options`, alongside provider enablement and managed-auth settings. F14 owns offline/cache/deadline semantics. `--no-usage` skips this stage entirely.

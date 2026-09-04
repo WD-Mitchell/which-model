@@ -6,6 +6,7 @@ package whichmodel
 import (
 	"io"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -56,6 +57,10 @@ func runPickE(c *cobra.Command, args []string) error {
 		Allowlists:   available,
 		DryRun:       dryRun,
 		NoUsage:      Global.NoUsage,
+		Offline:      Global.Offline,
+		Refresh:      Global.RefreshUsage,
+		MaxAge:       Global.MaxAge,
+		Timeout:      Global.Timeout,
 		JSON:         Global.JSON || !stdoutIsTTY(out),
 		ConfigPath:   Global.ConfigPath,
 	}, out, c.ErrOrStderr())
@@ -74,13 +79,17 @@ var stdoutIsTTY = func(w io.Writer) bool {
 
 // PickArgs is the fully-validated pick command input (F26 CONTRACTS §2).
 type PickArgs struct {
-	Profile      string   // resolved profile id (after --task-category mapping)
-	TaskCategory string   // raw --task-category (resolved in T2)
-	Complexity   string   // raw --complexity
-	Strategy     string   // explicit --strategy wins, then strategy.default from config, then closest-to-reset (usage enabled) / priority (disabled)
-	Allowlists   []string // --available paths (raw, pre-read)
-	DryRun       bool     // --dry-run: round-robin reads the cursor without advancing
-	NoUsage      bool     // Global.NoUsage
-	JSON         bool     // Global.JSON; forced true when stdout is not a TTY
-	ConfigPath   string   // Global.ConfigPath
+	Offline      bool          // Global.Offline
+	Refresh      bool          // Global.RefreshUsage
+	MaxAge       time.Duration // Global.MaxAge
+	Timeout      time.Duration // Global.Timeout
+	Profile      string        // resolved profile id (after --task-category mapping)
+	TaskCategory string        // raw --task-category (resolved in T2)
+	Complexity   string        // raw --complexity
+	Strategy     string        // explicit --strategy wins, then strategy.default from config, then closest-to-reset (usage enabled) / priority (disabled)
+	Allowlists   []string      // --available paths (raw, pre-read)
+	DryRun       bool          // --dry-run: round-robin reads the cursor without advancing
+	NoUsage      bool          // Global.NoUsage
+	JSON         bool          // Global.JSON; forced true when stdout is not a TTY
+	ConfigPath   string        // Global.ConfigPath
 }

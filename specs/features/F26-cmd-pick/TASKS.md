@@ -421,3 +421,13 @@ graph TD
 - [ ] `go build -tags nousage ./pkg/whichmodel/...` succeeds
 - [ ] no file outside the Files list modified
 - [ ] all JSON field names in both docs match annex-c §4.2/§4.3 verbatim
+
+## Pinned regression rows — #164
+
+| Scenario | Assertion |
+|---|---|
+| CLI pick using each configured backend and explicit offline/refresh/MaxAge/timeout | Actual F14 adapter receives the exact backend and four normalized options |
+| Usage disabled | Fetch seam is never called; existing degraded-mode rows remain authoritative |
+| Offline plus targeted refresh | F14 cache-only path performs no provider I/O |
+
+The regression traverses Cobra → PickArgs → RunPick state → production pick adapter; it mocks only F14's external work.
