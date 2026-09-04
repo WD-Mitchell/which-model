@@ -35,7 +35,7 @@ project: which-model
    - The clock/sleep injection points exist for tests exactly as the `.mjs` (`now`/`sleep`); the `.mjs` wait sequences `[1000, 1000, 6000]` and `[1000, 6000, 11000]` are pinned by tests.
    - F12's `AuthOAuthDeviceFlow` resolver MUST delegate to these two functions (no duplicated state machine); the OAuth constants live here.
 
-10. **Snapshot assembly.** `Snapshot{Provider:"copilot", Windows, Account: <login>, FetchedAt: now UTC, Source: SourceOAuth, Confidence:"live"}`. `Account` is always the verified login (output gated by F24's `--show-identity`); `Plan` empty.
+10. **Snapshot assembly.** `Snapshot{Provider:"copilot", Windows, UsageKnown: any window is known and non-synthetic, Account: <login>, FetchedAt: now UTC, Source: SourceOAuth, Confidence:"live"}`. `Account` is always the verified login (output gated by F24's `--show-identity`); `Plan` empty.
 
 11. **Descriptor constants.** `Timeout: 15s`, `CacheTTL: 60s` (annex-a §5/§6), `Kind: KindSubscription`, `Tier: 1`, `DisplayName: "GitHub Copilot"` (the `.mjs` report header, `copilot.mjs:279`). `Windows` descriptor list (all Optional): `premium` (requests), `chat` (requests), `completions` (requests). `init()` registers; duplicate ID panics.
 

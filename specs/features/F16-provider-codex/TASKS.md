@@ -215,7 +215,9 @@ graph LR
    - Primary request: `GET UsageURL`, allow-list `[UsageURL]`, headers exactly CONTRACTS §3 (`Accept: application/json`, `Authorization: Bearer <token>`, `ChatGPT-Account-Id: <accountID>`).
    - 200 → `NormalizeUsage` → Snapshot (failure on normalize error). Status ∈ `FallbackStatuses`: `ConfiguredBaseURL == ""` → Failure `fallback_unavailable` (verbatim message); else `trustedOrigin := TrustedOriginFrom(ctx)`, `trustedFallbackURL(...)` → Failure on error; fallback request (same headers, allow-list `[target]`); non-200 → `mapStatus("Codex fallback", status)`; 200 → normalize → Snapshot.
    - Status ∉ fallback set and ≠ 200 → `mapStatus("Codex", status)` (401/403 → `unauthorized` `Codex rejected the credential.`; 429 → `rate_limited` `Codex rate-limited the usage request.`; else `provider_status` `Codex usage is unavailable (HTTP <status>).`).
-   - Snapshot: `Provider:"codex"`, `Windows`, `FetchedAt: time.Now().UTC()`, `Source: usage.SourceOAuth`, `Confidence:"live"`, `Account` unset.
+   - Snapshot: `Provider:"codex"`, `Windows`, `UsageKnown: any window satisfies UsageKnown && !Synthetic`, `FetchedAt: time.Now().UTC()`, `Source: usage.SourceOAuth`, `Confidence:"live"`, `Account` unset.
+
+On success set `Snapshot.UsageKnown = any window satisfies UsageKnown && !Synthetic` before returning. Synthetic-only and failed snapshots remain false. Pin real zero, credits-only, and failed outcomes at the Fetch boundary.
 
 **Test cases (write these first):**
 

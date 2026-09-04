@@ -250,7 +250,7 @@ graph LR
    - `cred.Token == ""` → `Snapshot{Provider:"copilot", Failure:&usage.Failure{Code:"login_required", Message:"No usable GitHub token was found; rerun with --login to start device login."}, FetchedAt: time.Now().UTC(), Source: usage.SourceOAuth, Confidence:"live"}` — no HTTP calls.
    - Else: `login, err := ValidateIdentity(ctx, cred.Token, client)`; error → Failure with the error's code/message (hard failure — never a fallback to other sources).
    - `windows, err := fetchUsage(ctx, cred.Token, client)`; error → Failure.
-   - Success → `Snapshot{Provider:"copilot", Windows: windows, Account: login, FetchedAt: now UTC, Source: usage.SourceOAuth, Confidence:"live"}`.
+   - Success → `Snapshot{Provider:"copilot", Windows: windows, UsageKnown: any window satisfies UsageKnown && !Synthetic, Account: login, FetchedAt: now UTC, Source: usage.SourceOAuth, Confidence:"live"}`.
 3. The invariant: the usage call MUST NOT happen unless `ValidateIdentity` succeeded in this same run.
 
 **Test cases (write these first):**
