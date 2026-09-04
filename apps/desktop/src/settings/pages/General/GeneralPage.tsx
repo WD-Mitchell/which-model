@@ -6,7 +6,7 @@
 // stop short of the content edge and there is no hover tint (the mockup rows
 // carry no class="row"). <main> supplies no padding of its own (U07 contract),
 // and the config-path footer now lives in the sidebar, not on this page.
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { Input, SegmentedControl, Toggle, useToast } from '@which-model/ui'
 import type { GUISettings } from '@which-model/core'
 import { useSettings } from '../../../lib/queries'
@@ -101,28 +101,22 @@ const TOGGLES: ReadonlyArray<{
 export function GeneralPage(_props: PageComponentProps) {
   const toast = useToast()
   const { data: settings } = useSettings()
-  const [draft, setDraft] = useState<GUISettings | null>(null)
   const [repoDraft, setRepoDraft] = useState<string | null>(null)
   const [aaKeyDraft, setAaKeyDraft] = useState('')
-  const current = draft ?? settings
-
-  useEffect(() => {
-    if (settings && !draft) setDraft(settings)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings])
-
-  const persist = useCallback(
-    async (next: GUISettings) => {
-      setDraft(next)
-      try {
-        await getHost().settings.set(next)
-      } catch (e) {
-        toast.show((e as { message?: string }).message ?? 'save failed')
-        setDraft(settings ?? null)
-      }
-    },
-    [settings, toast],
-  )
+  // Only self-hosted needs an unfinished text entry before it can be saved.
+  const [sourceDraft, setSourceDraft] = useState<'self-hosted' | null>(null)
+  const saveChain = useRef<Promise<void>>(Promise.resolve())
+  const current = settings
+  const persist = useCallback((change: (saved: GUISettings) => Partial<GUISettings>) => {
+    const host = getHost()
+    saveChain.current = saveChain.current.then(async () => {
+      const saved = await host.settings.get()
+      await host.settings.set({ ...saved, ...change(saved) })
+    }).catch((e) => {
+      toast.show((e as { message?: string }).message ?? 'save failed')
+    })
+    return saveChain.current
+  }, [toast])
 
   if (!current) {
     return (
@@ -133,7 +127,7 @@ export function GeneralPage(_props: PageComponentProps) {
     )
   }
 
-  const set = (patch: Partial<GUISettings>) => persist({ ...current, ...patch })
+  const set = (patch: Partial<GUISettings>) => persist(() => patch)
 
   return (
     <div className={styles.page}>
@@ -174,7 +168,7 @@ export function GeneralPage(_props: PageComponentProps) {
                 <span className={styles.toggleLabel} data-on={on}>
                   {t.name}
                 </span>
-                <Toggle on={on} onToggle={(next) => set(t.patch(next))} aria-label={t.name} />
+                <Toggle on={on} onToggle={() => persist((saved) => t.patch(!t.read(saved)))} aria-label={t.name} />
               </div>
             )
           })}
@@ -237,27 +231,23 @@ export function GeneralPage(_props: PageComponentProps) {
             className="wmsel"
             aria-label="Data source"
             value={
-              current.use_local_aa
+              sourceDraft ??
+              (current.use_local_aa
                 ? 'local'
-                : current.catalog_repo && current.catalog_repo !== 'WD-Mitchell/which-model'
+                : current.catalog_repo !== 'WD-Mitchell/which-model'
                   ? 'self-hosted'
-                  : 'official'
+                  : 'official')
             }
             onChange={(e) => {
-              const val = e.target.value
-              if (val === 'official') {
-                set({ use_local_aa: false, catalog_repo: 'WD-Mitchell/which-model' })
-              } else if (val === 'self-hosted') {
-                set({
-                  use_local_aa: false,
-                  catalog_repo:
-                    current.catalog_repo === 'WD-Mitchell/which-model'
-                      ? ''
-                      : current.catalog_repo,
-                })
-              } else if (val === 'local') {
-                set({ use_local_aa: true })
+              const source = e.target.value
+              setRepoDraft(null)
+              if (source === 'self-hosted') {
+                setSourceDraft('self-hosted')
+                return
               }
+              setSourceDraft(null)
+              if (source === 'official') set({ use_local_aa: false, catalog_repo: 'WD-Mitchell/which-model' })
+              else set({ use_local_aa: true })
             }}
           >
             <option value="official">Official</option>
@@ -266,8 +256,7 @@ export function GeneralPage(_props: PageComponentProps) {
           </select>
         </div>
 
-        {!current.use_local_aa &&
-        current.catalog_repo !== 'WD-Mitchell/which-model' ? (
+        {(sourceDraft === 'self-hosted' || (!current.use_local_aa && current.catalog_repo !== 'WD-Mitchell/which-model')) ? (
           <div className={styles.row}>
             <span className={styles.labelBlock}>
               <span className={styles.label}>Self-hosted repo</span>
@@ -277,19 +266,20 @@ export function GeneralPage(_props: PageComponentProps) {
             </span>
             <Input
               className={styles.catalogInput}
-              value={repoDraft ?? current.catalog_repo}
+              value={repoDraft ?? (sourceDraft === 'self-hosted' ? '' : current.catalog_repo)}
               placeholder="owner/repo"
               onChange={setRepoDraft}
               onBlur={() => {
-                const next = (repoDraft ?? current.catalog_repo).trim() || 'WD-Mitchell/which-model'
+                const repo = (repoDraft ?? (sourceDraft ? '' : current.catalog_repo)).trim() || 'WD-Mitchell/which-model'
                 setRepoDraft(null)
-                if (next !== current.catalog_repo) set({ catalog_repo: next })
+                setSourceDraft(null)
+                set({ use_local_aa: false, catalog_repo: repo })
               }}
             />
           </div>
         ) : null}
 
-        {current.use_local_aa ? (
+        {current.use_local_aa && sourceDraft !== 'self-hosted' ? (
           <div className={styles.row}>
             <span className={styles.labelBlock}>
               <span className={styles.label}>Artificial Analysis API key</span>
@@ -306,10 +296,9 @@ export function GeneralPage(_props: PageComponentProps) {
               placeholder={current.aa_api_key_set ? 'saved' : 'ARTIFICIAL_ANALYSIS_API'}
               onChange={setAaKeyDraft}
               onBlur={() => {
-                const next = aaKeyDraft.trim()
-                if (!next) return
+                const key = aaKeyDraft.trim()
                 setAaKeyDraft('')
-                void persist({ ...current, aa_api_key: next })
+                if (key) set({ aa_api_key: key, use_local_aa: true })
               }}
             />
           </div>

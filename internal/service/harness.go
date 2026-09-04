@@ -164,7 +164,7 @@ func (h *HarnessService) Save(ctx context.Context, in HarnessInfo) error {
 	}
 	next := *h.s.cfg
 	if err := next.SetHarness(in.Slug, config.HarnessTOML{
-		Name: in.Name, Command: in.Command, Builtin: builtin, Providers: enabledProviders(in.Providers),
+		Name: in.Name, Command: in.Command, Builtin: builtin, Providers: enabledProviders(in.Providers), Enabled: stored.Enabled,
 	}); err != nil {
 		h.s.mu.Unlock()
 		return err
@@ -215,7 +215,7 @@ func (h *HarnessService) SetProvider(ctx context.Context, slug, provider string,
 	next := *h.s.cfg
 	if err := next.SetHarness(slug, config.HarnessTOML{
 		Name: stored.Name, Command: stored.Command, Builtin: stored.Builtin,
-		Providers: toggleProvider(stored.Providers, provider, on),
+		Providers: toggleProvider(stored.Providers, provider, on), Enabled: stored.Enabled,
 	}); err != nil {
 		h.s.mu.Unlock()
 		return err
@@ -249,7 +249,7 @@ func (h *HarnessService) SetAllProviders(ctx context.Context, slug string, on bo
 	}
 	next := *h.s.cfg
 	if err := next.SetHarness(slug, config.HarnessTOML{
-		Name: stored.Name, Command: stored.Command, Builtin: stored.Builtin, Providers: list,
+		Name: stored.Name, Command: stored.Command, Builtin: stored.Builtin, Providers: list, Enabled: stored.Enabled,
 	}); err != nil {
 		h.s.mu.Unlock()
 		return err

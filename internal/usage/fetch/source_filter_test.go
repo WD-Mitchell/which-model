@@ -5,6 +5,8 @@ package fetch
 import (
 	"context"
 	"net/http"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -56,5 +58,87 @@ func TestCacheSourceSkipsCredentialAndFetch(t *testing.T) {
 	}, Options{Source: usage.SourceCache, CacheDir: dir})
 	if snap.Failure == nil || snap.Failure.Code != "fallback_unavailable" {
 		t.Fatalf("snapshot failure = %#v, want fallback_unavailable", snap.Failure)
+	}
+}
+
+func TestForcedSourceRejectsMismatchedManagedCredential(t *testing.T) {
+	const token = "synthetic-managed-source-canary"
+	for _, tc := range []struct {
+		name       string
+		forced     usage.Source
+		apiKey     bool
+		wantCall   bool
+		wantSource usage.Source
+	}{
+		{"api rejects oauth", usage.SourceAPI, false, false, ""},
+		{"oauth rejects api", usage.SourceOAuth, true, false, ""},
+		{"matching oauth", usage.SourceOAuth, false, true, usage.SourceOAuth},
+		{"matching api", usage.SourceAPI, true, true, usage.SourceAPI},
+		{"auto oauth", "", false, true, usage.SourceOAuth},
+		{"auto api", "", true, true, usage.SourceAPI},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			store := credential.ManagedStore{StateDir: t.TempDir(), UseKeychain: false}
+			var err error
+			if tc.apiKey {
+				err = store.SaveAPIKey("managed-test", token)
+			} else {
+				err = store.Save("managed-test", token)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			calls := 0
+			desc := usage.Descriptor{Kind: usage.KindSubscription, Auth: []usage.AuthSource{{Kind: usage.AuthFile, FilePaths: []string{filepath.Join(t.TempDir(), "missing.json")}, JSONPath: "token"}, {Kind: usage.AuthOAuthDeviceFlow}}, Fetch: func(context.Context, usage.Credential, *http.Client) (usage.Snapshot, error) {
+				calls++
+				return usage.Snapshot{Provider: "managed-test"}, nil
+			}}
+			snap, _ := runProvider(context.Background(), &cache.Store{Dir: t.TempDir()}, http.DefaultClient, "managed-test", desc, Options{Source: tc.forced, StateDir: store.StateDir, DisableManagedKeychain: true})
+			if tc.wantCall {
+				if calls != 1 || snap.Failure != nil || snap.Source != tc.wantSource {
+					t.Fatalf("matching/auto failed: calls=%d failure=%v source=%s", calls, snap.Failure, snap.Source)
+				}
+			} else {
+				if calls != 0 || snap.Failure == nil || snap.Failure.Code != "login_required" {
+					t.Fatalf("source mismatch reached fetch: calls=%d failure=%v", calls, snap.Failure)
+				}
+				if snap.Failure != nil && strings.Contains(snap.Failure.Message, token) {
+					t.Error("failure leaks credential")
+				}
+			}
+		})
+	}
+}
+
+func TestNativeForcedSourceChecksCachedProvenance(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		stored, forced usage.Source
+		wantFetch      bool
+	}{
+		{"matching", usage.SourceAPI, usage.SourceAPI, false},
+		{"mismatch", usage.SourceOAuth, usage.SourceAPI, true},
+		{"unknown", "", usage.SourceAPI, true},
+		{"auto accepts unknown", "", "", false},
+		{"cache source accepts oauth", usage.SourceOAuth, usage.SourceCache, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			store := &cache.Store{Dir: t.TempDir()}
+			if err := store.Write("cache-source-test", usage.Snapshot{Provider: "cache-source-test", Source: tc.stored}); err != nil {
+				t.Fatal(err)
+			}
+			calls := 0
+			desc := usage.Descriptor{CacheTTL: time.Hour, Fetch: func(context.Context, usage.Credential, *http.Client) (usage.Snapshot, error) {
+				calls++
+				return usage.Snapshot{Provider: "cache-source-test"}, nil
+			}}
+			snap, _ := runProvider(context.Background(), store, http.DefaultClient, "cache-source-test", desc, Options{Source: tc.forced})
+			if (calls == 1) != tc.wantFetch || snap.Failure != nil {
+				t.Fatalf("source predicate calls=%d failure=%v", calls, snap.Failure)
+			}
+			if !tc.wantFetch && snap.Source != usage.SourceCache {
+				t.Errorf("expected cache provenance, got %s", snap.Source)
+			}
+		})
 	}
 }

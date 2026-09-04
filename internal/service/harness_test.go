@@ -562,3 +562,42 @@ func TestHarnessSetEnabled(t *testing.T) {
 	}
 	_ = rec
 }
+
+func TestHarnessEditsPreserveEnabledOverride(t *testing.T) {
+	for _, setting := range []string{"", "enabled = false\n", "enabled = true\n"} {
+		for _, op := range []string{"save", "provider", "all"} {
+			t.Run(op+setting, func(t *testing.T) {
+				svc, _ := newTestServices(t, WithConfigTOML(providersFixture+"[harnesses.custom]\nname = \"Custom\"\ncommand = \"sh\"\n"+setting))
+				h := svc.Harnesses()
+				var err error
+				switch op {
+				case "save":
+					err = h.Save(context.Background(), HarnessInfo{Slug: "custom", Name: "Custom", Command: "sh"})
+				case "provider":
+					err = h.SetProvider(context.Background(), "custom", "claude", true)
+				case "all":
+					err = h.SetAllProviders(context.Background(), "custom", true)
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				cfg, err := config.Load(config.LoadOptions{Path: svc.paths.UserConfigFile})
+				if err != nil {
+					t.Fatal(err)
+				}
+				hs, err := cfg.LoadHarnesses()
+				if err != nil {
+					t.Fatal(err)
+				}
+				got := hs["custom"].Enabled
+				if setting == "" {
+					if got != nil {
+						t.Fatalf("auto became %v", *got)
+					}
+				} else if got == nil || *got != strings.Contains(setting, "true") {
+					t.Fatalf("lost override %q: %v", setting, got)
+				}
+			})
+		}
+	}
+}
