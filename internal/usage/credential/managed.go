@@ -118,7 +118,10 @@ func (s ManagedStore) Resolve(ctx context.Context, provider string) (usage.Crede
 	}
 	var warnings []Warning
 	if s.UseKeychain {
-		value, err := s.keychain().Get(managedKeychainService, provider)
+		value, err := managedKeychainGet(ctx, s.keychain(), managedKeychainService, provider)
+		if ctx.Err() != nil {
+			return Credential{}, nil, ctx.Err()
+		}
 		if err == nil && value != "" {
 			stored := managedCredentialFile{Token: value}
 			var encoded managedCredentialFile
@@ -223,4 +226,32 @@ func ResolveProvider(ctx context.Context, provider string, sources []usage.AuthS
 		}
 	}
 	return credential, warnings, nil
+}
+
+// The keychain interface cannot cancel an OS prompt. Bound both caller latency
+// and outstanding noncancellable calls; a late result is discarded securely.
+var managedLookupSlots = make(chan struct{}, 4)
+
+func managedKeychainGet(ctx context.Context, store ManagedKeychainStore, service, account string) (string, error) {
+	select {
+	case managedLookupSlots <- struct{}{}:
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
+	type result struct {
+		value string
+		err   error
+	}
+	done := make(chan result, 1)
+	go func() {
+		defer func() { <-managedLookupSlots }()
+		value, err := store.Get(service, account)
+		done <- result{value, err}
+	}()
+	select {
+	case r := <-done:
+		return r.value, r.err
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
 }

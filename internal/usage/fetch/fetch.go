@@ -400,10 +400,7 @@ func fetchCodexBarAll(ctx context.Context, providers []string, opts Options) ([]
 	store := &cache.Store{Dir: dir}
 
 	if opts.Offline || cacheOnlySource(opts.Source) {
-		ttl := opts.MaxAge
-		if ttl <= 0 {
-			ttl = defaultCodexBarCacheTTL
-		}
+		ttl := cache.EffectiveTTL(defaultCodexBarCacheTTL, opts.MaxAge)
 		results := make([]usage.Snapshot, 0, len(active))
 		for _, id := range active {
 			snap := store.OfflineRead(id, ttl)
@@ -434,15 +431,40 @@ func fetchCodexBarAll(ctx context.Context, providers []string, opts Options) ([]
 	for i, id := range active {
 		i, id := i, id
 		g.Go(func() error {
-			environment := codexbarCredentialEnvironment(gctx, id, opts)
+			if !opts.Refresh {
+				ttl := cache.EffectiveTTL(defaultCodexBarCacheTTL, opts.MaxAge)
+				snap, stale, err := store.Read(id, ttl)
+				if err == nil && !stale && snap.Failure == nil && matchesRequestedSource(snap.Source, opts.Source) {
+					snap.Source = usage.SourceCache
+					snap.Confidence = "cached"
+					snap.Stale = false
+					if !opts.ShowIdentity {
+						snap.Account = ""
+						snap.Plan = ""
+					}
+					results[i] = snap
+					return nil
+				}
+			}
+			timeout := opts.Timeout
+			if timeout <= 0 {
+				timeout = DefaultTimeoutSec
+			}
+			pctx, cancel := context.WithTimeout(gctx, timeout)
+			defer cancel()
+			environment := codexbarCredentialEnvironment(pctx, id, opts)
 			var snap usage.Snapshot
 			var err error
-			if len(environment) == 0 {
-				snap, err = codexbarFetch(gctx, id, opts.Source)
+			if pctx.Err() != nil {
+				err = pctx.Err()
+			} else if len(environment) == 0 {
+				snap, err = codexbarFetch(pctx, id, opts.Source)
 			} else {
-				snap, err = codexbarFetchEnvironment(gctx, id, opts.Source, environment)
+				snap, err = codexbarFetchEnvironment(pctx, id, opts.Source, environment)
 			}
-			if err != nil {
+			if errors.Is(pctx.Err(), context.DeadlineExceeded) {
+				snap = usage.Snapshot{Provider: id, Source: usage.SourceCLI, Failure: &usage.Failure{Code: "timeout", Message: "codexbar usage request timed out"}}
+			} else if err != nil {
 				var notFound *codexbar.BinaryNotFoundError
 				message := "codexbar usage fetch failed"
 				if errors.As(err, &notFound) {
@@ -513,4 +535,9 @@ func codexbarCredentialEnvironment(ctx context.Context, provider string, opts Op
 		return nil
 	}
 	return map[string]string{antigravity.CredentialsEnvironment: credentialsJSON}
+}
+
+// matchesRequestedSource checks original provenance before it is stamped as cache.
+func matchesRequestedSource(actual, requested usage.Source) bool {
+	return requested == "" || actual == requested
 }

@@ -22,6 +22,7 @@ import (
     "context"
     "time"
 
+    "github.com/WD-Mitchell/which-model/internal/config"
     "github.com/WD-Mitchell/which-model/internal/usage"
     "github.com/WD-Mitchell/which-model/internal/usage/cache"
     "github.com/WD-Mitchell/which-model/internal/usage/credential"
@@ -38,6 +39,7 @@ const DefaultMaxParallel = 8
 
 // Options configures one FetchAll call. All fields optional.
 type Options struct {
+    Backend    config.UsageBackend // off, native, codexbar; empty retains native
     Refresh    bool              // skip cache reads; refetch and rewrite (annex-d --refresh-usage)
     Offline    bool              // read-only: cache only, never credentials/fetch/writes
     MaxAge     time.Duration     // TTL override via cache.EffectiveTTL (annex-d --max-age)
@@ -91,3 +93,36 @@ func SourceFor(cred usage.Credential, kind usage.Kind) usage.Source
 | Dependencies added | `golang.org/x/sync` (errgroup only) |
 | Depends on | F04, F11, F12, F13 (per `specs/DEPENDENCY-GRAPH.md` §2) |
 | Blocks | F15, F16, F17, F21, F24 (per `specs/DEPENDENCY-GRAPH.md` §2) |
+
+## Review regression contract (#180)
+
+| Scenario | Required result |
+|---|---|
+| Fresh CodexBar cache / two sequential online calls | No credential/subprocess/write on hit; one total live fetch |
+| Missing, stale, corrupt, or Refresh cache | One live fetch; successful result cached before identity redaction |
+| Two-minute cache, MaxAge 60s / 15m | Fetch / hit respectively |
+
+## Review regression contract (#181)
+
+| Scenario | Required result |
+|---|---|
+| Explicit CodexBar timeout / absent timeout | Provider context uses requested budget / 10s default |
+| Earlier parent deadline or cancellation | Parent remains the upper bound and returns batch error |
+| Blocked provider and successful sibling | `timeout` data for blocked provider; sibling retained |
+
+
+## Managed lookup deadline correction — #181 review
+
+The provider budget bounds managed keychain lookup as well as the CodexBar
+process. Because the OS keychain interface cannot cancel an active prompt,
+return on context cancellation and discard the late result; permit at most four
+outstanding such calls process-wide. Do not launch CodexBar after the lookup
+exhausts the budget. Pin blocked-keychain deadline and earlier-parent tests.
+
+
+## Cache source correction — #180 review
+
+Before reusing an online CodexBar cache entry for an explicitly requested source,
+compare its original source with the request. Only then stamp the returned
+snapshot as cached. A mismatching cache entry causes live collection with the
+requested source. Explicit cache-only reads retain their existing policy.
