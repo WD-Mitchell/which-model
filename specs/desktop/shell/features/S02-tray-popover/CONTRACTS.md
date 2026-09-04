@@ -124,3 +124,19 @@ Manual checklist (macOS primary; run before G-gate sign-off):
 6. Launch the app a second time while running: no second instance; popover shows.
 7. Record a pick / edit config via CLI while running: label updates without restart (events bridge live).
 8. Quit and relaunch repeatedly: no zombie processes, `launch.log`/stderr free of dropped-event spam at idle.
+
+
+## Shutdown lifecycle correction — #51
+
+Application shutdown first marks the application as quitting, then cancels the
+tracked tray startup fallback and popover focus-reclaim timers, and closes the
+event bridge. The normal ApplicationStarted callback cancels its fallback timer;
+hiding the popover cancels its pending focus timer. Focus callbacks check the
+show generation and quitting state before touching the window. Timer cancellation
+is idempotent. Closing the bridge is safe concurrently through sync.Once and
+signals its drain goroutine to exit; main also defers Close for early returns.
+Already-running callbacks retain their existing native-runtime lifetime constraints.
+
+Pinned regressions in cmd/which-model-desktop/shutdown_test.go verify repeated
+timer cancellation, hide cancellation, and concurrent bridge closure.
+Run: `go test -race ./cmd/which-model-desktop`.
