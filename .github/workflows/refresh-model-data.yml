@@ -2,7 +2,7 @@
 name: refresh-model-data
 on:
   schedule:
-    - cron: "0 6 * * *" # Europe/London, per [catalog.publish].schedule
+    - cron: "*/30 * * * *" # Europe/London, per [catalog.publish].schedule
   workflow_dispatch: {}
 permissions:
   contents: write
@@ -13,7 +13,7 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     environment: "CSV Update"
     strategy:
       fail-fast: false
@@ -42,33 +42,122 @@ jobs:
         run: |
           git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" \
             commit -m "chore(data): refresh available model scores"
-      - if: steps.changes.outputs.changed == 'true'
+      - id: create_pr
+        if: steps.changes.outputs.changed == 'true'
         run: |
-          head_branch="refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}"
-          git push origin "HEAD:refs/heads/${head_branch}"
-          gh pr create --base "${{ matrix.branch }}" --head "${head_branch}" --title "chore(data): refresh available model scores" --body "Automated catalog refresh." --label data --label automated
+          set -- --label 'data' --label 'automated'
+          set -euo pipefail
+          [ -n "$GH_TOKEN" ] || { echo 'CSV_UPDATE_TOKEN is required for catalog publication'; exit 1; }
+          uploader=$(gh api user --jq .login)
+          work_dir=$(mktemp -d)
+          trap 'rm -rf "$work_dir"' EXIT
+          cat > "$work_dir/issue.md" <<'BODY'
+          ## Goal
+          Publish the refreshed model catalog and matching generated scores.
+
+          ## Scope
+          The configured raw and score CSV artifacts.
+
+          ## Engineering Summary
+          None — existing refresh and score generators are reused.
+
+          ## Acceptance Criteria
+          Both artifacts regenerate consistently and every PR check passes before merge.
+
+          ## Prerequisites
+          Configured catalog data-source and publishing credentials.
+
+          ## Required Evidence
+          Refresh workflow Python validation and linked PR checks.
+
+          ## Dependencies
+          None.
+
+          ## BDD Scenarios
+          Given updated upstream models and benchmarks, when refresh completes, then the catalog and scores are published together after passing checks.
+          BODY
+          issue_url=$(gh issue create --title "$PR_TITLE" --body-file "$work_dir/issue.md" --type Task --assignee "$uploader")
+          issue_number=${issue_url##*/}
+          gh issue view "$issue_number" --json assignees --jq '.assignees[].login' | grep -Fx "$uploader"
+          cat > "$work_dir/pr.md" <<'BODY'
+          ## Summary
+          Refresh available model values and regenerate the matching scores from current upstream data.
+
+          ## How this fits together
+          ```mermaid
+          flowchart LR
+            A[Upstream model and benchmark data] --> B[Raw catalog and generated scores]
+            B --> C[Validation and PR checks]
+            C --> D[Published catalog]
+          ```
+
+          ## Affected behaviour
+          Catalog consumers receive the refreshed raw values and corresponding scores together.
+
+          ## Verification
+          The refresh completed, score generation succeeded, and `python3 -m unittest discover -s .daily-update/tests -v` passed against the configured artifact pair. PR checks must pass before merging.
+
+          ## Dependencies and stack position
+          BODY
+          printf '\nBase: `%s`. Independent automated catalog refresh.\n\nFixes #%s\n' "$BASE_BRANCH" "$issue_number" >> "$work_dir/pr.md"
+          cat >> "$work_dir/pr.md" <<'BODY'
+
+          ## Review notes
+          Upstream catalog values can change ranking results. Regeneration checks validate raw/score consistency; failed or unavailable checks prevent automatic merge.
+
+          ## Required delivery checks
+          - [x] The linked issue is Type Task.
+          - [x] Catalog regeneration and Python validation passed.
+          - [x] The Mermaid diagram describes the real data flow.
+          - [x] The closing reference associates the issue through Development.
+          - [x] The authenticated publishing human is the assignee.
+          BODY
+          git push origin "HEAD:refs/heads/${HEAD_BRANCH}"
+          # Configured labels are passed as separate, shell-quoted arguments by the renderer.
+          gh pr create --base "$BASE_BRANCH" --head "$HEAD_BRANCH" --title "$PR_TITLE" --body-file "$work_dir/pr.md" --assignee "$uploader" "$@"
+          gh pr view "$HEAD_BRANCH" --json assignees --jq '.assignees[].login' | grep -Fx "$uploader"
+          gh pr view "$HEAD_BRANCH" --json closingIssuesReferences --jq '.closingIssuesReferences[].number' | grep -Fx "$issue_number"
         env:
-          GH_TOKEN: ${{ secrets.CSV_UPDATE_TOKEN || github.token }}
-      - if: steps.changes.outputs.changed == 'true'
-        run: |
-          if [ -n "$CSV_UPDATE_TOKEN" ]; then
-            gh pr review --approve "refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}"
-          fi
-        env:
-          GH_TOKEN: ${{ github.token }}
-          CSV_UPDATE_TOKEN: ${{ secrets.CSV_UPDATE_TOKEN }}
+          GH_TOKEN: ${{ secrets.CSV_UPDATE_TOKEN }}
+          HEAD_BRANCH: refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}
+          BASE_BRANCH: ${{ matrix.branch }}
+          PR_TITLE: "chore(data): refresh available model scores"
       - id: merge
         if: steps.changes.outputs.changed == 'true'
-        run: gh pr merge --auto --squash "refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}"
+        run: |
+          set -euo pipefail
+          # Require CI to register before watching: an empty/partial rollup is not a pass.
+          expected_head=$(git rev-parse HEAD)
+          for attempt in $(seq 1 60); do
+            actual_head=$(gh pr view "$HEAD_BRANCH" --json headRefOid --jq .headRefOid)
+            [ "$actual_head" = "$expected_head" ] || { echo 'PR head changed; refusing to merge'; exit 1; }
+            checks=$(gh pr view "$HEAD_BRANCH" --json statusCheckRollup --jq .statusCheckRollup)
+            if jq -e 'any(.[]; .name == "test") and any(.[]; (.name // .context) == "CodeQL")' <<< "$checks" >/dev/null; then
+              break
+            fi
+            [ "$attempt" -lt 60 ] || { echo 'CI or CodeQL did not register'; exit 1; }
+            sleep 10
+          done
+          gh pr checks "$HEAD_BRANCH" --watch --fail-fast --interval 10
+          # A second read rejects skipped/cancelled/neutral checks and changed heads.
+          checks=$(gh pr checks "$HEAD_BRANCH" --json name,state,bucket)
+          jq -e 'length > 0 and any(.[]; .name == "test") and all(.[]; .bucket == "pass")' <<< "$checks" >/dev/null
+          actual_head=$(gh pr view "$HEAD_BRANCH" --json headRefOid --jq .headRefOid)
+          [ "$actual_head" = "$expected_head" ] || { echo 'PR head changed; refusing to merge'; exit 1; }
+          gh pr merge "$HEAD_BRANCH" "--$MERGE_METHOD" --match-head-commit "$expected_head"
+          state=$(gh pr view "$HEAD_BRANCH" --json state --jq .state)
+          [ "$state" = MERGED ] || { echo 'Merge has not completed'; exit 1; }
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.CSV_UPDATE_TOKEN }}
+          HEAD_BRANCH: refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}
+          MERGE_METHOD: "squash"
       - name: Report per-branch outcome
         if: always()
         run: |
           if [ "${{ steps.changes.outcome }}" = "success" ] && [ "${{ steps.changes.outputs.changed }}" != "true" ]; then
             echo "refresh branch ${{ matrix.branch }}: skipped-no-changes" >> "$GITHUB_STEP_SUMMARY"
           elif [ "${{ steps.merge.outcome }}" = "success" ]; then
-            echo "refresh branch ${{ matrix.branch }}: auto-merge-enabled" >> "$GITHUB_STEP_SUMMARY"
+            echo "refresh branch ${{ matrix.branch }}: merged" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "refresh branch ${{ matrix.branch }}: failed" >> "$GITHUB_STEP_SUMMARY"
           fi

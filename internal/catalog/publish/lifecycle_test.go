@@ -76,13 +76,13 @@ func TestMultiBranchIsolationStructure(t *testing.T) {
 	if got := strings.Count(s, "fail-fast: false"); got != 1 {
 		t.Errorf("fail-fast: false count = %d, want 1", got)
 	}
-	if !strings.Contains(s, `gh pr create --base "${{ matrix.branch }}"`) {
+	if !strings.Contains(s, `BASE_BRANCH: ${{ matrix.branch }}`) {
 		t.Error("pr create is not branch-scoped")
 	}
 	for _, step := range []string{
 		`commit -m "chore(data): refresh available model scores"`,
 		"gh pr create --base",
-		"gh pr merge --auto",
+		"gh pr merge",
 	} {
 		if strings.Count(s, step) != 1 {
 			t.Errorf("publish step %q count != 1 (one commit per branch, no cross-branch step)", step)
@@ -100,7 +100,7 @@ func TestOutcomeReportStep(t *testing.T) {
 	if !strings.Contains(s, "- name: Report per-branch outcome\n        if: always()") {
 		t.Errorf("outcome step missing or missing if: always():\n%s", s)
 	}
-	for _, vocab := range []string{"auto-merge-enabled", "skipped-no-changes", "failed"} {
+	for _, vocab := range []string{"merged", "skipped-no-changes", "failed"} {
 		if !strings.Contains(s, vocab) {
 			t.Errorf("outcome vocabulary %q missing", vocab)
 		}
