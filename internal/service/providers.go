@@ -460,6 +460,20 @@ func (p *ProviderService) providerModelsFromMapLocked(id string, devCatalogue ma
 			addReasoningLevel(model, "default")
 		}
 	}
+	for _, entry := range p.s.providerInventoryLocked(id) {
+		model := models[entry.ModelID]
+		if model == nil {
+			model = &modelData{name: inventoryModelName(entry)}
+			models[entry.ModelID] = model
+		}
+		for _, level := range entry.Reasoning {
+			addReasoningLevel(model, level)
+		}
+		if len(model.levels) == 0 {
+			addReasoningLevel(model, "default")
+		}
+	}
+
 	modelIDs := make([]string, 0, len(models))
 	for modelID := range models {
 		modelIDs = append(modelIDs, modelID)

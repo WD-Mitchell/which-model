@@ -46,20 +46,20 @@ var (
 	updateBusy    bool
 )
 
-// refreshBenchmarks rebuilds the scores CSV (GitHub repo by default, or a
+// refreshData rebuilds the scores CSV (GitHub repo by default, or a
 // local Artificial Analysis collect when that is enabled in Settings), then
 // rebuilds routes so the popover reflects the new catalogue without a restart.
-func (m *trayMenu) refreshBenchmarks() {
+func (m *trayMenu) refreshData() {
 	refreshRunning.Lock()
 	if refreshBusy {
 		refreshRunning.Unlock()
-		notice(m.app, "benchmark refresh already running")
+		notice(m.app, "data refresh already running")
 		return
 	}
 	refreshBusy = true
 	refreshRunning.Unlock()
 
-	notice(m.app, "refreshing benchmarks…")
+	notice(m.app, "refreshing data…")
 	go func() {
 		defer func() {
 			refreshRunning.Lock()
@@ -68,15 +68,15 @@ func (m *trayMenu) refreshBenchmarks() {
 		}()
 
 		if m.svc == nil {
-			notice(m.app, "benchmark refresh failed — engine not ready")
+			notice(m.app, "data refresh failed — engine not ready")
 			return
 		}
 		if err := m.svc.Providers().RefreshRoutes(context.Background()); err != nil {
 			log.Printf("tray: %v", err)
-			notice(m.app, "benchmark refresh failed — see the log")
+			notice(m.app, "data refresh failed — see the log")
 			return
 		}
-		notice(m.app, "benchmarks refreshed")
+		notice(m.app, "data refreshed")
 	}()
 }
 
@@ -85,7 +85,7 @@ func (m *trayMenu) refreshBenchmarks() {
 func refreshCatalogCLI() error {
 	catalogMu.Lock()
 	defer catalogMu.Unlock()
-	if code := whichmodel.ExecuteArgs([]string{"catalog", "refresh"}); code != 0 {
+	if code := whichmodel.ExecuteArgs([]string{"catalog", "refresh", "--rebuild"}); code != 0 {
 		return fmt.Errorf("catalog refresh exited %d", code)
 	}
 	return nil

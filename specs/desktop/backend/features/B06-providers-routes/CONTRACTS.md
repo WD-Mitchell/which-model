@@ -176,3 +176,11 @@ The caller context reaches models.dev HTTP collection. A cancelled fetch returns
 cancellation before cache fallback or cache writes. Route publication checks
 cancellation under its write lock; cancelled live discovery must not publish a
 degraded replacement table. Pin `TestModelsDevRefreshCancellationDoesNotFallBackOrWrite`.
+
+## Refresh data correction
+
+Provider inventories persist as `map[string][]routing.ModelEntry` in `<CacheDir>/catalog/provider_models.json`, independently of `routes.json`. The bounded Codex model-cache reader admits visible entries and known reasoning levels only. Existing DTOs remain unchanged.
+
+Pin `TestModelsDevRefreshFailureIsReportedWithoutTouchingCache` (supersedes the fallback-success row): one explicit failed fetch returns an error and preserves the previous cache bytes. Successful refreshes replace catalog data and routes, record a new scores hash and timestamps, then emit `catalog:changed` and `config:changed {section: routes}`.
+
+The desktop starts `Services.StartDataRefresher(ctx)` once. It refreshes data immediately, then at `gui.benchmark_check_frequency`, checking interval changes each minute without restart; weekly is seven days. Each attempt has a three-minute deadline and shares manual refresh serialization. Failures retry at the configured interval. Context cancellation stops the loop. Pin `TestDataRefresherUsesConfiguredIntervalAndStops` (startup, 15-minute boundary, changed frequency, cancellation). This connects the previously persisted-only interval to the data flow.

@@ -133,7 +133,7 @@ func (c *CatalogService) ModelDetail(ctx context.Context, model, reasoning strin
 	return out, nil
 }
 
-// Models returns one CatalogModel per distinct scores-CSV display name,
+// Models returns one CatalogModel per distinct scored or discovered display name,
 // sorted name ascending (B05 SPEC §2.14).
 func (c *CatalogService) Models(ctx context.Context) ([]CatalogModel, error) {
 	_ = ctx
@@ -206,7 +206,8 @@ func (s *Services) catalogModelsLocked() []CatalogModel {
 	for _, route := range s.routes.Routes {
 		a := byName[route.Model]
 		if a == nil {
-			continue
+			a = &acc{name: route.Model, reasoning: map[string]struct{}{}, ids: map[string]struct{}{}, providers: map[string]struct{}{}, topRank: -1}
+			byName[route.Model] = a
 		}
 		if route.Reasoning != "" {
 			level := identity.CollapseReasoning(route.Reasoning)
@@ -228,19 +229,22 @@ func (s *Services) catalogModelsLocked() []CatalogModel {
 		}
 		for _, pm := range s.Providers().providerModelsLocked(pID) {
 			cleaned := identity.CleanModelName(pm.ModelName)
-			if a := byName[cleaned]; a != nil {
-				for _, lvl := range pm.Levels {
-					level := identity.CollapseReasoning(lvl.Reasoning)
-					if level != "" {
-						a.reasoning[level] = struct{}{}
-					}
+			a := byName[cleaned]
+			if a == nil {
+				a = &acc{name: cleaned, reasoning: map[string]struct{}{}, ids: map[string]struct{}{}, providers: map[string]struct{}{}, topRank: -1}
+				byName[cleaned] = a
+			}
+			for _, lvl := range pm.Levels {
+				level := identity.CollapseReasoning(lvl.Reasoning)
+				if level != "" {
+					a.reasoning[level] = struct{}{}
 				}
-				if pm.ModelID != "" {
-					a.ids[pm.ModelID] = struct{}{}
-				}
-				if pID != "" {
-					a.providers[pID] = struct{}{}
-				}
+			}
+			if pm.ModelID != "" {
+				a.ids[pm.ModelID] = struct{}{}
+			}
+			if pID != "" {
+				a.providers[pID] = struct{}{}
 			}
 		}
 	}
@@ -289,14 +293,21 @@ func (s *Services) catalogModelsLocked() []CatalogModel {
 }
 
 func extractMaker(name string) string {
-	lower := strings.ToLower(name)
+	lower := strings.ToLower(strings.TrimSpace(name))
+	if i := strings.LastIndex(lower, "/"); i >= 0 {
+		lower = lower[i+1:]
+	}
 	switch {
+	case strings.HasPrefix(lower, "glm"), strings.HasPrefix(lower, "z.ai"), strings.HasPrefix(lower, "zai"):
+		return "Z.AI"
 	case strings.HasPrefix(lower, "claude"):
 		return "Anthropic"
 	case strings.HasPrefix(lower, "gpt") || strings.HasPrefix(lower, "o1") || strings.HasPrefix(lower, "o3") || strings.HasPrefix(lower, "o4") || strings.HasPrefix(lower, "chatgpt"):
 		return "OpenAI"
 	case strings.HasPrefix(lower, "gemini") || strings.HasPrefix(lower, "gemma"):
 		return "Google"
+	case strings.HasPrefix(lower, "kimi"):
+		return "Moonshot AI"
 	case strings.HasPrefix(lower, "qwen"):
 		return "Qwen"
 	case strings.HasPrefix(lower, "deepseek"):
@@ -310,10 +321,6 @@ func extractMaker(name string) string {
 	case strings.HasPrefix(lower, "command"):
 		return "Cohere"
 	default:
-		fields := strings.Fields(name)
-		if len(fields) > 0 {
-			return fields[0]
-		}
 		return "Other"
 	}
 }
@@ -332,7 +339,7 @@ func (c *CatalogService) Model(ctx context.Context, name string) (CatalogModelDe
 func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 	list := s.catalogModelsLocked()
 	var base *CatalogModel
-	inCatalog := true
+	inCatalog := false
 
 	// 1. Try exact ModelName match in catalogModelsLocked.
 	for i := range list {
@@ -546,6 +553,12 @@ func (s *Services) catalogModelLocked(name string) (CatalogModelDetail, error) {
 
 	if base == nil {
 		return CatalogModelDetail{}, fmt.Errorf("%w: no model %q", errNotFound, name)
+	}
+	for _, row := range s.scores {
+		if strings.EqualFold(row.Model, base.ModelName) {
+			inCatalog = true
+			break
+		}
 	}
 	allReasoning := make(map[string]struct{})
 	for _, lvl := range base.Reasoning {

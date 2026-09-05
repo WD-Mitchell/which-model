@@ -32,7 +32,7 @@ func (s *Services) BenchmarkDetail(ctx context.Context, name string) (BenchmarkD
 // or untested pairs return empty Rows, not not_found.
 func (s *Services) ModelDetail(ctx context.Context, model, reasoning string) (ModelScoreDetail, error)
 
-// Models returns one CatalogModel per distinct scores-CSV display name,
+// Models returns one CatalogModel per distinct scored or discovered display name,
 // sorted name ascending (SPEC §2.14).
 func (s *Services) Models(ctx context.Context) ([]CatalogModel, error)
 
@@ -164,3 +164,10 @@ Verify: `go test ./internal/service/ -run 'TestBenchmark|TestCoverage|TestGroups
 | `identity.BenchmarkKey` | `internal/catalog/identity` |
 | `wdecimal.RoundHalfUp` | `internal/decimal` |
 | `pick.Profiles`, `pick.CategoryNames` | `internal/pick` (InProfiles, overlay namespace) |
+
+## New-model discovery regressions
+
+- `TestCatalogListsUnbenchmarkedModelsImmediately`: Codex GPT-6-Astra and models.dev GLM-5.3 appear with nil scores and correct makers; hidden Codex entries stay hidden; editing the local model cache is reflected on the next read without a restart.
+- `TestCatalogDiscoveryKeepsUnbenchmarkedLiveModels`: an enabled CLI's unscored model survives refresh in the provider inventory and appears in Models.
+- `TestMakerUsesCompaniesNotUnknownModelNames`: GLM variants and provider-qualified ids map to Z.AI; unknown model names map to Other.
+- Correction to `TestCatalogModels`: golden fixture now lists five identities (the three scored models plus route-only Claude Sonnet 4 and GPT-4.2); the provider-count filter retains four. Top-scored-effort assertions are unchanged.

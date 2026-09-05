@@ -590,11 +590,11 @@ function ProviderDetailView({
     [id, toast],
   )
 
-  const handleRefreshModels = useCallback(() => {
+  const handleRefreshData = useCallback(() => {
     setRefreshing(true)
     void getHost()
       .providers.refreshRoutes()
-      .catch((e) => toast.show(errText(e, 'could not refresh models')))
+      .catch((e) => toast.show(errText(e, 'could not refresh data')))
       .finally(() => setRefreshing(false))
   }, [toast])
 
@@ -627,8 +627,8 @@ function ProviderDetailView({
         <span className={cx('mono', styles.summaryText)}>{`${on} of ${total} routes enabled`}</span>
         <span className={styles.summaryActions}>
           {signedIn ? (
-            <Button variant="ghost" size="xs" disabled={refreshing} onClick={handleRefreshModels}>
-              {refreshing ? 'Refreshing…' : 'Refresh models'}
+            <Button variant="ghost" size="xs" disabled={refreshing} onClick={handleRefreshData}>
+              {refreshing ? 'Refreshing…' : 'Refresh data'}
             </Button>
           ) : null}
           <Button variant="ghost" size="xs" onClick={() => handleAll(true)}>
@@ -674,7 +674,7 @@ function ProviderDetailView({
           <EmptyState
             text={
               signedIn
-                ? 'No models yet. Refresh models to build them from the catalogue.'
+                ? 'No models yet. Refresh data to build them from the catalogue.'
                 : 'No models for this provider yet. Add an account, then refresh models.'
             }
           />

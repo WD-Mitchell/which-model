@@ -27,19 +27,21 @@ type EmitFunc func(event string, payload any)
 // unusable. One sync.RWMutex guards the config document, catalog caches, and
 // routes table; read methods take RLock for the whole read (B00 SPEC §2.2).
 type Services struct {
-	harnessHome   string // empty uses the OS home; tests inject an isolated directory
-	mu            sync.RWMutex
-	paths         config.Paths
-	cfg           *config.Config
-	emit          EmitFunc
-	scores        []catalog.ScoreRow
-	rawValues     map[string]map[modelKey]decimal.Decimal // B05 §2.2: benchmark -> (model,reasoning) -> raw cell
-	benchConfig   *score.BenchmarkConfig
-	routes        routing.Table
-	warnings      []string
-	usageCacheDir string
-	usageFetchMu  sync.Mutex
-	refresherOnce sync.Once
+	harnessHome       string // local discovery home; empty uses the OS home; tests isolate it
+	mu                sync.RWMutex
+	dataRefreshMu     sync.Mutex
+	paths             config.Paths
+	cfg               *config.Config
+	emit              EmitFunc
+	scores            []catalog.ScoreRow
+	rawValues         map[string]map[modelKey]decimal.Decimal // B05 §2.2: benchmark -> (model,reasoning) -> raw cell
+	benchConfig       *score.BenchmarkConfig
+	routes            routing.Table
+	warnings          []string
+	usageCacheDir     string
+	usageFetchMu      sync.Mutex
+	refresherOnce     sync.Once
+	dataRefresherOnce sync.Once
 	// recordPick records a profile pick after a successful harness launch
 	// (B07 SPEC §2.10). Wired to B04's RecordPick by New; Launch logs (never
 	// returns) a failure. Tests may override it.
@@ -162,7 +164,7 @@ func (s *Services) Warnings() []string {
 // previous caches stay live (B02 SPEC §2.10). Emits nothing.
 // ReloadCatalog re-reads the scores CSV, benchmark config and route table from
 // disk and emits catalog:changed. Exported for hosts that rebuild the catalogue
-// out of band (the desktop's Refresh benchmarks menu item) and need the running
+// out of band (the desktop's Refresh data menu item) and need the running
 // process to pick it up without a restart.
 func (s *Services) ReloadCatalog() error {
 	if err := s.reloadCatalog(); err != nil {

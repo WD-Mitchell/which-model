@@ -18,6 +18,7 @@ import (
 // CollectOptions configures the Collect stage
 // (specs/features/F23-cmd-catalog/CONTRACTS.md).
 type CollectOptions struct {
+	Rebuild            bool // fetch model data anew and derive from fresh raw observations only
 	Providers          []string
 	ProviderConfigPath string
 	BenchmarksPath     string

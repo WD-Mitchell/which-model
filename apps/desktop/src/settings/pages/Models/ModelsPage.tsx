@@ -1,3 +1,4 @@
+import { extractMaker } from '@which-model/core'
 // U15 — Models settings page: catalog-wide list with search, and a summary
 // detail for one catalog identity (name, id, reasoning, intel/cost/speed).
 //
@@ -66,20 +67,6 @@ export function ModelsPage({ detail, openDetail, closeDetail }: PageComponentPro
   return <ModelsListView openDetail={openDetail} />
 }
 
-function extractFallbackMaker(name: string): string {
-  const lower = name.toLowerCase()
-  if (lower.startsWith('claude')) return 'Anthropic'
-  if (lower.startsWith('gpt') || lower.startsWith('o1') || lower.startsWith('o3') || lower.startsWith('o4')) return 'OpenAI'
-  if (lower.startsWith('gemini') || lower.startsWith('gemma')) return 'Google'
-  if (lower.startsWith('qwen')) return 'Qwen'
-  if (lower.startsWith('deepseek')) return 'DeepSeek'
-  if (lower.startsWith('grok')) return 'xAI'
-  if (lower.startsWith('llama')) return 'Meta'
-  if (lower.startsWith('mistral') || lower.startsWith('codestral')) return 'Mistral'
-  if (lower.startsWith('command')) return 'Cohere'
-  const first = name.split(/\s+/)[0]
-  return first || 'Other'
-}
 
 function ModelsListView({ openDetail }: { openDetail(d: Detail): void }) {
   const { data, isError, isPending, refetch } = useCatalogModels()
@@ -104,7 +91,7 @@ function ModelsListView({ openDetail }: { openDetail(d: Detail): void }) {
   const allMakers = useMemo(() => {
     const set = new Set<string>()
     for (const m of list) {
-      const maker = m.maker || extractFallbackMaker(m.model_name)
+      const maker = m.maker || extractMaker(m.model_name)
       if (maker) set.add(maker)
     }
     return Array.from(set).sort()
@@ -139,7 +126,7 @@ function ModelsListView({ openDetail }: { openDetail(d: Detail): void }) {
       ) {
         return false
       }
-      const maker = m.maker || extractFallbackMaker(m.model_name)
+      const maker = m.maker || extractMaker(m.model_name)
       if (selectedMakers.length > 0 && (!maker || !selectedMakers.includes(maker))) {
         return false
       }

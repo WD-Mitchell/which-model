@@ -67,7 +67,6 @@ func main() {
 	})
 	defer bridge.Close()
 
-	catalogMissing := false
 	svc, err := service.New(paths, cfg, bridge.Emit)
 	if err != nil {
 		// Missing scores CSV is no longer fatal — the app starts empty and
@@ -75,7 +74,6 @@ func main() {
 		if isCatalogMissing(err) {
 			log.Printf("startup: catalog missing, starting with empty state: %v", err)
 			svc = service.NewEmpty(paths, cfg, bridge.Emit)
-			catalogMissing = true
 		} else {
 			title, msg := initErrorMessage(err)
 			fatalStartup(nil, title, msg)
@@ -91,15 +89,6 @@ func main() {
 		}
 		return refreshCatalogCLI()
 	})
-	if catalogMissing {
-		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-			defer cancel()
-			if err := svc.Providers().RefreshRoutes(ctx); err != nil {
-				log.Printf("startup: catalog pull failed: %v", err)
-			}
-		}()
-	}
 
 	// 4. application.New with single-instance (S02 SPEC §2.1.4). The second
 	// launch callback shows the popover (pop is assigned immediately after).
@@ -155,10 +144,11 @@ func main() {
 	in := buildIntegrations(app, svc, pop, traySetup)
 	defer in.Close()
 
-	// 6. Catalog refresher: immediate reload then every 5m until shutdown. The
+	// 6. Usage and catalog data refreshers run until shutdown. The
 	// app context is cancelled during cleanup, stopping the loop (S02 SPEC
 	// §2.1.6, B08 SPEC §2.10).
 	go svc.StartRefresher(app.Context(), 5*time.Minute)
+	svc.StartDataRefresher(app.Context())
 
 	// 7. Run (S02 SPEC §2.1.7).
 	if err := app.Run(); err != nil {

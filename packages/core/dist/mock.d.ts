@@ -1,3 +1,4 @@
+export { extractMaker } from './modelMaker.js';
 import type { EngineHost } from './host.js';
 import type { GUISettings, HarnessInfo, ProfileDetail } from './types.js';
 export declare const MOCK_NOW = "2026-01-01T12:00:00Z";
@@ -40,7 +41,6 @@ export interface MockProvider {
     credits: string;
     resets: string;
 }
-export declare function extractMaker(name: string): string;
 export declare function createMockEngineHost(overrides?: Partial<MockData>): EngineHost & {
     data: MockData;
 };

@@ -299,7 +299,7 @@ func (defaultRunner) Collect(ctx context.Context, o CollectOptions) (CollectResu
 	client := httpkit.NewClient(httpkit.WithTimeout(o.Timeout), httpkit.WithMaxBytes(16<<20))
 
 	var catalogue []modelsdev.ProviderModel
-	if cacheFresh(o.CatalogueCachePath, o.CacheTTL) {
+	if !o.Rebuild && cacheFresh(o.CatalogueCachePath, o.CacheTTL) {
 		if cached, ok, err := readCache(o.CatalogueCachePath); err == nil && ok {
 			catalogue = cached
 		}
@@ -346,7 +346,7 @@ func (defaultRunner) Collect(ctx context.Context, o CollectOptions) (CollectResu
 	}
 
 	var existing []csvstore.Row
-	if _, statErr := os.Stat(o.OutPath); statErr == nil {
+	if _, statErr := os.Stat(o.OutPath); !o.Rebuild && statErr == nil {
 		existing, _, err = csvstore.Read(o.OutPath)
 		if err != nil {
 			return CollectResult{}, err

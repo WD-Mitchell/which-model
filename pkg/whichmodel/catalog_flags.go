@@ -11,6 +11,7 @@ import (
 // catalogFlags are the subcommand-local catalog flags
 // (specs/features/F23-cmd-catalog/CONTRACTS.md).
 type catalogFlags struct {
+	Rebuild        bool
 	Providers      []string
 	ProviderConfig string
 	Benchmarks     string

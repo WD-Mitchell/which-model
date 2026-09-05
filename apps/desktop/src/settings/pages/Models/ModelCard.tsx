@@ -100,7 +100,7 @@ export function ModelCard({
       </div>
       {!model.in_catalog ? (
         <div className={styles.empty}>
-          <EmptyState text={NOT_YET_IN_CATALOG} />
+          <EmptyState text="No benchmark data yet" />
         </div>
       ) : (
         <div className={styles.detailScores}>
