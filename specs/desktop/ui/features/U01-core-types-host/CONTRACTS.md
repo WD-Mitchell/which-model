@@ -145,16 +145,9 @@ export function createMockEngineHost(
 
 ### 4.3 Groups (11, builtin) — slugs and benchmark lists exactly as the mockup's `GROUP_DEFS`: `software_engineering` (24 benchmarks, SWE-Bench Verified …), `reasoning` (5), `knowledge` (3), `research` (3), `instruction_following` (2), `agentic_tools` (4), `evidence_capture` (4), `ui_visual` (4), `security` (2), `data_ml` (4), `finance` (5). Copy the lists verbatim from `demo.dc.html` `GROUP_DEFS` (lines 814–826) into the fixture — the only permitted mockup read.
 
-### 4.4 Harnesses (4; providers map = mockup `DETECTED`)
+### 4.4 Harnesses
 
-| slug | name | command | builtin | installed | providers on |
-|---|---|---|---|---|---|
-| `claude` | Claude Code | `claude --model {model_id} --reasoning {reasoning}` | true | true | claude, codex, copilot |
-| `codex` | Codex CLI | `codex -m {model_id} -c reasoning={reasoning}` | true | true | codex, copilot |
-| `copilot` | Copilot CLI | `copilot --model {model_id}` | true | true | copilot, cursor |
-| `cursor` | Cursor | `cursor --model {model_id}` | true | false | cursor |
-
-(Providers map contains all four ids; those not listed as "on" are `false`.)
+The browser fixture mirrors B07's 18 builtin names and launch commands. Cline and OpenCode are installed fixture examples with two and three providers respectively; missing tools stay dim. Original mock usage/provider examples remain deterministic. Providers absent from a harness map are false. Catalog summary reports 18 harnesses.
 
 ### 4.5 Providers (priority = row order)
 

@@ -37,10 +37,12 @@ type ProfilesTOML map[string]ProfileTOML
 
 // HarnessTOML mirrors one [harnesses.<slug>] table (seeded by B07).
 type HarnessTOML struct {
-    Name      string   `toml:"name"`
-    Command   string   `toml:"command"`   // template; token semantics are B07's
-    Providers []string `toml:"providers"` // provider slugs
-    Builtin   bool     `toml:"builtin"`
+	Name              string          `toml:"name"`
+	Command           string          `toml:"command"`   // template; token semantics are B07's
+	Providers         []string        `toml:"providers"` // nil = discover; explicit list = manual
+	ProviderOverrides map[string]bool `toml:"provider_overrides,omitempty"`
+	Builtin           bool            `toml:"builtin"`
+	Enabled           *bool           `toml:"enabled,omitempty"`
 }
 type HarnessesTOML map[string]HarnessTOML
 
@@ -194,10 +196,10 @@ All are `&ConfigError{Kind: KindInvalidValue, Key: <Key>, Err: errors.New(<Detai
 | H1 | harnesses | `harnesses.<slug>` | `slug must match [a-z0-9_]+` |
 | H2 | | `harnesses.<slug>.name` | `must not be empty` |
 | H3 | | `harnesses.<slug>.command` | `must not be empty` |
-| H4 | | `harnesses.<slug>.providers` | `provider %q must match [a-z0-9_]+` |
+| H4 | | `harnesses.<slug>.providers` | `provider %q must match [a-z0-9][a-z0-9_-]*` |
 | F1 | favourites | `favourites.pins` | `invalid route key %q` |
 | F2 | | `favourites.pins` | `duplicate pin %q` |
-| R1 | routes.disabled | `routes.disabled` | `provider %q must match [a-z0-9_]+` |
+| R1 | routes.disabled | `routes.disabled` | `provider %q must match [a-z0-9][a-z0-9_-]*` |
 | R2 | | `routes.disabled.<provider>` | `invalid route %q` (must match `model_id "@" reasoning`) |
 | R3 | | `routes.disabled.<provider>` | `duplicate route %q` |
 | G1 | groups | `groups.<slug>` | `slug must match [a-z0-9_]+` |
@@ -237,3 +239,7 @@ a successful rename. `CommittedWriteError` wraps the underlying error, and
 `TestAtomicWritePostCommitError` pins error classification and file contents.
 Harness mutations publish this committed state and notify listeners even while
 reporting the durability error.
+
+### Harness discovery configuration (September 2026)
+
+`HarnessTOML` adds `ProviderOverrides map[string]bool` (`toml:"provider_overrides,omitempty"`). Missing `providers` enables B07 local discovery; an explicit array, including `[]`, is a complete manual allow-list. Individual `provider_overrides` booleans take precedence over either source. `SetHarness` preserves missing versus explicit-empty lists and serializes overrides only when present. Provider ids use the B06 provider-id grammar, including hyphens. No credential values are stored.

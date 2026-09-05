@@ -10,7 +10,6 @@ import {
   cx,
   EmptyState,
   Input,
-  ProviderPips,
   ProviderUsageRow,
   SnippetPreview,
   Tag,
@@ -83,11 +82,7 @@ export function HarnessesPage({ detail, openDetail, closeDetail }: PageComponent
 function HarnessesListView({ openDetail }: { openDetail(d: Detail): void }) {
   const toast = useToast()
   const { data: harnesses } = useHarnesses()
-  // One providers read for the whole list: the pips and the count in every row
-  // are that list projected through `h.providers`.
-  const { data: providers } = useProviders()
   const list = harnesses ?? []
-  const providerIds = (providers ?? []).map((p) => p.id)
   const [adding, setAdding] = useState(false)
   const [slug, setSlug] = useState('')
   const [name, setName] = useState('')
@@ -187,7 +182,7 @@ function HarnessesListView({ openDetail }: { openDetail(d: Detail): void }) {
       </div>
 
       {list.map((h) => {
-        const on = providerIds.filter((id) => h.providers[id]).length
+        const on = Object.values(h.providers).filter(Boolean).length
         return (
           <div
             key={h.slug}
@@ -221,10 +216,9 @@ function HarnessesListView({ openDetail }: { openDetail(d: Detail): void }) {
               )}
             </span>
             <span className={styles.provCell}>
-              <ProviderPips states={providerIds.map((id) => h.providers[id] ?? false)} />
               {/* demo.dc.html 1510-1511 — "n of m", or a DIM "none". */}
               <span className={cx('mono', styles.provCount, on === 0 && styles.provNone)}>
-                {on === 0 ? 'none' : `${on} of ${providerIds.length}`}
+                {`${on} ${on === 1 ? 'provider' : 'providers'}`}
               </span>
             </span>
             <span className={styles.actions} onClick={(e) => e.stopPropagation()}>
@@ -297,8 +291,9 @@ function HarnessDetailView({
   const h = harnesses?.find((x) => x.slug === slug)
   if (!h) return <div className={styles.note}>loading…</div>
 
-  const list = providers ?? []
-  const onCount = list.filter((p) => h.providers[p.id]).length
+  const list = [...(providers ?? [])].sort((a, b) => Number(Boolean(h.providers[b.id])) - Number(Boolean(h.providers[a.id])))
+  const externalIds = Object.keys(h.providers).filter((id) => !list.some((p) => p.id === id)).sort()
+  const onCount = Object.values(h.providers).filter(Boolean).length
 
   return (
     <div className={styles.page}>
@@ -320,6 +315,7 @@ function HarnessDetailView({
         </div>
         {/* variant="command" is `class="mono input"` at the mockup's metrics. */}
         <SnippetPreview text={h.command} variant="command" />
+        {!h.command.includes('{model_id}') ? <p className={styles.note}>This harness selects its model in its own settings.</p> : null}
       </section>
 
       {/* demo.dc.html 533-571 */}
@@ -327,7 +323,7 @@ function HarnessDetailView({
         <div className={styles.provHead}>
           <span className={styles.label}>providers</span>
           <span className={cx('mono', styles.headNote)}>
-            {`${onCount} of ${list.length} enabled`}
+            {`${onCount} of ${list.length + externalIds.length} enabled`}
           </span>
           <span className={styles.headActions}>
             <Button variant="ghost" size="xs" onClick={() => void handleAll(true)}>
@@ -344,6 +340,13 @@ function HarnessDetailView({
           </span>
         </div>
         <div className={styles.provList}>
+          {externalIds.map((id) => (
+            <div className={styles.row} key={id}>
+              <Toggle on={h.providers[id] ?? false} onToggle={(next) => void handleProvider(id, next)} aria-label={`Use ${id}`} />
+              <span className="mono">{id}</span>
+              <span className={styles.headNote}>Configured in this harness</span>
+            </div>
+          ))}
           {list.map((p) => (
             <ProviderUsageRow
               key={p.id}
@@ -356,8 +359,9 @@ function HarnessDetailView({
               onToggle={(next: boolean) => void handleProvider(p.id, next)}
             />
           ))}
+
         </div>
-        {list.length === 0 ? (
+        {list.length + externalIds.length === 0 ? (
           <EmptyState text="no providers configured yet — add one on the Providers page." />
         ) : null}
         <div className={styles.closing}>{CLOSING_NOTE}</div>

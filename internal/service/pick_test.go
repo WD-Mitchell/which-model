@@ -62,7 +62,6 @@ func fixtureRoutes() routing.Table {
 }
 func fptr(f float64) *float64 { return &f }
 
-
 // fixtureServices builds a Services with the B04 §5 fixture tree.
 func fixtureServices(t *testing.T, opts ...TestOption) (*Services, *emitRecorder) {
 	t.Helper()
@@ -308,8 +307,8 @@ func TestPickRecordPick(t *testing.T) {
 			Strategy    string          `json:"strategy"`
 			CandidateID string          `json:"candidate_id"`
 			FinalScore  float64         `json:"final_score"`
-			Excluded   int             `json:"excluded_count"`
-			Evidence   json.RawMessage `json:"evidence"`
+			Excluded    int             `json:"excluded_count"`
+			Evidence    json.RawMessage `json:"evidence"`
 		}
 		if err := json.Unmarshal([]byte(lines[i]), &entry); err != nil {
 			t.Fatalf("decode line %d: %v", i, err)
@@ -406,7 +405,7 @@ func TestPickCatalogLine(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CatalogLine: %v", err)
 	}
-	want := CatalogSummary{Models: 4, ProvidersOn: 2, Harnesses: 7}
+	want := CatalogSummary{Models: 4, ProvidersOn: 2, Harnesses: 18}
 	if line != want {
 		t.Errorf("CatalogLine = %v, want %v", line, want)
 	}

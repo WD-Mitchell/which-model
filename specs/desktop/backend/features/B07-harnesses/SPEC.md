@@ -17,28 +17,23 @@ Depends on: B02 (Services core, sentinels, test helper). Consumes B04's `RecordP
 
 1. **Access.** `Services.Harnesses() *HarnessService` returns the sub-service (back-pointer to `Services`; shares its mutex, config, and emit). Methods map 1:1 to the D00 `EngineHost.harnesses` group plus the internal `BuildCommand`.
 
-2. **Builtin seeds.** On the FIRST `List` call that finds `[harnesses]` empty (no subtables at all), the service writes the four builtin seeds to config atomically (one write, one `config:changed{section:"harnesses"}` event) before answering. The seeds, verbatim (slug / name / command template):
-   - `claude` / `Claude Code` / `claude --model {model_id} --reasoning {reasoning}`
-   - `codex` / `Codex CLI` / `codex -m {model_id} -c reasoning={reasoning}`
-   - `copilot` / `Copilot CLI` / `copilot --model {model_id}`
-   - `cursor` / `Cursor` / `cursor --model {model_id}`
-   Each seed is written with `builtin = true` and `providers` = the seed default in CONTRACTS §4. Seeding happens at most once: any non-empty `[harnesses]` section (even a single custom) suppresses it forever.
+2. **Builtin reconciliation.** Every List adds missing builtins from CONTRACTS §3 in one atomic write/event, even with existing custom harnesses. Existing custom entries and explicit enable/provider switches survive. Exact old factory provider lists migrate to automatic discovery, and known obsolete factory commands migrate to current CLI commands. Subsequent reads are write-free until another migration is needed.
 
-3. **List.** Returns every configured harness in slug-ascending order as `HarnessInfo`. `Providers` is a map over ALL provider ids currently configured under `[providers.*]` (B06's set), `true` iff the id appears in the harness's `providers` list; ids in the list but absent from `[providers.*]` are preserved in config but omitted from the DTO map. `Installed` is computed per §2.4 on every List, never persisted.
+3. **List and configured providers.** Return harnesses by slug. The provider map spans B06's full known universe (config, routes, registered providers and cached catalog). Missing `providers` means automatic discovery for installed builtins; an explicit list, including empty, is a complete manual selection. `provider_overrides` applies individual switches last, so discovering a new provider never restores one explicitly switched off. Discovery is local and read-only, with no credential copy, network request, subprocess, or config-expression evaluation. Malformed, missing, oversized or non-regular config files contribute no providers. Recognized aliases map into which-model's provider ids.
 
-4. **Install detection.** `Installed = (exec.LookPath(argv0) == nil)` where `argv0` is the first whitespace-separated token of `Command` (`strings.Fields(cmd)[0]`). Empty/whitespace-only command ⇒ `Installed = false`. Detection reads the live `PATH`; tests override `PATH` via `t.Setenv`.
+4. **Installation and discovery sources.** Check command argv0 on PATH each List. Native desktop detection also checks Homebrew, /usr/local/bin and standard user CLI install directories when the GUI inherits a minimal PATH. Read only known per-user configuration paths from CONTRACTS §3; no project scan or guessed model-family-to-provider mapping. A provider listed here is configured, not freshly authenticated. Amp, Continue, Crush, Kiro and Windsurf select models through their own settings; their launch commands intentionally contain no model placeholder and the UI explains this.
 
 5. **Save.** Upserts a harness from a `HarnessInfo`. Validation, in fixed order: slug grammar `[a-z0-9_]+` → `Name` non-empty → `Command` non-empty → builtin protection. For an EXISTING builtin slug, Save is permitted only when the submitted `Name` and `Command` are byte-identical to the stored values (i.e. only the provider map may change) — any change to a builtin's name or command → `errBuiltinReadonly`. `Command` is therefore editable only for customs; the UI shows builtin commands read-only (mockup exposes no command editor on the list, and the detail's command input persists only for customs). Save on a NEW slug creates a custom (`builtin = false` regardless of the DTO's `Builtin` field). `Installed` is ignored on input. Persists, emits `config:changed{section:"harnesses"}`.
 
-6. **Delete.** Removes `[harnesses.<slug>]` for ANY harness, builtin or custom (see Deviations). Unknown slug → `errNotFound`. Persists, emits `config:changed{section:"harnesses"}`. A deleted builtin does NOT re-seed (§2.2 requires a fully empty section); it reappears only via manual config edit.
+6. **Delete.** Remove custom harnesses only. Builtin removal returns `errBuiltinReadonly`, matching the disabled Remove control and keeping reconciliation deterministic. Unknown slug returns `errNotFound`.
 
-7. **SetProvider / SetAllProviders.** `SetProvider(slug, provider, on)` adds/removes `provider` in the harness's `providers` list (idempotent; list kept sorted ascending, no duplicates). `provider` must exist under `[providers.*]` → else `errValidation`. `SetAllProviders(slug, on)`: `on=true` sets the list to every configured provider id; `on=false` sets it to empty (mockup's Enable/Disable all). Both persist and emit `config:changed{section:"harnesses"}`; unknown slug → `errNotFound`.
+7. **Provider switches.** SetProvider writes one `provider_overrides` boolean while retaining automatic discovery and other switches. Save's full provider map and SetAllProviders are explicit manual selections. Bulk off remains off after discovery. Provider validation uses B06's full universe. SetEnabled preserves all provider settings. Mutations remain atomic and emit one config-changed event.
 
 8. **BuildCommand.** `BuildCommand(slug, modelID, reasoning)` substitutes the template: `strings.ReplaceAll` of `{model_id}` → modelID then `{reasoning}` → reasoning (a template without `{reasoning}` is valid — the replace no-ops). Afterwards any remaining token matching `\{[a-z0-9_]+\}` → `errValidation` naming the first offending token (CONTRACTS §6). `reasoning == "default"` substitutes verbatim. Unknown slug → `errNotFound`.
 
 9. **Launch.** `Launch(ctx, slug, routeKey, profileSlug)`:
    1. `ParseRouteKey(routeKey)` — invalid grammar → `errValidation`.
-   2. `BuildCommand(slug, modelID, reasoning)`.
+   2. `BuildCommand(slug, modelID, reasoning)`. Builtin OpenCode and Kilo qualify model ids with the picked provider's catalog slug; builtin Cline adds its provider flag. Custom commands retain their exact template semantics.
    3. If `[gui].copy_command_instead` is true → return `LaunchResult{Copied: true, Command: cmd}`; nothing is spawned (the frontend copies to clipboard).
    4. Otherwise spawn `exec.Command(userShell(), "-lc", cmd)` detached: new session (unix `Setsid`; Windows: `CREATE_NEW_PROCESS_GROUP` — the sole platform difference, isolated in the two `sysproc` files), stdin nil, stdout+stderr appended to `<StateDir>/launch.log` (`O_APPEND|O_CREATE|O_WRONLY`, 0600). `cmd.Start()` error → `errLaunchFailed`; the process is released, never waited on. `userShell()` = `$SHELL`, fallback `/bin/sh`.
    5. On success (either the copy return or a successful spawn) record the pick via the §2.10 seam, then return `LaunchResult{Copied: false, Command: cmd}` (spawn path).
@@ -71,14 +66,14 @@ Depends on: B02 (Services core, sentinels, test helper). Consumes B04's `RecordP
 ## 5. Deviations
 
 - **B00 CONTRACTS §6.4 (builtins never written to config):** harness builtin SEEDS are written to config on first List, exactly once. Rationale: unlike profiles/groups, a harness builtin carries per-user mutable state (the provider allow-map) with no separate storage; persisting the whole seed lets users edit that map with the same read-modify-write path as customs. Pre-authorised by B00 §6.4's own carve-out ("except the harness seed (B07 Deviations)").
-- **B00 CONTRACTS §6.4 / D00 §4 `builtin_readonly` (builtins not deletable):** any harness, builtin included, is deletable (§2.6). Rationale: the mockup places a remove control on every harness row; `builtin_readonly` still protects builtin Name/Command edits.
+- **Builtin deletion correction:** the owner requested a complete evolving registry. Builtins are now retained, matching the existing UI; custom harnesses remain removable.
 
 ## 6. Out of scope
 
 - Config schema/accessors for `[harnesses.*]` — B01. Route-key parsing, DTO shapes, event names — D00. Error-code mapping, locking, test helper — B02.
 - `RecordPick` implementation, history file — B04/B11.
 - Clipboard write for copy mode, toast, popover close — frontend (U05) and host (S05).
-- Harness auto-detection from each harness's own config files (mockup footnote "read from each harness' own config on launch") — follow-up; v1 detection is PATH-only.
+- Project-specific configuration, environment-only provider settings, and live authentication checks remain outside global harness discovery.
 - Terminal-window spawning; Windows/Linux launch polish beyond compiling and basic spawn.
 
 ## Review correction — #178: preserve enabled overrides
@@ -102,3 +97,11 @@ If rename succeeds but directory sync fails, publish the now-visible config and
 emit one config-changed event, then return a classified committed-write error
 so durability failure remains visible. The caller must not treat this error as
 a rollback. Pin post-commit filesystem and harness state/event regressions.
+
+### September 2026 owner-requested registry and discovery
+
+This supersedes the initial four-entry spec and seven-entry implementation, first-run-only seeding, fixed provider guesses, and pip-based counts. Existing factory values migrate without changing customized commands or explicit switches. The user asked for common harnesses including Cline and OpenCode, automatic provider detection, and numeric provider counts.
+
+Discovered gateways absent from the global catalog (for example Cline's gateway) remain in the harness provider map and numeric count. Detail shows a switch and `Configured in this harness`. This metadata does not add/enable a global provider or trigger usage reads. Explicit switches and bulk changes include these ids.
+
+Launch uses the current native effort controls: non-default Claude effort uses `--effort` (minimal is omitted because Claude does not accept it); Codex uses `-c model_reasoning_effort=…`. A default reasoning pick adds no effort override. Cline retains its configured OAuth adapter id when it differs from the canonical provider alias.

@@ -105,7 +105,7 @@ func TestLoadValidationErrors(t *testing.T) {
 			name:    "H4 harness provider slug",
 			file:    "[harnesses.h]\nname = \"x\"\ncommand = \"x\"\nproviders = [\"Bad!\"]\n",
 			load:    func(c *Config) error { _, err := c.LoadHarnesses(); return err },
-			wantErr: "config: invalid value for harnesses.h.providers: provider \"Bad!\" must match [a-z0-9_]+",
+			wantErr: "config: invalid value for harnesses.h.providers: provider \"Bad!\" must match [a-z0-9][a-z0-9_-]*",
 		},
 		{
 			name:    "F1 invalid route key",

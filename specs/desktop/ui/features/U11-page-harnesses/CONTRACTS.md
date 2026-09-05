@@ -36,7 +36,7 @@ Queries (keys per U00 CONTRACTS §6): `['harnesses']`, `['providers']`, `['usage
 | Section label / column headers | as U10 CONTRACTS §3 rows 1–2; cols 120px / 84px / flex / 44px |
 | List row | flex center gap 12px, padding `11px 22px`, border-top 1px `text 8%`, cursor pointer |
 | Name cell | 120px, baseline gap 7px; name mono 12.5px `text 88%` ellipsis; `custom` tag neutral mono 8.5px padding `0 5px` |
-| Pips cell | 84px, gap 8px: pips row gap 3px, each 6×6 circle — on `--color-accent-400`, off `text 14%`; count mono 10.5px (`text 62%`, `none` ⇒ `text 45%`) |
+| Provider count cell | 84px; numeric count mono 10.5px; zero dimmed; no pips |
 | Command cell | flex 1, mono 10px `text 45%` ellipsis |
 | Actions cell | 44px right, gap 6px: trash `.ib` 22×22 (12×12 svg stroke 1.25) + chevron 10×10 `text 38%` |
 | List footnote | padding `14px 22px 20px`, 11px, `text 42%`, max-width 56ch |
@@ -58,7 +58,7 @@ Queries (keys per U00 CONTRACTS §6): `['harnesses']`, `['providers']`, `['usage
 | PAGE_META title / blurb / action | `Harnesses` / `Detected automatically. {model_id} and {reasoning} are filled from the pick. Open one to choose which providers it may use.` / `Add custom` |
 | Section label / columns | `harnesses`; `harness`, `providers`, `launch command` |
 | Custom tag / detected tag | `custom` / `detected` |
-| Provider count | `{n} of {providers.length}`; zero ⇒ `none` |
+| Provider count | `{n} provider` when one, otherwise `{n} providers`; zero ⇒ `0 providers` |
 | Trash title / delete toast | `Remove {name}` / `removed {name}` |
 | List footnote (verbatim, note the `’`) | `harnesses and their providers are read from each harness’ own config on launch` |
 | Add-custom defaults | name `Custom N`; command `my-agent --model {model_id}`; toast `{name} added` |
@@ -76,7 +76,7 @@ Mock: 4 harnesses (claude/codex/copilot builtin, cursor custom seed per mock dat
 
 | Case | Assertion |
 |---|---|
-| List render | 4 rows; custom tag only on custom harness; pips per provider in priority order with on/off classes; count `3 of 4` and `none` for an all-off map |
+| List render | 4 rows; custom tag only on custom harness; numeric `3 providers` and `0 providers` for an all-off map; no provider pips, even with hundreds of providers |
 | Remove | trash on a BUILTIN row calls `harnesses.delete(slug)` once + toast `removed {name}`; row click not fired |
 | Add custom | action → `harnesses.save` once with `{name:'Custom 2', slug:'custom_2', command:'my-agent --model {model_id}', builtin:false, installed:false, providers:{claude:true, codex:true, copilot:true, cursor:false}}` (N=2 given 1 existing custom) + toast `Custom 2 added`; deleting then re-adding with a surviving `Custom 2` bumps to `Custom 3` |
 | Command edit (custom) | typing in the Input calls `harnesses.save` with the new `command` exactly once after 300ms of quiet (fake timers), not per keystroke; unmount mid-debounce flushes the save |
@@ -99,3 +99,9 @@ Verify: `pnpm --filter desktop test` green.
 | `Toggle`, `Button`, `Input`, `Tag`, `UsageMeter`, `useToast` | U02 |
 | `PageComponentProps`, `DetailHeader`, PAGE_META rendering | U07 |
 | Query keys / invalidation map | U00 CONTRACTS §5–6 |
+
+A builtin command without `{model_id}` shows `This harness selects its model in its own settings.` beneath its launch preview. Registry fixtures include Cline and OpenCode; rendered checks verify readable numeric counts with a 257-provider universe.
+
+Discovered gateways absent from the global catalog (for example Cline's gateway) remain in the harness provider map and numeric count. Detail shows a switch and `Configured in this harness`. This metadata does not add/enable a global provider or trigger usage reads. Explicit switches and bulk changes include these ids.
+
+Harness-only gateways are shown first in detail. Global providers enabled for this harness precede disabled ones, preserving provider order within each group, so the detected configuration is visible immediately even with hundreds of catalog providers.

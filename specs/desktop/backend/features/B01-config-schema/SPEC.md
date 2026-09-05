@@ -81,3 +81,7 @@ a successful rename. `CommittedWriteError` wraps the underlying error, and
 `TestAtomicWritePostCommitError` pins error classification and file contents.
 Harness mutations publish this committed state and notify listeners even while
 reporting the durability error.
+
+### Harness discovery correction
+
+Per the owner's request to detect configured providers, harnesses distinguish an omitted `providers` list (automatic) from an explicit list (manual). `provider_overrides` persists individual switches so automatic discovery cannot re-enable a provider the user turned off. This extends the original harness schema without changing the public DTO.

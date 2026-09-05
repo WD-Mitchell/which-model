@@ -17,15 +17,15 @@ Depends on: U02 (Toggle, Button, Input, Tag, UsageMeter, useToast), U07 (shell, 
 
 1. **Data.** Three queries: `['harnesses']` → `harnesses.list()`, `['providers']` → `providers.list()` (row order, global enabled/auth), `['usage', false]` → `usage.snapshots(false)` (meters). Detail rows join `UsageDTO` to providers by `UsageDTO.provider === ProviderInfo.id`; a provider with no snapshot renders all three meters as unknown (`—`, empty bar).
 
-2. **List.** U07 header shows PAGE_META copy with page action `Add custom`. Section label `harnesses`; column header row: `harness` 120px / `providers` 84px / `launch command` flex / 44px actions spacer. One row per `HarnessInfo` in list order: name (ellipsis) + neutral `custom` tag when `!builtin`; a pip per provider (global priority order — accent when `providers[id]` is true, dim otherwise) + count `{n} of {providers.length}` or the literal `none` when zero; the command template (mono, ellipsis); a trash icon on EVERY row (builtins removable too, title `Remove {name}`); chevron. Row click opens detail; trash click stops propagation. Below the rows, the footnote verbatim: `harnesses and their providers are read from each harness’ own config on launch`.
+2. **List.** Render the host's complete harness registry with install/enable state. The name uses the available space; the provider column shows `{n} provider` or `{n} providers`, including `0 providers`, without one dot per globally known provider. The command is shown in detail. Clicking a row opens detail; toggle and Remove stop propagation. Builtin Remove is disabled; custom harnesses remain removable. The footnote states that providers are read from the harness configuration.
 
-3. **Remove.** Trash calls `harnesses.delete(slug)` then toasts `removed {name}`. (The mockup silently removes; the toast is a deliberate addition matching this app's other destructive actions.)
+3. **Remove.** For custom harnesses, call `harnesses.delete(slug)` and show the deletion toast. Builtins retain the registry entry and expose no enabled Remove action.
 
 4. **Add custom.** The page action creates a `HarnessInfo` with: `name` = `Custom N` where N = (count of current custom harnesses) + 1, incremented further while the name collides with any existing harness name; `slug` = name lower-cased, spaces → `_` (e.g. `custom_2`); `command` = `my-agent --model {model_id}`; `builtin: false`; `installed: false`; `providers` = map of every provider id → true iff that provider is globally enabled. It calls `harnesses.save(h)` and toasts `{name} added`. The list stays; no auto-open.
 
 5. **Detail header.** `DetailHeader` back link `Harnesses`, title = harness name, blurb per CONTRACTS §4.
 
-6. **Launch command.** Section `launch command` with the note `substituted at launch from the pick` beside it, then the command box. For a builtin harness it is a read-only mono box showing `command`. For a custom harness it is a U02 `Input` (same mono styling): edits update local state immediately and, debounced 300ms after the last keystroke, call `harnesses.save({...harness, command})`. Unmount/navigation flushes a pending save. Builtins never call `save` (`builtin_readonly` guard is client-side too).
+6. **Launch command.** Section `launch command` with the note `substituted at launch from the pick` beside it, then the command box. For a builtin harness it is a read-only mono box showing `command`. A command without `{model_id}` displays `This harness selects its model in its own settings.` For a custom harness it is a U02 `Input` (same mono styling): edits update local state immediately and, debounced 300ms after the last keystroke, call `harnesses.save({...harness, command})`. Unmount/navigation flushes a pending save. Builtins never call `save` (`builtin_readonly` guard is client-side too).
 
 7. **Providers section.** Header `providers` + summary `{n} of {providers.length} enabled` (n = providers whose map value is true) + ghost `Enable all` / `Disable all` calling `harnesses.setAllProviders(slug, true|false)`. Then one card row per provider in global priority order: `Toggle` (→ `harnesses.setProvider(slug, id, !on)`), provider id + neutral `detected` tag, auth line = `ProviderInfo.auth` when the provider is globally enabled else the literal `off globally`, three `UsageMeter`s, and a 138px right column with `credits` over `resets` (from the joined `UsageDTO`, falling back to `ProviderInfo.credits/resets` when no snapshot).
 
@@ -61,3 +61,11 @@ Depends on: U02 (Toggle, Button, Input, Tag, UsageMeter, useToast), U07 (shell, 
 - Launching (`harnesses.launch`) — U05 popover footer.
 - Usage fetching/backends and the Usage-detection page — U13.
 - Go-side harness detection/persistence — backend features; `MockEngineHost` suffices.
+
+### Owner-requested registry/count correction
+
+Numeric provider counts replace pips, which became unusable with hundreds of catalog providers. B07 supplies the expanded registry and local provider discovery; individual disabled switches survive discovery. This supersedes the old fixed registry and pip geometry.
+
+Discovered gateways absent from the global catalog (for example Cline's gateway) remain in the harness provider map and numeric count. Detail shows a switch and `Configured in this harness`. This metadata does not add/enable a global provider or trigger usage reads. Explicit switches and bulk changes include these ids.
+
+Harness-only gateways are shown first in detail. Global providers enabled for this harness precede disabled ones, preserving provider order within each group, so the detected configuration is visible immediately even with hundreds of catalog providers.

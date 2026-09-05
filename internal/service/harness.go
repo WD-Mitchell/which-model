@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/WD-Mitchell/which-model/internal/config"
+	"github.com/WD-Mitchell/which-model/internal/routing"
 )
 
 // HarnessService owns the harness registry, install detection, command
@@ -22,8 +23,7 @@ type HarnessService struct{ s *Services }
 // Harnesses returns the harness sub-service for s.
 func (s *Services) Harnesses() *HarnessService { return &HarnessService{s: s} }
 
-// harnessSeed is one builtin harness written into config on first List
-// (B07 SPEC §2.2; CONTRACTS §3).
+// harnessSeed is a builtin launch target reconciled with saved config by List.
 type harnessSeed struct {
 	slug      string
 	name      string
@@ -34,26 +34,34 @@ type harnessSeed struct {
 // harnessSeeds is the exact CONTRACTS §3 builtin seed table. Order matters
 // only for determinism; SetHarness writes each subtable, config sorts output.
 var harnessSeeds = []harnessSeed{
-	{"aider", "Aider", "aider --model {model_id}", []string{"claude", "codex", "copilot", "cursor"}},
-	{"claude", "Claude Code", "claude --model {model_id} --reasoning {reasoning}", []string{"claude", "codex", "copilot"}},
-	{"codex", "Codex CLI", "codex -m {model_id} -c reasoning={reasoning}", []string{"codex", "copilot"}},
-	{"copilot", "Copilot CLI", "copilot --model {model_id}", []string{"copilot", "cursor"}},
-	{"cursor", "Cursor", "cursor --model {model_id}", []string{"cursor"}},
-	{"goose", "Goose", "goose session --model {model_id}", []string{"claude", "codex", "copilot"}},
-	{"windsurf", "Windsurf", "windsurf --model {model_id}", []string{"claude", "codex", "copilot", "cursor"}},
+	{"aider", "Aider", "aider --model {model_id}", nil},
+	{"amp", "Amp", "amp", nil},
+	{"antigravity", "Antigravity", "agy --model {model_id}", nil},
+	{"claude", "Claude Code", "claude --model {model_id}", nil},
+	{"cline", "Cline", "cline --model {model_id}", nil},
+	{"codex", "Codex CLI", "codex -m {model_id}", nil},
+	{"continue", "Continue", "cn", nil},
+	{"copilot", "Copilot CLI", "copilot --model {model_id}", nil},
+	{"crush", "Crush", "crush", nil},
+	{"cursor", "Cursor Agent", "cursor-agent --model {model_id}", nil},
+	{"droid", "Factory Droid", "droid --model {model_id}", nil},
+	{"gemini", "Gemini CLI", "gemini --model {model_id}", nil},
+	{"goose", "Goose", "goose session --model {model_id}", nil},
+	{"kilo", "Kilo Code", "kilo --model {model_id}", nil},
+	{"kiro", "Kiro CLI", "kiro-cli chat", nil},
+	{"opencode", "OpenCode", "opencode --model {model_id}", nil},
+	{"qwen", "Qwen Code", "qwen --model {model_id}", nil},
+	{"windsurf", "Windsurf", "windsurf", nil},
 }
 
 // harnessTokenRe matches any {token} placeholder left after substitution;
 // the first match names an unresolved token (CONTRACTS §5.2, §6 #4).
+var harnessSlugRe = regexp.MustCompile(`^[a-z0-9_]+$`)
+
 var harnessTokenRe = regexp.MustCompile(`\{[a-z0-9_]+\}`)
 
-// List returns every harness in slug-ascending order. On the first call that
-// finds [harnesses] with no subtables it seeds the four builtins into config
-// (one write, one config:changed event) before answering (SPEC §2.2).
-// Installed is recomputed from the live PATH on every call, never persisted
-// (SPEC §2.4). Providers is a map over all configured provider ids, true iff
-// the id is in the harness's allow-list; ids absent from [providers.*] are
-// omitted from the map (SPEC §2.3).
+// List reconciles missing builtins, preserves custom entries, and joins local
+// provider discovery with explicit provider overrides over B06's universe.
 func (h *HarnessService) List(ctx context.Context) ([]HarnessInfo, error) {
 	_ = ctx
 	if err := h.seedIfEmpty(); err != nil {
@@ -66,7 +74,7 @@ func (h *HarnessService) List(ctx context.Context) ([]HarnessInfo, error) {
 		return nil, err
 	}
 	providerSet := make(map[string]bool, len(h.s.cfg.Providers))
-	for id := range h.s.cfg.Providers {
+	for _, id := range h.s.providerUniverseLocked() {
 		providerSet[id] = true
 	}
 	slugs := make([]string, 0, len(harnesses))
@@ -78,6 +86,9 @@ func (h *HarnessService) List(ctx context.Context) ([]HarnessInfo, error) {
 	for _, slug := range slugs {
 		ht := harnesses[slug]
 		inst := installed(ht.Command)
+		if !inst && h.s.harnessHome == "" {
+			inst = installedInCommonLocations(ht.Command)
+		}
 		en := inst
 		if ht.Enabled != nil {
 			en = *ht.Enabled
@@ -89,16 +100,14 @@ func (h *HarnessService) List(ctx context.Context) ([]HarnessInfo, error) {
 			Builtin:   ht.Builtin,
 			Installed: inst,
 			Enabled:   en,
-			Providers: providerMap(ht.Providers, providerSet),
+			Providers: h.providerMap(slug, ht, inst, providerSet),
 		})
 	}
 	return out, nil
 }
 
-// seedIfEmpty writes the four builtin seeds iff [harnesses] has no subtables
-// at all (SPEC §2.2). Seeding happens at most once: any non-empty section —
-// even a single custom — suppresses it forever. Emits one config:changed for
-// the write.
+// seedIfEmpty atomically adds missing builtins and migrates exact legacy
+// factory defaults. Customized entries and explicit switches survive.
 func (h *HarnessService) seedIfEmpty() error {
 	h.s.mu.Lock()
 	harnesses, err := h.s.cfg.LoadHarnesses()
@@ -106,7 +115,16 @@ func (h *HarnessService) seedIfEmpty() error {
 		h.s.mu.Unlock()
 		return err
 	}
-	if len(harnesses) > 0 {
+	missing := false
+	for _, seed := range harnessSeeds {
+		stored, ok := harnesses[seed.slug]
+		if !ok || harnessNeedsMigration(seed, stored) {
+			missing = true
+			break
+		}
+	}
+
+	if !missing {
 		h.s.mu.Unlock()
 		return nil
 	}
@@ -117,13 +135,26 @@ func (h *HarnessService) seedIfEmpty() error {
 	}
 	defer cleanup()
 	for _, seed := range harnessSeeds {
-		if err := next.SetHarness(seed.slug, config.HarnessTOML{
-			Name: seed.name, Command: seed.command, Providers: seed.providers, Builtin: true,
-		}); err != nil {
+		stored, exists := harnesses[seed.slug]
+		if exists && !harnessNeedsMigration(seed, stored) {
+			continue
+		}
+		if !exists {
+			stored = config.HarnessTOML{Name: seed.name, Command: seed.command, Builtin: true}
+		}
+		if legacyHarnessDefaults(seed.slug, stored) {
+			stored.Providers = nil
+		}
+		if legacyHarnessCommand(seed.slug, stored.Command) {
+			stored.Name = seed.name
+			stored.Command = seed.command
+		}
+		if err := next.SetHarness(seed.slug, stored); err != nil {
 			h.s.mu.Unlock()
 			return err
 		}
 	}
+
 	data, err := next.MarshalTOML()
 	if err != nil {
 		h.s.mu.Unlock()
@@ -147,7 +178,7 @@ func (h *HarnessService) seedIfEmpty() error {
 // Installed is ignored. Emits config:changed{section:"harnesses"}.
 func (h *HarnessService) Save(ctx context.Context, in HarnessInfo) error {
 	_ = ctx
-	if !providerRe.MatchString(in.Slug) {
+	if !harnessSlugRe.MatchString(in.Slug) {
 		return fmt.Errorf("%w: harness slug %q must match [a-z0-9_]+", errValidation, in.Slug)
 	}
 	if in.Name == "" {
@@ -175,7 +206,7 @@ func (h *HarnessService) Save(ctx context.Context, in HarnessInfo) error {
 	}
 	defer cleanup()
 	if err := next.SetHarness(in.Slug, config.HarnessTOML{
-		Name: in.Name, Command: in.Command, Builtin: builtin, Providers: enabledProviders(in.Providers), Enabled: stored.Enabled,
+		Name: in.Name, Command: in.Command, Builtin: builtin, Providers: enabledProviders(in.Providers), ProviderOverrides: in.Providers, Enabled: stored.Enabled,
 	}); err != nil {
 		h.s.mu.Unlock()
 		return err
@@ -183,7 +214,7 @@ func (h *HarnessService) Save(ctx context.Context, in HarnessInfo) error {
 	return h.persist(next)
 }
 
-// Delete removes ANY harness, builtin or custom (SPEC Deviations). Unknown
+// Delete removes custom harnesses; builtins are retained in the registry. Unknown
 // slug -> errNotFound. Emits config:changed{section:"harnesses"}.
 func (h *HarnessService) Delete(ctx context.Context, slug string) error {
 	_ = ctx
@@ -197,6 +228,11 @@ func (h *HarnessService) Delete(ctx context.Context, slug string) error {
 		h.s.mu.Unlock()
 		return fmt.Errorf("%w: harness %q not found", errNotFound, slug)
 	}
+	if harnesses[slug].Builtin {
+		h.s.mu.Unlock()
+		return fmt.Errorf("%w: harness %q is builtin", errBuiltinReadonly, slug)
+	}
+
 	next, cleanup, err := cloneConfig(h.s.cfg)
 	if err != nil {
 		h.s.mu.Unlock()
@@ -224,7 +260,7 @@ func (h *HarnessService) SetProvider(ctx context.Context, slug, provider string,
 		h.s.mu.Unlock()
 		return fmt.Errorf("%w: harness %q not found", errNotFound, slug)
 	}
-	if _, exists := h.s.cfg.Providers[provider]; !exists {
+	if _, exists := h.providerMap(slug, stored, installed(stored.Command) || (h.s.harnessHome == "" && installedInCommonLocations(stored.Command)), h.s.harnessProviderUniverseLocked())[provider]; !exists {
 		h.s.mu.Unlock()
 		return fmt.Errorf("%w: unknown provider %q", errValidation, provider)
 	}
@@ -236,7 +272,7 @@ func (h *HarnessService) SetProvider(ctx context.Context, slug, provider string,
 	defer cleanup()
 	if err := next.SetHarness(slug, config.HarnessTOML{
 		Name: stored.Name, Command: stored.Command, Builtin: stored.Builtin,
-		Providers: toggleProvider(stored.Providers, provider, on), Enabled: stored.Enabled,
+		Providers: stored.Providers, ProviderOverrides: withProviderOverride(stored.ProviderOverrides, provider, on), Enabled: stored.Enabled,
 	}); err != nil {
 		h.s.mu.Unlock()
 		return err
@@ -260,10 +296,9 @@ func (h *HarnessService) SetAllProviders(ctx context.Context, slug string, on bo
 		h.s.mu.Unlock()
 		return fmt.Errorf("%w: harness %q not found", errNotFound, slug)
 	}
-	var list []string
+	list := []string{}
 	if on {
-		list = make([]string, 0, len(h.s.cfg.Providers))
-		for id := range h.s.cfg.Providers {
+		for id := range h.providerMap(slug, stored, installed(stored.Command) || (h.s.harnessHome == "" && installedInCommonLocations(stored.Command)), h.s.harnessProviderUniverseLocked()) {
 			list = append(list, id)
 		}
 		sort.Strings(list)
@@ -274,8 +309,13 @@ func (h *HarnessService) SetAllProviders(ctx context.Context, slug string, on bo
 		return err
 	}
 	defer cleanup()
+	overrides := map[string]bool{}
+	for id := range h.providerMap(slug, stored, installed(stored.Command) || (h.s.harnessHome == "" && installedInCommonLocations(stored.Command)), h.s.harnessProviderUniverseLocked()) {
+		overrides[id] = on
+	}
 	if err := next.SetHarness(slug, config.HarnessTOML{
-		Name: stored.Name, Command: stored.Command, Builtin: stored.Builtin, Providers: list, Enabled: stored.Enabled,
+		Name: stored.Name, Command: stored.Command, Builtin: stored.Builtin,
+		Providers: list, ProviderOverrides: overrides, Enabled: stored.Enabled,
 	}); err != nil {
 		h.s.mu.Unlock()
 		return err
@@ -307,7 +347,7 @@ func (h *HarnessService) SetEnabled(ctx context.Context, slug string, on bool) e
 	defer cleanup()
 	if err := next.SetHarness(slug, config.HarnessTOML{
 		Name: stored.Name, Command: stored.Command, Builtin: stored.Builtin,
-		Providers: stored.Providers, Enabled: &on,
+		Providers: stored.Providers, ProviderOverrides: stored.ProviderOverrides, Enabled: &on,
 	}); err != nil {
 		h.s.mu.Unlock()
 		return err
@@ -367,13 +407,45 @@ func (h *HarnessService) BuildCommand(slug, modelID, reasoning string) (string, 
 // modes) the pick is recorded via the recordPick seam; a record failure is
 // logged, not returned (SPEC §2.9–2.10).
 func (h *HarnessService) Launch(ctx context.Context, slug, routeKey, profileSlug string) (LaunchResult, error) {
-	_, modelID, reasoning, err := ParseRouteKey(routeKey)
+	provider, modelID, reasoning, err := ParseRouteKey(routeKey)
 	if err != nil {
 		return LaunchResult{}, err
 	}
+	h.s.mu.RLock()
+	harnesses, loadErr := h.s.cfg.LoadHarnesses()
+	builtin := harnesses[slug].Builtin
+	h.s.mu.RUnlock()
+	if loadErr != nil {
+		return LaunchResult{}, loadErr
+	}
+	if builtin && (slug == "opencode" || slug == "kilo") {
+		modelID = routing.CatalogueSlugFor(provider) + "/" + modelID
+	}
+
 	cmd, err := h.BuildCommand(slug, modelID, reasoning)
 	if err != nil {
 		return LaunchResult{}, err
+	}
+
+	if builtin && reasoning != "default" {
+		if slug == "claude" && reasoning != "minimal" {
+			cmd += " --effort " + reasoning
+		}
+		if slug == "codex" {
+			cmd += " -c model_reasoning_effort=" + reasoning
+		}
+	}
+
+	if builtin && slug == "cline" {
+		native := routing.CatalogueSlugFor(provider)
+		home := h.s.harnessHome
+		if home == "" {
+			home, _ = os.UserHomeDir()
+		}
+		if configured := clineProviderID(home, provider); configured != "" {
+			native = configured
+		}
+		cmd += " --provider " + native
 	}
 
 	h.s.mu.RLock()
@@ -491,3 +563,109 @@ func contains(list []string, want string) bool {
 }
 
 var writeHarnessConfig = config.AtomicWriteFile
+
+func withProviderOverride(current map[string]bool, id string, on bool) map[string]bool {
+	out := make(map[string]bool, len(current)+1)
+	for k, v := range current {
+		out[k] = v
+	}
+	out[id] = on
+	return out
+}
+
+func (h *HarnessService) providerMap(slug string, ht config.HarnessTOML, inst bool, universe map[string]bool) map[string]bool {
+	known := make(map[string]bool, len(universe))
+	for id := range universe {
+		known[id] = true
+	}
+	var detected []string
+	if ht.Builtin && inst {
+		home := h.s.harnessHome
+		if home == "" {
+			home, _ = os.UserHomeDir()
+		}
+		if home != "" {
+			detected = discoverHarnessProviders(home, slug)
+		}
+	}
+	// A harness gateway may not exist in models.dev. Keep its metadata visible
+	// without adding it to global providers or enabling any usage fetch.
+	for _, id := range detected {
+		known[id] = true
+	}
+	for _, id := range ht.Providers {
+		known[id] = true
+	}
+	for id := range ht.ProviderOverrides {
+		known[id] = true
+	}
+	list := ht.Providers
+	if list == nil && ht.Builtin {
+		list = detected
+	}
+	out := providerMap(list, known)
+	for id, on := range ht.ProviderOverrides {
+		out[id] = on
+	}
+	return out
+}
+
+func legacyHarnessDefaults(slug string, ht config.HarnessTOML) bool {
+	if len(ht.ProviderOverrides) > 0 {
+		return false
+	}
+	defaults := map[string][]string{
+		"aider": {"claude", "codex", "copilot", "cursor"}, "claude": {"claude", "codex", "copilot"},
+		"codex": {"codex", "copilot"}, "copilot": {"copilot", "cursor"}, "cursor": {"cursor"},
+		"goose": {"claude", "codex", "copilot"}, "windsurf": {"claude", "codex", "copilot", "cursor"},
+	}
+	want, ok := defaults[slug]
+	if !ok || len(want) != len(ht.Providers) {
+		return false
+	}
+	for _, id := range want {
+		if !contains(ht.Providers, id) {
+			return false
+		}
+	}
+	return true
+}
+
+func legacyHarnessCommand(slug, command string) bool {
+	old := map[string]string{"claude": "claude --model {model_id} --reasoning {reasoning}", "codex": "codex -m {model_id} -c reasoning={reasoning}", "cursor": "cursor --model {model_id}", "windsurf": "windsurf --model {model_id}"}
+	return old[slug] != "" && old[slug] == command
+}
+func harnessNeedsMigration(seed harnessSeed, stored config.HarnessTOML) bool {
+	return stored.Builtin && (legacyHarnessDefaults(seed.slug, stored) || legacyHarnessCommand(seed.slug, stored.Command))
+}
+
+// Finder-launched macOS apps often inherit a minimal PATH. Detect reputable
+// package-manager/user install locations without running a login shell.
+func installedInCommonLocations(command string) bool {
+	fields := strings.Fields(command)
+	if len(fields) == 0 || strings.ContainsAny(fields[0], "/\\") {
+		return false
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return false
+	}
+	dirs := []string{"/opt/homebrew/bin", "/usr/local/bin"}
+	for _, rel := range []string{".local/bin", ".opencode/bin", ".bun/bin", ".cargo/bin", ".npm-global/bin"} {
+		dirs = append(dirs, filepath.Join(home, rel))
+	}
+	for _, dir := range dirs {
+		if _, err := exec.LookPath(filepath.Join(dir, fields[0])); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Services) harnessProviderUniverseLocked() map[string]bool {
+	out := map[string]bool{}
+	for _, id := range s.providerUniverseLocked() {
+		out[id] = true
+	}
+	return out
+}

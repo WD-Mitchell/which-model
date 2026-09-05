@@ -11,12 +11,13 @@ import (
 // (kept in sync by convention with service.ParseRouteKey):
 //
 //	route_key = provider "/" model_id "@" reasoning
-//	provider  = [a-z0-9_]+
+//	provider  = [a-z0-9][a-z0-9_-]*
 //	model_id  = [A-Za-z0-9._-]+
 //	reasoning = "minimal"|"low"|"medium"|"high"|"xhigh"|"max"|"default"
 var (
-	slugPattern     = regexp.MustCompile(`^[a-z0-9_]+$`)
-	routeKeyPattern = regexp.MustCompile(`^[a-z0-9_]+/[A-Za-z0-9._-]+@(?:minimal|low|medium|high|xhigh|max|default)$`)
+	harnessProviderPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
+	slugPattern            = regexp.MustCompile(`^[a-z0-9_]+$`)
+	routeKeyPattern        = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*/[A-Za-z0-9._-]+@(?:minimal|low|medium|high|xhigh|max|default)$`)
 	// routePattern is a route key minus the provider segment, as stored under
 	// [routes.disabled].<provider>.
 	routePattern = regexp.MustCompile(`^[A-Za-z0-9._-]+@(?:minimal|low|medium|high|xhigh|max|default)$`)
@@ -34,11 +35,12 @@ type ProfilesTOML map[string]ProfileTOML
 
 // HarnessTOML mirrors one [harnesses.<slug>] table (seeded by B07).
 type HarnessTOML struct {
-	Name      string   `toml:"name"`
-	Command   string   `toml:"command"`   // template; token semantics are B07's
-	Providers []string `toml:"providers"` // provider slugs
-	Builtin   bool     `toml:"builtin"`
-	Enabled   *bool    `toml:"enabled,omitempty"`
+	Name              string          `toml:"name"`
+	Command           string          `toml:"command"`   // template; token semantics are B07's
+	Providers         []string        `toml:"providers"` // nil = discover; explicit list = manual
+	ProviderOverrides map[string]bool `toml:"provider_overrides,omitempty"`
+	Builtin           bool            `toml:"builtin"`
+	Enabled           *bool           `toml:"enabled,omitempty"`
 }
 
 type HarnessesTOML map[string]HarnessTOML
@@ -354,11 +356,17 @@ func (c *Config) SetHarness(slug string, h HarnessTOML) error {
 		return err
 	}
 	m := map[string]any{
-		"name":      h.Name,
-		"command":   h.Command,
-		"providers": stringList(h.Providers),
-		"builtin":   h.Builtin,
+		"name":    h.Name,
+		"command": h.Command,
+		"builtin": h.Builtin,
 	}
+	if h.Providers != nil {
+		m["providers"] = stringList(h.Providers)
+	}
+	if len(h.ProviderOverrides) > 0 {
+		m["provider_overrides"] = h.ProviderOverrides
+	}
+
 	if h.Enabled != nil {
 		m["enabled"] = *h.Enabled
 	}
@@ -502,8 +510,13 @@ func validateHarness(slug string, h HarnessTOML) error {
 		return invalidValue("harnesses."+slug+".command", "must not be empty")
 	}
 	for _, provider := range h.Providers {
-		if !slugPattern.MatchString(provider) {
-			return invalidValue("harnesses."+slug+".providers", "provider %q must match [a-z0-9_]+", provider)
+		if !harnessProviderPattern.MatchString(provider) {
+			return invalidValue("harnesses."+slug+".providers", "provider %q must match [a-z0-9][a-z0-9_-]*", provider)
+		}
+	}
+	for provider := range h.ProviderOverrides {
+		if !harnessProviderPattern.MatchString(provider) {
+			return invalidValue("harnesses."+slug+".provider_overrides", "invalid provider %q", provider)
 		}
 	}
 	return nil
@@ -525,7 +538,7 @@ func validateFavourites(f FavouritesTOML) error {
 
 func validateRoutesDisabled(r RoutesDisabledTOML) error {
 	for _, provider := range sortedKeys(r) {
-		if !slugPattern.MatchString(provider) {
+		if !harnessProviderPattern.MatchString(provider) {
 			return invalidValue("routes.disabled", "provider %q must match [a-z0-9_]+", provider)
 		}
 		seen := make(map[string]bool, len(r[provider]))

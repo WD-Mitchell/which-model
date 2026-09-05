@@ -109,7 +109,7 @@ Fixture request: `ProfileSlug` of a custom profile with `CoreShare 60`, tier1 `{
 4. **Overrides don't persist.** `Rank` with non-nil `Overrides` (and with an invalid override for the rejection path): read `config.toml` bytes before/after — byte-identical; `history.jsonl` absent/unchanged; recorder shows zero events. Invalid override (CoreShare 57; weight 6; tier2 key `"bogus"`) ⇒ `validation_failed`, checks hit in SPEC §2.1 order.
 5. **Holds.** `Holds 0` uses `[gui].holds`; `Holds 3` truncates to 3 with `Total 4`; `Holds 4` ⇒ `validation_failed`.
 6. **RecordPick appends + emits.** Two calls append exactly two lines; each unmarshals with the §4 field names (`ulid` 26 chars, `ts` RFC3339, `strategy "gui"`, `candidate_id` = the route key); recorder shows exactly one `pick:recorded` per call with `{profile_slug, route_key}`. Bad grammar (`"claude/x"`, `"a@b"`) ⇒ `validation_failed`, zero lines, zero events; unknown profile ⇒ `not_found`; unwritable state dir ⇒ `io_error`, zero events.
-7. **CatalogLine.** Fixture ⇒ `{Models: 4, ProvidersOn: 2, Harnesses: 4}` (empty `[harnesses]` ⇒ builtin seed count) and `config.toml` bytes unchanged after the call; disabling codex ⇒ `ProvidersOn 1`.
+7. **CatalogLine.** Fixture ⇒ `{Models: 4, ProvidersOn: 2, Harnesses: 18}` (empty `[harnesses]` ⇒ builtin seed count) and `config.toml` bytes unchanged after the call; disabling codex ⇒ `ProvidersOn 1`.
 
 ## 6. Config keys, events, error codes
 
