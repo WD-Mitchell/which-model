@@ -138,3 +138,7 @@ followed by a newer queued edit. This prevents a queued whole-list replacement
 from deleting an account that authentication just created.
 
 At card widths of 620px or less, usage meters move to a full-width second line so quota labels remain readable beside the wider provider name.
+
+## Refresh data copy correction
+
+The signed-in provider action reads `Refresh data`, invokes the existing full `providers.refreshRoutes()` operation, and reports `could not refresh data` on failure. This matches the tray action and the 2026-09-05 user request. The button stays disabled while refreshing.

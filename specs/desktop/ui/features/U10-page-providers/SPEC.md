@@ -90,3 +90,7 @@ from deleting an account that authentication just created.
 The owner reported early wrapping and OAuth accounts labelled `api`. The shared usage-card geometry supersedes the earlier textual-limits-only mockup contract; the name expands from 96px to a shrinkable 200px and stays single-line. B06 supplies account-kind labels independently of usage transport. Verify long ids, OAuth labels, meters, toggles and model counts at compact and wide settings widths.
 
 At card widths of 620px or less, usage meters move to a full-width second line so quota labels remain readable beside the wider provider name.
+
+## Refresh data copy correction
+
+The signed-in provider action reads `Refresh data`, invokes the existing full `providers.refreshRoutes()` operation, and reports `could not refresh data` on failure. This matches the tray action and the 2026-09-05 user request. The button stays disabled while refreshing.

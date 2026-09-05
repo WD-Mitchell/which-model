@@ -80,10 +80,14 @@ func newRefreshCmd() *cobra.Command {
 		},
 	}
 	f.Bind(cmd)
+	cmd.Flags().BoolVar(&f.Rebuild, "rebuild", false, "rebuild from fresh source data without cached model lists or old raw values")
 	return cmd
 }
 
 func runRefresh(f *catalogFlags, cmd *cobra.Command) error {
+	if f.Rebuild && len(f.Providers) > 0 {
+		return &UsageError{Message: "--rebuild cannot be combined with a --provider subset"}
+	}
 	cfg, res, err := catalogPreamble(f)
 	if err != nil {
 		return err
@@ -127,6 +131,7 @@ func runRefresh(f *catalogFlags, cmd *cobra.Command) error {
 
 	report, err := runStages(cmd.Context(), newRunner(), nil, findRepoRoot(mustGetwd()), &Global, stages,
 		CollectOptions{
+			Rebuild:            f.Rebuild,
 			Providers:          f.Providers,
 			ProviderConfigPath: providerConfigPath,
 			BenchmarksPath:     benchmarksPath,

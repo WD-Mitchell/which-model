@@ -100,6 +100,7 @@ type Stage int
 const ( StageCollect Stage = iota; StageDerive )
 
 type CollectOptions struct {
+    Rebuild bool // bypass model cache and previous raw data
     Providers           []string
     ProviderConfigPath  string
     BenchmarksPath      string // benchmarks.toml for the §6.3 selection expansion
@@ -404,3 +405,9 @@ then reads raw artifact paths from the decoded root. Pick validates catalog
 configuration before loading scores and propagates config errors as exit 2.
 Empty consumer paths retain their previous defaults. This corrects scalar
 accessor guidance that contradicted F01's table-only contract.
+
+## Correction — explicit full rebuild
+
+`catalog refresh --rebuild` sets `CollectOptions.Rebuild bool`. It bypasses the model-catalog TTL and does not read or merge previous raw observations, so collection and derivation rebuild data from the current configured sources. Existing raw data is backed up before replacement. `--rebuild` with a `--provider` subset is a usage error. Ordinary refresh retains its existing merge policy. This explicit option implements the 2026-09-05 request for desktop Refresh data to perform a full rebuild.
+
+Pinned tests: `TestCatalogRebuildBypassesCachedModelsAndOldRawData` (fresh-but-stale model cache and corrupt old raw CSV are replaced from current sources), `TestCatalogRefreshRebuildFlagReachesCollector` (flag reaches the collector).

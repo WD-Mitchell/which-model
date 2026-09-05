@@ -499,3 +499,11 @@ it('qualifies catalog provider identities when launching OpenCode', async () => 
   const result = await host.harnesses.launch('opencode', 'zai-coding-plan/glm-5@high', 'research')
   expect(result.command).toBe('opencode --model zai-coding-plan/glm-5')
 })
+
+
+it('lists new provider models with missing scores instead of requiring benchmarks', async () => {
+  const host = createMockEngineHost()
+  const models = await host.catalog.models()
+  const haiku = models.find(model => model.model_id === 'claude-haiku-4')
+  expect(haiku).toMatchObject({ intelligence: null, cost: null, speed: null, provider_count: 1, maker: 'Anthropic' })
+})

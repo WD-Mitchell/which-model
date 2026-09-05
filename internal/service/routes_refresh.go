@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/WD-Mitchell/which-model/internal/catalog/csvstore"
 	"github.com/WD-Mitchell/which-model/internal/catalog/fetch/modelsdev"
 	"github.com/WD-Mitchell/which-model/internal/catalog/identity"
 	"github.com/WD-Mitchell/which-model/internal/config"
@@ -34,7 +35,7 @@ func modelsDevCachePath(cacheDir string) string {
 }
 
 // RefreshRoutes rebuilds the route table the same way `which-model routes
-// refresh` does: models.dev catalogue (explicit refresh, with cached fallback) joined to the
+// refresh` does: a freshly fetched models.dev catalogue joined to the
 // scores CSV, preserving user-declared routes. Settings calls this after a
 // successful sign-in and from the signed-in "Refresh models" button.
 //
@@ -43,13 +44,15 @@ func modelsDevCachePath(cacheDir string) string {
 // scores are pulled from the configured GitHub repo (default: the main
 // which-model repository). Login still succeeds if this step fails.
 func (p *ProviderService) RefreshRoutes(ctx context.Context) error {
+	p.s.dataRefreshMu.Lock()
+	defer p.s.dataRefreshMu.Unlock()
 	if err := ctx.Err(); err != nil {
 		return toErrorDTO(err)
 	}
 	if err := p.s.refreshCatalogSource(ctx); err != nil {
-		return toErrorDTO(fmt.Errorf("refresh benchmarks: %w", err))
+		return toErrorDTO(fmt.Errorf("refresh data: %w", err))
 	}
-	if err := p.s.ReloadCatalog(); err != nil {
+	if err := p.s.reloadCatalog(); err != nil {
 		return toErrorDTO(fmt.Errorf("reload catalogue: %w", err))
 	}
 	catalogue, err := p.loadOrFetchModelsDev(ctx)
@@ -61,13 +64,24 @@ func (p *ProviderService) RefreshRoutes(ctx context.Context) error {
 	p.s.mu.RUnlock()
 	liveModels := make(map[string][]routing.ModelEntry, len(liveProviderIDs))
 	for _, id := range liveProviderIDs {
-		if models := discoverLiveProviderModels(ctx, id); len(models) > 0 {
+		var models []routing.ModelEntry
+		if id == "codex" {
+			models = p.s.codexModels()
+		} else {
+			models = discoverLiveProviderModels(ctx, id)
+		}
+		if models != nil {
 			liveModels[id] = models
 		}
 	}
+	if err := ctx.Err(); err != nil {
+		return toErrorDTO(err)
+	}
+	if err := writeProviderInventory(p.s.paths.CacheDir, liveModels); err != nil {
+		return toErrorDTO(err)
+	}
 	p.s.mu.RLock()
 	input := p.routeProductionInputLocked(catalogue, liveModels)
-	existing := p.s.routes
 	p.s.mu.RUnlock()
 
 	result, err := routing.ProduceRoutes(input)
@@ -78,10 +92,18 @@ func (p *ProviderService) RefreshRoutes(ctx context.Context) error {
 	if routes == nil {
 		routes = []routing.Route{}
 	}
+	hash, err := csvstore.ProvenanceHash(filepath.Join(p.s.paths.CacheDir, "catalog", "available_model_scores.csv"))
+	if err != nil {
+		return toErrorDTO(err)
+	}
+	refreshed := make(map[string]string, len(input.Providers))
+	for _, provider := range input.Providers {
+		refreshed[provider.Provider] = time.Now().UTC().Format(time.RFC3339)
+	}
 	table := routing.Table{
 		SchemaVersion: routing.TableSchemaVersion,
-		ScoresHash:    existing.ScoresHash,
-		RefreshedAt:   existing.RefreshedAt,
+		ScoresHash:    hash,
+		RefreshedAt:   refreshed,
 		Routes:        routes,
 	}
 
@@ -96,6 +118,7 @@ func (p *ProviderService) RefreshRoutes(ctx context.Context) error {
 	}
 	p.s.routes = table
 	p.s.mu.Unlock()
+	p.s.emit(EventCatalogChanged, map[string]any{})
 	p.s.emit(EventConfigChanged, map[string]string{"section": "routes"})
 	return nil
 }
@@ -110,18 +133,10 @@ func (p *ProviderService) loadOrFetchModelsDev(ctx context.Context) ([]modelsdev
 		err = fmt.Errorf("models.dev catalogue is empty")
 	}
 	if err != nil {
-		if cached, ok := readModelsDevCache(path); ok {
-			p.s.mu.Lock()
-			p.s.warnings = append(p.s.warnings, "models.dev refresh failed; using cached model catalogue")
-			p.s.mu.Unlock()
-			return cached, nil
-		}
 		return nil, err
 	}
 	if err := writeModelsDevCache(path, catalogue); err != nil {
-		p.s.mu.Lock()
-		p.s.warnings = append(p.s.warnings, "models.dev catalogue could not be cached; using refreshed models for this operation")
-		p.s.mu.Unlock()
+		return nil, err
 	}
 	return catalogue, nil
 }
@@ -229,8 +244,8 @@ func (p *ProviderService) liveModelProviderIDsLocked() []string {
 	if !enabled {
 		return nil
 	}
-	ids := make([]string, 0, 2)
-	for _, id := range []string{"antigravity", "cursor"} {
+	ids := make([]string, 0, 3)
+	for _, id := range []string{"antigravity", "cursor", "codex"} {
 		provider, ok := p.s.cfg.Providers[id]
 		if ok && provider.Enabled {
 			ids = append(ids, id)

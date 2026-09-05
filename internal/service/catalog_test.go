@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"github.com/WD-Mitchell/which-model/internal/routing"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -214,10 +215,10 @@ func TestCatalogModels(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Models: %v", err)
 	}
-	if len(got) != 3 {
-		t.Fatalf("len(Models) = %d, want 3 (%v)", len(got), got)
+	if len(got) != 5 {
+		t.Fatalf("len(Models) = %d, want 5 (%v)", len(got), got)
 	}
-	if got[0].ModelName != "Claude Opus 5" || got[1].ModelName != "GPT-5.6 Sol" || got[2].ModelName != "Kimi K2.7 Code" {
+	if got[0].ModelName != "Claude Opus 5" || got[3].ModelName != "GPT-5.6 Sol" || got[4].ModelName != "Kimi K2.7 Code" {
 		t.Fatalf("order = %s, %s, %s", got[0].ModelName, got[1].ModelName, got[2].ModelName)
 	}
 	opus := got[0]
@@ -239,7 +240,7 @@ func TestCatalogModels(t *testing.T) {
 	if opus.ProviderCount != 1 {
 		t.Errorf("Opus ProviderCount = %d, want 1", opus.ProviderCount)
 	}
-	sol := got[1]
+	sol := got[3]
 	if sol.ModelID != "gpt-5.6" {
 		t.Errorf("Sol ModelID = %q, want gpt-5.6", sol.ModelID)
 	}
@@ -249,7 +250,7 @@ func TestCatalogModels(t *testing.T) {
 	if sol.ProviderCount != 1 {
 		t.Errorf("Sol ProviderCount = %d, want 1", sol.ProviderCount)
 	}
-	kimi := got[2]
+	kimi := got[4]
 	if kimi.ModelID != "" {
 		t.Errorf("Kimi ModelID = %q, want empty", kimi.ModelID)
 	}
@@ -269,21 +270,20 @@ only_enabled_providers = true
 	if err != nil {
 		t.Fatalf("Models: %v", err)
 	}
-	if len(got) != 2 {
-		t.Fatalf("len(Models) with only_enabled_providers=true = %d, want 2 (%v)", len(got), got)
+	if len(got) != 4 {
+		t.Fatalf("len(Models) with only_enabled_providers=true = %d, want 4 (%v)", len(got), got)
 	}
-	if got[0].ModelName != "Claude Opus 5" || got[1].ModelName != "GPT-5.6 Sol" {
+	if got[0].ModelName != "Claude Opus 5" || got[3].ModelName != "GPT-5.6 Sol" {
 		t.Fatalf("models = %s, %s, want Opus and Sol (excluding Kimi)", got[0].ModelName, got[1].ModelName)
 	}
 }
-
 
 func TestCatalogModelsTopReasoningScores(t *testing.T) {
 	header := "model,reasoning,intelligence_index_score,time_per_intelligence_index_task_seconds_score,cost_per_intelligence_index_task_usd_score,median_end_to_end_response_time_seconds_score,artificial_analysis_coding_index_score,artificial_analysis_agentic_index_score"
 	csv := header + "\n" +
 		"Claude Opus 5,high,40,10,20,30,0,0\n" +
 		"Claude Opus 5,max,90,10,20,30,0,0\n"
-	svc, _ := newTestServices(t, WithScoresCSV(csv))
+	svc, _ := newTestServices(t, WithScoresCSV(csv), WithRoutes(routing.Table{SchemaVersion: routing.TableSchemaVersion}))
 	got, err := svc.Catalog().Models(catCtx())
 	if err != nil {
 		t.Fatalf("Models: %v", err)

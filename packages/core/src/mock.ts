@@ -1,3 +1,5 @@
+import { extractMaker } from './modelMaker.js'
+export { extractMaker } from './modelMaker.js'
 import { EngineError } from './errors.js'
 import type { EngineEvent, EngineEventPayloads } from './events.js'
 import type { EngineHost } from './host.js'
@@ -134,20 +136,6 @@ function seedModels(): MockModel[] {
   ]
 }
 
-export function extractMaker(name: string): string {
-  const lower = name.toLowerCase()
-  if (lower.startsWith('claude')) return 'Anthropic'
-  if (lower.startsWith('gpt') || lower.startsWith('o1') || lower.startsWith('o3') || lower.startsWith('o4')) return 'OpenAI'
-  if (lower.startsWith('gemini') || lower.startsWith('gemma')) return 'Google'
-  if (lower.startsWith('qwen')) return 'Qwen'
-  if (lower.startsWith('deepseek')) return 'DeepSeek'
-  if (lower.startsWith('grok')) return 'xAI'
-  if (lower.startsWith('llama')) return 'Meta'
-  if (lower.startsWith('mistral') || lower.startsWith('codestral')) return 'Mistral'
-  if (lower.startsWith('command')) return 'Cohere'
-  const first = name.split(/\s+/)[0]
-  return first || 'Other'
-}
 
 function mkProfile(
   slug: string,
@@ -770,11 +758,13 @@ export function createMockEngineHost(
         for (const p of data.providers) {
           if (!p.on) continue
           for (const pm of providerModels(p.id)) {
-            const acc = byName.get(pm.model_name)
-            if (acc) {
-              for (const lvl of pm.levels) acc.reasoning.push(lvl.reasoning)
-              acc.providers.add(p.id)
+            let acc = byName.get(pm.model_name)
+            if (!acc) {
+              acc = { name: pm.model_name, id: pm.model_id, reasoning: [], intel: null, cost: null, speed: null, providers: new Set<string>(), topRank: -1 }
+              byName.set(pm.model_name, acc)
             }
+            for (const lvl of pm.levels) acc.reasoning.push(lvl.reasoning)
+            acc.providers.add(p.id)
           }
         }
         const list = [...byName.values()]

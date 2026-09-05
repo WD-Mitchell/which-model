@@ -1,7 +1,7 @@
 // Tray right-click menu (S02 SPEC §2.6). A native NSMenu hung off the system
 // tray, and now the app's ONLY app-level menu: it carries what the popover's
 // hamburger used to (Custom weights…, Settings…, Quit) plus a Quick select
-// submenu of every profile, Refresh benchmarks and Check for updates. The
+// submenu of every profile, Refresh data and Check for updates. The
 // popover's hamburger was removed rather than duplicated — one menu, in the
 // place macOS users right-click for it.
 //
@@ -69,7 +69,7 @@ const trayViewEvent = "tray:view"
 // Menu labels. Ellipses are the single U+2026 character macOS menus use.
 const (
 	trayQuickSelectLabel = "Quick select"
-	trayRefreshLabel     = "Refresh benchmarks"
+	trayRefreshLabel     = "Refresh data"
 	trayUpdateLabel      = "Check for updates…"
 	trayQuitLabel        = "Quit which-model"
 )
@@ -187,7 +187,7 @@ func (m *trayMenu) complexityScale() []string {
 //	Quick select  ▸  <every profile, in complexity-scale order>
 //	Settings…
 //	────────────
-//	Refresh benchmarks
+//	Refresh data
 //	Check for updates…
 //	────────────
 //	Quit which-model
@@ -219,7 +219,7 @@ func (m *trayMenu) build(profiles []service.ProfileSummary, selected string) *ap
 	menu.Add(traySettingsLabel).OnClick(func(*application.Context) { showSettings(m.app) })
 
 	menu.AddSeparator()
-	menu.Add(trayRefreshLabel).OnClick(func(*application.Context) { m.refreshBenchmarks() })
+	menu.Add(trayRefreshLabel).OnClick(func(*application.Context) { m.refreshData() })
 	menu.Add(trayUpdateLabel).OnClick(func(*application.Context) { m.checkForUpdates() })
 
 	menu.AddSeparator()

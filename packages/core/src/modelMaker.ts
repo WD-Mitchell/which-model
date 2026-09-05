@@ -1,0 +1,15 @@
+export function extractMaker(name: string): string {
+  const lower = name.trim().toLowerCase().split('/').at(-1) ?? ''
+  if (lower.startsWith('glm') || lower.startsWith('z.ai') || lower.startsWith('zai')) return 'Z.AI'
+  if (lower.startsWith('kimi')) return 'Moonshot AI'
+  if (lower.startsWith('claude')) return 'Anthropic'
+  if (lower.startsWith('chatgpt') || lower.startsWith('gpt') || lower.startsWith('o1') || lower.startsWith('o3') || lower.startsWith('o4')) return 'OpenAI'
+  if (lower.startsWith('gemini') || lower.startsWith('gemma')) return 'Google'
+  if (lower.startsWith('qwen')) return 'Qwen'
+  if (lower.startsWith('deepseek')) return 'DeepSeek'
+  if (lower.startsWith('grok')) return 'xAI'
+  if (lower.startsWith('llama')) return 'Meta'
+  if (lower.startsWith('mistral') || lower.startsWith('codestral') || lower.startsWith('pixtral') || lower.startsWith('ministral')) return 'Mistral'
+  if (lower.startsWith('command')) return 'Cohere'
+  return 'Other'
+}

@@ -68,6 +68,27 @@ describe('Models page', () => {
     expect(screen.getAllByText('Claude Opus 5')).toHaveLength(1)
   })
 
+
+  it('lists unbenchmarked provider models and opens their score-free details', async () => {
+    renderApp(host)
+    await openModels()
+    const haiku = await screen.findByText('Claude Haiku 4')
+    fireEvent.click(haiku)
+    expect(await screen.findByText('No benchmark data yet')).toBeDefined()
+    expect(screen.getByText('enabled providers')).toBeDefined()
+  })
+
+  it('groups GLM model families under Z.AI even without a maker field', async () => {
+    host.catalog.models = async () => [{ model_name: 'GLM-5.3', model_id: 'glm-5.3', reasoning: ['high'], intelligence: null, cost: null, speed: null, provider_count: 1, providers: ['zai'] }]
+    renderApp(host)
+    await openModels()
+    await screen.findByText('GLM-5.3')
+    fireEvent.click(screen.getByRole('button', { name: 'Filter by maker' }))
+    fireEvent.click(await screen.findByText('Z.AI'))
+    expect(screen.getByText('GLM-5.3')).toBeDefined()
+    expect(screen.getByText('Maker: Z.AI')).toBeDefined()
+  })
+
   it('filters the list by name', async () => {
     renderApp(host)
     await openModels()
@@ -202,7 +223,7 @@ describe('Models page', () => {
     expect(screen.getByText('GPT-5.6 Sol')).toBeDefined()
   })
 
-  it('renders "not yet in catalog" under catalog scores for unscored provider models', async () => {
+  it('renders the missing benchmark state for unscored provider models', async () => {
     const client = makeClient()
     render(
       <QueryClientProvider client={client}>
@@ -218,7 +239,7 @@ describe('Models page', () => {
     )
     expect(await screen.findByText('catalog scores')).toBeDefined()
     expect(screen.getByText('Claude Haiku 4')).toBeDefined()
-    expect(screen.getByText('not yet in catalog')).toBeDefined()
+    expect(screen.getByText('No benchmark data yet')).toBeDefined()
     expect(screen.getByText('enabled providers')).toBeDefined()
     expect(screen.getAllByText('claude-haiku-4').length).toBeGreaterThan(0)
   })
@@ -301,7 +322,7 @@ describe('Models page', () => {
 
     // Opens model card for Claude Haiku 4
     expect(await screen.findByText('catalog scores')).toBeDefined()
-    expect(screen.getByText('not yet in catalog')).toBeDefined()
+    expect(screen.getByText('No benchmark data yet')).toBeDefined()
     expect(screen.getByText('enabled providers')).toBeDefined()
   })
 })

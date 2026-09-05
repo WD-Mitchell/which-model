@@ -244,7 +244,7 @@ func TestModelsDevExplicitRefreshReplacesValidCache(t *testing.T) {
 	}
 }
 
-func TestModelsDevRefreshFailureFallsBackWithoutTouchingCache(t *testing.T) {
+func TestModelsDevRefreshFailureIsReportedWithoutTouchingCache(t *testing.T) {
 	svc, _ := newTestServices(t)
 	path := modelsDevCachePath(svc.paths.CacheDir)
 	// Old schema must also be read without hidden network work.
@@ -266,11 +266,8 @@ func TestModelsDevRefreshFailureFallsBackWithoutTouchingCache(t *testing.T) {
 		t.Fatalf("cache read calls=%d", calls)
 	}
 	got, err := svc.Providers().loadOrFetchModelsDev(context.Background())
-	if err != nil || len(got) != 1 || calls != 1 {
-		t.Fatalf("fallback=%+v error=%v calls=%d", got, err, calls)
-	}
-	if len(svc.Warnings()) == 0 {
-		t.Fatal("missing fallback warning")
+	if err == nil || len(got) != 0 || calls != 1 {
+		t.Fatalf("refresh=%+v error=%v calls=%d", got, err, calls)
 	}
 	after, err := os.ReadFile(path)
 	if err != nil || string(before) != string(after) {

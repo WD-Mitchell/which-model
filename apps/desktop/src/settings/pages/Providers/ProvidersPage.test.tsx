@@ -168,11 +168,11 @@ describe('Providers page copilot sign-in', () => {
     expect(await screen.findByText('GPT-5.6 Luna')).toBeDefined()
   })
 
-  it('shows Refresh models after sign-in and the button rebuilds routes', async () => {
+  it('shows Refresh data after sign-in and the button rebuilds routes', async () => {
     const { confirmSpy, resolve } = deferConfirm(host)
     const refreshSpy = vi.spyOn(host.providers, 'refreshRoutes').mockResolvedValue(undefined)
     await openCopilotDetail(host)
-    expect(screen.queryByText('Refresh models')).toBeNull()
+    expect(screen.queryByText('Refresh data')).toBeNull()
     fireEvent.click(await screen.findByText('Sign in…'))
     await screen.findByText('WDML-MOCK')
     await waitFor(() =>
@@ -180,7 +180,7 @@ describe('Providers page copilot sign-in', () => {
     )
     resolve()
     await waitFor(() => expect(screen.queryByText('WDML-MOCK')).toBeNull())
-    fireEvent.click(await screen.findByText('Refresh models'))
+    fireEvent.click(await screen.findByText('Refresh data'))
     await waitFor(() => expect(refreshSpy).toHaveBeenCalledTimes(1))
   })
 })

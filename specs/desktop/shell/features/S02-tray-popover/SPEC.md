@@ -85,3 +85,7 @@ Already-running callbacks retain their existing native-runtime lifetime constrai
 Pinned regressions in cmd/which-model-desktop/shutdown_test.go verify repeated
 timer cancellation, hide cancellation, and concurrent bridge closure.
 Run: `go test -race ./cmd/which-model-desktop`.
+
+## Refresh data menu correction
+
+The tray action is named `Refresh data`. It invokes B06's full refresh of the configured catalog source, provider model inventories, and routes. Status copy is `refreshing data…`, `data refreshed`, or `data refresh failed — see the log`; overlapping tray clicks report `data refresh already running`. Local collection invokes `catalog refresh --rebuild`. This replaces the earlier Refresh benchmarks wording under the 2026-09-05 user decision.

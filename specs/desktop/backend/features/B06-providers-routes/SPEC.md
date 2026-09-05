@@ -99,3 +99,13 @@ degraded replacement table. Pin `TestModelsDevRefreshCancellationDoesNotFallBack
 ### Authentication display correction (September 2026)
 
 The owner reported Claude and Copilot showing `api` despite configured OAuth accounts. Account kind now takes precedence over usage-fetch transport for `Auth`, superseding the former cache-source-only display rule. Credential selection and cached `Snapshot.Source` are unchanged.
+
+## Correction — Refresh data and independent model inventories (2026-09-05)
+
+The user's new-model visibility requirement supersedes §2.11's reliance on scored routes for retaining live model discoveries. Successful provider model listings are retained independently in `<cache>/catalog/provider_models.json`, including entries with no scores. Detail unions this inventory with models.dev and routes for enabled providers. Codex reads visible `models` entries from `$CODEX_HOME/models_cache.json` (default `~/.codex`) on demand; no credential file is read. Slugs must be valid provider-native ids, hidden entries are omitted, and unsupported effort values are skipped without discarding the model. Reads are bounded to regular files of at most 2 MiB; missing/malformed files degrade to existing catalog/inventory data.
+
+`RefreshRoutes` is the complete Refresh data operation: serialize refreshes, download all catalog artifacts from the selected Official/Custom repository or invoke a fresh local Artificial Analysis collect-and-derive, reload scores, fetch models.dev again, refresh enabled CLI inventories, rebuild routes preserving user-declared routes and saved switches, and update the scores hash and refresh timestamps. Emit catalog and route changes after route publication so open views reload the final data.
+
+This supersedes #183's fallback-success policy for explicit refresh: models.dev fetch or persistence failure is reported as a failed refresh; a previous cache remains available to read-only views. A full refresh must not claim success using a stale model catalog. Provider-local optional CLI failure still retains its last usable inventory and does not block other sources. Login retains its existing non-blocking refresh behavior.
+
+The desktop starts `Services.StartDataRefresher(ctx)` once. It refreshes data immediately, then at `gui.benchmark_check_frequency`, checking interval changes each minute without restart; weekly is seven days. Each attempt has a three-minute deadline and shares manual refresh serialization. Failures retry at the configured interval. Context cancellation stops the loop. Pin `TestDataRefresherUsesConfiguredIntervalAndStops` (startup, 15-minute boundary, changed frequency, cancellation). This connects the previously persisted-only interval to the data flow.
