@@ -1029,8 +1029,10 @@ export function createMockEngineHost(overrides) {
             async launch(slug, routeKey, profileSlug) {
                 const parts = parseRouteKey(routeKey);
                 const h = requireHarness(slug);
+                const nativeProvider = { claude: 'anthropic', codex: 'openai', copilot: 'github-copilot' }[parts.provider] ?? parts.provider;
+                const modelId = h.builtin && (slug === 'opencode' || slug === 'kilo') ? `${nativeProvider}/${parts.modelId}` : parts.modelId;
                 let command = h.command
-                    .replaceAll('{model_id}', parts.modelId)
+                    .replaceAll('{model_id}', modelId)
                     .replaceAll('{reasoning}', parts.reasoning);
                 if (h.builtin && parts.reasoning !== 'default') {
                     if (slug === 'claude' && parts.reasoning !== 'minimal')
@@ -1038,6 +1040,8 @@ export function createMockEngineHost(overrides) {
                     if (slug === 'codex')
                         command += ` -c model_reasoning_effort=${parts.reasoning}`;
                 }
+                if (h.builtin && slug === 'cline')
+                    command += ` --provider ${nativeProvider}`;
                 recordPickInternal(profileSlug, routeKey);
                 return { copied: data.settings.copy_command_instead, command };
             },

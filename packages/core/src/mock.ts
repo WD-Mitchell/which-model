@@ -1148,13 +1148,16 @@ export function createMockEngineHost(
       async launch(slug, routeKey, profileSlug) {
         const parts = parseRouteKey(routeKey)
         const h = requireHarness(slug)
+        const nativeProvider = ({ claude: 'anthropic', codex: 'openai', copilot: 'github-copilot' } as Record<string, string>)[parts.provider] ?? parts.provider
+        const modelId = h.builtin && (slug === 'opencode' || slug === 'kilo') ? `${nativeProvider}/${parts.modelId}` : parts.modelId
         let command = h.command
-          .replaceAll('{model_id}', parts.modelId)
+          .replaceAll('{model_id}', modelId)
           .replaceAll('{reasoning}', parts.reasoning)
         if (h.builtin && parts.reasoning !== 'default') {
           if (slug === 'claude' && parts.reasoning !== 'minimal') command += ` --effort ${parts.reasoning}`
           if (slug === 'codex') command += ` -c model_reasoning_effort=${parts.reasoning}`
         }
+        if (h.builtin && slug === 'cline') command += ` --provider ${nativeProvider}`
         recordPickInternal(profileSlug, routeKey)
         return { copied: data.settings.copy_command_instead, command }
       },

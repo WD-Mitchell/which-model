@@ -145,7 +145,7 @@ describe('Harness discovery presentation', () => {
     const setProvider = vi.spyOn(host.harnesses, 'setProvider').mockResolvedValue()
     resetHost(host)
     renderApp(host)
-    fireEvent.click(screen.getByRole('button', { name: 'Harnesses', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: 'Harnesses' }))
     const cline = await screen.findByText('Cline', { exact: true })
     expect(cline.closest('.row')?.textContent).toContain('1 provider')
     fireEvent.click(cline)

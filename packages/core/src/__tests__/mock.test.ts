@@ -493,3 +493,9 @@ describe('profile create-only contract', () => {
   expect(events).toBe(1)
  })
 })
+
+it('qualifies catalog provider identities when launching OpenCode', async () => {
+  const host = createMockEngineHost()
+  const result = await host.harnesses.launch('opencode', 'zai-coding-plan/glm-5@high', 'research')
+  expect(result.command).toBe('opencode --model zai-coding-plan/glm-5')
+})
