@@ -7,29 +7,20 @@ import (
 	"io"
 	"strings"
 
-	sdecimal "github.com/shopspring/decimal"
 	"github.com/WD-Mitchell/which-model/internal/catalog/csvstore"
 	"github.com/WD-Mitchell/which-model/internal/catalog/identity"
 	wdecimal "github.com/WD-Mitchell/which-model/internal/decimal"
+	sdecimal "github.com/shopspring/decimal"
 )
 
 // Core metric directions (generate_scores.py CORE_METRICS, SPEC §2.2):
 // higher-is-better for intelligence/coding/agentic, lower-is-better for
 // the three latency/cost metrics.
 var coreMetricDirections = map[string]bool{
-	"intelligence_index":                            true,
-	"time_per_intelligence_index_task_seconds":      false,
-	"cost_per_intelligence_index_task_usd":          false,
-	"median_end_to_end_response_time_seconds":       false,
-	"artificial_analysis_coding_index":              true,
-	"artificial_analysis_agentic_index":             true,
-}
-
-// optionalMetrics are the columns whose range problems (no values or a
-// degenerate min==max) blank the score column instead of erroring
-// (generate_scores.py OPTIONAL_METRICS).
-var optionalMetrics = map[string]bool{
-	"time_per_intelligence_index_task_seconds": true,
+	"intelligence_index":                       true,
+	"time_per_intelligence_index_task_seconds": false,
+	"cost_per_intelligence_index_task_usd":     false,
+	"median_end_to_end_response_time_seconds":  false,
 	"artificial_analysis_coding_index":         true,
 	"artificial_analysis_agentic_index":        true,
 }
@@ -43,14 +34,6 @@ var nullableMetrics = map[string]bool{
 	"median_end_to_end_response_time_seconds":  true,
 	"artificial_analysis_coding_index":         true,
 	"artificial_analysis_agentic_index":        true,
-}
-
-// requiredTier1Metrics are the three metrics every eligible row must have
-// (generate_scores.py REQUIRED_TIER1_METRICS).
-var requiredTier1Metrics = []string{
-	"intelligence_index",
-	"median_end_to_end_response_time_seconds",
-	"cost_per_intelligence_index_task_usd",
 }
 
 // rawCell is one parsed raw cell: the verbatim text (blank = "") and the

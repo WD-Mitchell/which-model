@@ -285,29 +285,30 @@ type Favourite struct {
 
 // GUISettings is the settings-page aggregate for [gui] plus [auth].use_keychain.
 type GUISettings struct {
-	Layout                  string `json:"layout"`         // "carousel"|"list"
-	DefaultTab              string `json:"default_tab"`    // "profiles"|"sliders"
-	WeightControl           string `json:"weight_control"` // "step"|"bar"|"slider"
-	Holds                   int    `json:"holds"`          // 3|5|10
-	Shortcut                string `json:"shortcut"`       // "alt+space"|"ctrl+space"|"cmd+shift+m"
-	ShowMenuBarIcon         bool   `json:"show_menu_bar_icon"`
-	LaunchAtLogin           bool   `json:"launch_at_login"`
-	CopyCommandInstead      bool   `json:"copy_command_instead"`
-	ClosePopoverAfterLaunch bool   `json:"close_popover_after_launch"`
-	AutoUpdate              bool   `json:"auto_update"`
-	AutoUpdateFrequency     string `json:"auto_update_frequency"` // "hourly"|"daily"|"weekly"|"monthly"
-	MCPServer               bool   `json:"mcp_server"`
-	ClaudeMDHint            bool   `json:"claude_md_hint"`
-	ShellAlias              bool   `json:"shell_alias"`
-	UseKeychain             bool   `json:"use_keychain"` // [auth], true prefers OS keychain
-	CatalogRepo             string `json:"catalog_repo"` // "owner/repo" or "owner/repo@ref"
-	UseLocalAA              bool   `json:"use_local_aa"`
-	BenchmarkCheckFrequency string `json:"benchmark_check_frequency"`
-	OnlyEnabledProviders    bool   `json:"only_enabled_providers"`
-	AAAPIKey                string `json:"aa_api_key"` // write-only; Get always returns ""
-	AAAPIKeySet             bool   `json:"aa_api_key_set"`
-	ConfigPath              string `json:"config_path"` // read-only, display only
-	Version                 string `json:"version"`     // read-only, display only
+	Layout                         string `json:"layout"`         // "carousel"|"list"
+	DefaultTab                     string `json:"default_tab"`    // "profiles"|"sliders"
+	WeightControl                  string `json:"weight_control"` // "step"|"bar"|"slider"
+	Holds                          int    `json:"holds"`          // 3|5|10
+	Shortcut                       string `json:"shortcut"`       // "alt+space"|"ctrl+space"|"cmd+shift+m"
+	ShowMenuBarIcon                bool   `json:"show_menu_bar_icon"`
+	LaunchAtLogin                  bool   `json:"launch_at_login"`
+	CopyCommandInstead             bool   `json:"copy_command_instead"`
+	ClosePopoverAfterLaunch        bool   `json:"close_popover_after_launch"`
+	AutoUpdate                     bool   `json:"auto_update"`
+	AutoUpdateFrequency            string `json:"auto_update_frequency"` // "hourly"|"daily"|"weekly"|"monthly"
+	MCPServer                      bool   `json:"mcp_server"`
+	ClaudeMDHint                   bool   `json:"claude_md_hint"`
+	ShellAlias                     bool   `json:"shell_alias"`
+	UseKeychain                    bool   `json:"use_keychain"` // [auth], true prefers OS keychain
+	CatalogRepo                    string `json:"catalog_repo"` // "owner/repo" or "owner/repo@ref"
+	UseLocalAA                     bool   `json:"use_local_aa"`
+	BenchmarkCheckFrequency        string `json:"benchmark_check_frequency"`
+	OnlyEnabledProviders           bool   `json:"only_enabled_providers"`
+	AllowIncompleteRecommendations bool   `json:"allow_incomplete_recommendations"`
+	AAAPIKey                       string `json:"aa_api_key"` // write-only; Get always returns ""
+	AAAPIKeySet                    bool   `json:"aa_api_key_set"`
+	ConfigPath                     string `json:"config_path"` // read-only, display only
+	Version                        string `json:"version"`     // read-only, display only
 }
 
 // ShellSnippets are the copyable setup snippets.

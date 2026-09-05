@@ -1,6 +1,7 @@
 import type { RankedModel } from '@which-model/core'
 import { cx } from '../../../utils/cx'
 import styles from './RankList.module.css'
+import { MissingBenchmarkNotice } from '../MissingBenchmarkNotice'
 
 export interface RankListProps {
   items: RankedModel[]
@@ -31,7 +32,10 @@ export function RankList({ items, index, onPick }: RankListProps) {
             onClick={() => onPick(i)}
           >
             <span className={styles.rank}>{model.rank}</span>
-            <span className={cx(styles.name, selected && styles.nameSelected)}>{name}</span>
+            <span className={styles.identity}>
+              <span className={cx(styles.name, selected && styles.nameSelected)}>{name}</span>
+              <MissingBenchmarkNotice model={model} />
+            </span>
             <span className={cx(styles.score, selected && styles.scoreSelected)}>
               {model.score.toFixed(2)}
             </span>

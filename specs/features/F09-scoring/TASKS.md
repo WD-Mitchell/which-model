@@ -329,10 +329,10 @@ concatenated with the `scores_golden.csv` content (read via `os.ReadFile("testda
    - `TestDeriveDeterminism`: same inputs twice → byte-identical output.
    - `TestDeriveOptionalDegenerateMetrics`: raw with 2 eligible rows where `coding` values are equal (e.g. both 50.0) and `time` entirely blank → output has `artificial_analysis_coding_index_score` and `time_per_intelligence_index_task_seconds_score` blank (degenerate/absent optional → blank), while `intelligence_index_score` is populated; no error.
    - `TestDeriveBenchmarkDegenerate`: one benchmark column populated by a single eligible row → its `_score` pair blank; a benchmark populated by two rows → normalized scores present (higher-is-better).
-   - `TestDeriveDropIneligible` (SPEC D9): raw with one eligible + one ineligible row → exactly one output data row.
+   - `TestDeriveRetainsMissingCost` (corrected SPEC D9): raw with one complete and one partial measured row → both output rows retained.
    - `TestDeriveInputProvenanceLine`: raw prefixed with `# raw_sha256=` + 64 hex → parses and scores fine; emitted `raw_sha256=` equals `csvstore.ProvenanceHash(rawWithLine)` (hash of the FULL bytes as given, `#` line included).
-   - `TestDeriveErrors`: raw with zero eligible rows → `input contains no rows with all mandatory Tier 1 metrics: intelligence_index, median_end_to_end_response_time_seconds, cost_per_intelligence_index_task_usd`; all rows intelligence blank → `intelligence_index has no published values`; all intelligence equal → `intelligence_index has a degenerate range (43.0)`.
-6. Implement `derive.go`: strip one leading `#` line; `parseRawCSV` (F09-T3); eligible filter (all three Tier-1 metrics non-nil — REQUIRED_TIER1); zero-eligible error; per-column min/max over eligible rows only (`ranges` port: no values → optional? blank column : `{column} has no published values`; degenerate → optional? blank : `{column} has a degenerate range ({minimum})`); per-row relative scores via `directionAdjust` + `MinMaxLinear` for core metrics and benchmarks (benchmarks higher-is-better); category scores via `SourceScores`/`CategoryScores`/`PlanningCapabilityScore`; emit rows in input order with the dual-column layout of `specs/features/F09-scoring/CONTRACTS.md §2.1` (CSV writer with `\n` line terminator); prepend the provenance line with `csvstore.ProvenanceHash(rawCSV)` and the resolved normalizer/aggregator names; return the bytes. Ineligible rows are dropped (SPEC D9). All iteration header-ordered (SPEC D6) — the determinism test guards this.
+   - `TestDeriveErrors`: raw with no published metrics → `input contains no published metric values`; absent or constant columns yield blank relative scores without discarding measured rows.
+6. Implement `derive.go` per corrected F09 SPEC §2.5–6: retain rows with any published metric, normalize each column independently over its published values, leave absent/constant relative columns blank, and preserve raw absolute values. Keep input validation, category scoring, CSV ordering, and provenance unchanged.
 7. Run `go build ./internal/catalog/score/...` then `go test ./internal/catalog/score/...`.
 
 **Test cases (write these first):**
@@ -343,9 +343,9 @@ concatenated with the `scores_golden.csv` content (read via `os.ReadFile("testda
 | 2 | same call twice | identical bytes (determinism) |
 | 3 | equal coding values, blank time | coding/time `_score` blank; intelligence `_score` populated; no error |
 | 4 | singleton benchmark column | blank `_score` pair; two-row benchmark normalized (higher-is-better) |
-| 5 | eligible + ineligible rows | exactly 1 output data row |
+| 5 | complete + partial measured rows | exactly 2 output data rows |
 | 6 | raw with leading `# raw_sha256=` line | parses; emitted hash == hash of full bytes as given |
-| 7 | zero eligible rows | zero-eligible error message |
+| 7 | no published metric values | no-published-values error |
 | 8 | all intelligence blank | `intelligence_index has no published values` |
 | 9 | all intelligence equal (43.0) | `intelligence_index has a degenerate range (43.0)` |
 

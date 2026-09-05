@@ -48,6 +48,10 @@
   color: color-mix(in srgb, var(--color-text) 72%, transparent);
 }
 
+.identity {
+  min-width: 0;
+}
+
 .nameSelected {
   color: var(--color-text);
 }

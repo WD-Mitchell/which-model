@@ -63,47 +63,49 @@ type GroupsTOML map[string]GroupTOML
 // GUIConfig mirrors [gui]; field meanings and value sets are D00 GUISettings
 // (which adds the transport-only ConfigPath — deliberately absent here).
 type GUIConfig struct {
-	Layout                  string `toml:"layout"`
-	DefaultTab              string `toml:"default_tab"`
-	WeightControl           string `toml:"weight_control"`
-	Holds                   int    `toml:"holds"`
-	Shortcut                string `toml:"shortcut"`
-	ShowMenuBarIcon         bool   `toml:"show_menu_bar_icon"`
-	LaunchAtLogin           bool   `toml:"launch_at_login"`
-	CopyCommandInstead      bool   `toml:"copy_command_instead"`
-	ClosePopoverAfterLaunch bool   `toml:"close_popover_after_launch"`
-	AutoUpdate              bool   `toml:"auto_update"`
-	AutoUpdateFrequency     string `toml:"auto_update_frequency"`
-	MCPServer               bool   `toml:"mcp_server"`
-	ClaudeMDHint            bool   `toml:"claude_md_hint"`
-	ShellAlias              bool   `toml:"shell_alias"`
-	CatalogRepo             string `toml:"catalog_repo"`
-	UseLocalAA              bool   `toml:"use_local_aa"`
-	BenchmarkCheckFrequency string `toml:"benchmark_check_frequency"`
-	OnlyEnabledProviders    bool   `toml:"only_enabled_providers"`
+	Layout                         string `toml:"layout"`
+	DefaultTab                     string `toml:"default_tab"`
+	WeightControl                  string `toml:"weight_control"`
+	Holds                          int    `toml:"holds"`
+	Shortcut                       string `toml:"shortcut"`
+	ShowMenuBarIcon                bool   `toml:"show_menu_bar_icon"`
+	LaunchAtLogin                  bool   `toml:"launch_at_login"`
+	CopyCommandInstead             bool   `toml:"copy_command_instead"`
+	ClosePopoverAfterLaunch        bool   `toml:"close_popover_after_launch"`
+	AutoUpdate                     bool   `toml:"auto_update"`
+	AutoUpdateFrequency            string `toml:"auto_update_frequency"`
+	MCPServer                      bool   `toml:"mcp_server"`
+	ClaudeMDHint                   bool   `toml:"claude_md_hint"`
+	ShellAlias                     bool   `toml:"shell_alias"`
+	CatalogRepo                    string `toml:"catalog_repo"`
+	UseLocalAA                     bool   `toml:"use_local_aa"`
+	BenchmarkCheckFrequency        string `toml:"benchmark_check_frequency"`
+	OnlyEnabledProviders           bool   `toml:"only_enabled_providers"`
+	AllowIncompleteRecommendations bool   `toml:"allow_incomplete_recommendations"`
 }
 
 // guiConfigTOML is the pointered decode mirror of GUIConfig: each key falls
 // back to its DefaultGUIConfig value independently when unset.
 type guiConfigTOML struct {
-	Layout                  *string `toml:"layout"`
-	DefaultTab              *string `toml:"default_tab"`
-	WeightControl           *string `toml:"weight_control"`
-	Holds                   *int    `toml:"holds"`
-	Shortcut                *string `toml:"shortcut"`
-	ShowMenuBarIcon         *bool   `toml:"show_menu_bar_icon"`
-	LaunchAtLogin           *bool   `toml:"launch_at_login"`
-	CopyCommandInstead      *bool   `toml:"copy_command_instead"`
-	ClosePopoverAfterLaunch *bool   `toml:"close_popover_after_launch"`
-	AutoUpdate              *bool   `toml:"auto_update"`
-	AutoUpdateFrequency     *string `toml:"auto_update_frequency"`
-	MCPServer               *bool   `toml:"mcp_server"`
-	ClaudeMDHint            *bool   `toml:"claude_md_hint"`
-	ShellAlias              *bool   `toml:"shell_alias"`
-	CatalogRepo             *string `toml:"catalog_repo"`
-	UseLocalAA              *bool   `toml:"use_local_aa"`
-	BenchmarkCheckFrequency *string `toml:"benchmark_check_frequency"`
-	OnlyEnabledProviders    *bool   `toml:"only_enabled_providers"`
+	Layout                         *string `toml:"layout"`
+	DefaultTab                     *string `toml:"default_tab"`
+	WeightControl                  *string `toml:"weight_control"`
+	Holds                          *int    `toml:"holds"`
+	Shortcut                       *string `toml:"shortcut"`
+	ShowMenuBarIcon                *bool   `toml:"show_menu_bar_icon"`
+	LaunchAtLogin                  *bool   `toml:"launch_at_login"`
+	CopyCommandInstead             *bool   `toml:"copy_command_instead"`
+	ClosePopoverAfterLaunch        *bool   `toml:"close_popover_after_launch"`
+	AutoUpdate                     *bool   `toml:"auto_update"`
+	AutoUpdateFrequency            *string `toml:"auto_update_frequency"`
+	MCPServer                      *bool   `toml:"mcp_server"`
+	ClaudeMDHint                   *bool   `toml:"claude_md_hint"`
+	ShellAlias                     *bool   `toml:"shell_alias"`
+	CatalogRepo                    *string `toml:"catalog_repo"`
+	UseLocalAA                     *bool   `toml:"use_local_aa"`
+	BenchmarkCheckFrequency        *string `toml:"benchmark_check_frequency"`
+	OnlyEnabledProviders           *bool   `toml:"only_enabled_providers"`
+	AllowIncompleteRecommendations *bool   `toml:"allow_incomplete_recommendations"`
 }
 
 // DefaultGUIConfig returns the [gui] per-key defaults (CONTRACTS §4).
@@ -205,6 +207,9 @@ func (c *Config) LoadGUI() (GUIConfig, error) {
 	}
 	if strings.TrimSpace(gui.BenchmarkCheckFrequency) == "" {
 		gui.BenchmarkCheckFrequency = "6h"
+	}
+	if mirror.AllowIncompleteRecommendations != nil {
+		gui.AllowIncompleteRecommendations = *mirror.AllowIncompleteRecommendations
 	}
 	if mirror.OnlyEnabledProviders != nil {
 		gui.OnlyEnabledProviders = *mirror.OnlyEnabledProviders
@@ -312,24 +317,25 @@ func (c *Config) SetGUI(g GUIConfig) error {
 		return err
 	}
 	c.setRaw("gui", map[string]any{
-		"layout":                     g.Layout,
-		"default_tab":                g.DefaultTab,
-		"weight_control":             g.WeightControl,
-		"holds":                      int64(g.Holds),
-		"shortcut":                   g.Shortcut,
-		"show_menu_bar_icon":         g.ShowMenuBarIcon,
-		"launch_at_login":            g.LaunchAtLogin,
-		"copy_command_instead":       g.CopyCommandInstead,
-		"close_popover_after_launch": g.ClosePopoverAfterLaunch,
-		"auto_update":                g.AutoUpdate,
-		"auto_update_frequency":      g.AutoUpdateFrequency,
-		"mcp_server":                 g.MCPServer,
-		"claude_md_hint":             g.ClaudeMDHint,
-		"shell_alias":                g.ShellAlias,
-		"catalog_repo":               g.CatalogRepo,
-		"use_local_aa":               g.UseLocalAA,
-		"benchmark_check_frequency":  g.BenchmarkCheckFrequency,
-		"only_enabled_providers":     g.OnlyEnabledProviders,
+		"layout":                           g.Layout,
+		"default_tab":                      g.DefaultTab,
+		"weight_control":                   g.WeightControl,
+		"holds":                            int64(g.Holds),
+		"shortcut":                         g.Shortcut,
+		"show_menu_bar_icon":               g.ShowMenuBarIcon,
+		"launch_at_login":                  g.LaunchAtLogin,
+		"copy_command_instead":             g.CopyCommandInstead,
+		"close_popover_after_launch":       g.ClosePopoverAfterLaunch,
+		"auto_update":                      g.AutoUpdate,
+		"auto_update_frequency":            g.AutoUpdateFrequency,
+		"mcp_server":                       g.MCPServer,
+		"claude_md_hint":                   g.ClaudeMDHint,
+		"shell_alias":                      g.ShellAlias,
+		"catalog_repo":                     g.CatalogRepo,
+		"use_local_aa":                     g.UseLocalAA,
+		"benchmark_check_frequency":        g.BenchmarkCheckFrequency,
+		"only_enabled_providers":           g.OnlyEnabledProviders,
+		"allow_incomplete_recommendations": g.AllowIncompleteRecommendations,
 	})
 	return nil
 }

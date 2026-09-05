@@ -92,6 +92,11 @@ const TOGGLES: ReadonlyArray<{
     patch: (on) => ({ only_enabled_providers: on }),
   },
   {
+    name: 'Allow recommendations with incomplete benchmarks',
+    read: (s) => s.allow_incomplete_recommendations,
+    patch: (on) => ({ allow_incomplete_recommendations: on }),
+  },
+  {
     name: 'Expose as an MCP server',
     read: (s) => s.mcp_server,
     patch: (on) => ({ mcp_server: on }),

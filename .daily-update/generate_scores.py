@@ -39,24 +39,10 @@ CORE_METRICS = {
     "artificial_analysis_agentic_index": True,
 }
 BENCHMARK_COLUMN_PREFIX = "benchmark:"
-OPTIONAL_METRICS = {
-    "time_per_intelligence_index_task_seconds",
-    "artificial_analysis_coding_index",
-    "artificial_analysis_agentic_index",
-}
-NULLABLE_METRICS = {
-    "intelligence_index",
-    "time_per_intelligence_index_task_seconds",
-    "cost_per_intelligence_index_task_usd",
-    "median_end_to_end_response_time_seconds",
-    *OPTIONAL_METRICS,
-}
+# Every measurement is independently nullable, including the three core axes.
+OPTIONAL_METRICS = set(CORE_METRICS)
+NULLABLE_METRICS = set(CORE_METRICS)
 CORE_INPUT_COLUMNS = (*IDENTITY_COLUMNS, *CORE_METRICS)
-REQUIRED_TIER1_METRICS = (
-    "intelligence_index",
-    "median_end_to_end_response_time_seconds",
-    "cost_per_intelligence_index_task_usd",
-)
 SCORE_QUANTUM = Decimal("1")
 ONE_HUNDRED = Decimal("100")
 
@@ -395,12 +381,11 @@ def generate(
     eligible_rows = [
         row
         for row in rows
-        if all(row[column] is not None for column in REQUIRED_TIER1_METRICS)
+        if any(row[column] is not None for column in metrics)
     ]
     if not eligible_rows:
         raise InputError(
-            "input contains no rows with all mandatory Tier 1 metrics: "
-            + ", ".join(REQUIRED_TIER1_METRICS)
+            "input contains no published metric values"
         )
     metric_ranges = ranges(eligible_rows, metrics, optional_metrics)
     try:

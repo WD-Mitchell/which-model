@@ -25,7 +25,7 @@ Depends on: B02 (Services, helpers, error mapping), B03 (profile resolution), B0
 
 5. **Empty availability is not an error.** When the set is empty, `Rank` returns `RankResponse{Candidates: [], Total: 0}` WITHOUT calling `pick.RankWithCategories` (the engine rejects a non-nil empty filter). The popover renders this as "Enable a provider" / "every provider is switched off" (mockup `pickName`/`pickMeta` empty-route branch). Likewise, a `*pick.NoCandidatesError` from the engine (all rows cut by tier-1 or availability filtering) maps to `RankResponse{Total: 0}`, not an error.
 
-6. **Ranking and mapping.** `Rank` calls `pick.RankWithCategories(rows, profile, available, categories)` on the cached scores rows. The `Recommendation` is rank 1; `Alternatives` follow in engine order (ranks 2..n). `Candidates` is the first `Holds` entries; `Total = Result.CandidateCount` (pre-truncation count). Per candidate: `Score = round2(Total)` (the only place the 2dp boundary rounding happens); `Rank` is 1-based; `ModelName` = catalog model name; `Reasoning` from the engine row.
+6. **Ranking and mapping.** `Rank` calls `pick.RankWithOptions(rows, profile, available, categories, options)` on the cached scores rows. The `Recommendation` is rank 1; `Alternatives` follow in engine order (ranks 2..n). `Candidates` is the first `Holds` entries; `Total = Result.CandidateCount` (pre-truncation count). Per candidate: `Score = round2(Total)` (the only place the 2dp boundary rounding happens); `Rank` is 1-based; `ModelName` = catalog model name; `Reasoning` from the engine row.
 
 7. **Provider and route key per candidate.** Each candidate's `Provider` is the highest-priority (lowest `priority`, ties by id ascending — B00 §6.1) ENABLED provider that routes that exact `(model, reasoning)` and is not disabled for it under `[routes.disabled]` — the mockup's `results()` first-match rule. `ModelID` is that route's provider-native `routing.Route.ModelID`; `RouteKey = FormatRouteKey(Provider, ModelID, Reasoning)`. A candidate that survived §2.4 always resolves a provider by construction.
 
@@ -63,3 +63,9 @@ Depends on: B02 (Services, helpers, error mapping), B03 (profile resolution), B0
 ## Review correction — #185
 
 Rank supplies exactly `pick.CategoryNames` union the current `[groups.*]` slugs to `RankWithCategories`, under `Services.mu.RLock`. Saved profiles and ephemeral overrides use the same vocabulary. Custom-group scoring, availability filtering, tie-breaks, and history behavior are unchanged. Regression: a configured group's composite can change the winner; absent group keys remain invalid. CLI `Rank` and `ValidateProfile` retain their static vocabulary.
+
+## Incomplete benchmark recommendations (2026-09-05)
+
+`gui.allow_incomplete_recommendations` / `GUISettings.allow_incomplete_recommendations` is a persisted boolean, default false. General displays **Allow recommendations with incomplete benchmarks**. Saving it emits the existing settings event and invalidates ranking immediately. The rank service passes it as `pick.RankOptions.AllowIncomplete`; enabling it uses available core scores, disabling it requires complete core scores. Catalog scores remain visible in either mode.
+
+Both carousel and list show `Missing benchmark data: <axes>. Ranked using available scores.` for partial recommendations, using absent intelligence/cost/speed fields in that order; measured zero is present data. No RankedModel schema extension is needed. Tests must cover off→on→off persistence and ranking, blank speed preservation, and the warning in both layouts.

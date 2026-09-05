@@ -1,6 +1,7 @@
 import type { RankedModel } from '@which-model/core'
 import { cx } from '../../../utils/cx'
 import styles from './RankCarousel.module.css'
+import { MissingBenchmarkNotice } from '../MissingBenchmarkNotice'
 
 export interface RankCarouselProps {
   items: RankedModel[]
@@ -86,6 +87,7 @@ export function RankCarousel({ items, index, onIndex }: RankCarouselProps) {
               </span>
             </span>
           ) : null}
+          {model ? <MissingBenchmarkNotice model={model} /> : null}
         </span>
         <button
           type="button"

@@ -249,3 +249,15 @@ func RankWithCategories(rows []catalog.ScoreRow, profile catalog.Profile, availa
 ```
 
 Regression rows: a supplied custom group passes and influences the winning score; the same key absent from `categories` fails; malformed shares/core weights still fail; existing `ValidateProfile`, `ProfileFromJSON`, and `Rank` reject that custom key and retain their existing goldens. The category slice is request-local and never changes `CategoryNames`.
+
+## Optional partial-data policy
+
+```go
+type RankOptions struct { AllowIncomplete bool }
+func ScoreModelWithOptions(row catalog.ScoreRow, profile catalog.Profile, options RankOptions) ModelScore
+func RankWithOptions(rows []catalog.ScoreRow, profile catalog.Profile, available []Identity, categories []string, options RankOptions) (Result, error)
+```
+
+Default false preserves existing entry points. True excludes missing axes from both numerator and denominator, retains measured zero, and emits `Missing benchmark data: <axes>. Ranked using available scores.`. No published core axes still excludes. Tie-breaks compare presence before numeric value for each existing core-axis tie-break key.
+
+Pinned tests: unequal intelligence/cost weights with missing speed yield the weighted mean over intelligence/cost only; measured-zero-only row ranks; all-core-blank row excludes; published-zero intelligence wins its tie-break over missing intelligence; default strict entry points retain their existing exclusion tests.

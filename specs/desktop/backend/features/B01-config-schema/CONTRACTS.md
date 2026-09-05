@@ -79,6 +79,7 @@ type GUIConfig struct {
     CatalogRepo             string `toml:"catalog_repo"`
     UseLocalAA              bool   `toml:"use_local_aa"`
     OnlyEnabledProviders    bool   `toml:"only_enabled_providers"`
+    AllowIncompleteRecommendations bool `toml:"allow_incomplete_recommendations"`
 }
 
 // AuthConfig mirrors [auth]. It controls only credentials written by
@@ -243,3 +244,9 @@ reporting the durability error.
 ### Harness discovery configuration (September 2026)
 
 `HarnessTOML` adds `ProviderOverrides map[string]bool` (`toml:"provider_overrides,omitempty"`). Missing `providers` enables B07 local discovery; an explicit array, including `[]`, is a complete manual allow-list. Individual `provider_overrides` booleans take precedence over either source. `SetHarness` preserves missing versus explicit-empty lists and serializes overrides only when present. Provider ids use the B06 provider-id grammar, including hyphens. No credential values are stored.
+
+## Incomplete benchmark recommendations (2026-09-05)
+
+`gui.allow_incomplete_recommendations` / `GUISettings.allow_incomplete_recommendations` is a persisted boolean, default false. General displays **Allow recommendations with incomplete benchmarks**. Saving it emits the existing settings event and invalidates ranking immediately. The rank service passes it as `pick.RankOptions.AllowIncomplete`; enabling it uses available core scores, disabling it requires complete core scores. Catalog scores remain visible in either mode.
+
+Both carousel and list show `Missing benchmark data: <axes>. Ranked using available scores.` for partial recommendations, using absent intelligence/cost/speed fields in that order; measured zero is present data. No RankedModel schema extension is needed. Tests must cover off→on→off persistence and ranking, blank speed preservation, and the warning in both layouts.

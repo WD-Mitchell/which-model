@@ -57,7 +57,11 @@ func (s *Services) Rank(ctx context.Context, req RankRequest) (RankResponse, err
 	if err != nil {
 		return RankResponse{}, err
 	}
-	result, err := pick.RankWithCategories(s.scores, profile, available, categories)
+	gui, err := s.cfg.LoadGUI()
+	if err != nil {
+		return RankResponse{}, err
+	}
+	result, err := pick.RankWithOptions(s.scores, profile, available, categories, pick.RankOptions{AllowIncomplete: gui.AllowIncompleteRecommendations})
 	var noCand *pick.NoCandidatesError
 	if errors.As(err, &noCand) {
 		return RankResponse{Candidates: []RankedModel{}, Total: 0}, nil

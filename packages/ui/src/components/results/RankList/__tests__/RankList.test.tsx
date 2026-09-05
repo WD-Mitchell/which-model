@@ -12,6 +12,11 @@ const items: RankedModel[] = [
 ]
 
 describe('RankList', () => {
+  it('shows the incomplete-benchmark warning on a partial recommendation', () => {
+    render(<RankList items={[{ ...items[0], intelligence: 85, cost: 0, speed: null }]} index={0} onPick={vi.fn()} />)
+    expect(screen.getByText('Missing benchmark data: speed. Ranked using available scores.')).toBeDefined()
+  })
+
   it('brackets the reasoning after the model name so rows are distinguishable', () => {
     render(<RankList items={items} index={0} onPick={vi.fn()} />)
     // Without reasoning the first two rows read identically: same name, same

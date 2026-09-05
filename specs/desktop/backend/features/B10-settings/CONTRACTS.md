@@ -90,3 +90,9 @@ Built on `newTestServices(t, ...)` (B02). Required cases:
 5. **ConfigPath ignored**: Set with `ConfigPath: "/evil"` succeeds; disk has no such value; Get still reports the real path.
 6. **Snippets pinned**: `Alias` and `ClaudeMD` equal §3 byte-for-byte (ClaudeMD has exactly 3 lines).
 7. **Preview**: with the fixture catalog, Preview matches `$ wm <slug>  →  <model_id>  (<provider>)` for the known top candidate; with all providers disabled (empty availability), Preview is the `no route` form and the call still succeeds.
+
+## Incomplete benchmark recommendations (2026-09-05)
+
+`gui.allow_incomplete_recommendations` / `GUISettings.allow_incomplete_recommendations` is a persisted boolean, default false. General displays **Allow recommendations with incomplete benchmarks**. Saving it emits the existing settings event and invalidates ranking immediately. The rank service passes it as `pick.RankOptions.AllowIncomplete`; enabling it uses available core scores, disabling it requires complete core scores. Catalog scores remain visible in either mode.
+
+Both carousel and list show `Missing benchmark data: <axes>. Ranked using available scores.` for partial recommendations, using absent intelligence/cost/speed fields in that order; measured zero is present data. No RankedModel schema extension is needed. Tests must cover off→on→off persistence and ranking, blank speed preservation, and the warning in both layouts.

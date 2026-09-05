@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"strings"
 
-	sdecimal "github.com/shopspring/decimal"
 	"github.com/WD-Mitchell/which-model/internal/catalog"
 	"github.com/WD-Mitchell/which-model/internal/catalog/csvstore"
+	sdecimal "github.com/shopspring/decimal"
 )
 
 // coreIndex maps a core metric name to its core[] position
@@ -44,8 +44,7 @@ func coreIndex(column string) int {
 // Processing order (generate_scores.py read_rows + _merge_input_rows +
 // generate): parse + validate (row numbers start at 2) -> merge duplicate
 // identities (CleanModelName + default->high collapse; first-wins fill-in for
-// core cells, max for benchmark cells, SPEC D8) -> eligible filter (all three
-// Tier-1 metrics present; ineligible rows DROPPED, SPEC D9) -> per-column
+// core cells, max for benchmark cells, SPEC D8) -> measured-row filter (at least one published metric; SPEC D9) -> per-column
 // min/max ranges over eligible rows -> relative scores (direction-aware
 // MinMaxLinear, ROUND_HALF_UP) -> category composites -> provenance header.
 func Derive(rawCSV []byte, benchmarksTOML []byte, normalizer Normalizer, aggregator Aggregator) ([]byte, error) {
@@ -61,14 +60,11 @@ func Derive(rawCSV []byte, benchmarksTOML []byte, normalizer Normalizer, aggrega
 		return nil, err
 	}
 
-	eligible := eligibleRows(rows)
+	eligible := measuredRows(rows)
 	if len(eligible) == 0 {
-		return nil, &Error{Code: ErrInvalidRaw, Message: "input contains no rows with all mandatory Tier 1 metrics: " + strings.Join(requiredTier1Metrics, ", ")}
+		return nil, &Error{Code: ErrInvalidRaw, Message: "input contains no published metric values"}
 	}
-	ranges, err := columnRanges(eligible, dynamic)
-	if err != nil {
-		return nil, err
-	}
+	ranges := columnRanges(eligible, dynamic)
 
 	state := deriveState{
 		dynamic:    dynamic,
@@ -126,71 +122,55 @@ func aggregatorName(a Aggregator) string {
 	return AggregatorNameWeightedArithmeticMean
 }
 
-// eligibleRows returns the merged rows with all three mandatory Tier-1
-// metrics present, in input order.
-func eligibleRows(rows []rawRow) []rawRow {
-	var eligible []rawRow
+// measuredRows retains any row with published evidence, including benchmark-only
+// rows. Missing unrelated measurements never discard known values.
+func measuredRows(rows []rawRow) []rawRow {
+	var measured []rawRow
 	for _, row := range rows {
-		ok := true
-		for _, column := range requiredTier1Metrics {
-			if row.core[coreIndex(column)].value == nil {
-				ok = false
-				break
+		present := false
+		for _, cells := range [][]rawCell{row.core, row.bench} {
+			for _, cell := range cells {
+				if cell.value != nil {
+					present = true
+					break
+				}
 			}
 		}
-		if ok {
-			eligible = append(eligible, row)
+		if present {
+			measured = append(measured, row)
 		}
 	}
-	return eligible
+	return measured
 }
 
-// columnRanges ports ranges() (generate_scores.py:258-287) over eligible rows
-// only. Optional columns (time/coding/agentic + benchmarks) with no values or
-// a degenerate min==max get a nil range (blank score); mandatory columns
-// error with the verbatim messages.
-func columnRanges(eligible []rawRow, dynamic []string) (map[string]*[2]sdecimal.Decimal, error) {
+// columnRanges uses all published values independently per column. Empty,
+// singleton, or constant ranges have no relative score; absolute values survive.
+func columnRanges(rows []rawRow, dynamic []string) map[string]*[2]sdecimal.Decimal {
 	benchIndex := make(map[string]int, len(dynamic))
 	for i, name := range dynamic {
 		benchIndex[name] = i
 	}
-	columns := make([]string, 0, len(csvstore.RawCoreColumns)-2+len(dynamic))
-	columns = append(columns, csvstore.RawCoreColumns[2:]...)
-	columns = append(columns, dynamic...)
-
+	columns := append(append([]string{}, csvstore.RawCoreColumns[2:]...), dynamic...)
 	result := make(map[string]*[2]sdecimal.Decimal, len(columns))
 	for _, column := range columns {
-		cells := metricCells(eligible, column, benchIndex)
+		cells := metricCells(rows, column, benchIndex)
 		if len(cells) == 0 {
-			if !optionalMetrics[column] && !strings.HasPrefix(column, csvstore.BenchmarkColumnPrefix) {
-				return nil, &Error{Code: ErrInvalidRaw, Message: fmt.Sprintf("%s has no published values", column)}
-			}
 			continue
 		}
-		minCell, maxCell := cells[0], cells[0]
+		min, max := *cells[0].value, *cells[0].value
 		for _, cell := range cells[1:] {
-			if cell.value.LessThan(*minCell.value) {
-				minCell = cell
+			if cell.value.LessThan(min) {
+				min = *cell.value
 			}
-			if cell.value.GreaterThan(*maxCell.value) {
-				maxCell = cell
+			if cell.value.GreaterThan(max) {
+				max = *cell.value
 			}
 		}
-		if minCell.value.Equal(*maxCell.value) {
-			// Degenerate range: blank for optional/benchmark columns; a
-			// mandatory column with 2+ equal values is an input error. A
-			// single published value is not a range: the column scores
-			// blank (SPEC D9 port; Python's min==max check would reject
-			// it, but the Go contract derives single-row inputs
-			// successfully).
-			if len(cells) >= 2 && !optionalMetrics[column] && !strings.HasPrefix(column, csvstore.BenchmarkColumnPrefix) {
-				return nil, &Error{Code: ErrInvalidRaw, Message: fmt.Sprintf("%s has a degenerate range (%s)", column, strings.TrimSpace(minCell.raw))}
-			}
-			continue
+		if !min.Equal(max) {
+			result[column] = &[2]sdecimal.Decimal{min, max}
 		}
-		result[column] = &[2]sdecimal.Decimal{*minCell.value, *maxCell.value}
 	}
-	return result, nil
+	return result
 }
 
 // metricCells collects the non-nil cells of one column across eligible rows,
