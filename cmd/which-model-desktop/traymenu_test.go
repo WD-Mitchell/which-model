@@ -154,3 +154,12 @@ func TestTrayMenuRefreshBeforeStart(t *testing.T) {
 		t.Fatalf("Selected() = %q before Start, want empty", got)
 	}
 }
+
+func TestProfileMenuUsesOnlyOrderedDefaults(t *testing.T) {
+	all := []service.ProfileSummary{{Slug: "review"}, {Slug: "content_editing"}, {Slug: "content_drafting"}}
+	profile := service.UserProfile{UseCaseSlugs: []string{"content_drafting", "content_editing"}}
+	got := profileMenuEntries(all, profile)
+	if len(got) != 2 || got[0].Slug != "content_drafting" || got[1].Slug != "content_editing" {
+		t.Fatalf("menu = %#v", got)
+	}
+}

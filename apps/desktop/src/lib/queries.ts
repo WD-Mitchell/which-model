@@ -18,6 +18,7 @@ import type {
   RankResponse,
   ShellSnippets,
   UsageDTO,
+  UserProfile,
 } from '@which-model/core'
 import { getHost } from './host'
 import { useOverridesStore } from './overrides'
@@ -180,4 +181,7 @@ export function useSettings(): UseQueryResult<GUISettings> {
 
 export function useSnippets(): UseQueryResult<ShellSnippets> {
   return useQuery({ queryKey: ['snippets'], queryFn: () => getHost().settings.shellSnippets() })
+}
+export function useUserProfiles(): UseQueryResult<UserProfile[]> {
+  return useQuery({ queryKey: ['user-profiles'], queryFn: () => getHost().profiles.userProfiles() })
 }

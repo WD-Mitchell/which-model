@@ -91,23 +91,25 @@ func (p *ProfileService) listLocked() ([]ProfileSummary, error) {
 	if err != nil {
 		return nil, err
 	}
+	customs, err := p.s.cfg.LoadProfiles(pick.CategoryNames)
+	if err != nil {
+		return nil, err
+	}
 	builtins := make([]string, 0, len(pick.Profiles))
 	for slug := range pick.Profiles {
-		builtins = append(builtins, slug)
+		if builtinUseCase(slug, customs) {
+			builtins = append(builtins, slug)
+		}
 	}
 	sort.Strings(builtins)
 	out := make([]ProfileSummary, 0, len(builtins))
 	for _, slug := range builtins {
 		ep := pick.Profiles[slug]
-		out = append(out, ProfileSummary{Slug: slug, Name: profileDisplayName(slug), Builtin: true, CoreShare: int(ep.Tier1Share.IntPart()), Tier1Weights: dtoWeights(ep.Tier1Weights), Tier2Weights: dtoWeights(ep.Tier2Weights), Picks: stats[slug].Picks, LastUsed: stats[slug].LastUsed})
-	}
-	customs, err := p.s.cfg.LoadProfiles(pick.CategoryNames)
-	if err != nil {
-		return nil, err
+		out = append(out, ProfileSummary{Slug: slug, Name: profileDisplayName(slug), Description: useCaseDescriptions[slug], EvidenceNote: useCaseEvidenceNote(slug), Builtin: true, CoreShare: int(ep.Tier1Share.IntPart()), Tier1Weights: dtoWeights(ep.Tier1Weights), Tier2Weights: dtoWeights(ep.Tier2Weights), Picks: stats[slug].Picks, LastUsed: stats[slug].LastUsed})
 	}
 	slugs := make([]string, 0, len(customs))
 	for slug := range customs {
-		if _, ok := pick.Profiles[slug]; !ok {
+		if !builtinUseCase(slug, customs) {
 			slugs = append(slugs, slug)
 		}
 	}
@@ -163,6 +165,13 @@ func (p *ProfileService) persistProfile(ctx context.Context, d ProfileDetail, cr
 			return fmt.Errorf("%w: profile slug %q must match [a-z0-9_]+", errValidation, d.Slug)
 		}
 		_, builtin := pick.Profiles[d.Slug]
+		if builtin && isNewUseCase(d.Slug) && !createOnly {
+			customs, err := p.s.cfg.LoadProfiles(pick.CategoryNames)
+			if err != nil {
+				return err
+			}
+			builtin = builtinUseCase(d.Slug, customs)
+		}
 		if createOnly && builtin {
 			return fmt.Errorf("%w: profile %q already exists", errConflict, d.Slug)
 		}
@@ -263,7 +272,7 @@ func (p *ProfileService) Delete(ctx context.Context, slug string) error {
 		p.s.mu.Unlock()
 		return err
 	}
-	if _, ok := pick.Profiles[slug]; ok {
+	if builtinUseCase(slug, customs) {
 		p.s.mu.Unlock()
 		return fmt.Errorf("%w: profile %q is built-in and read-only", errBuiltinReadonly, slug)
 	}

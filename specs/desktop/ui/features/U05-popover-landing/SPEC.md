@@ -69,3 +69,11 @@ clear the native tray pick and pending launch state. Loading and failed
 requests preserve the last successful tray state. Do not publish results from
 a disabled query or a superseded request. This rule governs the popover-to-tray
 bridge as well as the S02 native host.
+
+## Correction — Profiles and Use Cases (2026-09-05)
+
+The user's requested distinction between Profiles and Use Cases supersedes the
+conflicting terminology and Quick complexity-scale behavior above. The governing
+behavior and pinned validation cases are in
+`specs/desktop/backend/features/B03-profiles/SPEC.md` §Correction. Canonical DTOs
+are extended in `specs/desktop/global/CONTRACTS.md` §Profiles / Use Cases extension.

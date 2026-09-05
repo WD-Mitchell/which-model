@@ -69,3 +69,12 @@ Rank supplies exactly `pick.CategoryNames` union the current `[groups.*]` slugs 
 `gui.allow_incomplete_recommendations` / `GUISettings.allow_incomplete_recommendations` is a persisted boolean, default false. General displays **Allow recommendations with incomplete benchmarks**. Saving it emits the existing settings event and invalidates ranking immediately. The rank service passes it as `pick.RankOptions.AllowIncomplete`; enabling it uses available core scores, disabling it requires complete core scores. Catalog scores remain visible in either mode.
 
 Both carousel and list show `Missing benchmark data: <axes>. Ranked using available scores.` for partial recommendations, using absent intelligence/cost/speed fields in that order; measured zero is present data. No RankedModel schema extension is needed. Tests must cover off→on→off persistence and ranking, blank speed preservation, and the warning in both layouts.
+
+
+## Correction — Custom use-case groups (2026-09-05)
+
+Saved and ephemeral use cases may weight configured custom groups, as intended
+by B05. Save validates with `pick.ValidateProfileWithCategories`; Rank calls
+`pick.RankWithOptions`, supplying canonical categories union config group slugs
+and the saved partial-data policy. Unregistered categories
+remain invalid. See `specs/features/F10-ranking/CONTRACTS.md` §Correction.

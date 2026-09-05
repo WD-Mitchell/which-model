@@ -13,21 +13,31 @@
 
 ## The desktop app
 
-A menu bar companion to the CLI: the glyph carries the current pick's score, the popover picks a profile and launches a harness, and Settings edits the same configuration the CLI reads.
+A menu bar companion to the CLI: the glyph carries the current pick's score, the popover chooses a use case and launches a harness, and Settings edits the same configuration the CLI reads.
 
 <p align="center">
-  <img src="docs/screenshots/popover.png" alt="which-model popover: profile slider, ranked pick, and launch button" width="380">
+  <img src="docs/screenshots/popover-use-cases.jpg" alt="which-model preview: Marketing profile, use-case picker, ranked model, and launch button" width="900">
 </p>
 
-Pick a profile by name or slide between simple action and planning; arrows walk the ranking, and the footer launches the chosen model in your harness.
+Choose your work profile, then a use case; arrows walk the ranking, and the footer launches the chosen model in your harness. The profile screenshots below use the browser preview with fixture model data.
 
 ![Settings — General](docs/screenshots/settings-general.png)
 
 General covers how the app runs on the machine — global shortcut, menu bar icon, launch at startup, update policy — and how the pick is drawn in the popover.
 
-![Settings — Profiles](docs/screenshots/settings-profiles.png)
+![Settings — Profiles](docs/screenshots/settings-user-profiles.jpg)
 
-Profiles, benchmark groups, harnesses, favourites, and providers are all editable from the same window; built-in profiles are read-only until duplicated.
+Profiles choose the use cases shown by default: Software Engineering, Marketing,
+and General. Select a profile in the popover or Settings → Profiles; Settings →
+Use Cases manages the complete catalogue of task presets. Each use case has its
+own ranking weights; duplicate a built-in to customise it. Search or **All use
+cases** reaches presets outside your profile, including saved custom use cases.
+
+Marketing starts with content drafting, content editing, market research,
+campaign planning, and marketing analysis. These initial presets use general
+capability benchmarks; marketing outcomes and brand voice are not directly
+measured. Existing custom weights remain compatible. The CLI's `--profile` flag
+and `[profiles.*]` config tables continue to identify use cases.
 
 ## Why which-model?
 
@@ -35,7 +45,7 @@ Model choice changes with the job. A fast, inexpensive model may be ideal for a 
 
 `which-model` brings those signals together so you can:
 
-- pick models using task-focused profiles;
+- pick models using task-focused use cases;
 - account for live Claude, Codex, and GitHub Copilot allowance;
 - compare quality, cost, speed, and provider preference;
 - exclude unavailable or usage-gated candidates;
@@ -123,7 +133,7 @@ which-model pick \
   --json
 ```
 
-Other useful profiles include `simple_implementation`, `complex_implementation`, `research`, `planning`, `orchestration`, `review`, `ui_ux`, and `financial_work`.
+Other useful use cases include `simple_implementation`, `complex_implementation`, `research`, `planning`, `orchestration`, `review`, `ui_ux`, and `financial_work`.
 
 Explain the latest recommendation:
 

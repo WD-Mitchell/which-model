@@ -876,13 +876,13 @@ func (c *CatalogService) Groups(ctx context.Context) ([]GroupSummary, error) {
 // tier-2 weight for slug is > 0 (B05 SPEC §2.5).
 func inProfileCount(slug string, customs config.ProfilesTOML) int {
 	count := 0
-	for _, bp := range pick.Profiles {
-		if bp.Tier2Weights[slug].Sign() > 0 {
+	for pslug, bp := range pick.Profiles {
+		if builtinUseCase(pslug, customs) && bp.Tier2Weights[slug].Sign() > 0 {
 			count++
 		}
 	}
-	for _, cp := range customs {
-		if cp.Tier2[slug] > 0 {
+	for pslug, cp := range customs {
+		if !builtinUseCase(pslug, customs) && cp.Tier2[slug] > 0 {
 			count++
 		}
 	}

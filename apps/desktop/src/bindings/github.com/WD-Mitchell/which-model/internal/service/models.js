@@ -81,6 +81,7 @@
 /**
  * GUISettings is the settings-page aggregate for [gui] plus [auth].use_keychain.
  * @typedef {Object} GUISettings
+ * @property {string} user_profile
  * @property {string} layout - "carousel"|"list"
  * @property {string} default_tab - "profiles"|"sliders"
  * @property {string} weight_control - "step"|"bar"|"slider"
@@ -182,6 +183,8 @@
  * (the TOML stores only weights 1–5; 0-valued keys are removed on save).
  * CoreShare is the tier-1 share as an integer percent, clamped 10..90, step 5.
  * @typedef {Object} ProfileSummary
+ * @property {string} [description]
+ * @property {string} [evidence_note]
  * @property {string} slug
  * @property {string} name
  * @property {boolean} builtin
@@ -324,6 +327,16 @@
  * @property {number | null} used_percent - nil when unknown
  * @property {string} reset_hint
  * @property {boolean} unlimited
+ */
+
+/**
+ * UserProfile chooses default use cases without changing their scoring weights.
+ * @typedef {Object} UserProfile
+ * @property {string} slug
+ * @property {string} name
+ * @property {string} description
+ * @property {string[] | null} use_case_slugs
+ * @property {string} default_use_case
  */
 
 // In interface mode, this file is likely to contain just comments.

@@ -12,7 +12,7 @@ import './WeightsView.css'
 
 export interface WeightsViewProps {
   baseSlug: string
-  /** Buttons for the editor's action row (Copy model id / Save as profile).
+  /** Buttons for the editor's action row (Copy model id / Save as use case).
    *  They live here rather than the footer, which no longer changes per tab. */
   actions?: ReactNode
 }

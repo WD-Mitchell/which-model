@@ -89,3 +89,8 @@ Run: `go test -race ./cmd/which-model-desktop`.
 ## Refresh data menu correction
 
 The tray action is named `Refresh data`. It invokes B06's full refresh of the configured catalog source, provider model inventories, and routes. Status copy is `refreshing data…`, `data refreshed`, or `data refresh failed — see the log`; overlapping tray clicks report `data refresh already running`. Local collection invokes `catalog refresh --rebuild`. This replaces the earlier Refresh benchmarks wording under the 2026-09-05 user decision.
+
+
+## Correction (2026-09-05)
+
+The Profiles / Use Cases correction in `specs/desktop/backend/features/B03-profiles/SPEC.md` governs the new persisted profile selection and desktop terminology. The DTO extension is canonical in `specs/desktop/global/CONTRACTS.md`. Settings navigation now has both Profiles (curated defaults) and Use Cases (ranking presets).

@@ -30,6 +30,7 @@ func TestSettingsDefaultsAndRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	in.UserProfile = "software_engineering"
 	in.ConfigPath = svc.paths.UserConfigFile
 	if !reflect.DeepEqual(got, in) {
 		t.Fatalf("round trip = %#v, want %#v", got, in)

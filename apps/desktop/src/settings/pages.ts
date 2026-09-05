@@ -33,6 +33,7 @@ export interface PageComponentProps {
 export type SettingsPageName =
   | 'General'
   | 'Profiles'
+  | 'Use Cases'
   | 'Benchmark groups'
   | 'Models'
   | 'Favourites'
@@ -70,7 +71,7 @@ export const NAV_GROUPS: ReadonlyArray<
   // governs, and the per-provider limits list it duplicated is the Providers
   // list itself.
   ['app', ['General']],
-  ['ranking', ['Profiles', 'Benchmark groups', 'Models', 'Favourites']],
+  ['ranking', ['Profiles', 'Use Cases', 'Benchmark groups', 'Models', 'Favourites']],
   ['routing', ['Providers', 'Harnesses']],
 ] as const
 
@@ -81,6 +82,7 @@ export const PAGE_REGISTRY: Record<
 > = {
   General: React.lazy(() => import('./pages/General/GeneralPage')),
   Profiles: React.lazy(() => import('./pages/Profiles/ProfilesPage')),
+  'Use Cases': React.lazy(() => import('./pages/UseCases/UseCasesPage')),
   'Benchmark groups': React.lazy(() => import('./pages/Groups/GroupsPage')),
   Favourites: React.lazy(() => import('./pages/Favourites/FavouritesPage')),
   Models: React.lazy(() => import('./pages/Models/ModelsPage')),
@@ -95,12 +97,17 @@ export const PAGE_META: Record<
 > = {
   Profiles: [
     'Profiles',
-    'Built-in profiles are read-only; duplicate one to edit its weights.',
-    'New profile',
+    'Choose the kind of work you do to set the use cases shown by default.',
+    null,
+  ],
+  'Use Cases': [
+    'Use Cases',
+    'Choose how models are ranked for a task. Duplicate a built-in use case to edit its weights.',
+    'New use case',
   ],
   'Benchmark groups': [
     'Benchmark groups',
-    'A group bundles benchmarks into one signal a profile can weight. Built-in groups are read-only — duplicate one to change what it contains.',
+    'A group bundles benchmarks into one signal a use case can weight. Built-in groups are read-only — duplicate one to change what it contains.',
     'New group',
   ],
   Harnesses: [
@@ -110,7 +117,7 @@ export const PAGE_META: Record<
   ],
   Favourites: [
     'Favourites',
-    'Pinned models are offered first when they rank in range for the profile.',
+    'Pinned models are offered first when they rank in range for the use case.',
     'Add model',
   ],
   Models: [

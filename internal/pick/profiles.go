@@ -33,9 +33,26 @@ func mustProfile(name string, tier1Share, tier2Share int64, tier1 map[string]int
 	return p
 }
 
-// Profiles holds the 11 built-ins, constructed via mustProfile which panics
+// Profiles holds the built-in use cases, constructed via mustProfile which panics
 // on ValidateProfile failure (annex-b §5.1, mirrors Python import-time crash).
 var Profiles = map[string]catalog.Profile{
+	// Initial content/marketing heuristics using existing evidence categories.
+	"content_drafting": mustProfile("content_drafting", 65, 35,
+		map[string]int64{"intelligence": 3, "cost": 3, "speed": 4},
+		map[string]int64{"instruction_following": 5, "knowledge": 2}),
+	"content_editing": mustProfile("content_editing", 60, 40,
+		map[string]int64{"intelligence": 4, "cost": 3, "speed": 3},
+		map[string]int64{"instruction_following": 5, "reasoning": 2}),
+	"market_research": mustProfile("market_research", 60, 40,
+		map[string]int64{"intelligence": 4, "cost": 2, "speed": 2},
+		map[string]int64{"research": 5, "knowledge": 3, "instruction_following": 3}),
+	"campaign_planning": mustProfile("campaign_planning", 60, 40,
+		map[string]int64{"intelligence": 5, "cost": 2, "speed": 2},
+		map[string]int64{"planning_capability": 5, "instruction_following": 4, "research": 3}),
+	"marketing_analysis": mustProfile("marketing_analysis", 60, 40,
+		map[string]int64{"intelligence": 4, "cost": 2, "speed": 2},
+		map[string]int64{"data_ml": 5, "reasoning": 4, "instruction_following": 3}),
+
 	"simple_implementation": mustProfile("simple_implementation", 80, 20,
 		map[string]int64{"intelligence": 1, "cost": 5, "speed": 5},
 		map[string]int64{"instruction_following": 5}),
