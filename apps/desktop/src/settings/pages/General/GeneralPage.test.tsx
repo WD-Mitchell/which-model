@@ -86,6 +86,21 @@ describe('GeneralPage benchmarks data source', () => {
     })
   })
 
+  it('persists the option to recommend models with incomplete benchmarks', async () => {
+    renderApp(host)
+    const toggle = await screen.findByRole('switch', { name: 'Allow recommendations with incomplete benchmarks' })
+    expect(toggle.getAttribute('aria-checked')).toBe('false')
+    fireEvent.click(toggle)
+    await waitFor(async () => {
+      expect((await host.settings.get()).allow_incomplete_recommendations).toBe(true)
+    })
+    await waitFor(() => expect(toggle.getAttribute('aria-checked')).toBe('true'))
+    fireEvent.click(toggle)
+    await waitFor(async () => {
+      expect((await host.settings.get()).allow_incomplete_recommendations).toBe(false)
+    })
+  })
+
   it('uses selects for compact multi-option settings', async () => {
     renderApp(host)
     const shortcut = await screen.findByRole('combobox', { name: 'Open the popover' })

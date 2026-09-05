@@ -36,7 +36,7 @@ func readFixture(t *testing.T, name string) []byte {
 func TestDeriveGolden(t *testing.T) {
 	rawGolden := readFixture(t, "raw_golden.csv")
 	benchmarksGolden := readFixture(t, "benchmarks_golden.toml")
-	scoresGolden := readFixture(t, "scores_golden.csv")
+	scoresGolden := readFixture(t, "derived_partial_golden.csv")
 
 	sum := sha256.Sum256(rawGolden)
 	if got := hex.EncodeToString(sum[:]); got != rawGoldenSHA256 {
@@ -169,13 +169,13 @@ func TestDeriveBenchmarkDegenerate(t *testing.T) {
 	}
 }
 
-func TestDeriveDropIneligible(t *testing.T) {
+func TestDeriveRetainsMissingCost(t *testing.T) {
 	raw := rawCSV(goldenHeader(),
 		"Alpha,max,43.0,10,0.5,22,50.0,40.0",
 		"Beta,low,60.0,20,,30,50.0,50.0")
 	_, records := deriveCSV(t, raw)
-	if len(records) != 1 {
-		t.Fatalf("records = %d, want 1 (ineligible row dropped)", len(records))
+	if len(records) != 2 {
+		t.Fatalf("records = %d, want 2 (missing cost preserved)", len(records))
 	}
 	if records[0][0] != "Alpha" {
 		t.Errorf("row model = %q, want Alpha", records[0][0])
@@ -213,24 +213,9 @@ func TestDeriveErrors(t *testing.T) {
 		want string
 	}{
 		{
-			name: "zero eligible rows",
-			raw: rawCSV(goldenHeader(),
-				"Alpha,max,43.0,10,,22,50.0,40.0"),
-			want: "input contains no rows with all mandatory Tier 1 metrics: intelligence_index, median_end_to_end_response_time_seconds, cost_per_intelligence_index_task_usd",
-		},
-		{
-			name: "all intelligence blank yields zero eligible",
-			raw: rawCSV(goldenHeader(),
-				"Alpha,max,,10,0.5,22,50.0,40.0",
-				"Beta,low,,20,0.9,30,50.0,50.0"),
-			want: "input contains no rows with all mandatory Tier 1 metrics: intelligence_index, median_end_to_end_response_time_seconds, cost_per_intelligence_index_task_usd",
-		},
-		{
-			name: "degenerate mandatory metric",
-			raw: rawCSV(goldenHeader(),
-				"Alpha,max,43.0,10,0.5,22,50.0,40.0",
-				"Beta,low,43.0,20,0.9,30,50.0,50.0"),
-			want: "intelligence_index has a degenerate range (43.0)",
+			name: "no published values",
+			raw:  rawCSV(goldenHeader(), "Alpha,max,,,,,,"),
+			want: "input contains no published metric values",
 		},
 	}
 	for _, tt := range tests {

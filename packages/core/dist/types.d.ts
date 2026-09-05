@@ -215,6 +215,7 @@ export interface GUISettings {
     use_local_aa: boolean;
     /** Restrict catalog display and recommendations to models from enabled providers. */
     only_enabled_providers: boolean;
+    allow_incomplete_recommendations: boolean;
     /** How often to check for and sync new benchmark scores. Default: '6h'. */
     benchmark_check_frequency: '15m' | '1h' | '3h' | '6h' | '12h' | '24h' | 'weekly';
     /** Write-only. Get always returns "". Set a new key, or "-" to clear. */

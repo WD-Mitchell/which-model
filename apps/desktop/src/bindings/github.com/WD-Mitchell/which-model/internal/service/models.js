@@ -100,6 +100,7 @@
  * @property {boolean} use_local_aa
  * @property {string} benchmark_check_frequency
  * @property {boolean} only_enabled_providers
+ * @property {boolean} allow_incomplete_recommendations
  * @property {string} aa_api_key - write-only; Get always returns ""
  * @property {boolean} aa_api_key_set
  * @property {string} config_path - read-only, display only

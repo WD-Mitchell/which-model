@@ -37,15 +37,23 @@ type ExcludedRow struct {
 // annex-b §5.3 verbatim). Missing tier-1 axis scores produce
 // ExcludedReasons=["missing_tier1:<joined missing axes in Tier1AxisOrder>"]
 // with all score fields zeroed; otherwise ExcludedReasons is empty.
+// RankOptions selects whether partial core evidence can contribute.
+// The zero value keeps the historical complete-data requirement.
+type RankOptions struct{ AllowIncomplete bool }
+
 func ScoreModel(row catalog.ScoreRow, profile catalog.Profile) ModelScore {
+	return ScoreModelWithOptions(row, profile, RankOptions{})
+}
+
+func ScoreModelWithOptions(row catalog.ScoreRow, profile catalog.Profile, options RankOptions) ModelScore {
 	ms := ModelScore{
 		Model:      row.Model,
 		Reasoning:  row.Reasoning,
 		Categories: map[string]decimal.Decimal{},
 		Warnings:   []string{},
 	}
-	// Steps 1-2: read the 3 axis scores; a row missing any axis is excluded
-	// (no imputation, hard cut) before any availability filtering.
+	// Read each published axis. The default policy requires all three; the
+	// opt-in policy renormalizes over available evidence without imputation.
 	var values, weights []decimal.Decimal
 	var missing []string
 	for _, axis := range Tier1AxisOrder {
@@ -57,12 +65,14 @@ func ScoreModel(row catalog.ScoreRow, profile catalog.Profile) ModelScore {
 		values = append(values, v)
 		weights = append(weights, profile.Tier1Weights[string(axis)])
 	}
-	if len(missing) > 0 {
+	if len(values) == 0 || (len(missing) > 0 && !options.AllowIncomplete) {
 		ms.ExcludedReasons = []string{"missing_tier1:" + strings.Join(missing, ",")}
 		return ms
 	}
-	// Step 3: weighted mean over exactly the 3 fixed axes, independent of
-	// Tier1Share.
+	if len(missing) > 0 {
+		ms.Warnings = append(ms.Warnings, "Missing benchmark data: "+strings.Join(missing, ", ")+". Ranked using available scores.")
+	}
+	// Step 3: weighted mean over published axes only, independent of Tier1Share.
 	tier1, ok := wdecimal.WeightedMean(values, weights)
 	if !ok {
 		panic("pick: tier1 WeightedMean produced no value for a complete row")
@@ -199,6 +209,11 @@ func Rank(rows []catalog.ScoreRow, profile catalog.Profile, available []Identity
 
 // RankWithCategories preserves Rank scoring and ordering with an explicit category vocabulary.
 func RankWithCategories(rows []catalog.ScoreRow, profile catalog.Profile, available []Identity, categories []string) (Result, error) {
+	return RankWithOptions(rows, profile, available, categories, RankOptions{})
+}
+
+// RankWithOptions combines the category vocabulary and partial-data policy.
+func RankWithOptions(rows []catalog.ScoreRow, profile catalog.Profile, available []Identity, categories []string, options RankOptions) (Result, error) {
 	if err := ValidateProfileWithCategories(profile, categories); err != nil {
 		return Result{}, err
 	}
@@ -210,7 +225,7 @@ func RankWithCategories(rows []catalog.ScoreRow, profile catalog.Profile, availa
 	excluded := []ExcludedRow{}
 	entries := []rankedEntry{}
 	for _, row := range rows {
-		ms := ScoreModel(row, profile)
+		ms := ScoreModelWithOptions(row, profile, options)
 		if len(ms.ExcludedReasons) > 0 {
 			excluded = append(excluded, ExcludedRow{Model: ms.Model, Reasoning: ms.Reasoning, Reasons: ms.ExcludedReasons})
 			continue
@@ -269,22 +284,35 @@ func rankLess(a, b rankedEntry) bool {
 	if c := a.ms.Total.Cmp(b.ms.Total); c != 0 {
 		return c > 0
 	}
-	if c := a.row.Tier1[Tier1ScoreColumn[AxisIntelligence]].Cmp(b.row.Tier1[Tier1ScoreColumn[AxisIntelligence]]); c != 0 {
+	if c := compareAxis(a.row, b.row, AxisIntelligence); c != 0 {
 		return c > 0
 	}
 	if c := a.ms.Tier2Contribution.Cmp(b.ms.Tier2Contribution); c != 0 {
 		return c > 0
 	}
-	if c := a.row.Tier1[Tier1ScoreColumn[AxisSpeed]].Cmp(b.row.Tier1[Tier1ScoreColumn[AxisSpeed]]); c != 0 {
+	if c := compareAxis(a.row, b.row, AxisSpeed); c != 0 {
 		return c > 0
 	}
-	if c := a.row.Tier1[Tier1ScoreColumn[AxisCost]].Cmp(b.row.Tier1[Tier1ScoreColumn[AxisCost]]); c != 0 {
+	if c := compareAxis(a.row, b.row, AxisCost); c != 0 {
 		return c > 0
 	}
 	if c := strings.Compare(strings.ToLower(a.ms.Model), strings.ToLower(b.ms.Model)); c != 0 {
 		return c < 0
 	}
 	return strings.ToLower(a.ms.Reasoning) < strings.ToLower(b.ms.Reasoning)
+}
+
+// Published measurements sort before missing values, including measured zero.
+func compareAxis(a, b catalog.ScoreRow, axis Tier1Axis) int {
+	av, aok := a.Tier1[Tier1ScoreColumn[axis]]
+	bv, bok := b.Tier1[Tier1ScoreColumn[axis]]
+	if aok != bok {
+		if aok {
+			return 1
+		}
+		return -1
+	}
+	return av.Cmp(bv)
 }
 
 // excludedLess orders excluded rows by casefolded (model, reasoning)

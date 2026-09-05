@@ -109,17 +109,7 @@ class GenerateAvailableModelScoresTests(unittest.TestCase):
             rows = self.read_csv(output)
 
         self.assertTrue(rows)
-        self.assertTrue(
-            all(
-                row[column]
-                for row in rows
-                for column in (
-                    "intelligence_index_score",
-                    "median_end_to_end_response_time_seconds_score",
-                    "cost_per_intelligence_index_task_usd_score",
-                )
-            )
-        )
+
 
         for score_column in (
             "intelligence_index_score",
@@ -154,7 +144,7 @@ class GenerateAvailableModelScoresTests(unittest.TestCase):
                         f"{row['model']} / {row['reasoning']} / {column}: {value!r}",
                     )
 
-    def test_rows_without_all_tier_one_metrics_are_omitted(self) -> None:
+    def test_partial_benchmark_rows_are_retained(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "scores.csv"
             result = self.run_generator(RAW_VALUES, output)
@@ -162,8 +152,31 @@ class GenerateAvailableModelScoresTests(unittest.TestCase):
             rows = self.read_csv(output)
 
         identities = {(row["model"], row["reasoning"]) for row in rows}
-        self.assertNotIn(("Claude Sonnet 5", "low"), identities)
+        self.assertIn(("GPT-6 Astra", "max"), identities)
         self.assertIn(("GPT-5.6 Sol", "medium"), identities)
+
+    def test_partial_models_normalize_each_published_measurement(self) -> None:
+        columns = RAW_HEADER.split(",")
+        with tempfile.TemporaryDirectory() as directory:
+            source, output = Path(directory) / "raw.csv", Path(directory) / "scores.csv"
+            with source.open("w", newline="") as stream:
+                writer = csv.DictWriter(stream, fieldnames=columns, lineterminator="\n")
+                writer.writeheader()
+                writer.writerows([
+                    {"model": "Baseline", "reasoning": "high", "intelligence_index": "20", "cost_per_intelligence_index_task_usd": "1", "benchmark:GPQA Diamond": "30"},
+                    {"model": "GPT-6 Astra", "reasoning": "max", "intelligence_index": "60", "cost_per_intelligence_index_task_usd": "3", "benchmark:GPQA Diamond": "90"},
+                    {"model": "Benchmark only", "reasoning": "high", "benchmark:GPQA Diamond": "60"},
+                    {"model": "Undisclosed", "reasoning": "high"},
+                ])
+            result = self.run_generator(source, output)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            rows = self.read_csv(output)
+        self.assertEqual(len(rows), 3)
+        astra = rows[1]
+        self.assertEqual(astra["intelligence_index_score"], "100")
+        self.assertEqual(astra["cost_per_intelligence_index_task_usd_score"], "0")
+        self.assertEqual(astra["median_end_to_end_response_time_seconds_score"], "")
+        self.assertEqual(rows[2]["benchmark:GPQA Diamond"], "50")
 
     def test_committed_scores_are_deterministically_regenerated(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -240,7 +253,7 @@ class GenerateAvailableModelScoresTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("too few values", result.stderr)
 
-    def test_rejects_degenerate_metric_ranges(self) -> None:
+    def test_degenerate_metric_ranges_leave_relative_scores_blank(self) -> None:
         content = "\n".join(
             [
                 RAW_HEADER,
@@ -254,10 +267,13 @@ class GenerateAvailableModelScoresTests(unittest.TestCase):
             output_path = Path(directory) / "scores.csv"
             input_path.write_text(content, encoding="utf-8")
             result = self.run_generator(input_path, output_path)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("cost_per_intelligence_index_task_usd has a degenerate range", result.stderr)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            rows = self.read_csv(output_path)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_rejects_degenerate_mandatory_response_time_range(self) -> None:
+        self.assertEqual([row["cost_per_intelligence_index_task_usd_score"] for row in rows], ["", ""])
+
+    def test_degenerate_response_time_range_leaves_relative_scores_blank(self) -> None:
         content = "\n".join(
             [
                 RAW_HEADER,
@@ -271,11 +287,11 @@ class GenerateAvailableModelScoresTests(unittest.TestCase):
             output_path = Path(directory) / "scores.csv"
             input_path.write_text(content, encoding="utf-8")
             result = self.run_generator(input_path, output_path)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn(
-            "median_end_to_end_response_time_seconds has a degenerate range",
-            result.stderr,
-        )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            rows = self.read_csv(output_path)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+        self.assertEqual([row["median_end_to_end_response_time_seconds_score"] for row in rows], ["", ""])
 
     def test_optional_benchmarks_normalize_partial_coverage_and_leave_singletons_blank(self) -> None:
         content = "\n".join(
@@ -357,7 +373,7 @@ class GenerateAvailableModelScoresTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("median_end_to_end_response_time_seconds must not be negative", result.stderr)
 
-    def test_individual_missing_median_response_time_and_cost_omit_that_row(self) -> None:
+    def test_individual_missing_measurements_preserve_the_row(self) -> None:
         source = io.StringIO(RAW_VALUES.read_text(encoding="utf-8"))
         reader = csv.DictReader(source)
         rows = list(reader)
@@ -390,7 +406,11 @@ class GenerateAvailableModelScoresTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             scored = self.read_csv(output_path)
         identities = {(row["model"], row["reasoning"]) for row in scored}
-        self.assertNotIn(missing_identity, identities)
+        self.assertIn(missing_identity, identities)
+        row = next(row for row in scored if (row["model"], row["reasoning"]) == missing_identity)
+        self.assertEqual(row["median_end_to_end_response_time_seconds_score"], "")
+        self.assertEqual(row["cost_per_intelligence_index_task_usd_score"], "")
+        self.assertNotEqual(row["intelligence_index_score"], "")
 
 
 if __name__ == "__main__":

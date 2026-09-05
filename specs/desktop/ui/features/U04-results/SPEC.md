@@ -137,3 +137,9 @@ Inherits `specs/desktop/global/*` and `specs/desktop/ui/*`. Depends on: U01
 - Copy-to-clipboard + toast on `onCopyId` — U06.
 - Profiles list rows embedding `ProfileWeightSparkbar` — U08.
 - `Tooltip` implementation — U02.
+
+## Incomplete benchmark recommendations (2026-09-05)
+
+`gui.allow_incomplete_recommendations` / `GUISettings.allow_incomplete_recommendations` is a persisted boolean, default false. General displays **Allow recommendations with incomplete benchmarks**. Saving it emits the existing settings event and invalidates ranking immediately. The rank service passes it as `pick.RankOptions.AllowIncomplete`; enabling it uses available core scores, disabling it requires complete core scores. Catalog scores remain visible in either mode.
+
+Both carousel and list show `Missing benchmark data: <axes>. Ranked using available scores.` for partial recommendations, using absent intelligence/cost/speed fields in that order; measured zero is present data. No RankedModel schema extension is needed. Tests must cover off→on→off persistence and ranking, blank speed preservation, and the warning in both layouts.

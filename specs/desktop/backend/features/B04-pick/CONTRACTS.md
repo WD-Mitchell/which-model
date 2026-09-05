@@ -131,3 +131,9 @@ Fixture request: `ProfileSlug` of a custom profile with `CoreShare 60`, tier1 `{
 ## Review correction — #185
 
 Rank supplies exactly `pick.CategoryNames` union the current `[groups.*]` slugs to `RankWithCategories`, under `Services.mu.RLock`. Saved profiles and ephemeral overrides use the same vocabulary. Custom-group scoring, availability filtering, tie-breaks, and history behavior are unchanged. Regression: a configured group's composite can change the winner; absent group keys remain invalid. CLI `Rank` and `ValidateProfile` retain their static vocabulary.
+
+## Incomplete benchmark recommendations (2026-09-05)
+
+`gui.allow_incomplete_recommendations` / `GUISettings.allow_incomplete_recommendations` is a persisted boolean, default false. General displays **Allow recommendations with incomplete benchmarks**. Saving it emits the existing settings event and invalidates ranking immediately. The rank service passes it as `pick.RankOptions.AllowIncomplete`; enabling it uses available core scores, disabling it requires complete core scores. Catalog scores remain visible in either mode.
+
+Both carousel and list show `Missing benchmark data: <axes>. Ranked using available scores.` for partial recommendations, using absent intelligence/cost/speed fields in that order; measured zero is present data. No RankedModel schema extension is needed. Tests must cover off→on→off persistence and ranking, blank speed preservation, and the warning in both layouts.

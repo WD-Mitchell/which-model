@@ -122,10 +122,8 @@ Verbatim messages (generate_scores.py:95-193, rank_models.py:359-401; `{n}` = 1-
 | unexpected core headers | `unexpected core columns: expected {joined core columns}, got {joined actual}` |
 | bad dynamic columns | `invalid or duplicate dynamic benchmark columns` |
 | model blank after cleaning | `model name is blank after removing annotations` |
-| degenerate mandatory metric | `{column} has a degenerate range ({minimum})` |
-| mandatory metric with no values | `{column} has no published values` |
 | zero data rows | `input contains no data rows` |
-| zero eligible rows | `input contains no rows with all mandatory Tier 1 metrics: intelligence_index, median_end_to_end_response_time_seconds, cost_per_intelligence_index_task_usd` |
+| zero measured rows | `input contains no published metric values` |
 | unknown normalizer/aggregator | `unknown normalizer: {name}` / `unknown aggregator: {name}` |
 | scores CSV missing columns | `score CSV is missing required columns: {sorted names}` |
 | scores CSV extra cells | `score CSV row {n} has extra cells` |
@@ -161,8 +159,7 @@ Registered in F01's envKeys/vocabulary (`WHICH_MODEL_SCORING_NORMALIZER`, `WHICH
 // Processing order (generate_scores.py read_rows + _merge_input_rows +
 // generate): parse + validate (row numbers start at 2) -> merge duplicate
 // identities (CleanModelName + default->high collapse; first-wins fill-in for
-// core cells, max for benchmark cells, SPEC D8) -> eligible filter (all three
-// Tier-1 metrics present; ineligible rows DROPPED, SPEC D9) -> per-column
+// core cells, max for benchmark cells, SPEC D8) -> measured-row filter (any published metric; SPEC D9) -> per-column
 // min/max ranges over eligible rows -> relative scores (direction-aware
 // MinMaxLinear, ROUND_HALF_UP) -> category composites -> provenance header.
 func Derive(rawCSV []byte, benchmarksTOML []byte, normalizer Normalizer, aggregator Aggregator) ([]byte, error)
@@ -226,3 +223,14 @@ func DefaultScoringConfig() ScoringConfig // {Normalizer: "minmax-linear", Aggre
 - **Exit-code mapping:** `ErrInvalidRaw`, `ErrInvalidBenchmarkConfig`, `ErrInvalidScoresCSV` → exit 1 (data error); `ErrUnknownNormalizer`, `ErrUnknownAggregator` → exit 2 (config error) — per `specs/global/SPEC.md §5`, applied by F23.
 - **JSON shapes emitted:** none (Derive emits CSV bytes).
 - **Provenance header emitted** (annex-b §6.2a): `# which-model-scores-provenance raw_sha256=<64-hex> normalizer=<name> aggregator=<name>` — token-separated, `raw_sha256` required, `normalizer=`/`aggregator=` optional, names are `NormalizerNameMinMaxLinear` / `AggregatorNameWeightedArithmeticMean`. Parsed by F06 `Provenance` (`specs/features/F06-*/CONTRACTS.md`).
+
+## Partial-coverage regression rows
+
+| Input | Required output |
+|---|---|
+| Astra intelligence 60/cost 3 and no speed; baseline intelligence 20/cost 1 | Astra retained, relative intelligence 100/cost 0; speed absolute and relative blank |
+| Benchmark-only row at 60, other published values 30 and 90 | Row retained and benchmark relative score 50 |
+| Two intelligence values equal to 60, all other metrics blank | Both absolute values retained; relative columns blank; no error |
+| Identity-only rows | `input contains no published metric values` |
+
+These rows supersede the prior mandatory-core filtering and degenerate-core error cases, per the user's 2026-09-05 correction. Output schema and numeric validation remain unchanged.

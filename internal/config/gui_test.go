@@ -448,6 +448,7 @@ func TestSetLoadRoundTrip(t *testing.T) {
 		g.Layout = "list"
 		g.Holds = 3
 		g.OnlyEnabledProviders = true
+		g.AllowIncompleteRecommendations = true
 		if err := cfg.SetGUI(g); err != nil {
 			t.Fatalf("SetGUI: %v", err)
 		}
@@ -465,8 +466,8 @@ func TestSetLoadRoundTrip(t *testing.T) {
 		}
 		// Bump deliberately when a setting is added: catalog_repo +
 		// use_local_aa + only_enabled_providers + benchmark_check_frequency took this from 14 to 18.
-		if len(gui) != 18 {
-			t.Fatalf("[gui] has %d keys, want 18: %v", len(gui), gui)
+		if len(gui) != 19 {
+			t.Fatalf("[gui] has %d keys, want 19: %v", len(gui), gui)
 		}
 		got, err := loadFixture(t, string(out)).LoadGUI()
 		if err != nil {

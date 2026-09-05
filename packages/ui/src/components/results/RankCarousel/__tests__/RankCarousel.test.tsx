@@ -31,10 +31,18 @@ const items: RankedModel[] = [
 ]
 
 describe('RankCarousel', () => {
+  it('warns about only the missing measurement and retains measured zero', () => {
+    render(<RankCarousel items={[{ ...items[0], intelligence: 0, speed: null }]} index={0} onIndex={vi.fn()} />)
+    expect(screen.getByText('Missing benchmark data: speed. Ranked using available scores.')).toBeDefined()
+    expect(screen.getByText('0')).toBeDefined()
+    expect(screen.getByText('—')).toBeDefined()
+  })
+
   it('renders model name, reasoning, and metadata', () => {
     render(<RankCarousel items={items} index={0} onIndex={vi.fn()} />)
     expect(screen.getByText('GPT-5.6 Sol (medium)')).toBeDefined()
     expect(screen.getByText('codex · 91.27')).toBeDefined()
+    expect(screen.queryByText(/Missing benchmark data/)).toBeNull()
   })
 
   it('renders the 3 core ratings under the model', () => {
