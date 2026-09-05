@@ -3,6 +3,8 @@
 
 .row {
   display: flex;
+  flex-wrap: wrap;
+  container: provider-row / inline-size;
   align-items: center;
   gap: 14px;
   padding: 12px 13px;
@@ -17,8 +19,8 @@
 }
 
 .idCell {
-  flex: none;
-  width: 96px;
+  flex: 0 1 200px;
+  width: 200px;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -26,6 +28,9 @@
 }
 
 .id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12.5px;
   color: color-mix(in srgb, var(--color-text) 45%, transparent);
 }
@@ -97,4 +102,12 @@
 .noUsage {
   font-size: 10px;
   color: color-mix(in srgb, var(--color-text) 34%, transparent);
+}
+
+/* Keep quota labels readable when the settings window is compact. */
+@container provider-row (max-width: 620px) {
+  .meters {
+    order: 1;
+    flex: 1 0 100%;
+  }
 }

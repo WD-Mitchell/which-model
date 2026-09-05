@@ -110,7 +110,7 @@ Other `providers.<id>.*` keys (`weight`, `cache_ttl`, `source_preference`, `cred
 Evaluated in order; first match wins for the line:
 
 1. `!enabled` → `not enabled` (usage fields still populated from cache if present).
-2. Usage disabled (`toggle.ResolveUsageEnabled` ⇒ off, or backend `off`) → `usage off`; Session/Weekly/Monthly = nil, Credits/Resets/Auth = "".
+2. Usage disabled (`toggle.ResolveUsageEnabled` ⇒ off, or backend `off`) → `usage off`; Session/Weekly/Monthly = nil, Credits/Resets = "".
 3. `OfflineRead(id, ttl)` snapshot has non-nil `Failure` → `no usage data`; usage fields as in rule 2. `ttl` = `providers.<id>.cache_ttl` when > 0, else the package constant `defaultLimitsTTL = 24 * time.Hour`.
 4. Otherwise compose segments joined by `" · "` (middle dot, spaces), in this order, skipping unavailable ones:
    - For each window id in {`session`, `weekly`, `monthly`} (that order) present in `snapshot.Windows`:
@@ -119,7 +119,7 @@ Evaluated in order; first match wins for the line:
    - Credits: the first window whose `Unit` is a credit/monetary unit and `Remaining` is set → `"<int(Remaining)> credits"`; the same string goes to `ProviderInfo.Credits` (else `""`).
    - Zero segments composed → `no usage data`.
 
-`Resets` = `"<id> <ResetHint>"` for the first of session/weekly/monthly with non-empty `ResetHint`, else `""`. `Auth` = `string(snapshot.Source)` (`oauth`/`api`/`cli`/`web`/`local`/`cache`), `""` when rules 2–3 applied. The mockup's literal strings (`session 42% · weekly 18%`, `340 credits`, `not enabled`) are the format exemplars; its `device flow` auth text is demo data, not normative.
+`Resets` = `"<id> <ResetHint>"` for the first of session/weekly/monthly with non-empty `ResetHint`, else `""`. `Auth` first uses configured accounts with nonblank refs: kinds `oauth`, `token`, `cookie` map to `oauth`, `api`, `web`; deduplicate and join with ` + ` in that order. This metadata is independent of usage availability. Without a recognized configured account, use `string(snapshot.Source)` (`oauth`/`api`/`cli`/`web`/`local`/`cache`), or `""` when usage is disabled/missing/failed. Do not change the cached source or read credentials. The mockup's literal strings (`session 42% · weekly 18%`, `340 credits`, `not enabled`) are the format exemplars; its `device flow` auth text is demo data, not normative.
 
 ## 6. Validation error strings (exact; checked in this order)
 
@@ -150,6 +150,7 @@ Default fixture: routes table with providers `claude`,`codex` (≥2 models × �
 |---|---|
 | `TestProvidersList_OrderAndUniverse` | union of table+config+catalogue providers; priority asc, ties id asc; display Priority 1..N; config-only provider has RoutesTotal/Models 0; table-only provider Enabled false; Models counts distinct catalogue ∪ routed model ids |
 | `TestProvidersList_LimitsLine` | golden table over §5: disabled → `not enabled`; usage off → `usage off`; no/failed cache → `no usage data`; seeded snapshot → exact composed line + pointer fields + Credits/Resets/Auth |
+| `TestProvidersListAuthenticationUsesConfiguredAccounts` | OAuth overrides API transport, token overrides OAuth transport, cookie maps to web, mixed accounts deduplicate in stable order, missing usage preserves configured auth, blank refs and absent accounts retain cache fallback, cached source is unchanged |
 | `TestProvidersList_NoFetch` | usage fields come from cache files alone: no registry/descriptor is registered, no network; a stale cache file still populates fields (OfflineRead path). Compile-level guard: the file does not import `internal/usage/fetch` (checked by an import-list test over the package via `go/parser` or equivalent) |
 | `TestProviderSetEnabled_Persists`, `TestProviderSetEnabled_CatalogueOnly`, `TestProviderSetEnabled_Unknown` | toggle → reload config.toml from disk → value round-trips; a catalogue-only provider is writable; unknown id → `not_found`, no write, no event |
 | `TestProvidersReorder_RoundTrip` | reorder → List order matches input → priorities on disk are 1..N; second List after reload identical |

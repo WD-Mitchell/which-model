@@ -241,6 +241,11 @@ func (p *ProviderService) listLocked() ([]ProviderInfo, error) {
 		default:
 			info.LimitsLine = composeLimitsLine(&info, snapshot)
 		}
+		// Configured account methods describe sign-in; the cached source
+		// describes how usage was fetched (e.g. an OAuth-backed API).
+		if auth := configuredProviderAuth(provider.Accounts); auth != "" {
+			info.Auth = auth
+		}
 		out = append(out, info)
 	}
 	return out, nil
@@ -260,6 +265,30 @@ func (p *ProviderService) usageStoreLocked() cache.Store {
 
 func routeKey(route routing.Route) string {
 	return route.ModelID + "@" + route.Reasoning
+}
+
+func configuredProviderAuth(accounts []config.ProviderAccount) string {
+	methods := make(map[string]bool)
+	for _, account := range accounts {
+		if strings.TrimSpace(account.Ref) == "" {
+			continue
+		}
+		switch account.Kind {
+		case AccountKindOAuth:
+			methods["oauth"] = true
+		case AccountKindToken:
+			methods["api"] = true
+		case AccountKindCookie:
+			methods["web"] = true
+		}
+	}
+	var labels []string
+	for _, method := range []string{"oauth", "api", "web"} {
+		if methods[method] {
+			labels = append(labels, method)
+		}
+	}
+	return strings.Join(labels, " + ")
 }
 
 func populateProviderUsage(info *ProviderInfo, snapshot usage.Snapshot) {

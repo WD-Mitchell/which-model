@@ -39,12 +39,12 @@ Queries: `['providers']` → `host.providers.list()`; `['provider', id]` → `ho
 |---|---|
 | Section label | mono 9px, letter-spacing .13em, uppercase, accent, padding `0 22px 6px` |
 | List controls | flex center gap 10px, padding `0 22px 12px`; search grows to 240px; native `wmsel` enabled-state and sort controls |
-| Column header row | flex gap 12px, padding `0 22px 7px`; cols 16px / 14px / 132px / flex / 112px right / 10px; mono 9px uppercase `text 38%` |
-| Row | flex center gap 12px, padding `11px 22px`, border-top 1px `text 8%`, cursor pointer |
+| List presentation | Shared `ProviderUsageRow` cards; no separate column header |
+| Row | flex center gap 14px, padding `12px 13px`, radius 8px, inset outline; cursor pointer |
 | Grab handle | 16×16 `.ib`, `text 35%`, cursor grab; 11×11 svg, six 1px-radius dots at (4,8)×(2.5,6,9.5) |
 | Order # | mono 11px, width 14px, `text 40%` |
-| Provider cell | width 132px, gap 10px: `.sw` toggle + id mono 12.5px (`text 88%` on / `text 45%` off) |
-| Limits | flex 1, mono 11.5px, `text 62%` |
+| Provider name/auth cell | `flex: 0 1 200px`, min-width 0; id mono 12.5px (`text 88%` on / `text 45%` off), single-line ellipsis, full id in title; auth below at 10px |
+| Usage | flex 1, min-width 0; cached window meters, or limits fallback; credits/resets right column 112px |
 | Models col | width 112px, mono 10.5px, `text 45%`, right |
 | Chevron | 10×10 svg stroke 1.6, `text 38%` |
 | Drag highlight | dragged row bg `color-mix(accent 14%)` |
@@ -90,6 +90,7 @@ Mock providers: claude/codex/copilot enabled, cursor disabled (mock defaults).
 | Case | Assertion |
 |---|---|
 | Row render | enabled mock providers (claude, codex, copilot) render before the disabled ones by default; disabled rows show `not enabled`; model cell uses `{models} model[s]` |
+| Rendered layout | At compact and wide settings widths, long provider ids remain single-line with title fallback; OAuth labels, meters, toggles and model counts remain usable |
 | Search | mixed-case substring narrows the rendered provider ids immediately |
 | List control persistence | search `PIL` + filter `enabled` + sort `name-desc` narrow the list to `copilot`; opening the copilot detail and clicking Back restores the exact control values and row order (SPEC §2.2) |
 | Enabled filter | disabled/enabled/all render the exact matching subsets |
@@ -135,3 +136,5 @@ next render. Removal is unavailable during credential persistence or sign-in.
 Every failed replacement reports its error, including an older failed write
 followed by a newer queued edit. This prevents a queued whole-list replacement
 from deleting an account that authentication just created.
+
+At card widths of 620px or less, usage meters move to a full-width second line so quota labels remain readable beside the wider provider name.
