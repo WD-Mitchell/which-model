@@ -63,3 +63,7 @@ All hard errors are `*usage.FailureError` with canonical codes: `credential_file
 ## Review correction (#176)
 
 File candidates expand a leading `~/` using `os.UserHomeDir` and `$NAME` or `${NAME}` using `os.LookupEnv`, without invoking a shell. Missing or empty referenced variables make that candidate unavailable; they must never produce `/auth.json`. Expansion is single-pass: environment values are literal paths, with no recursive expansion or command substitution. Absolute and ordinary relative paths retain their meaning. Resolve candidates in declared order and keep existing bounded reads, validation, expiry, and permission warnings. This clarifies the descriptor paths already declared by F15/F16.
+
+## Review correction (#177)
+
+Keychain absence includes both the keyring not-found sentinel and `credential.ErrNotFound`, including wrapped errors. Both continue resolution as required by D12. Locked, denied, and unexpected errors remain sanitized `keychain_unavailable` failures.

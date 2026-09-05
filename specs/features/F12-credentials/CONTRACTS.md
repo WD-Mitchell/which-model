@@ -257,3 +257,10 @@ func CheckExpired(exp time.Time, now time.Time) error
 | Multiple valid candidates | First candidate wins |
 | Literal absolute/relative paths or shell-like text in environment value | Preserve literal path; no execution or recursive expansion |
 | Native descriptor using override/home paths | Resolve the file credential before native fetch |
+
+## Review regression contract (#177)
+
+| Scenario | Required result |
+|---|---|
+| Unsupported-platform keychain or wrapped not-found | Continue to file source |
+| Locked/denied keychain with secret-bearing error | `keychain_unavailable`, no secret in failure |
