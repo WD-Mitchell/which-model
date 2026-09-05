@@ -54,6 +54,7 @@ func Render(pc *PublishConfig) ([]byte, error) {
 	fmt.Fprintf(&b, "  contents: write\n")
 	if pc.Mode != "direct-push" {
 		fmt.Fprintf(&b, "  pull-requests: write\n")
+		fmt.Fprintln(&b, "  issues: write")
 	}
 	fmt.Fprintf(&b, "concurrency:\n")
 	fmt.Fprintf(&b, "  group: refresh-model-data\n")
@@ -110,6 +111,7 @@ func Render(pc *PublishConfig) ([]byte, error) {
 		fmt.Fprintln(&b, "          GH_TOKEN: ${{ secrets.CSV_UPDATE_TOKEN }}")
 		fmt.Fprintln(&b, "          HEAD_BRANCH: refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}")
 		fmt.Fprintln(&b, "          BASE_BRANCH: ${{ matrix.branch }}")
+		fmt.Fprintln(&b, "          METADATA_TOKEN: ${{ github.token }}")
 		fmt.Fprintf(&b, "          PR_TITLE: %q\n", pc.PRTitle)
 		if pc.AutoMerge {
 			fmt.Fprintln(&b, "      - id: merge")

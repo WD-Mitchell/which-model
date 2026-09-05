@@ -60,3 +60,37 @@ esac
 		})
 	}
 }
+
+func TestCreatePRSeparatesPublishingAndMetadataTokens(t *testing.T) {
+	dir := t.TempDir()
+	stub := `#!/bin/bash
+set -eu
+printf '%s %s\n' "$GH_TOKEN" "$*" >> "$EVIDENCE/calls"
+case "$*" in
+ 'api user '*) echo human;;
+ 'issue create '*) [ "$GH_TOKEN" = metadata ]; echo https://github.com/owner/repo/issues/42;;
+ 'issue view '*) echo human;;
+ 'pr create '*) [ "$GH_TOKEN" = publish ]; echo https://github.com/owner/repo/pull/43;;
+ 'pr edit '*) [ "$GH_TOKEN" = metadata ];;
+ *closingIssuesReferences*) echo 42;;
+ 'pr view '*) echo human;;
+ *) exit 2;;
+esac
+`
+	for name, body := range map[string]string{"gh": stub, "git": "#!/bin/sh\nexit 0\n"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cmd := exec.Command("bash", "-c", createPRScript)
+	cmd.Env = append(os.Environ(), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"), "EVIDENCE="+dir, "GH_TOKEN=publish", "METADATA_TOKEN=metadata", "HEAD_BRANCH=refresh-test", "BASE_BRANCH=main", "PR_TITLE=refresh")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("create PR: %v\n%s", err, out)
+	}
+	calls, _ := os.ReadFile(filepath.Join(dir, "calls"))
+	for _, want := range []string{"metadata issue create", "publish pr create", "metadata pr edit refresh-test --add-assignee human"} {
+		if !strings.Contains(string(calls), want) {
+			t.Fatalf("missing %q in %s", want, calls)
+		}
+	}
+}

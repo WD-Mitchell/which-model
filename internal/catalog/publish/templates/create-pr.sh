@@ -28,9 +28,9 @@ None.
 ## BDD Scenarios
 Given updated upstream models and benchmarks, when refresh completes, then the catalog and scores are published together after passing checks.
 BODY
-issue_url=$(gh issue create --title "$PR_TITLE" --body-file "$work_dir/issue.md" --type Task --assignee "$uploader")
+issue_url=$(GH_TOKEN="$METADATA_TOKEN" gh issue create --title "$PR_TITLE" --body-file "$work_dir/issue.md" --type Task --assignee "$uploader")
 issue_number=${issue_url##*/}
-gh issue view "$issue_number" --json assignees --jq '.assignees[].login' | grep -Fx "$uploader"
+GH_TOKEN="$METADATA_TOKEN" gh issue view "$issue_number" --json assignees --jq '.assignees[].login' | grep -Fx "$uploader"
 cat > "$work_dir/pr.md" <<'BODY'
 ## Summary
 Refresh available model values and regenerate the matching scores from current upstream data.
@@ -66,6 +66,7 @@ Upstream catalog values can change ranking results. Regeneration checks validate
 BODY
 git push origin "HEAD:refs/heads/${HEAD_BRANCH}"
 # Configured labels are passed as separate, shell-quoted arguments by the renderer.
-gh pr create --base "$BASE_BRANCH" --head "$HEAD_BRANCH" --title "$PR_TITLE" --body-file "$work_dir/pr.md" --assignee "$uploader" "$@"
+gh pr create --base "$BASE_BRANCH" --head "$HEAD_BRANCH" --title "$PR_TITLE" --body-file "$work_dir/pr.md" "$@"
+GH_TOKEN="$METADATA_TOKEN" gh pr edit "$HEAD_BRANCH" --add-assignee "$uploader"
 gh pr view "$HEAD_BRANCH" --json assignees --jq '.assignees[].login' | grep -Fx "$uploader"
 gh pr view "$HEAD_BRANCH" --json closingIssuesReferences --jq '.closingIssuesReferences[].number' | grep -Fx "$issue_number"
