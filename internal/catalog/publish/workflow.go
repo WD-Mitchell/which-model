@@ -2,6 +2,7 @@ package publish
 
 import (
 	"bytes"
+	_ "embed"
 	"errors"
 	"fmt"
 	"os"
@@ -60,7 +61,7 @@ func Render(pc *PublishConfig) ([]byte, error) {
 	fmt.Fprintf(&b, "jobs:\n")
 	fmt.Fprintf(&b, "  refresh:\n")
 	fmt.Fprintf(&b, "    runs-on: ubuntu-latest\n")
-	fmt.Fprintf(&b, "    timeout-minutes: 15\n")
+	fmt.Fprintf(&b, "    timeout-minutes: 30\n")
 	if pc.Environment != "" {
 		fmt.Fprintf(&b, "    environment: %q\n", pc.Environment)
 	}
@@ -96,33 +97,32 @@ func Render(pc *PublishConfig) ([]byte, error) {
 		fmt.Fprintf(&b, "        if: steps.changes.outputs.changed == 'true'\n")
 		fmt.Fprintf(&b, "        run: git push origin HEAD:${{ matrix.branch }}\n")
 	} else {
-		fmt.Fprintf(&b, "      - if: steps.changes.outputs.changed == 'true'\n")
+		fmt.Fprintln(&b, "      - id: create_pr")
+		fmt.Fprintln(&b, "        if: steps.changes.outputs.changed == 'true'")
+		fmt.Fprintln(&b, "        run: |")
 		labels := ""
-		for _, l := range pc.PRLabels {
-			labels += " --label " + l
+		for _, label := range pc.PRLabels {
+			labels += " --label " + shellQuote(label)
 		}
-		fmt.Fprintf(&b, "        run: |\n")
-		fmt.Fprintf(&b, "          head_branch=\"refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}\"\n")
-		fmt.Fprintf(&b, "          git push origin \"HEAD:refs/heads/${head_branch}\"\n")
-		fmt.Fprintf(&b, "          gh pr create --base \"${{ matrix.branch }}\" --head \"${head_branch}\" --title %q --body %q%s\n", pc.PRTitle, "Automated catalog refresh.", labels)
-		fmt.Fprintf(&b, "        env:\n")
-		fmt.Fprintf(&b, "          GH_TOKEN: ${{ secrets.CSV_UPDATE_TOKEN || github.token }}\n")
+		fmt.Fprintln(&b, "          set --"+labels)
+		writeScript(&b, createPRScript)
+		fmt.Fprintln(&b, "        env:")
+		fmt.Fprintln(&b, "          GH_TOKEN: ${{ secrets.CSV_UPDATE_TOKEN }}")
+		fmt.Fprintln(&b, "          HEAD_BRANCH: refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}")
+		fmt.Fprintln(&b, "          BASE_BRANCH: ${{ matrix.branch }}")
+		fmt.Fprintf(&b, "          PR_TITLE: %q\n", pc.PRTitle)
 		if pc.AutoMerge {
-			fmt.Fprintf(&b, "      - if: steps.changes.outputs.changed == 'true'\n")
-			fmt.Fprintf(&b, "        run: |\n")
-			fmt.Fprintf(&b, "          if [ -n \"$CSV_UPDATE_TOKEN\" ]; then\n")
-			fmt.Fprintf(&b, "            gh pr review --approve \"refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}\"\n")
-			fmt.Fprintf(&b, "          fi\n")
-			fmt.Fprintf(&b, "        env:\n")
-			fmt.Fprintf(&b, "          GH_TOKEN: ${{ github.token }}\n")
-			fmt.Fprintf(&b, "          CSV_UPDATE_TOKEN: ${{ secrets.CSV_UPDATE_TOKEN }}\n")
-			fmt.Fprintf(&b, "      - id: merge\n")
-			fmt.Fprintf(&b, "        if: steps.changes.outputs.changed == 'true'\n")
-			fmt.Fprintf(&b, "        run: gh pr merge --auto --%s \"refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}\"\n", pc.MergeMethod)
-			fmt.Fprintf(&b, "        env:\n")
-			fmt.Fprintf(&b, "          GH_TOKEN: ${{ github.token }}\n")
+			fmt.Fprintln(&b, "      - id: merge")
+			fmt.Fprintln(&b, "        if: steps.changes.outputs.changed == 'true'")
+			fmt.Fprintln(&b, "        run: |")
+			writeScript(&b, mergePRScript)
+			fmt.Fprintln(&b, "        env:")
+			fmt.Fprintln(&b, "          GH_TOKEN: ${{ secrets.CSV_UPDATE_TOKEN }}")
+			fmt.Fprintln(&b, "          HEAD_BRANCH: refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}")
+			fmt.Fprintf(&b, "          MERGE_METHOD: %q\n", pc.MergeMethod)
 		}
 	}
+
 	fmt.Fprintf(&b, "      - name: Report per-branch outcome\n")
 	fmt.Fprintf(&b, "        if: always()\n")
 	fmt.Fprintf(&b, "        run: |\n")
@@ -133,12 +133,32 @@ func Render(pc *PublishConfig) ([]byte, error) {
 		fmt.Fprintf(&b, "            echo \"refresh branch ${{ matrix.branch }}: published\" >> \"$GITHUB_STEP_SUMMARY\"\n")
 	} else {
 		fmt.Fprintf(&b, "          elif [ \"${{ steps.merge.outcome }}\" = \"success\" ]; then\n")
-		fmt.Fprintf(&b, "            echo \"refresh branch ${{ matrix.branch }}: auto-merge-enabled\" >> \"$GITHUB_STEP_SUMMARY\"\n")
+		fmt.Fprintf(&b, "            echo \"refresh branch ${{ matrix.branch }}: merged\" >> \"$GITHUB_STEP_SUMMARY\"\n")
+	}
+	if pc.Mode != "direct-push" && !pc.AutoMerge {
+		fmt.Fprintln(&b, `          elif [ "${{ steps.create_pr.outcome }}" = "success" ]; then`)
+		fmt.Fprintln(&b, `            echo "refresh branch ${{ matrix.branch }}: pr-created" >> "$GITHUB_STEP_SUMMARY"`)
 	}
 	fmt.Fprintf(&b, "          else\n")
 	fmt.Fprintf(&b, "            echo \"refresh branch ${{ matrix.branch }}: failed\" >> \"$GITHUB_STEP_SUMMARY\"\n")
 	fmt.Fprintf(&b, "          fi\n")
 	return []byte(b.String()), nil
+}
+
+//go:embed templates/create-pr.sh
+var createPRScript string
+
+//go:embed templates/merge-pr.sh
+var mergePRScript string
+
+func writeScript(b *strings.Builder, script string) {
+	for _, line := range strings.Split(strings.TrimSuffix(script, "\n"), "\n") {
+		if line == "" {
+			b.WriteByte('\n')
+		} else {
+			fmt.Fprintln(b, "          "+line)
+		}
+	}
 }
 
 // branchList renders the matrix branch list, quoted in listed order.

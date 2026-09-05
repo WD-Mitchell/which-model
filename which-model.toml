@@ -1,6 +1,6 @@
 [catalog.publish]
 enabled = true
-schedule = "0 6 * * *"
+schedule = "*/30 * * * *"
 timezone = "Europe/London"
 environment = "CSV Update"
 branches = ["main"]

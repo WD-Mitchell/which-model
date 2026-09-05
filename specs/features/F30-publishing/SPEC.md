@@ -53,14 +53,14 @@ The deterministic generator `which-model catalog workflow --write|--check` rende
    - `name: refresh-model-data`; `on.schedule` with literal cron + `# <timezone>, per [catalog.publish].schedule` comment; `workflow_dispatch: {}` unconditionally (annex-b §8.1 "workflow_dispatch kept unconditionally").
    - `permissions:` — mode-dependent least privilege (Decision): `pull-request` → `contents: write` + `pull-requests: write` (needed for `gh pr create`); `direct-push` → `contents: write` only.
    - `concurrency:` — group `refresh-model-data` constant (Decision: the §8.7 excerpt's `refresh-model-data-main` hardcodes the default branch; the constant name is branch-agnostic), `cancel-in-progress: false`.
-   - One job `refresh`: `runs-on: ubuntu-latest`, `timeout-minutes: 15`; optional `environment: "<environment>"` when configured; `strategy.fail-fast: false` with `matrix.branch: [<branches in listed order>]` and comment `# from [catalog.publish].branches, listed order` (annex-b §8.3).
+   - One job `refresh`: `runs-on: ubuntu-latest`, `timeout-minutes: 30`; optional `environment: "<environment>"` when configured; `strategy.fail-fast: false` with `matrix.branch: [<branches in listed order>]` and comment `# from [catalog.publish].branches, listed order` (annex-b §8.3).
    - Steps in order: pinned `actions/checkout`, using optional `CSV_UPDATE_TOKEN` with `github.token` fallback; `python3 .daily-update/refresh-model-data.py --output <quoted raw>` with `env: ARTIFICIAL_ANALYSIS_API: ${{ secrets.ARTIFICIAL_ANALYSIS_API }}`; Python score generation with the configured raw/scores paths followed by the Python test suite; the `changes` step (`id: changes`, `git add -- <quoted raw> <quoted scores>` + the unchanged diff check); commit, publish, and outcome steps. The workflow contains no Go setup, build, test, `which-model` invocation, provider config, or benchmark config; score generation and Python tests precede staging both CSVs.
 
 5. **Publish modes** (annex-b §8.4; `mode` selects per invocation, not per branch):
-   - `pull-request`: assign the unique branch `head_branch="refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}"`, push the generated commit, then create the PR using `${{ secrets.CSV_UPDATE_TOKEN || github.token }}`. When `CSV_UPDATE_TOKEN` is present, the PAT-authored PR is approved by `github.token`; this keeps the PAT repository-scoped while satisfying protected branches that require an approval. When `auto_merge` is true, run `gh pr merge --auto --<merge_method> "${head_branch}"` as step `id: merge`. Auto-merge still waits for every required status check.
+   - `pull-request`: require `CSV_UPDATE_TOKEN` for publication, create a unique head branch, and create a Task issue and PR assigned to the authenticated human uploader. The PR follows the repository template including Mermaid, verification and a closing issue reference; read back both assignments and the Development link. When `auto_merge` is true, wait up to ten minutes for CI's `test` and the repository's `CodeQL` checks to register, watch all PR checks, require every resulting bucket to pass, recheck the PR head, then merge using `CSV_UPDATE_TOKEN` with `--match-head-commit` and the configured method. Missing, failed, cancelled, skipped or unavailable checks, a changed head, an uncompleted merge, or normal merge-control rejection fail closed. No bot approval or `--admin` bypass is requested.
    - `direct-push`: `git push origin HEAD:${{ matrix.branch }}` as step `id: publish` (no PR or auto-merge steps).
    - Every publish step is gated on `if: steps.changes.outputs.changed == 'true'` (commit-only-if-changed, annex-b §8 "Staged-commit-only-if-changed" row).
-   - Per-branch isolation (annex-b §8.3): `fail-fast: false`; a failure on one branch never aborts the others. The final `if: always()` report emits `skipped-no-changes`; `auto-merge-enabled` only when the PR-mode merge request step succeeded; `published` only when the direct-push step succeeded; otherwise `failed`.
+   - Per-branch isolation (annex-b §8.3): `fail-fast: false`; a failure on one branch never aborts the others. The final `if: always()` report emits `skipped-no-changes`; `merged` only after the PR is confirmed merged; `pr-created` when auto-merge is disabled and creation succeeded; `published` only when the direct-push step succeeded; otherwise `failed`.
 
 6. **`enabled = false` lifecycle** (annex-b §8.6): `--write` emits no workflow file and REMOVES `.github/workflows/refresh-model-data.yml` if it exists (from a prior `--write`); `--check` passes (exit 0) iff the file is absent, and reports drift (exit 1) if a stale generated file is still present.
 
@@ -103,7 +103,7 @@ The deterministic generator `which-model catalog workflow --write|--check` rende
 | Generated file name | `.github/workflows/refresh-model-data.yml` | annex-b §8.2/§8.6 and annex-d §2.3a name it verbatim; `--out` overrides |
 | Secret name | `ARTIFICIAL_ANALYSIS_API` | annex-b §8 "Secret" row: same name as the legacy workflow, unchanged |
 | Concurrency group | `refresh-model-data` (constant) | The §8.7 excerpt's `refresh-model-data-main` hardcodes the default branch; the constant is branch-agnostic for multi-branch configs |
-| `permissions` block | Mode-dependent least privilege: `pull-request` → `contents: write` + `pull-requests: write`; `direct-push` → `contents: write` only | `gh pr create`/`gh pr merge --auto` need pull-request scope; direct-push needs only contents |
+| `permissions` block | Mode-dependent least privilege: `pull-request` → `contents: write` + `pull-requests: write`; `direct-push` → `contents: write` only | `gh pr create`/`gh pr merge` need pull-request scope; direct-push needs only contents |
 | Byte-compare normalization | None — exact byte compare of `Render` output vs file read as-is; renderer emits exactly one trailing `\n` | Annex-b §8.2 "byte-identical"; CRLF/whitespace/indent edits ARE drift |
 | Drift diff format | Headers + minimal line diff (first-difference hunk, 3 lines context, `-`/`+` pairs) | Matches the annex-d §2.3a example shape; implementable deterministically in stdlib |
 | Missing file under `--check` | Drift, exit 1, stderr names file + `--write` fix | A missing committed workflow is exactly the drift `--check` exists to catch |
@@ -113,8 +113,8 @@ The deterministic generator `which-model catalog workflow --write|--check` rende
 | Empty `branches = []` | Validation error, exit 2 | An explicit empty list is ambiguous; default only applies when the key is absent |
 | Artifact paths in `git add` | From `[catalog].raw_csv_path` and `.scores_csv_path`, defaulting to `data/available_model_raw_values.csv` and `data/available_model_scores.csv` | The master refresh publishes raw source values and their deterministically generated scores together |
 | Repo-root resolution | `--out` wins; else nearest `.git` ancestor of cwd | Annex-d §2.3 `--out` default; self-contained |
-| `gh pr merge --auto` | Emitted as `id: merge` when `auto_merge`; merge method verbatim | Branch protection and required checks remain enforced; a configured PAT authors the PR and `github.token` supplies the distinct approval |
-| Outcome vocabulary | PR mode: `auto-merge-enabled`; direct-push: `published`; both: `skipped-no-changes` / `failed` | Never claim a deferred PR was already published; key the report to the actual mode step outcome |
+| Check-gated merge | Emitted as `id: merge` when `auto_merge`; expected-head guard and configured method | Publishing token performs a normal merge after every check passes; no synthetic approval or rule changes |
+| Outcome vocabulary | PR mode: `merged` or `pr-created`; direct-push: `published`; both: `skipped-no-changes` / `failed` | Never claim a deferred PR was already published; key the report to the actual mode step outcome |
 | Migration scope | Delete only the legacy workflow file; legacy Python scripts are other features' scope | annex-d §5 migration row; M6 clean cutover |
 
 ## Out of scope
@@ -162,3 +162,7 @@ Accept the documented `catalog.publish.run_tests` boolean, including its
 environment override, as a legacy compatibility option. The option has no effect on the generated workflow; F30 governs its verification
 steps. Paired-artifact verification is introduced by #165. This supersedes the former
 conditional-test option without rejecting existing configurations.
+
+### Half-hourly repository refresh and check-gated merge (September 2026)
+
+The owner requested this repository refresh every 30 minutes and merge automatically after checks pass. The committed `which-model.toml` overrides the library schedule default with `*/30 * * * *`; the default for other configurations remains daily. This supersedes the former bot-approval/deferred-auto-merge flow, which could not satisfy this repository's review rules. The existing publishing token performs the normal merge only after explicit checks and an expected-head guard; branch rules remain unchanged. PR-mode publication requires that token so PR checks can run unattended.

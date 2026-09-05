@@ -162,17 +162,15 @@ func TestRenderPRTitleWithColonIsValidYAMLScalar(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
-	want := "        run: |\n          head_branch=\"refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}\""
-	if !strings.Contains(string(out), want) {
-		t.Errorf("PR create command must define a unique pushed head branch: %s", out)
-	}
 	for _, command := range []string{
-		`git push origin "HEAD:refs/heads/${head_branch}"`,
-		`gh pr create --base "${{ matrix.branch }}" --head "${head_branch}"`,
-		`--body "Automated catalog refresh."`,
+		`HEAD_BRANCH: refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}`,
+		`git push origin "HEAD:refs/heads/${HEAD_BRANCH}"`,
+		`gh pr create --base "$BASE_BRANCH" --head "$HEAD_BRANCH"`,
+		`--body-file "$work_dir/pr.md"`,
+		`PR_TITLE: "chore(data): refresh available model scores"`,
 	} {
 		if !strings.Contains(string(out), command) {
-			t.Errorf("PR create command missing %q: %s", command, out)
+			t.Errorf("missing %q", command)
 		}
 	}
 }
@@ -203,17 +201,15 @@ func TestRenderNoUsageNoExtraSecrets(t *testing.T) {
 	if got := strings.Count(s, "secrets.ARTIFICIAL_ANALYSIS_API"); got != 1 {
 		t.Errorf("secrets.ARTIFICIAL_ANALYSIS_API count = %d, want 1", got)
 	}
-	if got := strings.Count(s, "secrets.CSV_UPDATE_TOKEN"); got != 3 {
-		t.Errorf("secrets.CSV_UPDATE_TOKEN count = %d, want 3", got)
+	for _, required := range []string{"GH_TOKEN: ${{ secrets.CSV_UPDATE_TOKEN }}", "gh pr checks", "--match-head-commit", "gh issue create", "--assignee", "closingIssuesReferences"} {
+		if !strings.Contains(s, required) {
+			t.Errorf("missing %q", required)
+		}
 	}
-	if strings.Contains(s, "secrets.GITHUB_TOKEN") {
-		t.Error("workflow must use github.token rather than the secrets alias")
-	}
-	if got := strings.Count(s, "github.token"); got != 4 {
-		t.Errorf("github.token count = %d, want 4", got)
-	}
-	if !strings.Contains(s, `gh pr review --approve "refresh-model-data-${{ github.run_id }}-${{ strategy.job-index }}"`) {
-		t.Error("admin-token path must approve the PAT-authored PR before enabling auto-merge")
+	for _, forbidden := range []string{"gh pr review", "--admin", "gh pr merge --auto", "secrets.GITHUB_TOKEN"} {
+		if strings.Contains(s, forbidden) {
+			t.Errorf("unexpected %q", forbidden)
+		}
 	}
 }
 
@@ -239,8 +235,8 @@ func TestRenderLabels(t *testing.T) {
 	if strings.Count(s, "--label") != 2 {
 		t.Errorf("--label count = %d, want 2: %s", strings.Count(s, "--label"), s)
 	}
-	ai := strings.Index(s, "--label a")
-	bi := strings.Index(s, "--label b")
+	ai := strings.Index(s, "--label 'a'")
+	bi := strings.Index(s, "--label 'b'")
 	if ai < 0 || bi < 0 || ai > bi {
 		t.Errorf("label order wrong: %s", s)
 	}

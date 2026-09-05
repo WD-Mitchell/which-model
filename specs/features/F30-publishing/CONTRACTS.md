@@ -149,9 +149,9 @@ Full golden documents live in `specs/features/F30-publishing/TASKS.md` task F30-
 3. `permissions:` block per SPEC Decisions (mode-dependent).
 4. `concurrency.group: refresh-model-data`; `cancel-in-progress: false`.
 5. `jobs.refresh.strategy.matrix.branch` = `branches` in listed order; `fail-fast: false`.
-6. Optional non-empty `environment` is emitted at `jobs.refresh.environment`. Checkout and PR creation authenticate with `${{ secrets.CSV_UPDATE_TOKEN || github.token }}`; the standalone refresh uses `ARTIFICIAL_ANALYSIS_API`; score generation and the Python suite validate the configured raw/scores pair before staging both artifacts; no Go setup, build, or application invocation.
-7. Pull-request mode assigns a unique head branch, creates a PAT-authored PR when `CSV_UPDATE_TOKEN` is configured, conditionally approves it with `github.token`, and enables auto-merge as step `id: merge`. Direct-push mode uses step `id: publish`.
-8. Outcome reporting keys off the relevant publish-step outcome: `auto-merge-enabled` for an accepted deferred merge request, `published` only for completed direct pushes, `skipped-no-changes`, or `failed`. No usage command or usage credential appears.
+6. Optional non-empty `environment` is emitted at `jobs.refresh.environment`. Checkout authenticates with `${{ secrets.CSV_UPDATE_TOKEN || github.token }}`; PR publication and merging require `${{ secrets.CSV_UPDATE_TOKEN }}`; the standalone refresh uses `ARTIFICIAL_ANALYSIS_API`; score generation and the Python suite validate the configured raw/scores pair before staging both artifacts; no Go setup, build, or application invocation.
+7. Pull-request mode creates a linked Task and a template-compliant PR with the publishing human as assignee, verifies those fields, and uses the embedded `templates/merge-pr.sh` gate in step `id: merge`. Wait for CI test and CodeQL registration, watch every check, require all pass, and merge the verified HEAD only via `--match-head-commit`. Confirm state MERGED before reporting success. Direct-push mode uses step `id: publish`.
+8. Outcome reporting keys off the relevant publish-step outcome: `merged` for a confirmed PR merge; `pr-created` for successful creation with auto-merge disabled, `published` only for completed direct pushes, `skipped-no-changes`, or `failed`. No usage command or usage credential appears.
 9. Exactly one trailing `\n`; LF line endings.
 
 ## 5. Cross-feature references (pinned)
@@ -204,3 +204,5 @@ generator failure before staging, and repeat generation matching committed bytes
 `catalog.PublishConfig.RunTests bool` decodes legacy `run_tests`; it does not
 change the generated verification steps. Every catalog consumer accepts this documented
 boolean consistently.
+
+The repository schedule is `*/30 * * * *`; the library default remains `0 6 * * *`. The job timeout is 30 minutes, including the ten-minute CI registration bound. `TestGeneratedMergeGate` executes the embedded merge script with inert Git/GitHub commands and covers pass, pending, failure, missing CI, changed heads before/after watching, skipped checks, API error, merge rejection and deferred completion.
