@@ -26,7 +26,7 @@ Wire `which-model` into AI-agent dispatch lifecycles (Claude Code and the generi
    | `usage-refresh` | §3.1 session-start cache warm | `SessionStart` / `*` | 5 | `which-model usage --all --json --quiet --refresh-usage --timeout 5s` |
    | `quota-guard` | §3.4 quota-guard advisory | `SessionStart` / `*` | 5 | `which-model usage --all --json --band-at-or-above critical --quiet` |
    | `spawn-gate` | §3.2 pre-dispatch model resolution | `PreToolUse` / `Task` | 8 | `which-model pick --profile "${WHICH_MODEL_TASK_PROFILE:-balanced_implementation}" --strategy priority --json` |
-   | `model-audit` | §3.3 post-dispatch evidence recording | `PostToolUse` / `Task` | 5 | `which-model explain "$WHICH_MODEL_CANDIDATE_ID" --json`, falling back to `which-model explain --last --json` when the env var is unset |
+   | `model-audit` | §3.3 post-dispatch evidence recording | `PostToolUse` / `Task` | 5 | `which-model explain --last --json`; explicit passthrough `--pick-id <history ULID>` selects a record instead |
 
    `hooks run <hook> [args...]` appends any extra args AFTER the defaults, so an installed variant can override (`--no-usage --profile balanced_implementation --quiet`).
 
@@ -59,7 +59,9 @@ Wire `which-model` into AI-agent dispatch lifecycles (Claude Code and the generi
      ```
      `critical_providers` = the provider names from the output's snapshots (field `provider`), in output order, de-duplicated. If the output lists no providers: `{"decision":"approve","reason":"no providers at or above critical band","hookSpecificOutput":{}}`.
    - `spawn-gate` (annex-c §3.2): underlying `pick` exit `0` → `{"decision":"approve","reason":"dispatch approved: <candidates[0].candidate_id>","hookSpecificOutput":{"candidate":{...}}}` where `candidate` is the FULL first candidate object from the pick JSON (annex-c §4.2), verbatim. Underlying exit `4` → `{"decision":"block","reason":"all eligible providers band-gated: <reason_code==\"band_gated\" exclusions, comma-joined>","hookSpecificOutput":{"excluded_candidates":[...]}}` where `excluded_candidates` is the full `excluded_candidates` array from the pick JSON, verbatim.
-   - `model-audit` (annex-c §3.3): underlying `explain` exit `0` → `{"decision":"approve","reason":"dispatch evidence recorded","hookSpecificOutput":{"evidence_logged":"<repoRoot>/.which-model/evidence.jsonl","mismatch":false}}`; appends the full explain JSON object (annex-c §4.3: `schema_version`, `candidate`, `evidence`) as ONE line to `<repoRoot>/.which-model/evidence.jsonl` (`O_APPEND|O_CREATE|O_WRONLY`, mode `0600`). If env `WHICH_MODEL_DISPATCHED_MODEL` is set AND differs from the explain output's `candidate.route.model_id`, append one line `{"ts":"<RFC3339 UTC>","dispatched_model":"<env>","route_model_id":"<candidate.route.model_id>","evidence":{...full explain object...}}` to `<repoRoot>/.which-model/audit-mismatches.jsonl` (same append semantics) and set `"mismatch":true` in the envelope.
+   - `model-audit` (annex-c §3.3): underlying `explain` exit `0` → `{"decision":"approve","reason":"dispatch evidence recorded","hookSpecificOutput":{"evidence_logged":"<repoRoot>/.which-model/evidence.jsonl","mismatch":false}}`; decodes only the documented F26 fields and appends the sanitized explain JSON object (annex-c §4.3: `schema_version`, `candidate`, `evidence`) as ONE line to `<repoRoot>/.which-model/evidence.jsonl` (`O_APPEND|O_CREATE|O_WRONLY`, mode `0600`). If env `WHICH_MODEL_DISPATCHED_MODEL` is set AND differs from the model-id portion of F26's `candidate` string (`provider:model_id`, split only at the first colon), append one line `{"ts":"<RFC3339 UTC>","dispatched_model":"<env>","route_model_id":"<model_id>","evidence":{...full explain object...}}` to `<repoRoot>/.which-model/audit-mismatches.jsonl` (same append semantics) and set `"mismatch":true` in the envelope.
+
+`WHICH_MODEL_CANDIDATE_ID`, when set, is an exact correlation check against the returned candidate string, not a history ULID or positional CLI argument. A mismatched candidate, missing evidence, unsupported schema, or invalid candidate string fails open without writing evidence. Explicit `--pick-id` suppresses the default `--last`.
 
 8. **Evidence files** — both files live under `<repoRoot>/.which-model/` (repo root resolved exactly as F28's `internal/skills.RepoRoot()`, incl. `--repo` override). Appends never rewrite existing content; a malformed explain output is treated as underlying failure (fail-open, no append). Evidence lines are sanitized per annex-c §5: only the documented JSON fields, never credential material (canary rule, behaviour 12).
 
@@ -117,7 +119,7 @@ All exit codes are within the fixed set (`specs/global/SPEC.md` §5): `0` succes
 | Generic file deletion on remove | Delete `agents/hooks.toml` iff post-removal content is empty/whitespace-only | No sidecar manifest for TOML; whitespace-only post-removal proves nothing else lived there |
 | Variant detection | At install time only, via F21 `usage.Enabled(cfg)`, or forced by `--usage`/`--no-usage`; never at runtime | Hook config is static data read by the harness before `which-model` runs (annex-c §3.5) |
 | Variant B hook set | Only `spawn-gate` (UserPromptSubmit, 10s) + `model-audit` (PostToolUse, 5s) | Annex-c §3.5 verbatim: usage-dependent hooks are not installed-and-failing |
-| `model-audit` candidate resolution | env `WHICH_MODEL_CANDIDATE_ID` when set, else `--last`; `--last` may be passed explicitly | Matches annex-c §3.3 (`$WHICH_MODEL_CANDIDATE_ID`) and §3.5 (`explain --last --json`) |
+| `model-audit` history resolution | Explicit `--pick-id` or default `--last`; candidate env is correlation only | F26 history IDs select records; candidate IDs identify routes, correcting the annex example |
 | `usage-refresh` payload | Empty `hookSpecificOutput` always | Annex-c §3.1 injects nothing; the hook exists only to warm the cache |
 | Evidence file mode | `0600`, `O_APPEND` single-write lines | Usage-derived data is sensitive; appends must not interleave |
 | Repo-root resolution | F28's `internal/skills.RepoRoot()` (`.git` upward walk + `--repo`) | Single source of truth for repo discovery (F29 depends on F28) |
@@ -131,6 +133,21 @@ All exit codes are within the fixed set (`specs/global/SPEC.md` §5): `0` succes
 - Runtime hook timeout enforcement (harness-owned; annex-c §3 tables).
 - Historical evidence replay/backfill, evidence-file rotation or size caps.
 - Shell-guard wrappers that self-detect usage state per turn (annex-c §3.5 explicitly rejects them).
+
+## Corrections — review issues #162 and #163 (2026-09-04)
+
+The former stdin fixture override contradicted normal host hook delivery and is superseded by mandatory execution with host context. The former positional explain command and object-shaped candidate contradicted F26's existing history selector and string candidate contracts; F26 remains authoritative. Sanitized JSONL preserves every documented F26 evidence field and removes unrelated fields.
+
+Explicit global flags before `hooks run` are parsed before the hook name and forwarded to the underlying command. Arguments after the hook name override them. JSON remains required for underlying machine output; outer text/JSON rendering flags do not alter hook protocol. A regression covers outer offline/config/timeout and later timeout override.
+
+
+## Audit validation correction — #163 review
+
+Before creating any audit file, validate the required F26 evidence profile,
+score-input map, route provenance, and exclusions array, including enum values
+and optional age/date/band bounds. Missing or null required fields fail open
+without writing a plausible but incomplete audit record. Empty maps and arrays
+remain valid. Pin `TestAuditRejectsIncompleteEvidence`.
 
 ## Execution correction — #162
 

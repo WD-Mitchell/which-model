@@ -5,8 +5,10 @@ package whichmodel
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -298,5 +300,48 @@ func TestHookInheritsOuterGlobalFlags(t *testing.T) {
 		if code != 0 || calls != 1 || !strings.Contains(out, "usage cache refreshed") {
 			t.Fatalf("code=%d calls=%d out=%s stderr=%s", code, calls, out, stderr)
 		}
+	}
+}
+
+func TestModelAuditConsumesRealExplainOutput(t *testing.T) {
+	repo := hooksRepo(t)
+	t.Chdir(repo)
+	state := t.TempDir()
+	setStateDir(t, func() string { return state })
+	cfg := pickTestConfig(t, t.TempDir(), "")
+	const firstID = "01K20000000000000000000000"
+	seedExplainHistory(t, state,
+		explainHistoryEntry(firstID, "claude:model:revision", 90, f26FullEvidence()),
+		explainHistoryEntry("01K20000000000000000000001", "codex:latest", 80, f26FullEvidence()))
+	t.Setenv("WHICH_MODEL_CANDIDATE_ID", "claude:model:revision")
+	t.Setenv("WHICH_MODEL_DISPATCHED_MODEL", "model:revision")
+	t.Cleanup(func() { Global = GlobalFlags{} })
+	code, out, stderr := captureExecuteWithStdin(t,
+		[]string{"hooks", "run", "model-audit", "--pick-id", firstID, "--config", cfg},
+		`{"tool_name":"Task","secret":"CANARY_HOST"}`)
+	if code != 0 || !strings.Contains(out, `"mismatch":false`) {
+		t.Fatalf("code=%d out=%s stderr=%s", code, out, stderr)
+	}
+	path := filepath.Join(repo, ".which-model", "evidence.jsonl")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(string(b), "\n") != 1 || strings.Contains(string(b), "CANARY_HOST") {
+		t.Fatalf("invalid JSONL: %s", b)
+	}
+	var doc ExplainResult
+	if err := json.Unmarshal(b, &doc); err != nil || doc.Candidate != "claude:model:revision" || !reflect.DeepEqual(doc.Evidence, f26FullEvidence()) {
+		t.Fatalf("lost explain fields: %+v error=%v", doc, err)
+	}
+	// The latest record belongs to a different dispatch: do not log it as
+	// evidence for WHICH_MODEL_CANDIDATE_ID.
+	code, out, stderr = captureExecuteWithStdin(t, []string{"hooks", "run", "model-audit", "--config", cfg}, `{}`)
+	if code != 0 || !strings.Contains(out, "fail-open:") {
+		t.Fatalf("code=%d out=%s stderr=%s", code, out, stderr)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil || !bytes.Equal(b, after) {
+		t.Fatalf("uncorrelated evidence was appended: %s error=%v", after, err)
 	}
 }

@@ -8,6 +8,7 @@ package hooks
 
 import (
 	"os"
+	"strings"
 )
 
 // Hook is one lifecycle hook (annex-c §3.1–§3.4). Timeout is seconds.
@@ -45,9 +46,15 @@ var All = []Hook{
 	},
 	{
 		ID: "model-audit", Event: "PostToolUse", Matcher: "Task", Timeout: 5,
-		Underlying: func(p []string, env map[string]string) []string {
-			if id := envOr(env, "WHICH_MODEL_CANDIDATE_ID", ""); id != "" {
-				return append([]string{"explain", id, "--json"}, p...)
+		Underlying: func(p []string, _ map[string]string) []string {
+			// Candidate IDs identify routes; only --pick-id selects history.
+			for _, arg := range p {
+				if arg == "--" {
+					break
+				}
+				if arg == "--pick-id" || strings.HasPrefix(arg, "--pick-id=") {
+					return append([]string{"explain", "--json"}, p...)
+				}
 			}
 			return append([]string{"explain", "--last", "--json"}, p...)
 		},

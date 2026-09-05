@@ -160,7 +160,7 @@ which-model hooks run <hook> [args...]
 | `.claude/settings.json` (merged, repo-local) | Claude Code hooks config: `{"hooks":{"<Event>":[{"matcher":"<M>","hooks":[{"type":"command","command":"which-model hooks run <id>…","timeout":<N>}]}]}}` merged into any existing map; foreign keys preserved |
 | `.claude/which-model-hooks.json` | `Manifest` (§1): `{"version":1,"created_settings":bool,"hooks":[Entry…]}` |
 | `agents/hooks.toml` (repo-local) | TOML between `# === which-model managed hooks (do not edit) ===` and `# === end which-model managed hooks ===`; each hook: `[[hooks]]` with `event` = `session_start`\|`pre_dispatch`\|`post_dispatch`, `command` = `which-model hooks run <id>…`, `timeout_ms`, `on_failure = "ignore"`, plus `inject_as = "context.which_model_quota_guard"` (quota-guard) / `"context.which_model_pick"` (spawn-gate) |
-| `<repoRoot>/.which-model/evidence.jsonl` | one line per dispatch: the full explain object (annex-c §4.3: `schema_version`, `candidate`, `evidence`) |
+| `<repoRoot>/.which-model/evidence.jsonl` | one line per dispatch: the sanitized, compact F26 explain object (annex-c §4.3: `schema_version`, `candidate`, `evidence`) |
 | `<repoRoot>/.which-model/audit-mismatches.jsonl` | one line per mismatch: `{"ts":"<RFC3339 UTC>","dispatched_model":"…","route_model_id":"…","evidence":{…}}` |
 | stdout of `hooks run` | `Envelope` JSON + `\n` (or empty) |
 
@@ -179,7 +179,7 @@ which-model hooks run <hook> [args...]
 
 - F22 `pkg/whichmodel/registry.go`: `register(func() *cobra.Command)`, `commandOrder` (already includes `hooks`); F22 `pkg/whichmodel.ExecuteCommand(args []string, stdout, stderr io.Writer) int` — the `Runner` default.
 - F21 `internal/usage/toggle` package: `func Enabled(cfg *config.Config) (config.UsageEnabled, string)` — variant detection at install time (CLI layer only).
-- F26 `pkg/whichmodel/pick_cmd.go` + `explain_cmd.go` — underlying `pick`/`explain`; `explain --json` root carries `schema_version`, `candidate` (with `route`), `evidence` per `docs/plan/annex-c-agent-integration.md §4.3`; `pick` exit 4 = all band-gated.
+- F26 `pkg/whichmodel/pick_cmd.go` + `explain_cmd.go` — underlying `pick`/`explain`; `explain --json` root carries `schema_version`, `candidate` (string `provider:model_id`), `evidence` per `docs/plan/annex-c-agent-integration.md §4.3`; `pick` exit 4 = all band-gated.
 - F24 `pkg/whichmodel/usage_cmd.go` — underlying `usage --all --json --quiet --refresh-usage --timeout 5s` and `usage --all --json --band-at-or-above critical --quiet` (annex-c §3.1/§3.4).
 - F28 `internal/skills.RepoRoot()` — repo-root resolution (`--repo` override honored).
 - Compiles under `-tags nousage`: `internal/hooks` imports stdlib + `internal/skills` only; `pkg/whichmodel/hooks_cmd.go` guards `usage.Enabled` behind the F21 stub contract.
@@ -192,6 +192,21 @@ which-model hooks run <hook> [args...]
 ## 7. Error codes added
 
 None (uses the fixed 0/1/2 set; no new `Failure.Code` values — `specs/global/CONTRACTS.md §1.6`).
+
+## Review corrections (#162, #163)
+
+`ExecuteCommand` builds fresh command instances and restores outer global flags/output streams. Runtime stdin never supplies command results. Model audit selects `--last` unless an explicit `--pick-id` is supplied; `WHICH_MODEL_CANDIDATE_ID` is a correlation check only. Evidence is decoded through the documented F26 fields, compacted to one JSONL line, and model ID is the suffix after the first colon. Invalid/mismatched evidence produces the established fail-open envelope and no write.
+
+Explicit global flags before `hooks run` are parsed before the hook name and forwarded to the underlying command. Arguments after the hook name override them. JSON remains required for underlying machine output; outer text/JSON rendering flags do not alter hook protocol. A regression covers outer offline/config/timeout and later timeout override.
+
+
+## Audit validation correction — #163 review
+
+Before creating any audit file, validate the required F26 evidence profile,
+score-input map, route provenance, and exclusions array, including enum values
+and optional age/date/band bounds. Missing or null required fields fail open
+without writing a plausible but incomplete audit record. Empty maps and arrays
+remain valid. Pin `TestAuditRejectsIncompleteEvidence`.
 
 ## Execution correction — #162
 

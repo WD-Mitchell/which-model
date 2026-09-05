@@ -273,6 +273,10 @@ None. `which-model config show --json` (including its `_sources` map) is F22's c
 - F19-bands / F20-strategies / F09-scoring / F23-cmd-catalog / F30-publishing: `cfg.UnmarshalKey("bands"|"strategy"|"scoring"|"catalog"|"catalog.publish", &ownStruct)` with own defaults + semantic validation.
 - F30-publishing: `Load(cfg)` + the complete shared `UnmarshalKey("catalog", …)` schema per DECISION B; F30 SPEC owns the full `[catalog.publish]` key table (annex-b §8).
 
+## Hook runtime environment correction — #163
+
+F29 owns `WHICH_MODEL_TASK_PROFILE`, `WHICH_MODEL_CANDIDATE_ID`, and `WHICH_MODEL_DISPATCHED_MODEL`. `ApplyEnv` excludes those exact names from configuration overrides, preserving their values for hooks without saving them in TOML. Unknown prefixed names and misspellings still fail eagerly. This lets the real `explain` command run under dispatch correlation variables.
+
 ### Environment rendering correction (#167)
 
 Generic environment overrides retain the owning field type when rendered or saved:
