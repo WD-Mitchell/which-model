@@ -206,3 +206,7 @@ change the generated verification steps. Every catalog consumer accepts this doc
 boolean consistently.
 
 The repository schedule is `*/30 * * * *`; the library default remains `0 6 * * *`. The job timeout is 30 minutes, including the ten-minute CI registration bound. `TestGeneratedMergeGate` executes the embedded merge script with inert Git/GitHub commands and covers pass, pending, failure, missing CI, changed heads before/after watching, skipped checks, API error, merge rejection and deferred completion.
+
+### Publishing metadata token correction
+
+A live refresh showed the existing fine-grained CSV_UPDATE_TOKEN can publish branches/PRs but cannot assign issues (`replaceActorsForAssignable`). Keep that token for branch/PR creation and merging; use the workflow's `github.token` for Task creation and explicit human assignment of the issue and PR. PR mode therefore grants `issues: write` alongside existing contents and pull-request permissions. No long-lived token scope change is required. Assignment targets the publishing token's human login, never the workflow bot.
