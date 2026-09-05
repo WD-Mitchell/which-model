@@ -13,7 +13,7 @@ These types are THE canonical DTO definitions. Feature contracts reference them 
 
 ```
 route_key   = provider "/" model_id "@" reasoning
-provider    = [a-z0-9_]+            ; e.g. "claude", "codex", "copilot", "cursor"
+provider    = [a-z0-9][a-z0-9_-]*            ; e.g. "claude", "codex", "copilot", "cursor"
 model_id    = [A-Za-z0-9._-]+       ; engine model id, e.g. "claude-opus-5"
 reasoning   = "minimal"|"low"|"medium"|"high"|"xhigh"|"max"|"default"
 ```
@@ -414,3 +414,7 @@ Rejected promises carry `ErrorDTO`. `MockEngineHost` (`packages/core/src/mock.ts
 | `packages/core/src/host.ts` | §5 interface |
 
 (Implementation of these files belongs to IM-B02 (Go) and IM-U01 (TS); ownership here means their SHAPE may only change by editing this contract.)
+
+### Catalog provider identity correction
+
+Harness discovery reads real models.dev provider ids such as `alibaba-token-plan` and `zai-coding-plan`. Route identity accepts hyphens in provider ids, matching B06 discovery; shell punctuation and empty ids remain invalid. This corrects the original builtin-only provider grammar. Harness slugs retain their separate `[a-z0-9_]+` rule.

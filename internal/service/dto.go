@@ -13,7 +13,7 @@ import (
 
 // Route-key grammar (D00 CONTRACTS §1).
 var (
-	providerRe = regexp.MustCompile(`^[a-z0-9_]+$`)
+	providerRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 	modelIDRe  = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
 )
 

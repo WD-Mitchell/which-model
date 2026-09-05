@@ -362,7 +362,7 @@ describe('createMockEngineHost — clock determinism and overrides merge', () =>
     const before = await host.profiles.get('research')
     const result = await host.harnesses.launch('claude', 'claude/claude-opus-5@max', 'research')
     expect(result.copied).toBe(false) // copy_command_instead default false
-    expect(result.command).toBe('claude --model claude-opus-5 --reasoning max')
+    expect(result.command).toBe('claude --model claude-opus-5 --effort max')
     const after = await host.profiles.get('research')
     expect(after.picks).toBe(before.picks + 1)
     expect(after.last_used).toBe(MOCK_NOW)
@@ -394,7 +394,7 @@ describe('createMockEngineHost — clock determinism and overrides merge', () =>
 describe('createMockEngineHost — remaining surfaces', () => {
   it('catalogLine reflects live data', async () => {
     const host = createMockEngineHost()
-    expect(await host.pick.catalogLine()).toEqual({ models: 8, providers_on: 3, harnesses: 7 })
+    expect(await host.pick.catalogLine()).toEqual({ models: 8, providers_on: 3, harnesses: 18 })
     await host.providers.setEnabled('cursor', true)
     expect((await host.pick.catalogLine()).providers_on).toBe(4)
   })

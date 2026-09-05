@@ -27,6 +27,7 @@ type EmitFunc func(event string, payload any)
 // unusable. One sync.RWMutex guards the config document, catalog caches, and
 // routes table; read methods take RLock for the whole read (B00 SPEC §2.2).
 type Services struct {
+	harnessHome   string // empty uses the OS home; tests inject an isolated directory
 	mu            sync.RWMutex
 	paths         config.Paths
 	cfg           *config.Config

@@ -137,3 +137,20 @@ describe('SettingsShell close', () => {
     expect(screen.queryByLabelText('Zoom settings')).toBeNull()
   })
 })
+
+describe('Harness discovery presentation', () => {
+  it('counts a configured gateway outside the global catalog and exposes its switch', async () => {
+    const host = createMockEngineHost()
+    host.data.harnesses.find((h) => h.slug === 'cline')!.providers = { cline: true }
+    const setProvider = vi.spyOn(host.harnesses, 'setProvider').mockResolvedValue()
+    resetHost(host)
+    renderApp(host)
+    fireEvent.click(screen.getByRole('button', { name: 'Harnesses', exact: true }))
+    const cline = await screen.findByText('Cline', { exact: true })
+    expect(cline.closest('.row')?.textContent).toContain('1 provider')
+    fireEvent.click(cline)
+    expect(await screen.findByText('Configured in this harness')).toBeDefined()
+    fireEvent.click(screen.getByRole('switch', { name: 'Use cline' }))
+    await waitFor(() => expect(setProvider).toHaveBeenCalledWith('cline', 'cline', false))
+  })
+})

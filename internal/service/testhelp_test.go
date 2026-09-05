@@ -80,6 +80,7 @@ func newTestServices(t *testing.T, opts ...TestOption) (*Services, *emitRecorder
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
+	svc.harnessHome = t.TempDir()
 	return svc, rec
 }
 

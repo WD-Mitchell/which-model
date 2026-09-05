@@ -69,16 +69,32 @@ func (h *HarnessService) Launch(ctx context.Context, slug, routeKey, profileSlug
 
 Unexported, contract-relevant: `func userShell() string` ($SHELL, fallback `/bin/sh`); `func launchSysProcAttr() *syscall.SysProcAttr` (platform files); `Services.recordPick func(ctx context.Context, profileSlug, routeKey string) error` — field on `Services`, wired by `New` to B04's RecordPick, no-op stub permitted until IM-B04.
 
-## 3. Builtin seed table (exact; written on first List)
+## 3. Builtin registry and local discovery
 
-| Slug | Name | Command template | Seed providers |
+All paths are relative to the OS user home. All new builtin `providers` arrays are omitted to enable discovery.
+
+| Slug | Name | Command | Configuration |
 |---|---|---|---|
-| `claude` | `Claude Code` | `claude --model {model_id} --reasoning {reasoning}` | `["claude","codex","copilot"]` |
-| `codex` | `Codex CLI` | `codex -m {model_id} -c reasoning={reasoning}` | `["codex","copilot"]` |
-| `copilot` | `Copilot CLI` | `copilot --model {model_id}` | `["copilot","cursor"]` |
-| `cursor` | `Cursor` | `cursor --model {model_id}` | `["cursor"]` |
+| `aider` | Aider | `aider --model {model_id}` | `.aider.conf.yml` |
+| `amp` | Amp | `amp` | `.config/amp/settings.json` |
+| `antigravity` | Antigravity | `agy --model {model_id}` | `.gemini/antigravity` directory |
+| `claude` | Claude Code | `claude --model {model_id}` | `.claude/settings.json`, `.claude/settings.local.json`, `.claude/.credentials.json`, `.claude.json` OAuth account metadata |
+| `cline` | Cline | `cline --model {model_id}` | `.cline/data/settings/providers.json`, `.cline/data/globalState.json` |
+| `codex` | Codex CLI | `codex -m {model_id}` | `.codex/config.toml`, `.codex/auth.json` |
+| `continue` | Continue | `cn` | `.continue/config.yaml` or `.continue/config.json` |
+| `copilot` | Copilot CLI | `copilot --model {model_id}` | `.copilot/config.json` |
+| `crush` | Crush | `crush` | `.config/crush/crush.json` |
+| `cursor` | Cursor Agent | `cursor-agent --model {model_id}` | `.cursor/cli-config.json`, `.config/cursor/auth.json` |
+| `droid` | Factory Droid | `droid --model {model_id}` | `.factory/settings.json`, `.factory/settings.local.json` |
+| `gemini` | Gemini CLI | `gemini --model {model_id}` | `.gemini/settings.json`, `.gemini/oauth_creds.json` |
+| `goose` | Goose | `goose session --model {model_id}` | `.config/goose/config.yaml` |
+| `kilo` | Kilo Code | `kilo --model {model_id}` | `.config/kilo/kilo.json[ c ]` (json/jsonc), `.local/share/kilo/auth.json` |
+| `kiro` | Kiro CLI | `kiro-cli chat` | No provider adapter; manual switches remain available |
+| `opencode` | OpenCode | `opencode --model {model_id}` | `.config/opencode/opencode.json[ c ]` (json/jsonc), `.local/share/opencode/auth.json` |
+| `qwen` | Qwen Code | `qwen --model {model_id}` | `.qwen/settings.json`, `.qwen/oauth_creds.json` |
+| `windsurf` | Windsurf | `windsurf` | `.codeium/windsurf` directory |
 
-All seeded with `builtin = true`. Seed provider lists mirror the mockup's `hp` initial state; ids not configured under `[providers.*]` at List time stay in config but are omitted from `HarnessInfo.Providers` (SPEC §2.3).
+Read regular files up to 2 MiB. JSON, JSONC (comments/trailing commas), TOML and YAML are supported. Extract declared provider identifiers only; retain no secret fields or source document in DTOs/config. OpenCode/Kilo enabled/disabled lists restrict discovery; disabled Crush providers are excluded. Unavailable or malformed documents degrade to empty discovery. Provider aliases include anthropic→claude, openai→codex, github-copilot→copilot and gemini→google. Per-provider switches override discovery and survive reload.
 
 ## 4. Config keys consumed (schema owned by B01)
 
@@ -86,7 +102,8 @@ All seeded with `builtin = true`. Seed provider lists mirror the mockup's `hp` i
 |---|---|---|
 | `harnesses.<slug>.name` | string | display name |
 | `harnesses.<slug>.command` | string | template with `{model_id}`/`{reasoning}` |
-| `harnesses.<slug>.providers` | []string | allow-list; membership = enabled for this harness |
+| `harnesses.<slug>.providers` | optional []string | omitted = discovery; explicit array = manual allow-list |
+| `harnesses.<slug>.provider_overrides` | map[string]bool | individual switches applied after discovery or manual list |
 | `harnesses.<slug>.builtin` | bool | seeded builtins true; customs false |
 | `gui.copy_command_instead` | bool | Launch copy mode (SPEC §2.9.3) |
 
@@ -113,11 +130,11 @@ All seeded with `builtin = true`. Seed provider lists mirror the mockup's `hp` i
 
 ## 7. Test fixtures (`harness_test.go`; TDD-first)
 
-1. **Seed on first List**: empty-config `newTestServices`; first `List` returns exactly the §3 four (slug asc), config file now contains all four subtables with `builtin = true`, recorder shows one `config:changed{section:"harnesses"}`; second `List` emits nothing; `WithConfigTOML` containing one custom harness ⇒ no seeding ever.
-2. **Substitution table**: (template, modelID, reasoning) → expected command for all four seed templates; `{reasoning}`-free templates ignore reasoning; template `x {model_id} {custom_flag}` → errValidation with message #4 naming `{custom_flag}`; unknown slug → errNotFound.
+1. **Seed on first List**: empty-config `newTestServices`; first `List` returns exactly the §3 eighteen (slug asc), config file now contains all eighteen subtables with `builtin = true`, recorder shows one `config:changed{section:"harnesses"}`; second `List` emits nothing; a custom harness remains intact while missing builtins are added.
+2. **Substitution table**: (template, modelID, reasoning) → expected command for representative model-selecting seed templates; `{reasoning}`-free templates ignore reasoning; template `x {model_id} {custom_flag}` → errValidation with message #4 naming `{custom_flag}`; unknown slug → errNotFound.
 3. **Detection with fake PATH**: `t.Setenv("PATH", dir)` with an executable stub named `claude` ⇒ `claude.Installed == true`, others false; empty-command harness ⇒ false.
 4. **Save semantics**: custom round-trip Save→List; builtin provider-map-only Save succeeds; builtin with changed Command → errBuiltinReadonly (message #5); validation order asserted (bad slug + empty name reports #1).
-5. **Delete any**: deleting `claude` succeeds, emits one event, does not re-seed on next List; unknown slug → errNotFound.
+5. **Delete any**: deleting `claude` returns builtin_readonly and emits nothing; deleting a custom succeeds and it does not return; unknown slug → errNotFound.
 6. **SetProvider/SetAllProviders**: toggle round-trip, idempotence (repeat = same config bytes, still one event per call), unknown provider → #7, all-on/all-off lists.
 7. **Copy mode**: `copy_command_instead = true` ⇒ Launch returns `{Copied:true, Command:<substituted>}`, spawns nothing (no `launch.log` created), recordPick fake called once with (profileSlug, routeKey).
 8. **Spawn failure maps to launch_failed**: harness whose argv0/shell cannot start (point `$SHELL` at a non-existent path) ⇒ error with `toErrorDTO(...).Code == "launch_failed"`, recordPick NOT called, no event emitted.
@@ -146,3 +163,9 @@ If rename succeeds but directory sync fails, publish the now-visible config and
 emit one config-changed event, then return a classified committed-write error
 so durability failure remains visible. The caller must not treat this error as
 a rollback. Pin post-commit filesystem and harness state/event regressions.
+
+Pinned regressions: `TestDiscoverHarnessProviders` covers documented formats and aliases, provider allow/deny lists, malformed/oversized input, and unchanged source bytes. `TestHarnessDiscoveryPreservesExplicitSwitches` covers new discovery after an off override, enable-toggle preservation and bulk off. `TestHarnessLegacyMigrationPreservesOverrides` covers old Cursor command correction without enabling it. `TestHarnessQualifiedLaunchCommands` covers OpenCode/Kilo provider/model arguments and Cline provider selection.
+
+Discovered gateways absent from the global catalog (for example Cline's gateway) remain in the harness provider map and numeric count. Detail shows a switch and `Configured in this harness`. This metadata does not add/enable a global provider or trigger usage reads. Explicit switches and bulk changes include these ids.
+
+Launch uses the current native effort controls: non-default Claude effort uses `--effort` (minimal is omitted because Claude does not accept it); Codex uses `-c model_reasoning_effort=…`. A default reasoning pick adds no effort override. Cline retains its configured OAuth adapter id when it differs from the canonical provider alias.

@@ -125,13 +125,24 @@ function mkHarness(slug, name, command, installed, providersOn, enabled = instal
 }
 function seedHarnesses() {
     return [
-        mkHarness('claude', 'Claude Code', 'claude --model {model_id} --reasoning {reasoning}', true, ['claude', 'codex', 'copilot']),
-        mkHarness('codex', 'Codex CLI', 'codex -m {model_id} -c reasoning={reasoning}', true, ['codex', 'copilot']),
+        mkHarness('claude', 'Claude Code', 'claude --model {model_id}', true, ['claude', 'codex', 'copilot']),
+        mkHarness('codex', 'Codex CLI', 'codex -m {model_id}', true, ['codex', 'copilot']),
         mkHarness('copilot', 'Copilot CLI', 'copilot --model {model_id}', true, ['copilot', 'cursor']),
-        mkHarness('cursor', 'Cursor', 'cursor --model {model_id}', false, ['cursor']),
+        mkHarness('cursor', 'Cursor Agent', 'cursor-agent --model {model_id}', false, ['cursor']),
         mkHarness('aider', 'Aider', 'aider --model {model_id}', true, ['claude', 'codex', 'copilot', 'cursor']),
         mkHarness('goose', 'Goose', 'goose session --model {model_id}', false, ['claude', 'codex', 'copilot']),
-        mkHarness('windsurf', 'Windsurf', 'windsurf --model {model_id}', false, ['claude', 'codex', 'copilot', 'cursor']),
+        mkHarness('windsurf', 'Windsurf', 'windsurf', false, ['claude', 'codex', 'copilot', 'cursor']),
+        mkHarness('amp', 'Amp', 'amp', false, []),
+        mkHarness('antigravity', 'Antigravity', 'agy --model {model_id}', false, []),
+        mkHarness('cline', 'Cline', 'cline --model {model_id}', true, ['claude', 'codex']),
+        mkHarness('continue', 'Continue', 'cn', false, []),
+        mkHarness('crush', 'Crush', 'crush', false, []),
+        mkHarness('droid', 'Factory Droid', 'droid --model {model_id}', false, []),
+        mkHarness('gemini', 'Gemini CLI', 'gemini --model {model_id}', false, []),
+        mkHarness('kilo', 'Kilo Code', 'kilo --model {model_id}', false, []),
+        mkHarness('kiro', 'Kiro CLI', 'kiro-cli chat', false, []),
+        mkHarness('opencode', 'OpenCode', 'opencode --model {model_id}', true, ['claude', 'codex', 'copilot']),
+        mkHarness('qwen', 'Qwen Code', 'qwen --model {model_id}', false, []),
     ];
 }
 const MOCK_COSTS = {
@@ -195,7 +206,7 @@ function seedData() {
 // ---------------------------------------------------------------------------
 // Route keys (D00 CONTRACTS §1)
 // ---------------------------------------------------------------------------
-const ROUTE_KEY_RE = /^([a-z0-9_]+)\/([A-Za-z0-9._-]+)@(minimal|low|medium|high|xhigh|max|default)$/;
+const ROUTE_KEY_RE = /^([a-z0-9][a-z0-9_-]*)\/([A-Za-z0-9._-]+)@(minimal|low|medium|high|xhigh|max|default)$/;
 const SLUG_RE = /^[a-z0-9_]+$/;
 function parseRouteKey(key) {
     const m = ROUTE_KEY_RE.exec(key);
@@ -1018,9 +1029,15 @@ export function createMockEngineHost(overrides) {
             async launch(slug, routeKey, profileSlug) {
                 const parts = parseRouteKey(routeKey);
                 const h = requireHarness(slug);
-                const command = h.command
+                let command = h.command
                     .replaceAll('{model_id}', parts.modelId)
                     .replaceAll('{reasoning}', parts.reasoning);
+                if (h.builtin && parts.reasoning !== 'default') {
+                    if (slug === 'claude' && parts.reasoning !== 'minimal')
+                        command += ` --effort ${parts.reasoning}`;
+                    if (slug === 'codex')
+                        command += ` -c model_reasoning_effort=${parts.reasoning}`;
+                }
                 recordPickInternal(profileSlug, routeKey);
                 return { copied: data.settings.copy_command_instead, command };
             },

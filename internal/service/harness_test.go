@@ -54,18 +54,14 @@ const providersFixture = "[providers.claude]\nenabled = true\n" +
 func TestHarnessListSeedsBuiltins(t *testing.T) {
 	svc, rec := newTestServices(t)
 	list := mustListHarnesses(t, svc)
-	if len(list) != 7 {
-		t.Fatalf("List len = %d, want 7 (seeded)", len(list))
+	if len(list) != 18 {
+		t.Fatalf("List len = %d, want 18 (seeded)", len(list))
 	}
-	want := []HarnessInfo{
-		{Slug: "aider", Name: "Aider", Command: "aider --model {model_id}", Builtin: true},
-		{Slug: "claude", Name: "Claude Code", Command: "claude --model {model_id} --reasoning {reasoning}", Builtin: true},
-		{Slug: "codex", Name: "Codex CLI", Command: "codex -m {model_id} -c reasoning={reasoning}", Builtin: true},
-		{Slug: "copilot", Name: "Copilot CLI", Command: "copilot --model {model_id}", Builtin: true},
-		{Slug: "cursor", Name: "Cursor", Command: "cursor --model {model_id}", Builtin: true},
-		{Slug: "goose", Name: "Goose", Command: "goose session --model {model_id}", Builtin: true},
-		{Slug: "windsurf", Name: "Windsurf", Command: "windsurf --model {model_id}", Builtin: true},
+	want := []HarnessInfo{}
+	for _, seed := range harnessSeeds {
+		want = append(want, HarnessInfo{Slug: seed.slug, Name: seed.name, Command: seed.command, Builtin: true})
 	}
+
 	for i, w := range want {
 		g := list[i]
 		if g.Slug != w.Slug || g.Name != w.Name || g.Command != w.Command {
@@ -84,8 +80,8 @@ func TestHarnessListSeedsBuiltins(t *testing.T) {
 			t.Fatalf("config missing [harnesses.%s]\n%s", slug, cfg)
 		}
 	}
-	if strings.Count(cfg, "builtin = true") != 7 {
-		t.Fatalf("expected 7 builtin = true, got:\n%s", cfg)
+	if strings.Count(cfg, "builtin = true") != 18 {
+		t.Fatalf("expected 18 builtin = true, got:\n%s", cfg)
 	}
 
 	// Second List emits nothing.
@@ -100,12 +96,25 @@ func TestHarnessListSeedsBuiltins(t *testing.T) {
 func TestHarnessListNoSeedWhenCustomExists(t *testing.T) {
 	svc, rec := newTestServices(t, WithConfigTOML("[harnesses.myh]\nname = \"My H\"\ncommand = \"tool\"\n"))
 	list := mustListHarnesses(t, svc)
-	if len(list) != 1 || list[0].Slug != "myh" || list[0].Builtin {
-		t.Fatalf("List = %+v, want only custom myh", list)
+	if len(list) != 19 {
+		t.Fatalf("got %d harnesses, want 18 builtins and custom", len(list))
 	}
-	if got := harnessConfigEvents(rec); got != 0 {
-		t.Fatalf("events = %d, want 0 (no seeding)", got)
+	found := false
+	for _, h := range list {
+		if h.Slug == "myh" {
+			found = true
+			if h.Builtin || h.Command != "tool" {
+				t.Fatalf("custom overwritten: %+v", h)
+			}
+		}
 	}
+	if !found {
+		t.Fatal("custom missing")
+	}
+	if harnessConfigEvents(rec) != 1 {
+		t.Fatal("expected one reconciliation event")
+	}
+
 }
 
 // TestHarnessBuildCommandSubstitution is §7.2.
@@ -117,10 +126,10 @@ func TestHarnessBuildCommandSubstitution(t *testing.T) {
 	cases := []struct {
 		slug, modelID, reasoning, want string
 	}{
-		{"claude", "opus-5", "high", "claude --model opus-5 --reasoning high"},
-		{"codex", "gpt-5.6", "medium", "codex -m gpt-5.6 -c reasoning=medium"},
+		{"claude", "opus-5", "high", "claude --model opus-5"},
+		{"codex", "gpt-5.6", "medium", "codex -m gpt-5.6"},
 		{"copilot", "gpt-5.6", "low", "copilot --model gpt-5.6"},
-		{"cursor", "x-1", "max", "cursor --model x-1"},
+		{"cursor", "x-1", "max", "cursor-agent --model x-1"},
 	}
 	for _, c := range cases {
 		got, err := h.BuildCommand(c.slug, c.modelID, c.reasoning)
@@ -137,7 +146,7 @@ func TestHarnessBuildCommandSubstitution(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildCommand default: %v", err)
 	}
-	if !strings.Contains(got, "--reasoning default") {
+	if got != "claude --model m1" {
 		t.Fatalf("default reasoning not verbatim: %q", got)
 	}
 
@@ -228,12 +237,12 @@ func TestHarnessSaveSemantics(t *testing.T) {
 	_ = rec2s
 
 	// Builtin provider-map-only Save succeeds (name/command unchanged).
-	if err := testSaveCustom(t, svc2, HarnessInfo{Slug: "claude", Name: "Claude Code", Command: "claude --model {model_id} --reasoning {reasoning}", Providers: map[string]bool{"claude": true}}); err != nil {
+	if err := testSaveCustom(t, svc2, HarnessInfo{Slug: "claude", Name: "Claude Code", Command: "claude --model {model_id}", Providers: map[string]bool{"claude": true}}); err != nil {
 		t.Fatalf("builtin provider-only Save: %v", err)
 	}
 
 	// Builtin with changed command -> errBuiltinReadonly (§6 #5).
-	err := testSaveCustom(t, svc2, HarnessInfo{Slug: "claude", Name: "Claude Code", Command: "claude --model {model_id}", Providers: map[string]bool{}})
+	err := testSaveCustom(t, svc2, HarnessInfo{Slug: "claude", Name: "Claude Code", Command: "claude --model {model_id} --different", Providers: map[string]bool{}})
 	if !errors.Is(err, errBuiltinReadonly) {
 		t.Fatalf("err = %v, want errBuiltinReadonly", err)
 	}
@@ -271,35 +280,26 @@ func TestHarnessSaveValidationOrder(t *testing.T) {
 // TestHarnessDeleteAny is §7.5.
 func TestHarnessDeleteAny(t *testing.T) {
 	svc, rec := newTestServices(t)
-	mustListHarnesses(t, svc) // seed
-	if err := svc.Harnesses().Delete(context.Background(), "claude"); err != nil {
-		t.Fatalf("Delete claude: %v", err)
+	mustListHarnesses(t, svc)
+	if err := svc.Harnesses().Delete(context.Background(), "claude"); !errors.Is(err, errBuiltinReadonly) {
+		t.Fatalf("builtin delete err=%v", err)
 	}
-	if got := harnessConfigEvents(rec); got != 2 { // seed + delete
-		t.Fatalf("events = %d, want 2", got)
+	if harnessConfigEvents(rec) != 1 {
+		t.Fatal("failed delete emitted")
 	}
-
-	// Deleted builtin does not re-seed (section still non-empty, §2.2).
-	list := mustListHarnesses(t, svc)
-	if len(list) != 6 {
-		t.Fatalf("after delete List len = %d, want 6 (no re-seed)", len(list))
+	if err := testSaveCustom(t, svc, HarnessInfo{Slug: "custom", Name: "Custom", Command: "tool"}); err != nil {
+		t.Fatal(err)
 	}
-	for _, h := range list {
-		if h.Slug == "claude" {
-			t.Fatal("deleted claude reappeared")
+	if err := svc.Harnesses().Delete(context.Background(), "custom"); err != nil {
+		t.Fatal(err)
+	}
+	for _, h := range mustListHarnesses(t, svc) {
+		if h.Slug == "custom" {
+			t.Fatal("custom reappeared")
 		}
 	}
-	if got := harnessConfigEvents(rec); got != 2 {
-		t.Fatalf("re-list emitted: events = %d, want 2", got)
-	}
-
-	// Unknown slug -> errNotFound.
-	err := svc.Harnesses().Delete(context.Background(), "nope")
-	if !errors.Is(err, errNotFound) {
-		t.Fatalf("Delete unknown err = %v, want errNotFound", err)
-	}
-	if got := harnessConfigEvents(rec); got != 2 {
-		t.Fatalf("failed delete emitted: events = %d, want 2", got)
+	if err := svc.Harnesses().Delete(context.Background(), "nope"); !errors.Is(err, errNotFound) {
+		t.Fatalf("unknown delete err=%v", err)
 	}
 }
 
@@ -405,7 +405,7 @@ func TestHarnessLaunchCopyMode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Launch copy: %v", err)
 	}
-	if !res.Copied || res.Command != "claude --model opus-5 --reasoning high" {
+	if !res.Copied || res.Command != "claude --model opus-5 --effort high" {
 		t.Fatalf("copy result = %+v", res)
 	}
 	if _, statErr := os.Stat(filepath.Join(svc.paths.StateDir, "launch.log")); !os.IsNotExist(statErr) {
