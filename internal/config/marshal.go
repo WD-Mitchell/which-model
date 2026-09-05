@@ -148,6 +148,8 @@ func deepCopyRaw(value any) any {
 			copyValue[key] = deepCopyRaw(nested)
 		}
 		return copyValue
+	case []string:
+		return append([]string(nil), typed...)
 	case []any:
 		copyValue := make([]any, len(typed))
 		for index, nested := range typed {

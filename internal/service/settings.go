@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/WD-Mitchell/which-model/internal/config"
@@ -186,31 +185,7 @@ func normaliseGUISettings(g GUISettings) GUISettings {
 	return g
 }
 
-// cloneConfig creates an independent config using the canonical TOML form.
+// cloneConfig preserves deferred overrides and creates an independent config.
 func cloneConfig(src *config.Config) (*config.Config, func(), error) {
-	data, err := src.MarshalTOML()
-	if err != nil {
-		return nil, nil, err
-	}
-	f, err := os.CreateTemp("", "which-model-config-")
-	if err != nil {
-		return nil, nil, err
-	}
-	name := f.Name()
-	cleanup := func() { _ = os.Remove(name) }
-	if _, err = f.Write(data); err == nil {
-		err = f.Close()
-	} else {
-		_ = f.Close()
-	}
-	if err != nil {
-		cleanup()
-		return nil, nil, err
-	}
-	cfg, err := config.LoadFile(name)
-	if err != nil {
-		cleanup()
-		return nil, nil, err
-	}
-	return cfg, cleanup, nil
+	return src.Clone(), func() {}, nil
 }

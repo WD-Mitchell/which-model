@@ -601,3 +601,96 @@ func TestHarnessEditsPreserveEnabledOverride(t *testing.T) {
 		}
 	}
 }
+
+func TestHarnessFailedMutationLeavesLiveConfigUnchanged(t *testing.T) {
+	for _, op := range []string{"seed", "save", "delete", "provider", "all", "enabled"} {
+		t.Run(op, func(t *testing.T) {
+			body := providersFixture
+			if op != "seed" {
+				body += "[harnesses.custom]\nname = \"Custom\"\ncommand = \"sh\"\nenabled = false\n"
+			}
+			svc, rec := newTestServices(t, WithConfigTOML(body))
+			h := svc.Harnesses()
+			before, err := svc.cfg.MarshalTOML()
+			if err != nil {
+				t.Fatal(err)
+			}
+			original := svc.paths.UserConfigFile
+			svc.paths.UserConfigFile = svc.paths.ConfigDir // replacing a directory must fail
+			switch op {
+			case "seed":
+				_, err = h.List(context.Background())
+			case "save":
+				err = h.Save(context.Background(), HarnessInfo{Slug: "other", Name: "Other", Command: "sh"})
+			case "delete":
+				err = h.Delete(context.Background(), "custom")
+			case "provider":
+				err = h.SetProvider(context.Background(), "custom", "claude", true)
+			case "all":
+				err = h.SetAllProviders(context.Background(), "custom", true)
+			case "enabled":
+				err = h.SetEnabled(context.Background(), "custom", true)
+			}
+			if err == nil {
+				t.Fatal("write should fail")
+			}
+			after, err := svc.cfg.MarshalTOML()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(before) != string(after) {
+				t.Fatalf("failed %s mutated live config", op)
+			}
+			if harnessConfigEvents(rec) != 0 {
+				t.Fatal("failed write emitted event")
+			}
+			svc.paths.UserConfigFile = original
+			if err = h.Save(context.Background(), HarnessInfo{Slug: "later", Name: "Later", Command: "sh"}); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := config.Load(config.LoadOptions{Path: original})
+			if err != nil {
+				t.Fatal(err)
+			}
+			hs, err := cfg.LoadHarnesses()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, ok := hs["other"]; ok {
+				t.Fatal("failed save leaked into subsequent write")
+			}
+			if op != "seed" {
+				if hs["custom"].Enabled == nil || *hs["custom"].Enabled {
+					t.Fatal("original enabled override lost")
+				}
+			}
+		})
+	}
+}
+
+func TestHarnessPublishesCommittedWriteDespiteSyncFailure(t *testing.T) {
+	svc, rec := newTestServices(t)
+	mustListHarnesses(t, svc)
+	before := harnessConfigEvents(rec)
+	prior := writeHarnessConfig
+	writeHarnessConfig = func(path string, data []byte) error {
+		if err := config.AtomicWriteFile(path, data); err != nil {
+			return err
+		}
+		return &config.CommittedWriteError{Err: errors.New("sync failed")}
+	}
+	t.Cleanup(func() { writeHarnessConfig = prior })
+	err := svc.Harnesses().Save(context.Background(), HarnessInfo{Slug: "committed", Name: "Committed", Command: "tool"})
+	if !config.WriteCommitted(err) {
+		t.Fatalf("got %v", err)
+	}
+	found := false
+	for _, h := range mustListHarnesses(t, svc) {
+		if h.Slug == "committed" {
+			found = true
+		}
+	}
+	if !found || harnessConfigEvents(rec) != before+1 {
+		t.Fatal("committed config was not published")
+	}
+}

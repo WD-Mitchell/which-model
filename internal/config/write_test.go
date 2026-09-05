@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -87,4 +88,19 @@ func TestAtomicWriteFile(t *testing.T) {
 			t.Fatalf("dir entries = %v, want only config.toml", names)
 		}
 	})
+}
+
+func TestAtomicWritePostCommitError(t *testing.T) {
+	prior := syncDirectory
+	syncDirectory = func(string) error { return errors.New("sync failed") }
+	t.Cleanup(func() { syncDirectory = prior })
+	path := filepath.Join(t.TempDir(), "config.toml")
+	err := AtomicWriteFile(path, []byte("committed"))
+	if !WriteCommitted(err) {
+		t.Fatalf("missing committed classification: %v", err)
+	}
+	data, readErr := os.ReadFile(path)
+	if readErr != nil || string(data) != "committed" {
+		t.Fatalf("content %s, error %v", data, readErr)
+	}
 }

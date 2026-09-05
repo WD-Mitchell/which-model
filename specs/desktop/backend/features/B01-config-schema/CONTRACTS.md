@@ -123,7 +123,8 @@ func (c *Config) DeleteGroup(slug string)
 ```go
 // AtomicWriteFile durably replaces path with data: MkdirAll(dir, 0o755),
 // temp file in dir chmodded 0o600, write, fsync, close, rename over path,
-// fsync dir. On error the temp file is removed and path is untouched.
+// fsync dir. Pre-rename errors leave path untouched; post-rename directory
+// sync failures return CommittedWriteError because new bytes are already visible.
 // Promoted from pkg/whichmodel/config_cmd.go atomicWrite (SPEC §2.8); the
 // single write path for CLI `config set` and all B02+ service mutations.
 func AtomicWriteFile(path string, data []byte) error
@@ -226,3 +227,13 @@ Unknown keys inside owned sections keep the existing `UnmarshalKey` undecoded er
 | `Config.UnmarshalKey`, `Config.MarshalTOML`, `setKey`, `ConfigError` | `internal/config` (existing) | all accessors/setters |
 | `pick.CategoryNames` | `internal/pick/axes.go` | callers only (B03/B05) — passed as `categories`, never imported here |
 | Route-key grammar | D00 CONTRACTS §1 | re-declared regexp in `gui.go` (SPEC Decisions) |
+
+
+## Atomic-write correction — #179 review
+
+The former all-errors-leave-destination-untouched guarantee was impossible after
+a successful rename. `CommittedWriteError` wraps the underlying error, and
+`WriteCommitted(error) bool` reports whether the new bytes are visible.
+`TestAtomicWritePostCommitError` pins error classification and file contents.
+Harness mutations publish this committed state and notify listeners even while
+reporting the durability error.
