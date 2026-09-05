@@ -19,7 +19,7 @@ Depends on: B02. Inherits: D00, B00 (order/enabled/availability invariants §6.1
 
 2. **List order.** `List` returns the universe sorted per B00 §6.1: ascending `providers.<id>.priority`, ties broken by id ascending. `ProviderInfo.Priority` is the 1-based position in the returned slice (display order), not the raw TOML value.
 
-3. **Usage fields come from cache only.** `List` populates `Auth`, `Session`, `Weekly`, `Monthly`, `Credits`, `Resets`, and the usage part of `LimitsLine` exclusively from the last cached usage snapshot via `cache.Store.OfflineRead` — it NEVER triggers a live fetch, network access, or provider-registry call, regardless of staleness. No cached snapshot (or a snapshot carrying `Failure`) ⇒ `Session/Weekly/Monthly = nil`, `Credits/Resets/Auth = ""`. Stale cached snapshots are still used (staleness surfacing is B08's job).
+3. **Authentication metadata and cached usage.** `List.Auth` describes configured accounts with nonblank refs: `oauth` → `oauth`, `token` → `api`, `cookie` → `web`. Distinct kinds are joined with ` + ` in OAuth/API/web order. Account metadata remains visible when usage is disabled, missing, or failed. With no recognized configured account, `Auth` falls back to the usable cached snapshot source, or empty when usage is unavailable. `Session`, `Weekly`, `Monthly`, `Credits`, `Resets`, and the usage part of `LimitsLine` come exclusively from `cache.Store.OfflineRead`; missing/failed snapshots clear those usage fields. Stale snapshots remain usable (B08 surfaces staleness). List never reads credentials, fetches usage, accesses the network, or calls the provider registry.
 
 4. **LimitsLine.** A human one-liner mirroring the mockup rows (`session 42% · weekly 18%`): exact composition rules in CONTRACTS §5. Precedence: provider disabled → `not enabled`; usage disabled (per `toggle.ResolveUsageEnabled` / backend `off`) → `usage off`; no usable snapshot → `no usage data`; otherwise the composed window/credits summary.
 
@@ -95,3 +95,7 @@ The caller context reaches models.dev HTTP collection. A cancelled fetch returns
 cancellation before cache fallback or cache writes. Route publication checks
 cancellation under its write lock; cancelled live discovery must not publish a
 degraded replacement table. Pin `TestModelsDevRefreshCancellationDoesNotFallBackOrWrite`.
+
+### Authentication display correction (September 2026)
+
+The owner reported Claude and Copilot showing `api` despite configured OAuth accounts. Account kind now takes precedence over usage-fetch transport for `Auth`, superseding the former cache-source-only display rule. Credential selection and cached `Snapshot.Source` are unchanged.

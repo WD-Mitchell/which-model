@@ -1027,3 +1027,44 @@ func registerTestProvider(t *testing.T, id string) {
 	}
 	usage.Register(usage.Descriptor{ID: id, DisplayName: id, Kind: usage.KindSubscription, Tier: 1})
 }
+
+func TestProvidersListAuthenticationUsesConfiguredAccounts(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		accounts []config.ProviderAccount
+		source   usage.Source
+		want     string
+	}{
+		{"oauth overrides API transport", []config.ProviderAccount{{Kind: "oauth", Ref: "which-model"}}, usage.SourceAPI, "oauth"},
+		{"oauth without usage", []config.ProviderAccount{{Kind: "oauth", Ref: "which-model"}}, "", "oauth"},
+		{"API key overrides OAuth cache", []config.ProviderAccount{{Kind: "token", Ref: "which-model"}}, usage.SourceOAuth, "api"},
+		{"cookie", []config.ProviderAccount{{Kind: "cookie", Ref: "external-cookie-reference"}}, usage.SourceAPI, "web"},
+		{"mixed and duplicate methods", []config.ProviderAccount{{Kind: "token", Ref: "key"}, {Kind: "oauth", Ref: "one"}, {Kind: "oauth", Ref: "two"}}, usage.SourceAPI, "oauth + api"},
+		{"unconfigured method uses usage source", nil, usage.SourceCLI, "cli"},
+		{"empty reference is not configured auth", []config.ProviderAccount{{Kind: "oauth"}}, usage.SourceAPI, "api"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, _ := newTestServices(t, WithConfigTOML("[usage]\nbackend = \"codexbar\"\n[providers.claude]\nenabled = true\n"))
+			provider := svc.cfg.Providers["claude"]
+			provider.Accounts = tc.accounts
+			svc.cfg.Providers["claude"] = provider
+			useTempUsageCache(t, svc)
+			if tc.source != "" {
+				snapshot := seededSnapshot("claude")
+				snapshot.Source = tc.source
+				seedUsage(t, svc, "claude", snapshot)
+			}
+			info := infoByID(t, mustProviderList(t, svc), "claude")
+			if info.Auth != tc.want {
+				t.Fatalf("Auth = %q, want %q", info.Auth, tc.want)
+			}
+			if tc.source != "" {
+				store := cache.Store{Dir: svc.usageCacheDir}
+				stored := store.OfflineRead("claude", time.Hour)
+				if stored.Source != tc.source {
+					t.Fatal("display authentication changed usage provenance")
+				}
+			}
+		})
+	}
+}

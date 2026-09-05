@@ -66,7 +66,7 @@ export function ProviderUsageRow({
       </span>
       {leading ? <span className={styles.leading}>{leading}</span> : null}
       <span className={styles.idCell}>
-        <span className={cx('mono', styles.id, on && styles.idOn)}>{provider.id}</span>
+        <span className={cx('mono', styles.id, on && styles.idOn)} title={provider.id}>{provider.id}</span>
         <span className={cx('mono', styles.auth, !live && styles.authOff)}>
           {live ? provider.auth : offLabel}
         </span>

@@ -19,7 +19,7 @@ Depends on: U02 (Toggle, Button, DragList, useToast), U07 (settings shell, `Deta
 
 2. **List control persistence.** The list's search query, enabled-state filter, and sort mode live in U10's module-level Zustand store (`pages/Providers/listState.ts`, session-scoped, never persisted to storage or config), because U07 renders a page's list OR its detail and the list unmounts whenever a detail is on the stack. Navigating into a detail and back re-mounts the list with exactly the controls it was left in; menu-open flags and detail-local state stay view-local. The store is pure state (no host imports); tests reset it via `useProvidersListStore.setState` for isolation.
 
-3. **Rows.** Each visible row is keyed by `ProviderInfo.id` and shows the provider's 1-based `priority`, enable toggle, provider id, live limits, distinct-model count (`{models} model[s]`), and chevron. Clicking the card except its toggle opens detail. The unfiltered `priority` view renders the full provider universe inside U02 `DragList`; every other view is static and omits the drag handle so a filtered or derived order can never submit a partial reorder.
+3. **Rows.** Each visible row is keyed by `ProviderInfo.id` and shows the provider's 1-based `priority`, enable toggle, provider id, authentication label, cached usage meters (or limits fallback), distinct-model count (`{models} model[s]`), and chevron. The shared `ProviderUsageRow` gives the name a shrinkable 200px basis, keeps it on one line, and ellipsizes overflow with the full id available through its title. Authentication comes from B06 configured account metadata, with the usage-source fallback only when no recognized account is configured. Clicking the card except its toggle opens detail. The unfiltered `priority` view renders the full provider universe inside U02 `DragList`; every other view is static and omits the drag handle so a filtered or derived order can never submit a partial reorder.
 
 4. **Toggle.** Row toggle calls `providers.setEnabled(id, !enabled)`. No optimistic write; the `config:changed` event invalidates `['providers']` (U00 CONTRACTS §5) and the row re-renders from the refetch.
 
@@ -67,7 +67,7 @@ Depends on: U02 (Toggle, Button, DragList, useToast), U07 (settings shell, `Deta
 - `DragList`, `Toggle`, `Button`, toast machinery — U02.
 - Shell, `DetailHeader`, PAGE_META rendering, detail-stack navigation — U07.
 - The Go side of `providers.*` and what `limits_line`/route counting mean — backend features; `MockEngineHost` (U01) suffices for tests.
-- Usage meters (Providers rows show only the textual limits line) — U11/U13 render meters.
+- Live usage fetching on list render — B08 owns refreshing; rows display the shared cached usage card.
 
 ## Deviations
 
@@ -84,3 +84,9 @@ next render. Removal is unavailable during credential persistence or sign-in.
 Every failed replacement reports its error, including an older failed write
 followed by a newer queued edit. This prevents a queued whole-list replacement
 from deleting an account that authentication just created.
+
+### Provider row correction (September 2026)
+
+The owner reported early wrapping and OAuth accounts labelled `api`. The shared usage-card geometry supersedes the earlier textual-limits-only mockup contract; the name expands from 96px to a shrinkable 200px and stays single-line. B06 supplies account-kind labels independently of usage transport. Verify long ids, OAuth labels, meters, toggles and model counts at compact and wide settings widths.
+
+At card widths of 620px or less, usage meters move to a full-width second line so quota labels remain readable beside the wider provider name.
