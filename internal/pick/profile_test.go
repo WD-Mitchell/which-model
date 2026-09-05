@@ -9,13 +9,13 @@ import (
 	"github.com/WD-Mitchell/which-model/internal/catalog"
 )
 
-// TestBuiltinProfilesAreValid asserts the package ships exactly the 11
+// TestBuiltinProfilesAreValid asserts the package ships exactly the 16
 // built-in profiles, every one passes ValidateProfile, every tier-1 weight
 // key set is exactly {intelligence, cost, speed}, and every tier-2 key is a
 // member of CategoryNames (annex-b §5.1; TASKS.md F10-T1 test 1).
 func TestBuiltinProfilesAreValid(t *testing.T) {
-	if len(Profiles) != 11 {
-		t.Fatalf("len(Profiles) = %d, want 11", len(Profiles))
+	if len(Profiles) != 16 {
+		t.Fatalf("len(Profiles) = %d, want 16", len(Profiles))
 	}
 	tier1Keys := map[string]bool{"intelligence": true, "cost": true, "speed": true}
 	categoryNames := map[string]bool{}

@@ -171,3 +171,12 @@ Verify: `go test ./internal/service/ -run 'TestBenchmark|TestCoverage|TestGroups
 - `TestCatalogDiscoveryKeepsUnbenchmarkedLiveModels`: an enabled CLI's unscored model survives refresh in the provider inventory and appears in Models.
 - `TestMakerUsesCompaniesNotUnknownModelNames`: GLM variants and provider-qualified ids map to Z.AI; unknown model names map to Other.
 - Correction to `TestCatalogModels`: golden fixture now lists five identities (the three scored models plus route-only Claude Sonnet 4 and GPT-4.2); the provider-count filter retains four. Top-scored-effort assertions are unchanged.
+
+
+## Correction — Custom use-case groups (2026-09-05)
+
+Saved and ephemeral use cases may weight configured custom groups, as intended
+by B05. Save validates with `pick.ValidateProfileWithCategories`; Rank calls
+`pick.RankWithOptions`, supplying canonical categories union config group slugs
+and the saved partial-data policy. Unregistered categories
+remain invalid. See `specs/features/F10-ranking/CONTRACTS.md` §Correction.

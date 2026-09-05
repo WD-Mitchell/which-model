@@ -22,6 +22,9 @@ var ctx = context.Background()
 // ProfilesAPI — EngineHost.profiles.
 type ProfilesAPI struct{ svc *service.Services }
 
+func (a *ProfilesAPI) UserProfiles() ([]service.UserProfile, error) {
+	return a.svc.Profiles().UserProfiles(), nil
+}
 func (a *ProfilesAPI) List() ([]service.ProfileSummary, error) {
 	return bindingResult(a.svc.Profiles().List(ctx))
 }

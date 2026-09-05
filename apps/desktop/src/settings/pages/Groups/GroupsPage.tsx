@@ -30,7 +30,7 @@ function errText(e: unknown, fallback: string): string {
 // Literal copy from the mockup — kept verbatim (curly apostrophes and em
 // dashes included) so the rendered page reads exactly like the design.
 const LIST_NOTE =
-  'Every group here is weightable in a profile. A model’s score for a group is the mean of its results on that group’s benchmarks, so changing the list changes the ranking.'
+  'Every group here is weightable in a use case. A model’s score for a group is the mean of its results on that group’s benchmarks, so changing the list changes the ranking.'
 const GROUP_BLURB_BUILTIN =
   'A built-in group — its benchmark list is read-only. Duplicate it to make a version you can change.'
 const GROUP_BLURB_CUSTOM =
@@ -39,7 +39,7 @@ const GROUP_READONLY_NOTE =
   'A model’s score for this group is the mean of its results on the benchmarks switched on here — counted over every model and reasoning level that reports the benchmark. Duplicate the group to change what it measures.'
 const BENCH_BLURB_FALLBACK =
   'Carried in the model data export. No description recorded for this benchmark yet.'
-const BENCH_NO_GROUPS = 'not in any group — it does not affect any profile'
+const BENCH_NO_GROUPS = 'not in any group — it does not affect any use case'
 
 /** Trash glyph (mockup L455, L463) — 12px in the list, 13px in the detail. */
 function TrashIcon({ size }: { size: number }) {
@@ -170,7 +170,7 @@ function GroupsListView({ openDetail }: { openDetail(d: Detail): void }) {
       <div className={styles.colHeader}>
         <span className={cx('mono', styles.cName)}>group</span>
         <span className={cx('mono', styles.cCount)}>benchmark count</span>
-        <span className={cx('mono', styles.cProfiles)}>profiles</span>
+        <span className={cx('mono', styles.cProfiles)}>use cases</span>
         <span className={styles.cActions} />
       </div>
       {list.map((g) => (
@@ -191,7 +191,7 @@ function GroupsListView({ openDetail }: { openDetail(d: Detail): void }) {
           </span>
           <span
             className={cx('mono', styles.profiles)}
-            title={`weighted by ${g.in_profiles} profiles`}
+            title={`weighted by ${g.in_profiles} use cases`}
           >
             {g.in_profiles}
           </span>
@@ -305,7 +305,7 @@ function GroupDetailView({
   const inProfiles = (groups ?? []).find((g) => g.slug === slug)?.in_profiles
   const summary =
     `${onCount} of ${group.benchmarks.length} benchmarks` +
-    (inProfiles === undefined ? '' : ` · weighted by ${inProfiles} profiles`)
+    (inProfiles === undefined ? '' : ` · weighted by ${inProfiles} use cases`)
 
   const q = query.trim().toLowerCase()
   const shown = group.benchmarks

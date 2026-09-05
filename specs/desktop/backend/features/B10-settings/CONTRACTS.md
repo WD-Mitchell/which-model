@@ -96,3 +96,11 @@ Built on `newTestServices(t, ...)` (B02). Required cases:
 `gui.allow_incomplete_recommendations` / `GUISettings.allow_incomplete_recommendations` is a persisted boolean, default false. General displays **Allow recommendations with incomplete benchmarks**. Saving it emits the existing settings event and invalidates ranking immediately. The rank service passes it as `pick.RankOptions.AllowIncomplete`; enabling it uses available core scores, disabling it requires complete core scores. Catalog scores remain visible in either mode.
 
 Both carousel and list show `Missing benchmark data: <axes>. Ranked using available scores.` for partial recommendations, using absent intelligence/cost/speed fields in that order; measured zero is present data. No RankedModel schema extension is needed. Tests must cover off→on→off persistence and ranking, blank speed preservation, and the warning in both layouts.
+
+
+## Profiles / Use Cases extension (2026-09-05)
+
+See the canonical DTO/API extension in `specs/desktop/global/CONTRACTS.md` and
+behavior in `specs/desktop/backend/features/B03-profiles/SPEC.md` §Correction.
+The new `gui.user_profile` key persists the selected profile, defaults to
+`software_engineering`, and accepts `software_engineering`, `marketing`, `general`.

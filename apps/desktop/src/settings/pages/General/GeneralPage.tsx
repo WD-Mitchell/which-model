@@ -372,7 +372,7 @@ export function GeneralPage(_props: PageComponentProps) {
         <div className={styles.row}>
           <span className={styles.labelBlock}>
             <span className={styles.label}>Weight control</span>
-            <span className={styles.note}>Used for every profile weight and the scale.</span>
+            <span className={styles.note}>Used for every use-case weight.</span>
           </span>
           <select
             className="wmsel"

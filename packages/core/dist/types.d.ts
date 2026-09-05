@@ -1,4 +1,6 @@
 export interface ProfileSummary {
+    description?: string;
+    evidence_note?: string;
     slug: string;
     name: string;
     builtin: boolean;
@@ -192,6 +194,7 @@ export interface Favourite {
     in_range: boolean;
 }
 export interface GUISettings {
+    user_profile: string;
     layout: 'carousel' | 'list';
     /** Which popover tab opens by default. Shipped default: 'profiles'. */
     default_tab: 'profiles' | 'sliders';
@@ -237,5 +240,13 @@ export interface ProfileStats {
 export interface ErrorDTO {
     code: string;
     message: string;
+}
+/** A curated default set of use cases for a kind of work. */
+export interface UserProfile {
+    slug: string;
+    name: string;
+    description: string;
+    use_case_slugs: string[];
+    default_use_case: string;
 }
 //# sourceMappingURL=types.d.ts.map

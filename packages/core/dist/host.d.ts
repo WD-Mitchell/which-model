@@ -1,7 +1,8 @@
-import type { BenchmarkDetail, CatalogSummary, Favourite, GroupDetail, GroupSummary, GUISettings, HarnessInfo, LaunchResult, CatalogModel, CatalogModelDetail, ModelScoreDetail, ProfileDetail, ProfileSummary, ProviderAccount, ProviderDetail, ProviderInfo, RankRequest, RankResponse, ShellSnippets, UsageDTO } from './types.js';
+import type { BenchmarkDetail, CatalogSummary, Favourite, GroupDetail, GroupSummary, GUISettings, HarnessInfo, LaunchResult, CatalogModel, CatalogModelDetail, ModelScoreDetail, ProfileDetail, ProfileSummary, ProviderAccount, ProviderDetail, ProviderInfo, RankRequest, RankResponse, ShellSnippets, UsageDTO, UserProfile } from './types.js';
 import type { EngineEvent } from './events.js';
 export interface EngineHost {
     profiles: {
+        userProfiles(): Promise<UserProfile[]>;
         list(): Promise<ProfileSummary[]>;
         get(slug: string): Promise<ProfileDetail>;
         create(p: ProfileDetail): Promise<void>;

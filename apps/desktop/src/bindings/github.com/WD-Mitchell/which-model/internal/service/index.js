@@ -162,3 +162,8 @@ import * as $models from "./models.js";
  * UsageWindow is one usage window (session|weekly|monthly|provider-specific).
  * @typedef {$models.UsageWindow} UsageWindow
  */
+
+/**
+ * UserProfile chooses default use cases without changing their scoring weights.
+ * @typedef {$models.UserProfile} UserProfile
+ */

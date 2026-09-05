@@ -142,3 +142,11 @@ Pinned regressions marshal invalid-slug/missing-profile native errors, preserve 
 ## Create-only profile binding — #171
 
 ProfilesAPI additionally binds `Create(ProfileDetail) error`; bindings are regenerated through the pinned Wails generator. An occupied slug crosses the native boundary as `conflict`, verified by `TestProfilesBindingStructuredErrors`.
+
+
+## Profiles / Use Cases extension (2026-09-05)
+
+See the canonical DTO/API extension in `specs/desktop/global/CONTRACTS.md` and
+behavior in `specs/desktop/backend/features/B03-profiles/SPEC.md` §Correction.
+The new `gui.user_profile` key persists the selected profile, defaults to
+`software_engineering`, and accepts `software_engineering`, `marketing`, `general`.

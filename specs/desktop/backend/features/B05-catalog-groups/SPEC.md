@@ -70,3 +70,12 @@ Depends on: B02 (Services, caches, error mapper, test helper). Inherits D00, B00
 ## 5. Out of scope
 
 - `[groups.*]` TOML schema + accessors — B01. Catalog cache construction and `newTestServices` — B02. Profile validation accepting custom slugs — B03. Rank consumption of `Categories` — B04. Groups/benchmarks UI — U09.
+
+
+## Correction — Custom use-case groups (2026-09-05)
+
+Saved and ephemeral use cases may weight configured custom groups, as intended
+by B05. Save validates with `pick.ValidateProfileWithCategories`; Rank calls
+`pick.RankWithOptions`, supplying canonical categories union config group slugs
+and the saved partial-data policy. Unregistered categories
+remain invalid. See `specs/features/F10-ranking/CONTRACTS.md` §Correction.

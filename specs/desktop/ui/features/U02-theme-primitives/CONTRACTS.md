@@ -232,3 +232,10 @@ None. Errors: the single `useToast` throw (SPEC §3). No `ErrorDTO` handling at 
 | SnippetPreview | text rendered with newline preserved; `copyable` click → `onCopy(text)`; non-copyable click → no call |
 
 Verify: `pnpm --filter @which-model/ui test` green; `pnpm --filter @which-model/ui build` emits `dist/` with both theme CSS files; `diff <(tail -n +3 specs/desktop/mockup/nocturne.css) <(tail -n +2 packages/ui/src/theme/nocturne.css)` empty apart from the removed `@import` (i.e. vendored file = mockup file with line 2 deleted).
+
+
+## Correction — Use-case selector accessibility (2026-09-05)
+
+Combobox rows are native buttons so every result can be selected with Tab and
+Enter/Space. The popup scrolls within a 190px maximum height; long default or
+all-use-case lists stay reachable without being clipped by the popover.

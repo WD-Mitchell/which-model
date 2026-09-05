@@ -79,14 +79,15 @@ export function Combobox({
             <div className={styles.empty}>{emptyText}</div>
           ) : (
             items.map((item) => (
-              <div
+              <button
+                type="button"
                 key={item.key}
                 className={cx(styles.row, item.key === selectedKey && styles.rowSelected)}
                 onClick={() => onPick(item.key)}
               >
                 <span className={styles.rowLabel}>{item.label}</span>
                 <span className={styles.rowSub}>{item.sub}</span>
-              </div>
+              </button>
             ))
           )}
         </div>

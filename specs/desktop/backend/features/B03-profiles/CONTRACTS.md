@@ -28,7 +28,7 @@ type ProfileService struct { s *Services }
 // Profiles returns the profiles facet (shares the Services lock and config).
 func (s *Services) Profiles() *ProfileService
 
-// List merges the 11 built-ins from pick.Profiles (Builtin true, weights via
+// List merges the 16 built-ins from pick.Profiles (Builtin true, weights via
 // dtoWeights, CoreShare per SPEC §2.2) with [profiles.*] customs, attaches
 // Picks/LastUsed from B11 stats, and returns built-ins sorted alphabetically
 // by slug followed by customs sorted alphabetically by slug (SPEC §2.4).
@@ -105,7 +105,7 @@ Reads and writes `[profiles.<slug>]` (`core_share`, `[profiles.<slug>.tier1]`, `
 
 ## 6. Test fixtures (`profiles_test.go`; helper `newTestServices` from B02)
 
-1. **List canon**: default fixture → 11 built-ins alphabetical by slug (`balanced_implementation` first, `ui_ux` last), `Builtin` true, `CoreShare` matches each `Tier1Share` (e.g. `simple_implementation` = 80), all weights ints 1–5.
+1. **List canon**: default fixture → 16 built-ins alphabetical by slug (`balanced_implementation` first, `ui_ux` last), `Builtin` true, `CoreShare` matches each `Tier1Share` (e.g. `simple_implementation` = 80), all weights ints 1–5.
 2. **Round-trip Save→List**: Save a custom (`my_profile`, CoreShare 65, full tier1, one tier2 key) → List shows it after built-ins with identical fields; config.toml on disk contains the section; recorder saw exactly one `config:changed{profiles}`.
 3. **Builtin Save rejection**: Save with slug `planning` → `builtin_readonly`, message table row 2, no write, no event.
 4. **Builtin name conflict**: Save slug `planning2`, Name `planning` → `conflict`, row 3.
@@ -150,3 +150,12 @@ before decoding unrelated stored profiles. Create reports conflict for built-in
 slugs, validates request fields, then checks custom occupancy under the same
 write lock. Malformed stored profiles cannot mask an intrinsic request error.
 Pin `TestProfileRequestErrorsPrecedeStoredProfileDecode`.
+
+
+## Correction — Profiles and Use Cases (2026-09-05)
+
+The user's requested distinction between Profiles and Use Cases supersedes the
+conflicting terminology and Quick complexity-scale behavior above. The governing
+behavior and pinned validation cases are in
+`specs/desktop/backend/features/B03-profiles/SPEC.md` §Correction. Canonical DTOs
+are extended in `specs/desktop/global/CONTRACTS.md` §Profiles / Use Cases extension.

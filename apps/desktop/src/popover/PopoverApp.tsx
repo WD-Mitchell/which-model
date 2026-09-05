@@ -3,7 +3,7 @@ import { Button, useToast } from '@which-model/ui'
 import type { ErrorDTO, ProfileDetail, RankedModel } from '@which-model/core'
 import {
   useCatalogLine,
-  useComplexityScale,
+  useUserProfiles,
   useHarnesses,
   useOverridesHash,
   useProfile,
@@ -18,11 +18,12 @@ import { PopoverShell } from './PopoverShell'
 import { PopoverHeader } from './Header'
 import { PopoverFooter } from './Footer'
 import { LandingView, ResultsBand } from './LandingView'
+import { ProfileSelector } from './ProfileSelector'
 import { WeightsView } from './WeightsView'
 import './PopoverApp.css'
 
-/** The popover's two tabs. 'profiles' is Quick — the search + complexity
- *  scale; 'sliders' is Advanced — the per-benchmark weight editor. The ids
+/** The popover's two tabs. 'profiles' is Quick — the use-case picker;
+ *  'sliders' is Advanced — the capability weight editor. The ids
  *  keep their original names because gui.default_tab persists them. */
 export type PopoverTab = 'profiles' | 'sliders'
 
@@ -30,7 +31,7 @@ export type PopoverTab = 'profiles' | 'sliders'
 export type PopoverView = 'landing' | 'weights'
 
 /**
- * The popover's tab strip: Quick (search + complexity scale) and Advanced
+ * The popover's tab strip: Quick (use-case selection) and Advanced
  * (the per-benchmark weight editor).
  *
  * This replaced the weights view's own back-chevron header — with tabs, the
@@ -63,7 +64,7 @@ function PopoverTabs({ tab, onTab }: { tab: PopoverTab; onTab(next: PopoverTab):
 
 export function PopoverApp() {
   const profilesQuery = useProfiles()
-  const scaleQuery = useComplexityScale()
+  const userProfilesQuery = useUserProfiles()
   const harnessesQuery = useHarnesses()
   const settingsQuery = useSettings()
   const catalogQuery = useCatalogLine()
@@ -73,27 +74,26 @@ export function PopoverApp() {
   const [tabOverride, setTabOverride] = useState<PopoverTab | null>(null)
   const [activeSlug, setActiveSlug] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
-  const [stop, setStop] = useState(1)
   const [harnessSlug, setHarnessSlug] = useState<string | undefined>(undefined)
   const [harnessMenuOpen, setHarnessMenuOpen] = useState(false)
 
   const toast = useToast()
 
   const profiles = profilesQuery.data ?? []
-  const scale = scaleQuery.data ?? []
   const harnesses = harnessesQuery.data ?? []
   const settings = settingsQuery.data
 
-  // Seed the initial active profile (mockup: scale[1]) once the scale loads.
+  const userProfile = userProfilesQuery.data?.find((p) => p.slug === settings?.user_profile)
+  const [seededProfile, setSeededProfile] = useState('')
   useEffect(() => {
-    if (!activeSlug && scale.length > 0) {
-      const initial = scale[1] ?? scale[0]
-      if (initial) {
-        setActiveSlug(initial)
-        setStop(scale.indexOf(initial))
-      }
+    if (!userProfile || !profiles.length) return
+    if (seededProfile !== userProfile.slug || !profiles.some((p) => p.slug === activeSlug)) {
+      setActiveSlug(userProfile.default_use_case)
+      setSelectedIndex(0)
+      setSeededProfile(userProfile.slug)
+      useOverridesStore.getState().clear()
     }
-  }, [scale, activeSlug])
+  }, [userProfile, profiles, seededProfile, activeSlug])
 
   // Default harness selection is managed per-model by supportedHarnesses effect.
   // Close the harness menu when clicking outside the launch pill.
@@ -119,14 +119,13 @@ export function PopoverApp() {
 
   useEffect(() => {
     if (!activeProfileQuery.isError || (activeProfileQuery.error as unknown as ErrorDTO).code !== 'not_found') return
-    const fallback = scale.find((slug) => profiles.some((profile) => profile.slug === slug))
+    const fallback = userProfile?.default_use_case
     if (fallback) {
       useOverridesStore.getState().clear()
       setActiveSlug(fallback)
-      setStop(scale.indexOf(fallback))
       setSelectedIndex(0)
     }
-  }, [activeProfileQuery.isError, activeProfileQuery.error, profiles, scale])
+  }, [activeProfileQuery.isError, activeProfileQuery.error, userProfile])
 
 
   // Content-driven window height (U05 divergence from the fixed 620 window):
@@ -203,23 +202,19 @@ export function PopoverApp() {
       .catch(() => {})
   }, [rankQuery.isSuccess, activeName, pick?.model_name, pick?.reasoning, pick?.provider])
 
-  const handleSelectProfile = useCallback((slug: string, scaleIndex: number | null) => {
+  const handleSelectProfile = useCallback((slug: string) => {
     setSelectedIndex(0)
-    if (scaleIndex !== null) setStop(scaleIndex)
     // overrides clear + re-seed happens in the effect keyed on activeSlug
     setActiveSlug(slug)
   }, [])
 
-  // Menu-bar right-click → profile quick-select (traymenu.go emits
-  // "tray:profile"). Same entry point as clicking a stop on the scale; profiles
-  // that are not on the complexity scale leave the scale position alone.
+  // Native tray selections use the same use-case selection path.
   useEffect(
     () =>
       onTrayProfile((slug) => {
-        const scaleIndex = scale.indexOf(slug)
-        handleSelectProfile(slug, scaleIndex === -1 ? null : scaleIndex)
+        handleSelectProfile(slug)
       }),
-    [scale, handleSelectProfile],
+    [handleSelectProfile],
   )
 
   const handleCustomWeights = useCallback(() => {
@@ -295,13 +290,17 @@ export function PopoverApp() {
   const header = <PopoverHeader catalogLine={catalogLine} />
 
   const body =
-    tab === 'profiles' ? (
+    profilesQuery.isError || userProfilesQuery.isError || settingsQuery.isError ? (
+      <div className="lv-use-case" role="alert">Could not load use cases. Reopen the popover to retry.</div>
+    ) : !userProfile || seededProfile !== userProfile.slug || !activeSlug ? (
+      <div className="lv-use-case">Loading use cases…</div>
+    ) : tab === 'profiles' ? (
       <LandingView
         profiles={profiles}
-        scale={scale}
+        key={userProfile?.slug}
+        userProfile={userProfile}
         activeSlug={activeSlug}
         activeName={activeName}
-        stop={stop}
         overridesHash={overridesHash}
         onSelectProfile={handleSelectProfile}
         index={selectedIndex}
@@ -336,6 +335,7 @@ export function PopoverApp() {
 
   return (
     <PopoverShell header={header}>
+      <ProfileSelector />
       <PopoverTabs tab={tab} onTab={setTabOverride} />
       {body}
       {/* Tab-independent: Settings + Launch stay put on both tabs. Only the
@@ -354,7 +354,7 @@ export function PopoverApp() {
   )
 }
 
-// U06 weights actions: Copy model id + Save as profile. They sit in the
+// U06 weights actions: Copy model id + Save as use case. They sit in the
 // weights editor's action row — the footer is the same on both tabs.
 function WeightsActions({
   baseProfile,
@@ -414,7 +414,7 @@ function WeightsActions({
           is the one action that only makes sense here, at the action row's
           `xs` scale, bordered as this tab's committing action. */}
       <Button variant="secondary" size="xs" disabled={saving} onClick={() => void handleSave()}>
-        Save as profile
+        Save as use case
       </Button>
     </>
   )

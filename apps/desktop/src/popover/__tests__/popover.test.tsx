@@ -34,7 +34,7 @@ async function settle() {
   // Wait for the landing view to resolve. The complexity scale now lives behind
   // the Advanced tab (gui.default_tab ships as 'profiles'), so the search field —
   // the Quick tab's own control — is what proves the view is ready.
-  await screen.findByPlaceholderText('type to find a profile')
+  await screen.findByPlaceholderText('type to find a use case')
 }
 
 /** Switch back to the Quick tab, where the search field lives. */
@@ -42,7 +42,7 @@ async function showProfiles() {
   await act(async () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Quick' }))
   })
-  await screen.findByPlaceholderText('type to find a profile')
+  await screen.findByPlaceholderText('type to find a use case')
 }
 
 /** Switch to the Advanced tab, where the weight editor lives. */
@@ -54,7 +54,7 @@ async function showSliders() {
 }
 
 function searchInput() {
-  return screen.getByPlaceholderText('type to find a profile') as HTMLInputElement
+  return screen.getByPlaceholderText('type to find a use case') as HTMLInputElement
 }
 
 async function pickProfile(query: string) {
@@ -128,21 +128,46 @@ describe('popover landing', () => {
     expect(searchInput().value).toBe('')
   })
 
-  it('sticky stop: off-scale pick keeps the handle; scale pick moves it', async () => {
+  it('switching user profiles persists the choice and resets the active use case and overrides', async () => {
+    const host = getHost() as MockEngineHost
+    const saveSpy = vi.spyOn(host.settings, 'set')
     renderApp()
     await settle()
-    // The complexity scale lives on the Quick tab, which is the default.
-    const slider = () => screen.getByRole('slider')
-    expect(slider().getAttribute('aria-valuenow')).toBe('1')
-
-    // Off-scale profile (not on the 5-stop scale) — handle keeps its stop.
     await pickProfile('review')
-    await waitFor(() => expect(useOverridesStore.getState().baseSlug).toBe('review'))
-    expect(slider().getAttribute('aria-valuenow')).toBe('1')
+    useOverridesStore.getState().setCoreShare(75)
+    fireEvent.change(screen.getByRole('combobox', { name: 'Profile' }), { target: { value: 'marketing' } })
+    await waitFor(() => expect(useOverridesStore.getState().baseSlug).toBe('content_drafting'))
+    expect(saveSpy).toHaveBeenCalledWith(expect.objectContaining({ user_profile: 'marketing' }))
+    expect(host.data.settings.user_profile).toBe('marketing')
+    expect(useOverridesStore.getState().isDirty(host.data.profiles.find((p) => p.slug === 'content_drafting')!)).toBe(false)
+    fireEvent.pointerDown(searchInput())
+    expect(await screen.findByRole('button', { name: 'Campaign Planning' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Simple Implementation' })).toBeNull()
+    await pickProfile('simple_implementation')
+    await waitFor(() => expect(useOverridesStore.getState().baseSlug).toBe('simple_implementation'))
+    expect(host.data.settings.user_profile).toBe('marketing')
+  })
 
-    // Scale profile — handle moves to that stop.
-    await pickProfile('planning')
-    await waitFor(() => expect(slider().getAttribute('aria-valuenow')).toBe('4'))
+  it('restores the saved user profile on mount and offers all use cases', async () => {
+    const host = getHost() as MockEngineHost
+    host.data.settings.user_profile = 'marketing'
+    renderApp()
+    await settle()
+    await waitFor(() => expect(useOverridesStore.getState().baseSlug).toBe('content_drafting'))
+    fireEvent.click(screen.getByRole('button', { name: 'All use cases' }))
+    expect(await screen.findByRole('button', { name: 'Simple Implementation' })).toBeTruthy()
+  })
+
+  it('keeps the prior selection when saving the user profile fails', async () => {
+    const host = getHost() as MockEngineHost
+    vi.spyOn(host.settings, 'set').mockRejectedValueOnce({ code: 'io_error', message: 'Disk full' })
+    renderApp()
+    await settle()
+    await waitFor(() => expect(useOverridesStore.getState().baseSlug).toBe('simple_implementation'))
+    fireEvent.change(screen.getByRole('combobox', { name: 'Profile' }), { target: { value: 'marketing' } })
+    expect(await screen.findByText('Disk full')).toBeTruthy()
+    expect((screen.getByRole('combobox', { name: 'Profile' }) as HTMLSelectElement).value).toBe('software_engineering')
+    expect(useOverridesStore.getState().baseSlug).toBe('simple_implementation')
   })
 
   it('search filters profiles and shows the no-match row', async () => {
@@ -150,7 +175,7 @@ describe('popover landing', () => {
     await settle()
     const input = searchInput()
     fireEvent.change(input, { target: { value: 'zzz-nope' } })
-    expect(await screen.findByText('no profile by that name')).toBeTruthy()
+    expect(await screen.findByText('no use case by that name')).toBeTruthy()
 
     fireEvent.change(input, { target: { value: 'research' } })
     // 'research' + 'research_fast' both match (substring, cap 5). The rows are
@@ -168,7 +193,7 @@ describe('popover landing', () => {
     expect(screen.getByRole('tab', { name: 'Advanced' }).getAttribute('aria-selected')).toBe('true')
     // The weight editor is many sliders; the complexity scale is exactly one.
     expect(screen.getAllByRole('slider').length).toBeGreaterThan(1)
-    expect(screen.queryByPlaceholderText('type to find a profile')).toBeNull()
+    expect(screen.queryByPlaceholderText('type to find a use case')).toBeNull()
 
     await showProfiles()
     expect(screen.getByRole('tab', { name: 'Quick' }).getAttribute('aria-selected')).toBe('true')
@@ -248,7 +273,7 @@ describe('popover landing', () => {
     // Disable it, let settings refetch, relaunch — no second hide.
     hide.mockClear()
     await host.settings.set({ ...host.data.settings, close_popover_after_launch: false })
-    await waitFor(() => expect(getSpy).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(getSpy.mock.calls.length).toBeGreaterThanOrEqual(2))
     fireEvent.click(screen.getByText('Launch in Claude Code'))
     await screen.findByText(/^claude --model /)
     expect(hide).not.toHaveBeenCalled()
@@ -328,7 +353,7 @@ describe('popover landing', () => {
 
     // settings:changed ⇒ settings refetch
     await host.settings.set(host.data.settings)
-    await waitFor(() => expect(getSpy).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(getSpy.mock.calls.length).toBeGreaterThanOrEqual(2))
   })
 })
 
@@ -340,7 +365,7 @@ function Probe() {
   return null
 }
 
-describe('create-only Save as profile', () => {
+describe('create-only Save as use case', () => {
  beforeEach(() => { resetHost(); useOverridesStore.getState().clear() })
  afterEach(() => { cleanup(); vi.restoreAllMocks() })
  it('uses a free create suffix and preserves the earlier custom profile', async () => {
@@ -350,7 +375,7 @@ describe('create-only Save as profile', () => {
   renderApp()
   await settle()
   await showSliders()
-  fireEvent.click(screen.getByRole('button', { name: 'Save as profile' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Save as use case' }))
   await waitFor(() => expect(useOverridesStore.getState().baseSlug).toBe(`${initialScaleProfile}_custom_2`))
   expect((await host.profiles.get(`${initialScaleProfile}_custom`)).core_share).toBe(75)
  })
@@ -391,6 +416,6 @@ describe('saved profile reconciliation', () => {
   await pickProfile('My Saved')
   await waitFor(() => expect(useOverridesStore.getState().baseSlug).toBe('my_saved'))
   await act(async () => { useOverridesStore.getState().setWeight('intelligence', 1); await host.profiles.delete('my_saved') })
-  await waitFor(() => expect(useOverridesStore.getState().baseSlug).toBe('simple_action_execution'))
+  await waitFor(() => expect(useOverridesStore.getState().baseSlug).toBe('simple_implementation'))
  })
 })

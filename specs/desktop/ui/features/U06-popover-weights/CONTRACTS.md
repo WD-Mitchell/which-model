@@ -93,3 +93,7 @@ Save as profile snapshots the current draft and uses the create-only API, retryi
 The overrides store retains a cloned saved baseline. `isDirty` compares weights to that baseline, so the render before a refetch reconciliation cannot send old clean weights as new overrides. `reconcile(profile)` seeds new saved data only when clean or switching identity; dirty edits retain their baseline and values. Revert seeds the newest fetched profile. A deleted active custom profile clears overrides and selects the first available complexity-scale profile. Config and pick events invalidate mounted profile details as well as summaries.
 
 Pinned regressions: external Save refreshes clean controls without a stale override request; dirty values survive the same event; Revert uses the new persisted values; deleting the active custom profile selects a valid fallback; event tests refetch profile details and updated pick counts.
+
+## Correction (2026-09-05)
+
+The Profiles / Use Cases correction in `specs/desktop/backend/features/B03-profiles/SPEC.md` governs the new persisted profile selection and desktop terminology. The DTO extension is canonical in `specs/desktop/global/CONTRACTS.md`. Settings navigation now has both Profiles (curated defaults) and Use Cases (ranking presets).

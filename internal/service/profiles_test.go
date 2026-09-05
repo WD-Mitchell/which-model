@@ -14,10 +14,10 @@ func TestProfileListCanon(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) < 11 || got[0].Slug != "balanced_implementation" || got[10].Slug != "ui_ux" {
+	if len(got) != 16 || got[0].Slug != "balanced_implementation" || got[15].Slug != "ui_ux" {
 		t.Fatalf("unexpected built-in order/count: %d %#v", len(got), got)
 	}
-	for _, d := range got[:11] {
+	for _, d := range got {
 		if !d.Builtin {
 			t.Errorf("%s not builtin", d.Slug)
 		}
