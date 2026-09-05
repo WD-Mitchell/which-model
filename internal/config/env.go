@@ -111,7 +111,7 @@ func ApplyEnv(c *Config, getenv func(string) string, environ []string) error {
 			continue
 		}
 		name := entry[:equal]
-		if !strings.HasPrefix(name, "WHICH_MODEL_") || runtimeEnvKeys[name] {
+		if !strings.HasPrefix(name, "WHICH_MODEL_") || runtimeEnvKeys[name] || isAuthRuntimeEnv(name) {
 			continue
 		}
 		rest := strings.ToLower(strings.TrimPrefix(name, "WHICH_MODEL_"))

@@ -77,6 +77,17 @@ Source: `docs/plan/annex-d-cli-reference.md` §1.1a (env prefix), §1.2 (`--conf
 
 F29 owns `WHICH_MODEL_TASK_PROFILE`, `WHICH_MODEL_CANDIDATE_ID`, and `WHICH_MODEL_DISPATCHED_MODEL`. `ApplyEnv` excludes those exact names from configuration overrides, preserving their values for hooks without saving them in TOML. Unknown prefixed names and misspellings still fail eagerly. This lets the real `explain` command run under dispatch correlation variables.
 
+## Review correction (#176)
+
+F15's `WHICH_MODEL_CLAUDE_OAUTH_TOKEN` and F25's
+`WHICH_MODEL_NONINTERACTIVE` are exact reserved runtime inputs. Configuration
+loading accepts them without decoding, storing, rendering, or changing their
+values; their owning credential/login layers consume them. Other prefixed names,
+including misspellings, retain strict rejection. The
+`TestLoadLeavesDocumentedAuthRuntimeEnvironmentToItsOwner` regression verifies
+this separation and prevents credential values appearing in saved TOML.
+This corrects native credential discovery being rejected during configuration loading.
+
 
 ### Environment rendering correction (#167)
 

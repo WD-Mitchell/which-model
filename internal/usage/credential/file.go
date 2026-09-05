@@ -38,7 +38,11 @@ type FileResolver struct {
 // Credential for permission-warning purposes (SPEC §3).
 func (r *FileResolver) Resolve(ctx context.Context) (usage.Credential, error) {
 	r.lastWarnings = nil
-	for _, path := range r.Paths {
+	for _, candidate := range r.Paths {
+		path, usable := expandCredentialPath(candidate)
+		if !usable {
+			continue
+		}
 		// A nonexistent path is "no candidate from this source — try the
 		// next path"; every other read/stat failure is a hard
 		// credential_file error (SPEC §3).
@@ -88,6 +92,32 @@ func (r *FileResolver) Resolve(ctx context.Context) (usage.Credential, error) {
 		return Credential{Token: token, Extra: extra, Source: usage.AuthFile, Mode: uint32(mode.Perm())}, nil
 	}
 	return Credential{}, ErrNotFound
+}
+
+// expandCredentialPath expands descriptor placeholders without a shell. Values
+// inserted from the environment and home directory are literal, never expanded
+// recursively. An absent variable invalidates the whole candidate.
+func expandCredentialPath(path string) (string, bool) {
+	homePrefix := strings.HasPrefix(path, "~/")
+	usable := true
+	path = os.Expand(path, func(name string) string {
+		value, ok := os.LookupEnv(name)
+		if !ok || value == "" {
+			usable = false
+		}
+		return value
+	})
+	if !usable {
+		return "", false
+	}
+	if homePrefix {
+		home, err := os.UserHomeDir()
+		if err != nil || home == "" {
+			return "", false
+		}
+		path = home + path[1:]
+	}
+	return path, path != ""
 }
 
 // checkExpiry extracts the ExpiryPath value and fails closed
