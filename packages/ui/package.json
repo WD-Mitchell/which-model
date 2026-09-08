@@ -30,7 +30,7 @@
     "@types/react-dom": "^19.2.5",
     "@which-model/core": "workspace:*",
     "jsdom": "^30.0.1",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "vitest": "^3.2.4"
   }
 }
