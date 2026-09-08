@@ -121,3 +121,13 @@ behavior and pinned validation cases are in
 are extended in `specs/desktop/global/CONTRACTS.md` §Profiles / Use Cases extension.
 
 `config:changed` additionally invalidates `['profile']` by prefix so saved use-case weights refresh detail and override baselines in both windows.
+
+
+## Review regression rows — #234
+
+| Case | Required result |
+|---|---|
+| Another window saves `holds = 1` while the settings refetch is pending, then user selects Marketing | Persist Marketing with `holds = 1`; do not copy stale cached settings |
+| Settings read or write fails during profile selection | Keep the prior selection; show the error |
+| Save as use case completes before the profiles list refetch | Keep the new use case selected before and after list refresh |
+| Selected custom use case is deleted | Confirm `not_found` from the detail query and select the work profile default |

@@ -87,7 +87,9 @@ export function PopoverApp() {
   const [seededProfile, setSeededProfile] = useState('')
   useEffect(() => {
     if (!userProfile || !profiles.length) return
-    if (seededProfile !== userProfile.slug || !profiles.some((p) => p.slug === activeSlug)) {
+    // A newly created use case may not be in the list cache yet. Only the
+    // detail query's confirmed not_found response below resets a missing slug.
+    if (seededProfile !== userProfile.slug) {
       setActiveSlug(userProfile.default_use_case)
       setSelectedIndex(0)
       setSeededProfile(userProfile.slug)

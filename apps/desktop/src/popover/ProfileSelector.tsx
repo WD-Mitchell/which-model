@@ -20,10 +20,13 @@ export function ProfileSelector() {
         disabled={!settings || !profiles || saving}
         onChange={async (e) => {
           if (!settings) return
-          const next = { ...settings, user_profile: e.target.value }
+          const userProfile = e.target.value
           setSaving(true)
           try {
-            await getHost().settings.set(next)
+            const host = getHost()
+            const saved = await host.settings.get()
+            const next = { ...saved, user_profile: userProfile }
+            await host.settings.set(next)
             client.setQueryData(['settings'], next)
           } catch (err) {
             toast.show((err as { message?: string }).message ?? 'Could not save profile')

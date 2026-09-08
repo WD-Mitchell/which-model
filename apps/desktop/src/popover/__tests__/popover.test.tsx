@@ -419,3 +419,56 @@ describe('saved profile reconciliation', () => {
   await waitFor(() => expect(useOverridesStore.getState().baseSlug).toBe('simple_implementation'))
  })
 })
+
+
+describe('use-case selection during cache refresh', () => {
+  beforeEach(() => { resetHost(); useOverridesStore.getState().clear() })
+  afterEach(() => { cleanup(); vi.restoreAllMocks() })
+  it('keeps a newly saved use case selected while the list is refetching', async () => {
+    const host = getHost() as MockEngineHost
+    renderApp()
+    await settle()
+    await showSliders()
+    const originalList = host.profiles.list.bind(host.profiles)
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    vi.spyOn(host.profiles, 'list').mockImplementation(async () => { await gate; return originalList() })
+    fireEvent.click(screen.getByRole('button', { name: 'Save as use case' }))
+    await screen.findByText('saved as simple_implementation_custom')
+    await settle()
+    const selected = document.querySelector('.lv-use-case h2')?.textContent
+    await act(async () => { release(); await gate })
+    expect(selected).toMatch(/custom/i)
+    await waitFor(() => expect(useOverridesStore.getState().baseSlug).toBe('simple_implementation_custom'))
+  })
+  it('preserves settings changed in another window before the cache refetch completes', async () => {
+    const host = getHost() as MockEngineHost
+    renderApp()
+    await settle()
+    const originalGet = host.settings.get.bind(host.settings)
+    const saved = await originalGet()
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    vi.spyOn(host.settings, 'get').mockImplementationOnce(async () => { await gate; return originalGet() })
+    await act(async () => { await host.settings.set({ ...saved, holds: 1 }) })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Profile' }), { target: { value: 'marketing' } })
+    await waitFor(() => expect(host.data.settings.user_profile).toBe('marketing'))
+    const actualHolds = host.data.settings.holds
+    await act(async () => { release(); await gate })
+    expect(actualHolds).toBe(1)
+  })
+
+  it('keeps the profile unchanged when reading the latest settings fails', async () => {
+    const host = getHost() as MockEngineHost
+    renderApp()
+    await settle()
+    vi.spyOn(host.settings, 'get').mockRejectedValueOnce({ code: 'io_error', message: 'Settings unavailable' })
+    const save = vi.spyOn(host.settings, 'set')
+    fireEvent.change(screen.getByRole('combobox', { name: 'Profile' }), { target: { value: 'marketing' } })
+    await screen.findByText('Settings unavailable')
+    expect(save).not.toHaveBeenCalled()
+    expect(host.data.settings.user_profile).toBe('software_engineering')
+    expect((screen.getByRole('combobox', { name: 'Profile' }) as HTMLSelectElement).value).toBe('software_engineering')
+  })
+
+})
