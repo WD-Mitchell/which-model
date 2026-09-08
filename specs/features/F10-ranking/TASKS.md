@@ -29,7 +29,7 @@ graph TD
     T5 --> T7
 ```
 
-## Task F10-T1: Create package skeleton, axes, and the 11 built-in profiles
+## Task F10-T1: Create package skeleton, axes, and the 16 built-in use cases
 
 **Depends on:** none (uses `catalog.Profile` and `catalog.ScoreRow` from `specs/global/CONTRACTS.md §2.1/§4.3`, already produced by F02/F09 dependencies per `specs/DEPENDENCY-GRAPH.md`)
 
@@ -46,11 +46,11 @@ graph TD
 
 **Instructions:**
 1. Write `internal/pick/profile_test.go` FIRST. It must reference `pick.Profiles`, `pick.ValidateProfile`, `pick.Tier1ScoreColumn`, `pick.CategoryNames`, and `catalog.Profile` — the package will not compile yet (TDD: watch the compile failure).
-2. Test 1 `TestBuiltinProfilesAreValid`: assert `len(Profiles) == 11`; for every entry assert `ValidateProfile(p) == nil`; assert every tier-1 weight key set equals `{intelligence, cost, speed}` and every tier-2 key is a member of `CategoryNames` (reuse `ValidateProfile` plus one direct key-set check per the Python test `test_all_profiles_have_positive_mandatory_tier_one_weights`).
+2. Test 1 `TestBuiltinProfilesAreValid`: assert `len(Profiles) == 16`; for every entry assert `ValidateProfile(p) == nil`; assert every tier-1 weight key set equals `{intelligence, cost, speed}` and every tier-2 key is a member of `CategoryNames` (reuse `ValidateProfile` plus one direct key-set check per the Python test `test_all_profiles_have_positive_mandatory_tier_one_weights`).
 3. Test 2 `TestPlanningProfileWeights`: `Profiles["planning"].Tier2Weights` equals `{"planning_capability": decimal.NewFromInt(5)}`; `Tier1Share`/`Tier2Share` equal 60/40.
 4. Test 3 `TestOrchestrationProfileWeights`: `Profiles["orchestration"]` has shares 60/40, `Tier1Weights == {intelligence:5, cost:5, speed:4}`, `Tier2Weights == {planning_capability:5, instruction_following:5}`, and the set `{reasoning, knowledge, agentic_tools, research}` is disjoint from its tier-2 keys (mirrors `test_orchestration_profile_has_researched_weights_without_double_counting`).
 5. Now implement. `axes.go`: `Tier1Axis` type + 3 constants, `Tier1ScoreColumn`, `Tier1AxisOrder`, `CategoryNames` — copy the declarations from `specs/features/F10-ranking/CONTRACTS.md §1.1` character for character.
-6. `profiles.go`: the unexported helpers `func d(n int64) decimal.Decimal { return decimal.NewFromInt(n) }` and `func mustProfile(name string, tier1Share, tier2Share int64, tier1 map[string]int64, tier2 map[string]int64) catalog.Profile` that builds a `catalog.Profile` (string keys via `d`) and panics with `fmt.Sprintf("built-in profile %q is invalid: %v", name, err)` when `ValidateProfile` fails (annex-b §5.1); a PLACEHOLDER-ONLY stub `func ValidateProfile(p catalog.Profile) error { return nil }` — F10-T2 replaces it with the real rules (TDD: the built-ins must compile and pass the vacuous stub today); and `var Profiles = map[string]catalog.Profile{...}` with the 11 entries and literal weights from `specs/features/F10-ranking/CONTRACTS.md §2.2` (e.g. `"simple_implementation": mustProfile("simple_implementation", 80, 20, map[string]int64{"intelligence": 1, "cost": 5, "speed": 5}, map[string]int64{"instruction_following": 5})`).
+6. `profiles.go`: the unexported helpers `func d(n int64) decimal.Decimal { return decimal.NewFromInt(n) }` and `func mustProfile(name string, tier1Share, tier2Share int64, tier1 map[string]int64, tier2 map[string]int64) catalog.Profile` that builds a `catalog.Profile` (string keys via `d`) and panics with `fmt.Sprintf("built-in profile %q is invalid: %v", name, err)` when `ValidateProfile` fails (annex-b §5.1); a PLACEHOLDER-ONLY stub `func ValidateProfile(p catalog.Profile) error { return nil }` — F10-T2 replaces it with the real rules (TDD: the built-ins must compile and pass the vacuous stub today); and `var Profiles = map[string]catalog.Profile{...}` with the 16 entries (including the 2026-09-05 correction) and literal weights from `specs/features/F10-ranking/CONTRACTS.md §2.2` (e.g. `"simple_implementation": mustProfile("simple_implementation", 80, 20, map[string]int64{"intelligence": 1, "cost": 5, "speed": 5}, map[string]int64{"instruction_following": 5})`).
 7. Run `go build ./internal/pick/...` then `go test ./internal/pick/...`.
 
 **Test cases (write these first):**

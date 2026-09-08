@@ -19,12 +19,14 @@ import type {
   RankResponse,
   ShellSnippets,
   UsageDTO,
+  UserProfile,
 } from './types.js'
 import type { EngineEvent } from './events.js'
 
 // EngineHost — verbatim from D00 CONTRACTS §5. Shape changes only via D00.
 export interface EngineHost {
   profiles: {
+    userProfiles(): Promise<UserProfile[]>
     list(): Promise<ProfileSummary[]>
     get(slug: string): Promise<ProfileDetail>
     create(p: ProfileDetail): Promise<void>

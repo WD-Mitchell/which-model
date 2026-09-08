@@ -1,6 +1,52 @@
 import { extractMaker } from './modelMaker.js';
 export { extractMaker } from './modelMaker.js';
 import { EngineError } from './errors.js';
+const USER_PROFILES = [
+    {
+        "slug": "software_engineering",
+        "name": "Software Engineering",
+        "description": "Build, review and maintain software.",
+        "default_use_case": "simple_implementation",
+        "use_case_slugs": [
+            "simple_implementation",
+            "balanced_implementation",
+            "complex_implementation",
+            "review",
+            "ui_ux",
+            "planning",
+            "orchestration",
+            "research"
+        ]
+    },
+    {
+        "slug": "marketing",
+        "name": "Marketing",
+        "description": "Create content, research audiences and plan campaigns.",
+        "default_use_case": "content_drafting",
+        "use_case_slugs": [
+            "content_drafting",
+            "content_editing",
+            "market_research",
+            "campaign_planning",
+            "marketing_analysis"
+        ]
+    },
+    {
+        "slug": "general",
+        "name": "General",
+        "description": "Research, writing, planning and everyday tasks.",
+        "default_use_case": "research",
+        "use_case_slugs": [
+            "research",
+            "content_drafting",
+            "content_editing",
+            "planning",
+            "simple_action_execution",
+            "complex_action_execution",
+            "financial_work"
+        ]
+    }
+];
 // Fixed base clock — the package contains no Date.now() and no randomness.
 export const MOCK_NOW = '2026-01-01T12:00:00Z';
 const clone = (v) => structuredClone(v);
@@ -64,11 +110,31 @@ function seedModels() {
         mkModel('Llama 5 405B', 'llama-5-405b', 'low', ['copilot'], [3.5, 5.0, 4.0], [3.5, 3.2, 3.6, 3.2, 3.4, 3.2, 3.2, 3.0, 3.2, 3.3, 3.1]),
     ];
 }
+const USE_CASE_DESCRIPTIONS = {
+    "simple_implementation": "Small code changes where cost and speed matter most.",
+    "balanced_implementation": "Everyday feature work with balanced quality, cost and speed.",
+    "complex_implementation": "Difficult implementation requiring reasoning and planning.",
+    "review": "Review code for correctness, instructions and security concerns.",
+    "ui_ux": "Implement and evaluate interfaces using code and visual evidence.",
+    "planning": "Break down complex work and reason about dependencies.",
+    "orchestration": "Coordinate tasks and tools with attention to cost and latency.",
+    "research": "Find information, combine evidence and answer research questions.",
+    "simple_action_execution": "Carry out straightforward tasks with tools.",
+    "complex_action_execution": "Carry out tasks with multiple tool interactions.",
+    "financial_work": "Analyse financial information and supporting evidence.",
+    "content_drafting": "Draft campaign copy, emails and social content from a brief.",
+    "content_editing": "Refine tone, structure and adherence to a content brief.",
+    "market_research": "Research audiences, competitors and market context.",
+    "campaign_planning": "Develop campaign plans, messaging and channel priorities.",
+    "marketing_analysis": "Interpret campaign data, spreadsheets and performance trends."
+};
 function mkProfile(slug, name, coreShare, [intelligence, cost, speed], tier2, picks, lastUsed) {
     return {
         slug,
         name,
         builtin: true,
+        description: USE_CASE_DESCRIPTIONS[slug],
+        evidence_note: ["content_drafting", "content_editing", "market_research", "campaign_planning", "marketing_analysis"].includes(slug) ? "Uses general capability benchmarks; marketing outcomes and brand voice are not directly measured." : undefined,
         core_share: coreShare,
         tier1_weights: { intelligence, cost, speed },
         tier2_weights: tier2,
@@ -85,6 +151,15 @@ const COMPLEXITY_SCALE = [
 ];
 function seedProfiles() {
     return [
+        mkProfile("content_drafting", "Content Drafting", 65, [3, 3, 4], { "instruction_following": 5, "knowledge": 2 }, 0, ''),
+        mkProfile("content_editing", "Content Editing", 60, [4, 3, 3], { "instruction_following": 5, "reasoning": 2 }, 0, ''),
+        mkProfile("market_research", "Market Research", 60, [4, 2, 2], { "research": 5, "knowledge": 3, "instruction_following": 3 }, 0, ''),
+        mkProfile("campaign_planning", "Campaign Planning", 60, [5, 2, 2], { "planning_capability": 5, "instruction_following": 4, "research": 3 }, 0, ''),
+        mkProfile("marketing_analysis", "Marketing Analysis", 60, [4, 2, 2], { "data_ml": 5, "reasoning": 4, "instruction_following": 3 }, 0, ''),
+        mkProfile("complex_implementation", "Complex Implementation", 60, [5, 1, 1], { "software_engineering": 5, "planning_capability": 4, "instruction_following": 2 }, 0, ''),
+        mkProfile("complex_action_execution", "Complex Action Execution", 60, [4, 2, 2], { "agentic_tools": 5, "instruction_following": 4, "evidence_capture": 2 }, 0, ''),
+        mkProfile("financial_work", "Financial Work", 60, [5, 1, 2], { "finance": 5, "knowledge": 4, "reasoning": 4, "research": 3, "instruction_following": 3 }, 0, ''),
+        mkProfile("orchestration", "Orchestration", 60, [5, 5, 4], { "planning_capability": 5, "instruction_following": 5 }, 0, ''),
         mkProfile('simple_action_execution', 'Simple Action', 75, [2, 5, 5], { instruction_following: 4, agentic_tools: 3 }, 312, '2026-01-01T11:48:00Z'),
         mkProfile('simple_implementation', 'Simple Implementation', 60, [4, 4, 3], { software_engineering: 4, instruction_following: 3, agentic_tools: 3 }, 1284, '2026-01-01T11:00:00Z'),
         mkProfile('balanced_implementation', 'Balanced Implementation', 70, [4, 3, 3], { software_engineering: 5, agentic_tools: 4, instruction_following: 3 }, 866, '2025-12-31T12:00:00Z'),
@@ -146,6 +221,7 @@ function seedSettings() {
     return {
         layout: 'carousel',
         default_tab: 'profiles',
+        user_profile: 'software_engineering',
         weight_control: 'slider',
         holds: 5,
         shortcut: 'alt+space',
@@ -475,6 +551,7 @@ export function createMockEngineHost(overrides) {
     const host = {
         data,
         profiles: {
+            async userProfiles() { return clone(USER_PROFILES); },
             async list() {
                 return clone(data.profiles);
             },
@@ -1110,6 +1187,9 @@ export function createMockEngineHost(overrides) {
                 return clone(data.settings);
             },
             async set(s) {
+                s = { ...s, user_profile: s.user_profile || "software_engineering" };
+                if (!USER_PROFILES.some((p) => p.slug === (s.user_profile || "software_engineering")))
+                    throw new EngineError("validation_failed", "Unknown profile");
                 const next = clone(s);
                 const key = next.aa_api_key.trim();
                 if (key === '-') {

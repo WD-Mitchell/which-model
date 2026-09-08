@@ -107,3 +107,13 @@
   color: var(--color-accent-200);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 30%, transparent);
 }
+
+.work-profile-selector { display: flex; align-items: center; gap: 12px; margin: 10px 16px; font-size: 12px; color: var(--color-neutral-400); }
+.work-profile-selector select { flex: 1; min-width: 0; border: 1px solid var(--color-divider); background: var(--color-bg); color: var(--color-text); padding: 7px 9px; border-radius: 6px; font: inherit; }
+.work-profile-selector select:focus-visible { outline: 2px solid var(--color-accent-400); outline-offset: 2px; }
+.lv-use-case { padding: 8px 16px 12px; }
+.lv-use-case h2 { font-size: 17px; font-weight: 500; color: var(--color-accent-300); margin: 12px 0 6px; }
+.lv-use-case p { font-size: 12px; color: var(--color-neutral-400); line-height: 1.5; margin: 0; }
+.lv-use-case .lv-evidence-note { font-size: 10px; margin-top: 8px; }
+.lv-use-case-scope { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 10px; color: var(--color-neutral-400); }
+.lv-use-case-scope button { font: inherit; color: var(--color-accent-300); background: transparent; border: 0; cursor: pointer; padding: 4px 0; }

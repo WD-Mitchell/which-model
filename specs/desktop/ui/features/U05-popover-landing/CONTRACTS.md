@@ -111,3 +111,23 @@ clear the native tray pick and pending launch state. Loading and failed
 requests preserve the last successful tray state. Do not publish results from
 a disabled query or a superseded request. This rule governs the popover-to-tray
 bridge as well as the S02 native host.
+
+## Correction — Profiles and Use Cases (2026-09-05)
+
+The user's requested distinction between Profiles and Use Cases supersedes the
+conflicting terminology and Quick complexity-scale behavior above. The governing
+behavior and pinned validation cases are in
+`specs/desktop/backend/features/B03-profiles/SPEC.md` §Correction. Canonical DTOs
+are extended in `specs/desktop/global/CONTRACTS.md` §Profiles / Use Cases extension.
+
+`config:changed` additionally invalidates `['profile']` by prefix so saved use-case weights refresh detail and override baselines in both windows.
+
+
+## Review regression rows — #234
+
+| Case | Required result |
+|---|---|
+| Another window saves `holds = 1` while the settings refetch is pending, then user selects Marketing | Persist Marketing with `holds = 1`; do not copy stale cached settings |
+| Settings read or write fails during profile selection | Keep the prior selection; show the error |
+| Save as use case completes before the profiles list refetch | Keep the new use case selected before and after list refresh |
+| Selected custom use case is deleted | Confirm `not_found` from the detail query and select the work profile default |

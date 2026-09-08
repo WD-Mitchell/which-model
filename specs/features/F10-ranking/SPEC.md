@@ -70,3 +70,26 @@ Depends on: F02, F09
 Partial rows include `Missing benchmark data: <axes>. Ranked using available scores.` with axis names in intelligence/cost/speed order. Existing category weighting and warnings remain unchanged. On equal total scores, the existing axis tie-break order remains; a published axis value sorts before a missing value, including published zero. Missing data is never replaced with zero for comparison.
 
 The user explicitly selected partial-data recommendations and then requested a Settings option. This opt-in policy supersedes the unconditional completeness rule only for callers passing AllowIncomplete=true. The desktop passes the saved setting on each request; ordinary CLI ranking stays strict.
+
+
+## Correction — Use-case catalogue (2026-09-05)
+
+User decision: add Marketing and Software Engineering profiles that group use
+cases. The engine's Profile remains the compatible ranking-preset type. Its
+catalogue now contains 16 built-ins: the previous eleven unchanged plus these
+five initial heuristic presets. No claim of calibrated marketing performance is
+made. Membership and descriptions are defined by desktop B03.
+
+| Slug | Core/task shares | Core weights | Task weights |
+|---|---|---|---|
+| content_drafting | 65/35 | "intelligence": 3, "cost": 3, "speed": 4 | "instruction_following": 5, "knowledge": 2 |
+| content_editing | 60/40 | "intelligence": 4, "cost": 3, "speed": 3 | "instruction_following": 5, "reasoning": 2 |
+| market_research | 60/40 | "intelligence": 4, "cost": 2, "speed": 2 | "research": 5, "knowledge": 3, "instruction_following": 3 |
+| campaign_planning | 60/40 | "intelligence": 5, "cost": 2, "speed": 2 | "planning_capability": 5, "instruction_following": 4, "research": 3 |
+| marketing_analysis | 60/40 | "intelligence": 4, "cost": 2, "speed": 2 | "data_ml": 5, "reasoning": 4, "instruction_following": 3 |
+
+Desktop use cases retain the existing category-aware validation and partial-data
+policy. B03 validates with `ValidateProfileWithCategories`; B04 ranks with
+`RankWithOptions`, passing canonical categories union configured group slugs and
+the saved incomplete-recommendation preference. No additional ranking API is
+introduced by the new taxonomy.

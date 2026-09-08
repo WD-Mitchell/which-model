@@ -59,7 +59,7 @@ func main() {
 	var refresh func()
 	bridge := newEmitBridge(func(name string) {
 		switch name {
-		case service.EventPickRecorded, service.EventConfigChanged, service.EventCatalogChanged:
+		case service.EventPickRecorded, service.EventConfigChanged, service.EventCatalogChanged, service.EventSettingsChanged:
 			if refresh != nil {
 				refresh()
 			}

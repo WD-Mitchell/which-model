@@ -52,3 +52,8 @@ Inherits `specs/desktop/global/*` and `specs/desktop/ui/*`. Depends on: U01 (typ
 - Page content, list rows, detail bodies, page actions' effects — U08–U14 (they receive `openDetail`/`closeDetail` and the `PAGE_META` action label only).
 - Window creation, sizing (820×520), show/hide lifecycle — S03; `closeSettings` binding — S04.
 - Popover shell — U05.
+
+
+## Correction (2026-09-05)
+
+The Profiles / Use Cases correction in `specs/desktop/backend/features/B03-profiles/SPEC.md` governs the new persisted profile selection and desktop terminology. The DTO extension is canonical in `specs/desktop/global/CONTRACTS.md`. Settings navigation now has both Profiles (curated defaults) and Use Cases (ranking presets).

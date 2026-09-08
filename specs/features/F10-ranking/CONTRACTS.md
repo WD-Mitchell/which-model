@@ -261,3 +261,26 @@ func RankWithOptions(rows []catalog.ScoreRow, profile catalog.Profile, available
 Default false preserves existing entry points. True excludes missing axes from both numerator and denominator, retains measured zero, and emits `Missing benchmark data: <axes>. Ranked using available scores.`. No published core axes still excludes. Tie-breaks compare presence before numeric value for each existing core-axis tie-break key.
 
 Pinned tests: unequal intelligence/cost weights with missing speed yield the weighted mean over intelligence/cost only; measured-zero-only row ranks; all-core-blank row excludes; published-zero intelligence wins its tie-break over missing intelligence; default strict entry points retain their existing exclusion tests.
+
+
+## Correction — Use-case catalogue (2026-09-05)
+
+User decision: add Marketing and Software Engineering profiles that group use
+cases. The engine's Profile remains the compatible ranking-preset type. Its
+catalogue now contains 16 built-ins: the previous eleven unchanged plus these
+five initial heuristic presets. No claim of calibrated marketing performance is
+made. Membership and descriptions are defined by desktop B03.
+
+| Slug | Core/task shares | Core weights | Task weights |
+|---|---|---|---|
+| content_drafting | 65/35 | "intelligence": 3, "cost": 3, "speed": 4 | "instruction_following": 5, "knowledge": 2 |
+| content_editing | 60/40 | "intelligence": 4, "cost": 3, "speed": 3 | "instruction_following": 5, "reasoning": 2 |
+| market_research | 60/40 | "intelligence": 4, "cost": 2, "speed": 2 | "research": 5, "knowledge": 3, "instruction_following": 3 |
+| campaign_planning | 60/40 | "intelligence": 5, "cost": 2, "speed": 2 | "planning_capability": 5, "instruction_following": 4, "research": 3 |
+| marketing_analysis | 60/40 | "intelligence": 4, "cost": 2, "speed": 2 | "data_ml": 5, "reasoning": 4, "instruction_following": 3 |
+
+Desktop use cases retain the existing category-aware validation and partial-data
+policy. B03 validates with `ValidateProfileWithCategories`; B04 ranks with
+`RankWithOptions`, passing canonical categories union configured group slugs and
+the saved incomplete-recommendation preference. No additional ranking API is
+introduced by the new taxonomy.

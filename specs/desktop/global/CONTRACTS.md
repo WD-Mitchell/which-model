@@ -419,3 +419,28 @@ Rejected promises carry `ErrorDTO`. `MockEngineHost` (`packages/core/src/mock.ts
 ### Catalog provider identity correction
 
 Harness discovery reads real models.dev provider ids such as `alibaba-token-plan` and `zai-coding-plan`. Route identity accepts hyphens in provider ids, matching B06 discovery; shell punctuation and empty ids remain invalid. This corrects the original builtin-only provider grammar. Harness slugs retain their separate `[a-z0-9_]+` rule.
+
+
+## Profiles / Use Cases extension (2026-09-05)
+
+User decision: Profiles group use cases; existing task-profile identifiers and
+wire/config keys remain compatibility identifiers. See
+`specs/desktop/backend/features/B03-profiles/SPEC.md` correction for behavior.
+
+```go
+type UserProfile struct {
+    Slug string `json:"slug"`
+    Name string `json:"name"`
+    Description string `json:"description"`
+    UseCaseSlugs []string `json:"use_case_slugs"`
+    DefaultUseCase string `json:"default_use_case"`
+}
+```
+
+`ProfileSummary` additionally carries optional `description` and `evidence_note`
+strings (Go `omitempty`, TS optional). `GUISettings` adds `user_profile: string`;
+`GUIConfig` persists it at `gui.user_profile`, default `software_engineering`.
+Allowed values: `software_engineering`, `marketing`, `general`.
+`EngineHost.profiles.userProfiles(): Promise<UserProfile[]>` maps to
+`ProfilesAPI.UserProfiles() ([]service.UserProfile, error)`. No mutation API is
+needed for curated built-ins; selection uses the existing atomic Settings.Set.

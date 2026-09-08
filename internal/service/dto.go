@@ -33,6 +33,8 @@ var reasoningLevels = map[string]bool{
 // (the TOML stores only weights 1–5; 0-valued keys are removed on save).
 // CoreShare is the tier-1 share as an integer percent, clamped 10..90, step 5.
 type ProfileSummary struct {
+	Description  string         `json:"description,omitempty"`
+	EvidenceNote string         `json:"evidence_note,omitempty"`
 	Slug         string         `json:"slug"`
 	Name         string         `json:"name"`
 	Builtin      bool           `json:"builtin"`
@@ -285,6 +287,7 @@ type Favourite struct {
 
 // GUISettings is the settings-page aggregate for [gui] plus [auth].use_keychain.
 type GUISettings struct {
+	UserProfile                    string `json:"user_profile"`
 	Layout                         string `json:"layout"`         // "carousel"|"list"
 	DefaultTab                     string `json:"default_tab"`    // "profiles"|"sliders"
 	WeightControl                  string `json:"weight_control"` // "step"|"bar"|"slider"

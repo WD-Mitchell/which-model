@@ -144,3 +144,8 @@ All tests: vitest + `@testing-library/react`, host = `createMockEngineHost()` fr
 | `main-settings` smoke (in `SettingsApp.test`) | rendering the root tree provides ToastProvider + QueryClient (a stub page calling `useToast` and `useHost` does not throw) |
 
 Verify: `pnpm --filter desktop test -- settings` (plus `pnpm -r typecheck`).
+
+
+## Correction (2026-09-05)
+
+The Profiles / Use Cases correction in `specs/desktop/backend/features/B03-profiles/SPEC.md` governs the new persisted profile selection and desktop terminology. The DTO extension is canonical in `specs/desktop/global/CONTRACTS.md`. Settings navigation now has both Profiles (curated defaults) and Use Cases (ranking presets).

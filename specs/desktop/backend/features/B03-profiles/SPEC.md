@@ -81,3 +81,56 @@ before decoding unrelated stored profiles. Create reports conflict for built-in
 slugs, validates request fields, then checks custom occupancy under the same
 write lock. Malformed stored profiles cannot mask an intrinsic request error.
 Pin `TestProfileRequestErrorsPrecedeStoredProfileDecode`.
+
+
+## Correction — Profiles and Use Cases (2026-09-05)
+
+Decision: the user's request distinguishes a work profile (Marketing, Software
+Engineering) from a task's ranking weights. This section supersedes conflicting
+profile terminology and the Quick tab's fixed complexity scale above.
+
+- Existing task presets are called **Use Cases** throughout the desktop. Their
+  slugs, `[profiles.*]` persistence, `--profile` flag, ranking/history DTO keys,
+  and `EngineHost.profiles` remain compatible. No saved weights are migrated or
+  overwritten. The engine's canonical `catalog.Profile` remains unchanged.
+- **Profiles** select a curated, ordered default set of use cases. They do not
+  add another scoring weight. Three built-ins ship: Software Engineering,
+  Marketing, and General. `gui.user_profile` persists the selected slug; an
+  absent/empty value defaults to `software_engineering`. Unknown values fail
+  validation without changing saved state.
+- `Profiles().UserProfiles()` / `profiles.userProfiles()` returns fresh copies
+  of `UserProfile {slug, name, description, use_case_slugs, default_use_case}`.
+  Software Engineering: simple_implementation (default), balanced_implementation,
+  complex_implementation, review, ui_ux, planning, orchestration, research.
+  Marketing: content_drafting (default), content_editing, market_research,
+  campaign_planning, marketing_analysis. General: research (default),
+  content_drafting, content_editing, planning, simple_action_execution,
+  complex_action_execution, financial_work.
+- Five new use cases use existing category evidence. Their weights are initial
+  heuristics, not validated measurements of marketing outcomes. Their description
+  and evidence note appear in the picker and use-case detail. The existing eleven
+  use cases keep their exact ranking weights.
+- Quick shows the selected profile and an explicit use-case selector. All default
+  members are accessible; an All use cases choice and global text search expose
+  every built-in and custom use case. Switching profiles selects its default and
+  resets transient weight overrides and the selected result. A temporary choice
+  outside the set does not change the saved profile. Settings offers separate
+  Profiles and Use Cases pages; the latter always lists the complete catalogue.
+- The fixed complexity scale API remains for compatibility, but Quick no longer
+  presents unrelated task types as increasing difficulty. Native tray quick
+  choices use the selected profile's default set. Advanced weights, provider
+  eligibility, usage selection, favourites and launch behavior remain intact.
+
+Pinned validation: all profile members/defaults resolve; returned lists are
+independent; legacy configs retain custom use cases; selected profile survives
+reload; invalid selection changes neither config nor events; switching profiles
+resets overrides; all/custom use cases remain reachable; failed selection keeps
+prior UI state. A new custom use case can add any available task group, including
+one whose weight was previously cleared.
+
+
+Existing custom use cases whose slugs match one of the five newly introduced
+presets retain their saved weights and stay editable. Rank and list resolve the
+custom definition. Deleting such a custom definition reveals the built-in preset.
+The previous eleven built-ins retain their existing precedence. Group use-case
+counts follow the same resolution, counting each effective use case once.

@@ -69,3 +69,24 @@ clear the native tray pick and pending launch state. Loading and failed
 requests preserve the last successful tray state. Do not publish results from
 a disabled query or a superseded request. This rule governs the popover-to-tray
 bridge as well as the S02 native host.
+
+## Correction — Profiles and Use Cases (2026-09-05)
+
+The user's requested distinction between Profiles and Use Cases supersedes the
+conflicting terminology and Quick complexity-scale behavior above. The governing
+behavior and pinned validation cases are in
+`specs/desktop/backend/features/B03-profiles/SPEC.md` §Correction. Canonical DTOs
+are extended in `specs/desktop/global/CONTRACTS.md` §Profiles / Use Cases extension.
+
+
+## Review correction — #234: selection during cache refresh
+
+Saving the selected work profile reads current persisted settings before
+changing `user_profile`; an older query-cache snapshot must not restore settings
+that another window has already changed. Failed reads or writes retain the
+previous selection and display an error.
+
+A successful Save as use case selects the new slug even while the catalogue
+query is refreshing. Absence from the cached list is not evidence of deletion;
+only the selected detail query returning `not_found` triggers the default
+fallback. Switching work profiles still selects that profile's default.

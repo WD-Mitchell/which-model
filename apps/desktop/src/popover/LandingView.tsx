@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Combobox, ComplexityScale, RankCarousel, RankList } from '@which-model/ui'
-import type { CatalogSummary, ProfileSummary } from '@which-model/core'
+import { Combobox, RankCarousel, RankList } from '@which-model/ui'
+import type { ProfileSummary, UserProfile } from '@which-model/core'
 import { useRank, useSettings } from '../lib/queries'
 import './LandingView.css'
 
@@ -9,15 +9,12 @@ export type PopoverTab = 'profiles' | 'sliders'
 
 export interface LandingViewProps {
   profiles: ProfileSummary[]
-  scale: string[]
+  userProfile?: UserProfile
   activeSlug: string
   activeName: string
-  /** 0..4, sticky — the displayed ComplexityScale handle (SPEC §2.6). */
-  stop: number
   overridesHash: string
-  /** Fired on any profile selection (search pick or scale drag) with the
-   *  scale index when the slug is on the scale, else null. */
-  onSelectProfile(slug: string, scaleIndex: number | null): void
+  /** Select a use case without changing the saved user profile. */
+  onSelectProfile(slug: string): void
   /** Controlled rank selection index. */
   index: number
   onIndex(i: number): void
@@ -57,55 +54,45 @@ export function ResultsBand({ slug, overridesHash, index, onIndex }: {
 
 export function LandingView({
   profiles,
-  scale,
+  userProfile,
   activeSlug,
   activeName,
-  stop,
   overridesHash,
   onSelectProfile,
   index,
   onIndex,
 }: LandingViewProps) {
+  const [showAll, setShowAll] = useState(false)
   const [query, setQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
 
   const q = query.trim().toLowerCase()
-  const matches = profiles
-    .filter((p) => !q || p.name.toLowerCase().includes(q) || p.slug.includes(q))
-    .slice(0, 5)
-  // Display name, not the slug: the service title-cases it
-  // (internal/service/profiles.go profileDisplayName) and the scale's caption
-  // under the slider shows the same string, so the two must not disagree.
-  const comboboxItems = matches.map((p) => ({
-    key: p.slug,
-    label: p.name,
-    sub: `${p.core_share}/${100 - p.core_share}`,
-  }))
+  const defaults = (userProfile?.use_case_slugs ?? [])
+    .map((slug) => profiles.find((p) => p.slug === slug))
+    .filter((p): p is ProfileSummary => Boolean(p))
+  const matches = (q || showAll ? profiles : defaults)
+    .filter((p) => !q || `${p.name} ${p.slug} ${p.description ?? ''}`.toLowerCase().includes(q))
+  const comboboxItems = matches.map((p) => ({ key: p.slug, label: p.name, sub: p.builtin ? '' : 'Custom' }))
+  const active = profiles.find((p) => p.slug === activeSlug)
 
   function handlePick(slug: string): void {
-    const i = scale.indexOf(slug)
     setQuery('')
     setSearchOpen(false)
-    onSelectProfile(slug, i >= 0 ? i : null)
+    onSelectProfile(slug)
   }
 
   return (
     <div className="lv">
-      {/* Scale first, then the search. The scale is the tab's primary gesture
-          and the profile name under it is what the search would otherwise
-          change out of sight; putting the field UNDER that name keeps the
-          selection and the way to change it next to each other. The "or slide"
-          kicker went with the reorder — it introduced the scale as the second
-          option, and the scale is no longer second. */}
-      <div className="lv-scale">
-        <ComplexityScale
-          stop={stop}
-          labels={['simple action', 'planning']}
-          profileName={activeName}
-          onStop={(i) => {
-            if (scale[i]) onSelectProfile(scale[i], i)
-          }}
-        />
+      <div className="lv-use-case">
+        <div className="lv-use-case-scope">
+          <span>{showAll ? 'All use cases' : `${userProfile?.name ?? 'Your profile'} use cases`}</span>
+          <button type="button" onClick={() => { setShowAll((v) => !v); setSearchOpen(true) }}>
+            {showAll ? 'Profile defaults' : 'All use cases'}
+          </button>
+        </div>
+        <h2>{activeName || 'Choose a use case'}</h2>
+        {active?.description && <p>{active.description}</p>}
+        {active?.evidence_note && <p className="lv-evidence-note">{active.evidence_note}</p>}
       </div>
 
       <div className="lv-search">
@@ -119,8 +106,8 @@ export function LandingView({
           open={searchOpen}
           onOpenChange={setSearchOpen}
           onPick={handlePick}
-          emptyText="no profile by that name"
-          placeholder="type to find a profile"
+          emptyText="no use case by that name"
+          placeholder="type to find a use case"
           selectedKey={activeSlug}
         />
       </div>

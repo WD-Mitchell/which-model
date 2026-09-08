@@ -80,3 +80,10 @@ Depends on: U01 (types available for tests; no primitive imports `@which-model/c
 ## 5. Out of scope
 
 Weight/balance/complexity controls (U03, consume the hook); results components (U04); any data fetching, query wiring, or `EngineHost` usage (apps, U05+); Inter font bundling (app entries, S01); the settings/popover shells that position Menu/Combobox surfaces (U05/U07).
+
+
+## Correction — Use-case selector accessibility (2026-09-05)
+
+Combobox rows are native buttons so every result can be selected with Tab and
+Enter/Space. The popup scrolls within a 190px maximum height; long default or
+all-use-case lists stay reachable without being clipped by the popover.

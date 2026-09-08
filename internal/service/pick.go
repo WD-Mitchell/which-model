@@ -123,12 +123,12 @@ func (s *Services) resolveProfile(req RankRequest) (catalog.Profile, error) {
 // which already carry percentage shares), then customs from [profiles.*]
 // converted to engine profiles. Unknown slug -> errNotFound.
 func (s *Services) profileBySlug(slug string) (catalog.Profile, error) {
-	if bp, ok := pick.Profiles[slug]; ok {
-		return bp, nil
-	}
 	customs, err := s.cfg.LoadProfiles(pick.CategoryNames)
 	if err != nil {
 		return catalog.Profile{}, err
+	}
+	if builtinUseCase(slug, customs) {
+		return pick.Profiles[slug], nil
 	}
 	cp, ok := customs[slug]
 	if !ok {

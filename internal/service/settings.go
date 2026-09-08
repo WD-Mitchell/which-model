@@ -90,7 +90,7 @@ func (g *SettingsService) Set(ctx context.Context, in GUISettings) error {
 }
 
 const shellAlias = "alias wm='which-model pick --profile'"
-const shellClaudeMD = "## Model selection\nBefore delegating work, run `wm <profile>` to print the best model id for that task profile.\n`wm` is an alias for `which-model pick --profile`; profiles live in which-model's config.toml."
+const shellClaudeMD = "## Model selection\nBefore delegating work, run `wm <use-case>` to print the best model id for that use case.\n`wm` is an alias for `which-model pick --profile`; use cases live in which-model's config.toml."
 
 // ShellSnippets returns pinned setup snippets and a live ranking preview.
 func (g *SettingsService) ShellSnippets(ctx context.Context) (ShellSnippets, error) {
@@ -126,7 +126,7 @@ func guiDTO(g config.GUIConfig, auth config.AuthConfig, path, version string, aa
 	if strings.TrimSpace(freq) == "" {
 		freq = "6h"
 	}
-	return GUISettings{Layout: g.Layout, DefaultTab: g.DefaultTab, WeightControl: g.WeightControl, Holds: g.Holds, Shortcut: g.Shortcut, ShowMenuBarIcon: g.ShowMenuBarIcon, LaunchAtLogin: g.LaunchAtLogin, CopyCommandInstead: g.CopyCommandInstead, ClosePopoverAfterLaunch: g.ClosePopoverAfterLaunch, AutoUpdate: g.AutoUpdate, AutoUpdateFrequency: g.AutoUpdateFrequency, MCPServer: g.MCPServer, ClaudeMDHint: g.ClaudeMDHint, ShellAlias: g.ShellAlias, UseKeychain: auth.UseKeychain, CatalogRepo: repo, UseLocalAA: g.UseLocalAA, BenchmarkCheckFrequency: freq, OnlyEnabledProviders: g.OnlyEnabledProviders, AllowIncompleteRecommendations: g.AllowIncompleteRecommendations, AAAPIKeySet: aaKeySet, ConfigPath: path, Version: version}
+	return GUISettings{UserProfile: g.UserProfile, Layout: g.Layout, DefaultTab: g.DefaultTab, WeightControl: g.WeightControl, Holds: g.Holds, Shortcut: g.Shortcut, ShowMenuBarIcon: g.ShowMenuBarIcon, LaunchAtLogin: g.LaunchAtLogin, CopyCommandInstead: g.CopyCommandInstead, ClosePopoverAfterLaunch: g.ClosePopoverAfterLaunch, AutoUpdate: g.AutoUpdate, AutoUpdateFrequency: g.AutoUpdateFrequency, MCPServer: g.MCPServer, ClaudeMDHint: g.ClaudeMDHint, ShellAlias: g.ShellAlias, UseKeychain: auth.UseKeychain, CatalogRepo: repo, UseLocalAA: g.UseLocalAA, BenchmarkCheckFrequency: freq, OnlyEnabledProviders: g.OnlyEnabledProviders, AllowIncompleteRecommendations: g.AllowIncompleteRecommendations, AAAPIKeySet: aaKeySet, ConfigPath: path, Version: version}
 }
 
 func guiConfig(g GUISettings) config.GUIConfig {
@@ -138,7 +138,7 @@ func guiConfig(g GUISettings) config.GUIConfig {
 	if freq == "" {
 		freq = "6h"
 	}
-	return config.GUIConfig{Layout: g.Layout, DefaultTab: g.DefaultTab, WeightControl: g.WeightControl, Holds: g.Holds, Shortcut: g.Shortcut, ShowMenuBarIcon: g.ShowMenuBarIcon, LaunchAtLogin: g.LaunchAtLogin, CopyCommandInstead: g.CopyCommandInstead, ClosePopoverAfterLaunch: g.ClosePopoverAfterLaunch, AutoUpdate: g.AutoUpdate, AutoUpdateFrequency: g.AutoUpdateFrequency, MCPServer: g.MCPServer, ClaudeMDHint: g.ClaudeMDHint, ShellAlias: g.ShellAlias, CatalogRepo: repo, UseLocalAA: g.UseLocalAA, BenchmarkCheckFrequency: freq, OnlyEnabledProviders: g.OnlyEnabledProviders, AllowIncompleteRecommendations: g.AllowIncompleteRecommendations}
+	return config.GUIConfig{UserProfile: g.UserProfile, Layout: g.Layout, DefaultTab: g.DefaultTab, WeightControl: g.WeightControl, Holds: g.Holds, Shortcut: g.Shortcut, ShowMenuBarIcon: g.ShowMenuBarIcon, LaunchAtLogin: g.LaunchAtLogin, CopyCommandInstead: g.CopyCommandInstead, ClosePopoverAfterLaunch: g.ClosePopoverAfterLaunch, AutoUpdate: g.AutoUpdate, AutoUpdateFrequency: g.AutoUpdateFrequency, MCPServer: g.MCPServer, ClaudeMDHint: g.ClaudeMDHint, ShellAlias: g.ShellAlias, CatalogRepo: repo, UseLocalAA: g.UseLocalAA, BenchmarkCheckFrequency: freq, OnlyEnabledProviders: g.OnlyEnabledProviders, AllowIncompleteRecommendations: g.AllowIncompleteRecommendations}
 }
 
 func validateGUISettings(g GUISettings) error {
@@ -173,6 +173,9 @@ func validateGUISettings(g GUISettings) error {
 // postdates the DTO, so a client (or a stored config) written before it sends
 // "" — which means "unset", not "invalid".
 func normaliseGUISettings(g GUISettings) GUISettings {
+	if g.UserProfile == "" {
+		g.UserProfile = "software_engineering"
+	}
 	if g.DefaultTab == "" {
 		g.DefaultTab = "profiles"
 	}

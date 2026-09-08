@@ -84,10 +84,11 @@ type trayMenu struct {
 	tray *application.SystemTray
 	pop  *application.WebviewWindow
 
-	mu       sync.Mutex
-	ready    bool   // ApplicationStarted has fired
-	sig      string // signature of the installed menu
-	selected string // checked profile slug
+	mu          sync.Mutex
+	ready       bool   // ApplicationStarted has fired
+	sig         string // signature of the installed menu
+	selected    string // selected use-case slug
+	userProfile string // saved work profile represented by the menu
 	// onSelection is called after a quick-select changes the selected profile.
 	// setupTray uses it to redraw the menu-bar title, which names that profile.
 	onSelection func()
@@ -132,12 +133,13 @@ func (m *trayMenu) Refresh() {
 	}
 
 	profiles := m.listProfiles()
-	scale := m.complexityScale()
-	ordered := orderTrayProfiles(profiles, scale)
+	userProfile := m.activeUserProfile()
+	ordered := profileMenuEntries(profiles, userProfile)
 
 	m.mu.Lock()
-	if m.selected == "" {
-		m.selected = defaultTraySelection(ordered, scale)
+	if m.selected == "" || m.userProfile != userProfile.Slug {
+		m.selected = userProfile.DefaultUseCase
+		m.userProfile = userProfile.Slug
 	}
 	selected := m.selected
 	sig := trayMenuSignature(ordered, selected != "")
@@ -315,4 +317,36 @@ func trayMenuSignature(profiles []service.ProfileSummary, hasSelection bool) str
 		b.WriteByte(0)
 	}
 	return b.String()
+}
+
+// activeUserProfile uses persisted settings for both startup and refresh.
+func (m *trayMenu) activeUserProfile() service.UserProfile {
+	if m.svc == nil {
+		return service.UserProfile{}
+	}
+	settings, err := m.svc.Settings().Get(context.Background())
+	if err != nil {
+		log.Printf("tray menu: settings failed: %v", err)
+		return service.UserProfile{}
+	}
+	for _, p := range m.svc.Profiles().UserProfiles() {
+		if p.Slug == settings.UserProfile {
+			return p
+		}
+	}
+	return service.UserProfile{}
+}
+
+func profileMenuEntries(all []service.ProfileSummary, profile service.UserProfile) []service.ProfileSummary {
+	out := make([]service.ProfileSummary, 0, len(profile.UseCaseSlugs))
+	bySlug := make(map[string]service.ProfileSummary, len(all))
+	for _, p := range all {
+		bySlug[p.Slug] = p
+	}
+	for _, slug := range profile.UseCaseSlugs {
+		if p, ok := bySlug[slug]; ok {
+			out = append(out, p)
+		}
+	}
+	return out
 }

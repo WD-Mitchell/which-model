@@ -56,6 +56,7 @@ function call<T, R>(p: Cancellable<T>, then: (v: T) => R): Promise<R> {
 export function createWailsHost(): EngineHost {
   return {
     profiles: {
+      userProfiles: () => call(ProfilesAPI.UserProfiles() as Cancellable<unknown>, (r) => r as never),
       list: () => call(ProfilesAPI.List() as Cancellable<unknown>, (r) => r as never),
       get: (slug: string) => call(ProfilesAPI.Get(slug) as Cancellable<unknown>, (r) => r as never),
       create: (p) => call(ProfilesAPI.Create(p) as Cancellable<void>, () => {}),

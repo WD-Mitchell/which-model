@@ -4,13 +4,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ToastProvider } from '@which-model/ui'
 import { getHost, resetHost, type MockEngineHost } from '../../../lib/host'
 import { useEngineEvents } from '../../../lib/invalidate'
-import { ProfilesPage } from './ProfilesPage'
+import { UseCasesPage } from './UseCasesPage'
 
 function Events() { useEngineEvents(); return null }
 function renderPage(slug?: string) {
  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
  const open = vi.fn(), close = vi.fn()
- return { ...render(<QueryClientProvider client={client}><ToastProvider><Events /><ProfilesPage detail={slug ? { kind: 'profile', id: slug } : null} openDetail={open} closeDetail={close} /></ToastProvider></QueryClientProvider>), open, close }
+ return { ...render(<QueryClientProvider client={client}><ToastProvider><Events /><UseCasesPage detail={slug ? { kind: 'profile', id: slug } : null} openDetail={open} closeDetail={close} /></ToastProvider></QueryClientProvider>), open, close }
 }
 async function custom() {
  const host = getHost() as MockEngineHost
@@ -44,7 +44,7 @@ describe('profile editor persistence', () => {
   await waitFor(() => expect(view.open).toHaveBeenCalled())
   expect((await host.profiles.get('custom_copy')).tier1_weights.intelligence).toBe(1)
   fireEvent.keyDown(intelligence, { key: 'ArrowRight' })
-  fireEvent.click(screen.getByRole('button', { name: 'Delete this profile' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Delete this use case' }))
   await waitFor(() => expect(view.close).toHaveBeenCalled())
   view.unmount()
   await expect(host.profiles.get('custom')).rejects.toMatchObject({ code: 'not_found' })
@@ -52,14 +52,14 @@ describe('profile editor persistence', () => {
  it('uses create-only suffix retries when list-count naming collides', async () => {
   const { host, profile } = await custom()
   const n = host.data.profiles.length + 2
-  await host.profiles.save({ ...profile, slug: `profile_${n}`, name: `Existing ${n}`, core_share: 75 })
+  await host.profiles.save({ ...profile, slug: `use_case_${n}`, name: `Existing ${n}`, core_share: 75 })
   const create = vi.spyOn(host.profiles, 'create')
   const view = renderPage()
   await screen.findByText('Custom')
-  fireEvent.click(screen.getByRole('button', { name: 'New profile' }))
-  await waitFor(() => expect(view.open).toHaveBeenCalledWith({ kind: 'profile', id: `profile_${n + 1}` }))
+  fireEvent.click(screen.getByRole('button', { name: 'New use case' }))
+  await waitFor(() => expect(view.open).toHaveBeenCalledWith({ kind: 'profile', id: `use_case_${n + 1}` }))
   expect(create).toHaveBeenCalledTimes(2)
-  expect((await host.profiles.get(`profile_${n}`)).core_share).toBe(75)
+  expect((await host.profiles.get(`use_case_${n}`)).core_share).toBe(75)
  })
 })
 

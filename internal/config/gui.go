@@ -82,6 +82,7 @@ type GUIConfig struct {
 	BenchmarkCheckFrequency        string `toml:"benchmark_check_frequency"`
 	OnlyEnabledProviders           bool   `toml:"only_enabled_providers"`
 	AllowIncompleteRecommendations bool   `toml:"allow_incomplete_recommendations"`
+	UserProfile                    string `toml:"user_profile"`
 }
 
 // guiConfigTOML is the pointered decode mirror of GUIConfig: each key falls
@@ -106,12 +107,14 @@ type guiConfigTOML struct {
 	BenchmarkCheckFrequency        *string `toml:"benchmark_check_frequency"`
 	OnlyEnabledProviders           *bool   `toml:"only_enabled_providers"`
 	AllowIncompleteRecommendations *bool   `toml:"allow_incomplete_recommendations"`
+	UserProfile                    *string `toml:"user_profile"`
 }
 
 // DefaultGUIConfig returns the [gui] per-key defaults (CONTRACTS §4).
 func DefaultGUIConfig() GUIConfig {
 	return GUIConfig{
-		Layout: "carousel",
+		UserProfile: "software_engineering",
+		Layout:      "carousel",
 		// The popover opens on the profile picker; the complexity slider is the
 		// other tab. Shipped default is profiles.
 		DefaultTab:              "profiles",
@@ -153,6 +156,9 @@ func (c *Config) LoadGUI() (GUIConfig, error) {
 	var mirror guiConfigTOML
 	if err := c.UnmarshalKey("gui", &mirror); err != nil {
 		return GUIConfig{}, err
+	}
+	if mirror.UserProfile != nil && *mirror.UserProfile != "" {
+		gui.UserProfile = *mirror.UserProfile
 	}
 	if mirror.Layout != nil {
 		gui.Layout = *mirror.Layout
@@ -307,6 +313,9 @@ func (c *Config) LoadGroups() (GroupsTOML, error) {
 // SetGUI validates then writes every [gui] key into the raw document
 // (a saved config is self-describing; defaults apply only to absent keys).
 func (c *Config) SetGUI(g GUIConfig) error {
+	if g.UserProfile == "" {
+		g.UserProfile = "software_engineering"
+	}
 	if strings.TrimSpace(g.CatalogRepo) == "" {
 		g.CatalogRepo = DefaultCatalogRepo
 	}
@@ -336,6 +345,7 @@ func (c *Config) SetGUI(g GUIConfig) error {
 		"benchmark_check_frequency":        g.BenchmarkCheckFrequency,
 		"only_enabled_providers":           g.OnlyEnabledProviders,
 		"allow_incomplete_recommendations": g.AllowIncompleteRecommendations,
+		"user_profile":                     g.UserProfile,
 	})
 	return nil
 }
@@ -632,6 +642,11 @@ func catalogRepoPartOK(s string) bool {
 }
 
 func validateGUI(g GUIConfig) error {
+	switch g.UserProfile {
+	case "", "software_engineering", "marketing", "general":
+	default:
+		return invalidValue("gui.user_profile", "unknown profile %q", g.UserProfile)
+	}
 	switch g.Layout {
 	case "carousel", "list":
 	default:

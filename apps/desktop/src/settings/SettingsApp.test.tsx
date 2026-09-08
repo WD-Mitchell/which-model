@@ -61,10 +61,36 @@ describe('SettingsApp', () => {
 
   it('navigates to a page when a sidebar item is clicked', async () => {
     renderApp(host)
-    const profiles = await screen.findAllByText('Profiles')
+    const profiles = await screen.findAllByText('Use Cases')
     const navBtn = profiles.find((el) => el.tagName === 'BUTTON')
     act(() => navBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true })))
-    expect(await screen.findByText('Built-in profiles are read-only; duplicate one to edit its weights.')).toBeDefined()
+    expect(await screen.findByText('Choose how models are ranked for a task. Duplicate a built-in use case to edit its weights.')).toBeDefined()
+  })
+
+  it('persists a profile selection from its own settings page', async () => {
+    resetHost(host)
+    renderApp(host)
+    fireEvent.click(await screen.findByRole('button', { name: 'Profiles' }))
+    const selector = await screen.findByRole('combobox', { name: 'Profile' })
+    await waitFor(() => expect((selector as HTMLSelectElement).disabled).toBe(false))
+    fireEvent.change(selector, { target: { value: 'marketing' } })
+    await waitFor(async () => expect((await host.settings.get()).user_profile).toBe('marketing'))
+    expect(await screen.findByRole('heading', { name: 'Marketing Selected' })).toBeTruthy()
+  })
+
+  it('adds, clears and restores a task capability in a new custom use case', async () => {
+    resetHost(host)
+    renderApp(host)
+    fireEvent.click(await screen.findByRole('button', { name: 'Use Cases' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'New use case' }))
+    const research = await screen.findByRole('slider', { name: 'research' })
+    fireEvent.keyDown(research, { key: 'ArrowRight' })
+    const saved = async () => (await host.profiles.list()).find((p) => p.slug.startsWith('use_case_'))!
+    await waitFor(async () => expect((await saved()).tier2_weights.research).toBe(1))
+    fireEvent.keyDown(screen.getByRole('slider', { name: 'research' }), { key: 'ArrowLeft' })
+    await waitFor(async () => expect((await saved()).tier2_weights.research).toBeUndefined())
+    fireEvent.keyDown(screen.getByRole('slider', { name: 'research' }), { key: 'ArrowRight' })
+    await waitFor(async () => expect((await saved()).tier2_weights.research).toBe(1))
   })
 
   it('requests an engine-valid rank for the Favourites add-model search', async () => {
@@ -74,7 +100,7 @@ describe('SettingsApp', () => {
     const favourites = await screen.findAllByText('Favourites')
     const navBtn = favourites.find((el) => el.tagName === 'BUTTON')
     act(() => navBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true })))
-    await screen.findByText('Pinned models are offered first when they rank in range for the profile.')
+    await screen.findByText('Pinned models are offered first when they rank in range for the use case.')
     await waitFor(() => expect(rank).toHaveBeenCalled())
     expect(rank).toHaveBeenCalledWith(
       expect.objectContaining({

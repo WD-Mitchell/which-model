@@ -95,3 +95,12 @@ After leaving an editor, list-row duplicate and delete wait for that entity's
 outstanding autosave to finish. Thus duplication reads committed edits and
 deletion cannot be followed by a queued save recreating the entity. Profile
 list actions suppress duplicate submissions while waiting.
+
+
+## Correction — Profiles and Use Cases (2026-09-05)
+
+The user's requested distinction between Profiles and Use Cases supersedes the
+conflicting terminology and Quick complexity-scale behavior above. The governing
+behavior and pinned validation cases are in
+`specs/desktop/backend/features/B03-profiles/SPEC.md` §Correction. Canonical DTOs
+are extended in `specs/desktop/global/CONTRACTS.md` §Profiles / Use Cases extension.

@@ -68,3 +68,10 @@ export function List() {
 export function Save(p) {
     return $Call.ByName("main.ProfilesAPI.Save", p);
 }
+
+/**
+ * @returns {$CancellablePromise<service$0.UserProfile[] | null>}
+ */
+export function UserProfiles() {
+    return $Call.ByName("main.ProfilesAPI.UserProfiles");
+}
