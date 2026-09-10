@@ -188,3 +188,13 @@ Public launch API is unchanged. No prompt, workspace path, argv, environment or 
 Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
 Decision: requester-approved optional company defaults and advisory audit handling;
 this supersedes conflicting personal-only persistence statements for company mode.
+
+
+## Approved company execution correction (#285)
+
+Public HarnessInfo/LaunchResult and route-key grammar remain unchanged. In company mode Installed means an approved path currently exists as a regular file; full digest/protection proof occurs at launch. An uninstalled/unapproved entry cannot be enabled by a saved enabled=true preference. Provider switches stay within allowed_providers; native credential-bearing files are not scanned for company discovery. Matching native provider is the default; explicit provider preferences may select other allowed providers. Cline configuration mapping additionally requires provider_file permission and OS-derived home. Copy mode returns quoted POSIX shell syntax, or PowerShell syntax on Windows, after approval verification; manual execution uses the terminal environment, not the app-created child environment.
+
+Governing correction: `specs/desktop/backend/features/B07-harnesses/MANAGED-EXECUTION.md`.
+This implements the requester-approved optional managed profile while preserving
+personal defaults; it supersedes unconditional shell/policy-placeholder statements
+for company execution.

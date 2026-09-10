@@ -41,10 +41,11 @@ type Installation struct {
 }
 
 type Executable struct {
-	ID     string   `json:"id"`
-	Path   string   `json:"path"`
-	SHA256 string   `json:"sha256"`
-	Args   []string `json:"args"`
+	ID     string         `json:"id"`
+	Path   string         `json:"path"`
+	SHA256 string         `json:"sha256"`
+	Args   []string       `json:"args"`
+	Inputs []Installation `json:"inputs,omitempty"`
 }
 
 type Policy struct {
@@ -138,10 +139,17 @@ func Parse(data []byte) (Policy, error) {
 	}
 	seen = map[string]bool{}
 	for _, exe := range p.Executables {
-		if !identifier.MatchString(exe.ID) || seen[exe.ID] || !validInstallation(exe.Path, exe.SHA256) || len(exe.Args) > 64 {
+		if !identifier.MatchString(exe.ID) || seen[exe.ID] || !validInstallation(exe.Path, exe.SHA256) || len(exe.Args) > 64 || len(exe.Inputs) > 16 {
 			return invalid("executables")
 		}
 		seen[exe.ID] = true
+		inputPaths := map[string]bool{}
+		for _, input := range exe.Inputs {
+			if !validInstallation(input.Path, input.SHA256) || inputPaths[input.Path] {
+				return invalid("executables.inputs")
+			}
+			inputPaths[input.Path] = true
+		}
 		for _, arg := range exe.Args {
 			if len(arg) > 4096 || strings.ContainsFunc(arg, unicode.IsControl) {
 				return invalid("executables.args")

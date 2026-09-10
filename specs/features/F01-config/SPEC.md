@@ -145,3 +145,13 @@ Protected retention settings now govern actual company storage. `identity_free=t
 Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
 Decision: requester-approved optional company defaults and advisory audit handling;
 this supersedes conflicting personal-only persistence statements for company mode.
+
+
+## Approved company execution correction (#285)
+
+Company executable approvals now have a verified execution consumer. Optional `executables[].inputs` is an array of at most 16 unique canonical absolute path/SHA-256 pairs for script/assets passed to an approved native runtime. All inputs receive administrator ownership/ACL and digest checks. No mutable configuration field gains authority.
+
+Governing correction: `specs/desktop/backend/features/B07-harnesses/MANAGED-EXECUTION.md`.
+This implements the requester-approved optional managed profile while preserving
+personal defaults; it supersedes unconditional shell/policy-placeholder statements
+for company execution.

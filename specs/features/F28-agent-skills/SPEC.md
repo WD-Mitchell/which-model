@@ -88,3 +88,13 @@ This intentionally supersedes unrestricted operation for enrolled installations 
 see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
 `TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
 and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.
+
+
+## Approved company execution correction (#285)
+
+The independent skill_installation gate remains before installation effects. Company removal stays available when installation is disabled, but force cannot override a modified-file ownership mismatch. Personal --force behavior is unchanged.
+
+Governing correction: `specs/desktop/backend/features/B07-harnesses/MANAGED-EXECUTION.md`.
+This implements the requester-approved optional managed profile while preserving
+personal defaults; it supersedes unconditional shell/policy-placeholder statements
+for company execution.

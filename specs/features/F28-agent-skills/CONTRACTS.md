@@ -200,3 +200,13 @@ This intentionally supersedes unrestricted operation for enrolled installations 
 see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
 `TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
 and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.
+
+
+## Approved company execution correction (#285)
+
+Install/Remove signatures are unchanged. A managed ownership mismatch returns a fixed manual-review diagnostic; unchanged owned files remain removable. Pin modified and foreign files surviving a forced company removal and native removal after installation is disabled.
+
+Governing correction: `specs/desktop/backend/features/B07-harnesses/MANAGED-EXECUTION.md`.
+This implements the requester-approved optional managed profile while preserving
+personal defaults; it supersedes unconditional shell/policy-placeholder statements
+for company execution.

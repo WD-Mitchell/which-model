@@ -171,3 +171,13 @@ Company model-audit persists timestamped, minimized evidence under the applicati
 Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
 Decision: requester-approved optional company defaults and advisory audit handling;
 this supersedes conflicting personal-only persistence statements for company mode.
+
+
+## Approved company execution correction (#285)
+
+Hook installation and hook use remain independent protected permissions. Approved hook use reaches the normal runner; disabled use cannot invoke it. Disabling installation does not prevent ownership-based removal; foreign hook commands and settings survive. Hooks observe native harness decisions and do not grant tool permissions.
+
+Governing correction: `specs/desktop/backend/features/B07-harnesses/MANAGED-EXECUTION.md`.
+This implements the requester-approved optional managed profile while preserving
+personal defaults; it supersedes unconditional shell/policy-placeholder statements
+for company execution.

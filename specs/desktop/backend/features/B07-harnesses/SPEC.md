@@ -124,3 +124,13 @@ Authorized company launches discard captured child stdout/stderr and append only
 Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
 Decision: requester-approved optional company defaults and advisory audit handling;
 this supersedes conflicting personal-only persistence statements for company mode.
+
+
+## Approved company execution correction (#285)
+
+Company Launch uses the compiled built-in registry plus a protected executable approval, validates route/provider/profile values, verifies the native image and optional input digests/OS protection, and calls os/exec with separate approved arguments and a fresh OS-derived environment. Saved command/builtin fields cannot choose execution. Custom slugs require separate allow_custom_shell. Personal shell launch behavior is unchanged. Full rules are in MANAGED-EXECUTION.md.
+
+Governing correction: `specs/desktop/backend/features/B07-harnesses/MANAGED-EXECUTION.md`.
+This implements the requester-approved optional managed profile while preserving
+personal defaults; it supersedes unconditional shell/policy-placeholder statements
+for company execution.
