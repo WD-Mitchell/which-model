@@ -27,6 +27,10 @@ const (
 	Launch  Category = "launch_logs"
 )
 
+func validCategory(category Category) bool {
+	return category == Usage || category == History || category == Audit || category == Launch
+}
+
 type Report struct {
 	Retained     int `json:"retained_records"`
 	Removed      int `json:"removed_records"`
@@ -148,12 +152,14 @@ func lockOwned(path string, create bool) (func(), error) {
 
 func (c Controller) filter(category Category, data []byte, purge bool) ([]byte, Report) {
 	var report Report
-	lines := bytes.Split(data, []byte{'\n'})
-	if category == Usage {
-		lines = [][]byte{data}
-	}
 	var output bytes.Buffer
-	for _, line := range lines {
+	for len(data) > 0 {
+		var line []byte
+		if category == Usage {
+			line, data = data, nil
+		} else {
+			line, data, _ = bytes.Cut(data, []byte{'\n'})
+		}
 		if len(bytes.TrimSpace(line)) == 0 {
 			continue
 		}
@@ -220,7 +226,7 @@ func (c Controller) maintain(path string, category Category, purge bool) ([]byte
 	failure := func(operation string) ([]byte, Report, error) {
 		return nil, Report{Failed: 1}, &Error{category, operation}
 	}
-	if c.age(category) <= 0 {
+	if !validCategory(category) || c.age(category) < 0 {
 		return failure("policy")
 	}
 	if _, err := os.Lstat(path); errors.Is(err, os.ErrNotExist) {
@@ -259,6 +265,10 @@ func (c Controller) maintain(path string, category Category, purge bool) ([]byte
 // WriteUsage applies the same payload policy to live and delegated snapshots.
 // The outer recording time is supplied here, independently of provider timestamps.
 func (c Controller) WriteUsage(path string, data []byte) error {
+	if c.Enabled() && c.age(Usage) == 0 {
+		_, err := c.Prune(path, Usage, true)
+		return err
+	}
 	if !c.Enabled() || len(data) > maxRecordBytes {
 		return &Error{Usage, "record"}
 	}
@@ -299,8 +309,12 @@ func (c Controller) WriteUsage(path string, data []byte) error {
 // Append minimizes the new record and prunes existing records under one OS lock.
 // The application supplies the recording time; input cannot backdate/extend it.
 func (c Controller) Append(path string, category Category, data []byte) error {
-	if !c.Enabled() || c.age(category) <= 0 {
+	if !c.Enabled() || !validCategory(category) || c.age(category) < 0 {
 		return &Error{category, "policy"}
+	}
+	if c.age(category) == 0 {
+		_, err := c.Prune(path, category, true)
+		return err
 	}
 	if len(data) > maxRecordBytes || category == Usage {
 		return &Error{category, "record"}

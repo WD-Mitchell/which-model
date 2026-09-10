@@ -148,3 +148,30 @@ func TestRetentionAdministratorIdentityOptOut(t *testing.T) {
 		t.Fatalf("administrator setting/payload whitelist failed: %v", err)
 	}
 }
+
+func TestRetentionZeroDisablesPersistenceAndDeletesExisting(t *testing.T) {
+	c := testController()
+	c.Policy.Policy.Retention = company.Retention{}
+	for _, category := range []Category{Usage, History, Audit, Launch} {
+		path := filepath.Join(t.TempDir(), "record")
+		if err := os.WriteFile(path, []byte("LEGACY_CANARY"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		var err error
+		if category == Usage {
+			err = c.WriteUsage(path, []byte(`{"snapshot":{"provider":"codex"}}`))
+		} else {
+			err = c.Append(path, category, []byte(`{"profile":"balanced","candidate":"codex:model","outcome":"started"}`))
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("zero-retention %s persisted", category)
+		}
+	}
+	summary, err := c.Maintain(Layout{StateDir: t.TempDir()}, false, nil)
+	if err != nil || len(summary.Categories) != 4 {
+		t.Fatalf("zero retention rejected: %+v %v", summary, err)
+	}
+}

@@ -94,7 +94,7 @@ func (c Controller) Maintain(layout Layout, purge bool, categories []Category) (
 		categories = []Category{Usage, History, Audit, Launch}
 	}
 	for _, category := range categories {
-		if c.age(category) <= 0 {
+		if !validCategory(category) || c.age(category) < 0 {
 			return result, &Error{category, "selection"}
 		}
 		wanted[category] = true
