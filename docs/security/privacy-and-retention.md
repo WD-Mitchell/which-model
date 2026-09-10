@@ -166,3 +166,8 @@ explicit preferences instead of scanning credential-bearing harness files. Cline
 optional provider-ID mapping reads its bounded configuration only with an explicit
 provider_file allowance. New launch records remain the typed seven-day store;
 raw child output is not captured. See [approved execution](approved-execution.md).
+
+
+## Advisory launch audit fields (#286)
+
+The central audit store additionally permits generated `launch_id`, operational `profile`, `quota_state` (global §15 enum), and phase `launch_intent`, `launch_started`, `launch_failed` or `copy_prepared`. They retain the approved 30-day audit default; structured launch summaries retain seven days. A zero-day audit policy persists no evidence and cannot report audit success. Intent is not a process-start claim; neither a missing audit record nor a recording failure proves launch was blocked.

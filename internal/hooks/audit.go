@@ -1,6 +1,9 @@
 package hooks
 
-import "time"
+import (
+	"github.com/WD-Mitchell/which-model/internal/advisory"
+	"time"
+)
 
 // auditDocument is the private decoding boundary for F26 ExplainResult.
 // Explicit fields strip unrelated input before writing audit files. Keep this
@@ -12,6 +15,7 @@ type auditDocument struct {
 }
 
 type auditEvidence struct {
+	QuotaState  string             `json:"quota_state,omitempty"`
 	Profile     string             `json:"profile"`
 	ScoreInputs map[string]float64 `json:"score_inputs"`
 	Band        *struct {
@@ -39,6 +43,9 @@ type auditEvidence struct {
 // valid rejects incomplete or out-of-contract evidence before any file is created.
 func (e *auditEvidence) valid() bool {
 	if e == nil || e.Profile == "" || e.ScoreInputs == nil || e.ExcludedCandidates == nil {
+		return false
+	}
+	if e.QuotaState != "" && advisory.ForState(e.QuotaState).State != e.QuotaState {
 		return false
 	}
 	switch e.RouteProvenance {

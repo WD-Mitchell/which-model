@@ -198,3 +198,8 @@ Governing correction: `specs/desktop/backend/features/B07-harnesses/MANAGED-EXEC
 This implements the requester-approved optional managed profile while preserving
 personal defaults; it supersedes unconditional shell/policy-placeholder statements
 for company execution.
+
+
+## Company advisory evidence correction (#286)
+
+Decision: quota, usage-authentication and audit evidence failures do not need to block launches. The optional managed profile uses advisory reporting; personal defaults remain unchanged. The normative [advisory action matrix](ADVISORY-EVIDENCE.md) applies after approved execution verification. Each attempt gets an operational launch ID, best-effort pre-start intent and independent started/failed outcome records. Copy mode records preparation only. Quota/auth/audit/history/log failures permit an otherwise authorized launch. Actual verification/start errors remain errors. Successful starts return LaunchResult plus fixed optional advisories; provider payloads, process stderr and OS paths never become notices. Tests: `TestCompanyLaunchEvidenceAndAuditFailuresRemainAdvisory`, `TestCompanyLaunchAuditCorrelatesActualPhases`, existing approved-execution refusal and native process tests.

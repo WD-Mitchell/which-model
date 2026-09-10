@@ -1,4 +1,4 @@
-import { it, expect, afterEach } from 'vitest'
+import { it, expect, afterEach, vi } from 'vitest'
 import { render, screen, waitFor, cleanup, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useEngineEvents } from './invalidate'
@@ -18,4 +18,20 @@ it('invalidates mounted detail on config changes and pick recording', async () =
  await screen.findByText('75:0')
  await act(async () => { await host.pick.recordPick('custom', 'claude/opus@high') })
  await waitFor(() => expect(screen.getByText('75:1')).toBeTruthy())
+})
+
+it('refreshes company route reports on usage updates without changing personal invalidation', async () => {
+ resetHost()
+ const host = getHost()
+ const client = new QueryClient()
+ const invalidate = vi.spyOn(client, 'invalidateQueries')
+ function Events() { useEngineEvents(); return null }
+ render(<QueryClientProvider client={client}><Events /></QueryClientProvider>)
+ client.setQueryData(['rank', 'company'], {recommendation_mode: 'score_only', candidates: [], total: 0})
+ await act(async () => { await host.usage.snapshots(true) })
+ expect(invalidate).toHaveBeenCalledWith({queryKey: ['rank']})
+ invalidate.mockClear()
+ client.setQueryData(['rank', 'company'], {candidates: [], total: 0})
+ await act(async () => { await host.usage.snapshots(true) })
+ expect(invalidate).not.toHaveBeenCalledWith({queryKey: ['rank']})
 })

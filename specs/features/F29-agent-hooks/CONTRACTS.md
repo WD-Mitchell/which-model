@@ -246,3 +246,8 @@ ID/event/matcher/command tuples (both shipped variants) before editing settings.
 A manifest claiming a foreign command or an unrecognized historical command is
 refused for manual review. Installation-disabled cleanup remains allowed for
 recognized owned entries. Personal removal behavior is unchanged.
+
+
+## Company advisory evidence correction (#286)
+
+Decision: quota, usage-authentication and audit evidence failures do not need to block launches. The optional managed profile uses advisory reporting; personal defaults remain unchanged. Company dispatch returns an explicit advisory approve envelope on quota/refresh errors, empty/no-pick recommendations and audit failures; personal decisions remain unchanged. Installation/use authorization still precedes the observer. `quota_evidence` maps provider IDs to global §15 reports; a filtered empty quota response is not a full allowance check. `evidence_available` means observations were returned, not that those observations are healthy. Spawn output is a bounded typed subset: candidate_id, route {provider, model_id, reasoning}, model_score, final_score and allowlisted fixed warnings; it cannot echo arbitrary payloads. Audit success carries audit_recorded=true; failure/zero retention carries false (zero also audit_status=disabled). Input/command failures never silently become successful recording. Evidence decoding accepts the optional closed quota_state enum. Tests: company advisory matrix/hooks, audit zero-retention and privacy tests.

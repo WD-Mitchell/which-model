@@ -105,6 +105,7 @@ type HistoryEntry struct {
 // additionalProperties false. Degraded mode omits band/snapshot_age_seconds/
 // confidence/last_verified (annex-c §5.1).
 type Evidence struct {
+    QuotaState string `json:"quota_state,omitempty"` // company only, global §15 closed enum
     Profile            string             `json:"profile"`
     ScoreInputs        map[string]float64 `json:"score_inputs"`   // tier1 + category composite values (numbers)
     Band               *BandEvidence      `json:"band,omitempty"` // {name, used_percent, weight}
@@ -399,3 +400,8 @@ No selection/ranking/candidate contract changes. The owned history adds privacy_
 Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
 Decision: requester-approved optional company defaults and advisory audit handling;
 this supersedes conflicting personal-only persistence statements for company mode.
+
+
+## Company advisory evidence correction (#286)
+
+Decision: quota, usage-authentication and audit evidence failures do not need to block launches. The optional managed profile uses advisory reporting; personal defaults remain unchanged. Company candidates append the fixed selected-route report to existing `warnings`; text output prints those messages, omits the ambiguous numeric band summary, and explicitly labels usage-disabled recommendations. Personal output stays unchanged. Company persisted/explained Evidence adds optional `quota_state` using global §15. Partial/unknown/missing/failed evidence omits Band; stale known values may retain a band with a stale state. Cache provenance stays cached even when a fetch adapter supplies a timestamp. Company `last_verified` is emitted only for a current live usage observation and means its collection time, never proof of model acceptance or future allowance. Estimated confidence is omitted from the legacy live/cached Evidence enum. This corrects the historical Annex C §4.3/§5 claim of route acceptance from a usage fetch; the optional closed-enum field and omission rules supersede that historical closed schema for company records. No new fetch/retry/authentication prompt or automatic strategy fallback. Tests: `TestCompanyPickScoreOnlyIsLabelledWithoutChangingRank`, `TestCompanyPickEvidenceDoesNotCallCachedDataLive`, existing personal CLI goldens.

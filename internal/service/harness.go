@@ -514,18 +514,20 @@ func (h *HarnessService) Launch(ctx context.Context, slug, routeKey, profileSlug
 
 // recordPick invokes the recordPick seam, logging (never returning) a failure
 // so a running harness launch is not failed by pick bookkeeping.
-func (h *HarnessService) recordPick(ctx context.Context, profileSlug, routeKey string) {
+func (h *HarnessService) recordPick(ctx context.Context, profileSlug, routeKey string) error {
 	if h.s.recordPick == nil {
-		return
+		return nil
 	}
 	if err := h.s.recordPick(ctx, profileSlug, routeKey); err != nil {
 		policy, policyErr := readCompanyPolicy()
 		if policyErr != nil || policy.Managed {
 			log.Print("company pick history write failed; launch outcome is unchanged")
-			return
+			return err
 		}
 		log.Printf("harness: record pick for %q: %v", routeKey, err)
+		return err
 	}
+	return nil
 }
 
 // userShell returns the login shell for launching harness commands: $SHELL,

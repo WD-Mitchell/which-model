@@ -65,6 +65,7 @@ func evidence(in map[string]any) map[string]any {
 	copyNumber(out, in, "snapshot_age_seconds")
 	copyTime(out, in, "last_verified")
 	copyEnum(out, in, "confidence", "live", "cached", "estimated")
+	copyQuotaState(out, in)
 	copyEnum(out, in, "route_provenance", "provider_live", "models_dev", "user_declared")
 	for key, value := range object(in["score_inputs"]) {
 		if identifier(key) != "" {
@@ -129,7 +130,9 @@ func minimize(category Category, in map[string]any, identityFree bool) (map[stri
 		copyNumber(out, in, "final_score", "excluded_count")
 		out["evidence"] = evidence(object(in["evidence"]))
 	case Audit:
-		copyID(out, in, "candidate", "dispatched_model", "route_model_id")
+		copyID(out, in, "candidate", "dispatched_model", "route_model_id", "launch_id", "profile")
+		copyEnum(out, in, "phase", "launch_intent", "launch_started", "launch_failed", "copy_prepared")
+		copyQuotaState(out, in)
 		inner := object(in["evidence"])
 		if nested := object(inner["evidence"]); nested != nil {
 			copyID(out, inner, "candidate")
@@ -201,4 +204,8 @@ func minimize(category Category, in map[string]any, identityFree bool) (map[stri
 		return nil, false
 	}
 	return out, true
+}
+
+func copyQuotaState(out, in map[string]any) {
+	copyEnum(out, in, "quota_state", "current", "missing", "unknown", "partial", "stale", "authentication_error", "provider_error", "disabled")
 }

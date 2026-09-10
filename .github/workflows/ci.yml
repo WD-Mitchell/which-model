@@ -175,6 +175,7 @@ jobs:
           go-version-file: go.mod
           cache: true
       - run: go test ./internal/approvedexec ./internal/company -run TestApproved -v
+      - run: go test ./internal/advisory ./internal/hooks ./internal/service ./pkg/whichmodel -run 'TestCompany.*(Advisory|Evidence|Audit|RankLabels|PickScoreOnly|PickEvidence)' -v -count=1
       - run: go test ./internal/service ./internal/skills -run 'TestCompanyApprovedLaunch|TestCompanyCustomShell|TestCompanyRemoval' -v
       - run: go test -c -o company-execution-fixture.exe ./internal/service
       - name: Protect native image and enroll execution fixture

@@ -62,6 +62,7 @@ func (h *HarnessService) launchCompany(ctx context.Context, policy company.Snaps
 	if err != nil {
 		return LaunchResult{}, &company.Error{Reason: "invalid harness route"}
 	}
+	originalModel := model
 	if err := policy.RequireProvider(provider); err != nil {
 		return LaunchResult{}, err
 	}
@@ -106,26 +107,39 @@ func (h *HarnessService) launchCompany(ctx context.Context, policy company.Snaps
 		return LaunchResult{}, gerr
 	}
 	display := displayApprovedCommand(plan)
+	evidence := h.s.launchEvidence(provider, originalModel, reasoning)
+	messages := launchAdvisories(evidence)
+	record := newLaunchAudit(provider, originalModel, profile, evidence)
 	if gui.CopyCommandInstead {
-		h.recordCompanyLaunch(slug, provider, model, profile, "copied")
-		h.recordPick(ctx, profile, routeKey)
-		return LaunchResult{Copied: true, Command: display}, nil
+		if err := h.auditLaunch(policy, record, "copy_prepared"); err != nil {
+			messages = append(messages, "Copy preparation audit was not recorded.")
+		}
+		messages = h.recordLaunchOutcome(ctx, slug, provider, model, profile, routeKey, "copied", messages)
+		return LaunchResult{Copied: true, Command: display, Advisories: messages}, nil
 	}
 	if ctx != nil && ctx.Err() != nil {
 		return LaunchResult{}, ctx.Err()
+	}
+	if err := h.auditLaunch(policy, record, "launch_intent"); err != nil {
+		messages = append(messages, "Pre-launch audit intent was not recorded.")
 	}
 	proc := exec.Command(plan.Path, plan.Args...)
 	proc.Env = env
 	proc.SysProcAttr = launchSysProcAttr()
 	// Nil stdio goes to the null device. No environment or command text is logged.
 	if err := startCompanyProcess(proc); err != nil {
-		h.recordCompanyLaunch(slug, provider, model, profile, "failed")
-		return LaunchResult{}, fmt.Errorf("%w: approved harness could not be started", errLaunchFailed)
+		if err := h.auditLaunch(policy, record, "launch_failed"); err != nil {
+			messages = append(messages, "Failed-launch audit was not recorded.")
+		}
+		messages = h.recordLaunchOutcome(ctx, slug, provider, model, profile, routeKey, "failed", messages)
+		return LaunchResult{}, fmt.Errorf("%w: approved harness could not be started. %s", errLaunchFailed, strings.Join(messages, " "))
 	}
 	if proc.Process != nil {
 		_ = proc.Process.Release()
 	}
-	h.recordCompanyLaunch(slug, provider, model, profile, "started")
-	h.recordPick(ctx, profile, routeKey)
-	return LaunchResult{Command: display}, nil
+	if err := h.auditLaunch(policy, record, "launch_started"); err != nil {
+		messages = append(messages, "Post-launch audit was not recorded; the process started.")
+	}
+	messages = h.recordLaunchOutcome(ctx, slug, provider, model, profile, routeKey, "started", messages)
+	return LaunchResult{Command: display, Advisories: messages}, nil
 }

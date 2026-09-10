@@ -18,14 +18,14 @@ func (h *HarnessService) launchOutput(policy company.Snapshot) (*os.File, error)
 	return os.OpenFile(filepath.Join(h.s.paths.StateDir, "launch.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 }
 
-func (h *HarnessService) recordCompanyLaunch(slug, provider, model, profile, outcome string) {
+func (h *HarnessService) recordCompanyLaunch(slug, provider, model, profile, outcome string) error {
 	policy, err := readCompanyPolicy()
 	if err != nil {
 		log.Print("company launch record unavailable")
-		return
+		return err
 	}
 	if !policy.Managed {
-		return
+		return nil
 	}
 	data, err := json.Marshal(map[string]any{"harness": slug, "provider": provider, "model_id": model, "profile": profile, "outcome": outcome})
 	if err == nil {
@@ -34,4 +34,5 @@ func (h *HarnessService) recordCompanyLaunch(slug, provider, model, profile, out
 	if err != nil {
 		log.Print("company launch record failed; launch outcome is unchanged")
 	}
+	return err
 }
