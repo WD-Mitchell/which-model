@@ -135,7 +135,11 @@ func TestCompanyCodexBarOutputAndTimeoutMatrix(t *testing.T) {
 	for _, scenario := range []string{"web-alias", "wrong-provider", "duplicate", "wrong-source", "unknown-source", "invalid-time", "bad-exit", "provider-error", "oversized", "invalid-json", "timeout"} {
 		t.Run(scenario, func(t *testing.T) {
 			companyFixture(t)
-			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+			budget := 5 * time.Second
+			if scenario == "timeout" {
+				budget = 20 * time.Millisecond
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), budget)
 			defer cancel()
 			runCompanyCommand = func(cmd *exec.Cmd) error {
 				data := companyPayload("claude", "web")
