@@ -181,3 +181,9 @@ Governing correction: `specs/desktop/backend/features/B07-harnesses/MANAGED-EXEC
 This implements the requester-approved optional managed profile while preserving
 personal defaults; it supersedes unconditional shell/policy-placeholder statements
 for company execution.
+
+Company removal does not accept ownership solely because a mutable manifest
+claims it. The entry must match a shipped hook's ID/event/matcher/command and the
+manifest version must be recognized; otherwise settings remain untouched and the
+operator receives a manual-review error. This corrects the earlier unconditional
+manifest trust in company mode.

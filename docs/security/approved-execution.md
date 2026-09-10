@@ -130,3 +130,8 @@ It does not pass the complete token environment or any arbitrary persisted
 user/system environment variables to the child. Credentials belong in the native
 secure store; keep them out of policy arguments, which are visible as process
 arguments and copyable command text.
+
+For Claude hooks, company removal also requires a recognized manifest version
+and exact shipped hook ID/event/matcher/command tuples. A forged foreign-command
+claim or an unrecognized older command is refused for manual review before
+settings are changed.
