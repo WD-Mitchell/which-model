@@ -176,6 +176,7 @@ SBOMs, checksum list and release manifest. A signed manifest binds the version,
 full source revision/ref and artifact/SBOM digests. Release jobs independently
 verify the downloaded artifacts before publishing or packaging.
 
+Release tests/builds use pinned Go 1.26.6 (the scanner requires Go 1.26+).
 Release evidence records `govulncheck` v1.8.0 binary scans and exact npm package
 provenance assessment. Scanner errors/findings stop release publication; this is
 a release-integrity gate, not a runtime quota or audit launch gate. Manual

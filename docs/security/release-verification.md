@@ -46,8 +46,10 @@ licences or direct/transitive graph edges. It inventories the released Go binary
 not its host OS, external harnesses or provider applications. Python's standard
 library is sufficient for generation. The release pins `govulncheck` to v1.8.0,
 `actions/attest` to commit `1e69f48acb82d1966a394da916b4c1698aa569d6` (v4.2.2),
-and publishing npm to 12.0.2. Node 24 and the Go toolchain selected through go.mod
-run in hosted Actions; the actual Go runtime version is included in each SBOM.
+publishing npm to 12.0.2, and the release test/build toolchain to Go 1.26.6.
+The scanner requires Go 1.26 or later; the product language minimum remains in
+go.mod. Node 24 runs in hosted Actions; the actual Go runtime version is included
+in each SBOM.
 
 Vulnerability findings or scanner errors fail the release build. This check is
 separate from the non-blocking runtime quota/audit decision. Release verification
