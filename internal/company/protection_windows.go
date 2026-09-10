@@ -59,7 +59,11 @@ func trustDescriptor(sd *windows.SECURITY_DESCRIPTOR, directory bool) error {
 	// child. Delete-child, delete, ACL/owner changes and generic write are forbidden.
 	unsafeMask := uint32(windows.DELETE | windows.WRITE_DAC | windows.WRITE_OWNER | windows.GENERIC_ALL | windows.GENERIC_WRITE)
 	if directory {
-		unsafeMask |= 0x0040 | windows.FILE_WRITE_ATTRIBUTES | windows.FILE_WRITE_EA
+		// ProgramData grants users directory attribute/EA updates as well as
+		// sibling creation. These do not modify a protected child. Reparse points
+		// cannot be added to nonempty directories; each existing next component
+		// is independently protected against deletion/replacement below.
+		unsafeMask |= 0x0040
 	} else {
 		unsafeMask |= windows.FILE_WRITE_DATA | windows.FILE_APPEND_DATA | windows.FILE_WRITE_ATTRIBUTES | windows.FILE_WRITE_EA
 	}
