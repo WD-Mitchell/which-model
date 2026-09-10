@@ -53,6 +53,10 @@ Model choice changes with the job. A fast, inexpensive model may be ideal for a 
 - feed consistent JSON into scripts, agents, and CI workflows;
 - run in score-only mode without reading provider credentials.
 
+For the restricted offline company pilot, use the separately named
+[`which-model-score-only` distribution](docs/security/offline-score-only.md),
+which embeds its catalog and excludes network, authentication and agent execution.
+
 ## Install
 
 ### With npm, pnpm, or bun
