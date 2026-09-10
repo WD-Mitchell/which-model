@@ -69,9 +69,8 @@ selected file is not a claim of secure erasure or complete historical cleanup.
 
 ## Limits and verification
 
-Windows entries are limited to 2560 credential bytes. macOS's fixed OS utility has
-a 4096-byte stdin command limit including base64 expansion and labels. Linux
-records are bounded at 64 KiB. Oversize credentials fail explicitly; they are not
+Windows entries are limited to 2560 credential bytes. macOS and Linux records
+are bounded at 64 KiB. Oversize credentials fail explicitly; they are not
 split or persisted elsewhere. Windows has no independently lockable per-item
 vault. Headless or nonstandard Linux sessions may need endpoint provisioning.
 
@@ -81,3 +80,11 @@ legacy-file canaries, exact read-back, explicit replacement and changed sources.
 The [F12 contract](../../specs/features/F12-credentials/SECURE-STORES.md) records the
 storage protocol and test obligations. The offline score-only package remains
 independent of all credential adapters.
+
+The macOS adapter accesses Security.framework directly without showing an unlock
+prompt. Use OS tools to unlock the default keychain or approve access for the
+current which-model binary; upgrades/path changes may require a fresh OS grant.
+It never broadens an item's ACL. Framework calls use pinned purego v0.11.0 so the
+CGO-disabled release has the same native support; the release SBOM and vulnerability
+scan include that dependency. Apple deprecates the compatibility Keychain APIs;
+native CI remains a required gate for supported macOS versions.

@@ -11,7 +11,8 @@ Package: `internal/usage/credential` (Layer 1b). Import boundary (global CONTRAC
 
 Build tags: EVERY file in this package carries `//go:build !nousage` (annex-a §1a.2). The `nousage`-tagged package-presence stub is owned by F21-usage-toggle.
 
-Native adapters use already-pinned `go-keyring`, `wincred`, `godbus/dbus/v5` and `x/sys`; see the #283 correction below. Personal legacy selection retains D2/D12.
+Native adapters use pinned `go-keyring`, `wincred`, `godbus/dbus/v5`, `x/sys` and
+new `purego` v0.11.0 for CGO-disabled macOS framework calls; see the #283 correction below. Personal legacy selection retains D2/D12.
 
 ---
 

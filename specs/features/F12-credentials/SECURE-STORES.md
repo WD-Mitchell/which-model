@@ -20,9 +20,11 @@ behavior on other systems. Explicit `[auth] native_keychain = true` opts a perso
 installation into the new native adapter. Company authority selects native secure
 storage independently of that preference. Desktop settings preserve this setting.
 
-The pinned go-keyring Windows adapter is reused. The macOS adapter invokes only
-the fixed OS security utility, passes secret writes through stdin, bounds calls
-and verifies writes rather than trusting the interactive utility's exit status.
+The pinned go-keyring Windows adapter is reused. The macOS adapter calls the
+fixed Security/CoreFoundation frameworks through pinned purego v0.11.0, including
+CGO-disabled release builds. It selects the OS default keychain, checks lock state,
+serializes noninteractive calls and restores the process interaction preference.
+It verifies writes by reading the exact value back.
 The Linux adapter uses the already-pinned D-Bus dependency and the Secret Service
 protocol without implicit unlock prompts; it connects to the protected local
 session bus independently of user-supplied bus-address environment variables.
@@ -90,9 +92,8 @@ remain distinguishable.
 
 ## Platform limits and trust boundary
 
-macOS writes are bounded by the OS utility's 4096-byte interactive command buffer
-(including service/account and base64 expansion). Windows stores at most 2560
-credential bytes per entry. Linux bounds records at 64 KiB. Oversize is explicit
+macOS and Linux bound records at 64 KiB. Windows stores at most 2560
+credential bytes per entry. Oversize is explicit
 `too_large`; this implementation does not split tokens across entries or persist
 an oversized token elsewhere. Provider tokens exceeding the platform limit need
 an independently approved source or a future storage-format change.
@@ -106,10 +107,20 @@ The OS user, session service and endpoint protections remain the trust boundary.
 Windows Credential Manager has no separately lockable per-item vault; denied
 logon access is distinguished from missing items and unavailable services.
 
-macOS invokes `/usr/bin/security` with a minimal fixed environment and a bounded
-stdin command; secrets never enter argv. Apple's `readline.c` reads stdin without
-command-history persistence. No shell evaluates that command. Known OS outcomes
-are mapped to fixed messages and successful writes require exact read-back.
+macOS uses native generic-password APIs, with no shell/helper and no secret argv
+or stdin. The earlier utility approach was superseded after native CI demonstrated
+that a locked keychain waited for UI until timeout. `SecKeychainGetStatus` and
+scoped `SecKeychainSetUserInteractionAllowed(false)` preserve locked versus missing
+outcomes and prohibit authentication prompts during each serialized operation.
+These compatibility APIs are deprecated by Apple but remain available; the native
+CI gate covers their supported OS behavior. Framework paths are fixed. The new
+purego dependency is required to call them from CGO-disabled release binaries;
+its version is pinned and included in the existing SBOM/vulnerability workflow.
+Native Keychain access control applies to which-model itself. After a binary
+identity/path change, an endpoint owner may need to approve its access with OS
+tools; the adapter never broadens the item's ACL. Existing go-keyring encodings
+remain readable when OS access permits them.
+
 Windows replacement uses `MoveFileEx` with replacement/write-through flags after
 syncing the staged file; this corrects the unsupported parent-directory flush,
 without promising immunity to every hardware/power-loss failure.

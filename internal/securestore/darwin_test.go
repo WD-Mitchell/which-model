@@ -3,11 +3,13 @@
 package securestore
 
 import (
+	"context"
 	"errors"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestNativeDarwinStore(t *testing.T) {
@@ -39,16 +41,30 @@ func TestNativeDarwinStore(t *testing.T) {
 
 func TestDarwinErrorStates(t *testing.T) {
 	for _, tc := range []struct {
-		code string
+		code int32
 		kind Kind
-	}{{"44", Missing}, {"36", Locked}, {"29", Locked}, {"51", Denied}, {"128", Denied}, {"1", Unavailable}} {
-		err := exec.Command("/bin/sh", "-c", "exit "+tc.code).Run()
-		got := classifyDarwin(err)
-		if !errors.Is(got, &Error{tc.kind}) {
-			t.Fatalf("exit %s: %v", tc.code, got)
+	}{{-25300, Missing}, {-25308, Locked}, {-25315, Locked}, {-25293, Denied}, {-128, Denied}, {-1, Unavailable}} {
+		if got := classifyDarwin(tc.code); !errors.Is(got, &Error{tc.kind}) {
+			t.Fatalf("OSStatus %d: %v", tc.code, got)
 		}
 	}
-	if err := Native().Set("service", "account", strings.Repeat("x", 4096)); !errors.Is(err, &Error{TooLarge}) {
+	if loadDarwin() == nil {
+		t.Fatal("fixed native framework bindings unavailable")
+	}
+	if err := Native().Set("service", "account", strings.Repeat("x", 64*1024+1)); !errors.Is(err, &Error{TooLarge}) {
 		t.Fatalf("oversized value: %v", err)
 	}
+}
+
+// Fixture setup only. Production uses the native framework and never a helper.
+func runSecurity(_ string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "/usr/bin/security", args...)
+	cmd.Env = []string{"PATH=/usr/bin:/bin:/usr/sbin:/sbin", "LANG=C", "LC_ALL=C"}
+	data, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, &Error{Unavailable}
+	}
+	return data, nil
 }
