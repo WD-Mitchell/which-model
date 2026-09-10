@@ -227,6 +227,9 @@ which-model hooks install --repo . --target claude
 
 All primary result commands support machine-readable JSON, and `which-model schema <command>` exposes the corresponding schema.
 
+For company deployment boundaries, provider scope limitations and control owners,
+see the [company identity decision](docs/security/company-identity.md).
+
 ## Configuration
 
 Use a project file at `.which-model/config.toml`, a user configuration file, environment variables prefixed with `WHICH_MODEL_`, or command-line flags. Inspect the active values and file location with:

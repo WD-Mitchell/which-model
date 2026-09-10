@@ -135,3 +135,23 @@ expand desktop Windows feature support.
 Correction: #280 removes the accidentally tracked `xd:/lsp` editor diagnostic
 artifact and adds the missing portability gate. It changes no CLI runtime
 behaviour or provider credential policy.
+
+## 11. Company identity boundary (#281)
+
+Company deployments retain the local OS user and provider account identity. No
+separate which-model login, credential broker or product RBAC is introduced. The
+[company identity decision](../../docs/security/company-identity.md) records the
+actors, observed provider grants, same-user bypass limits and required external
+controls. Provider identity validation is not company membership validation, and
+reading allowance data does not reduce the credential's effective privileges.
+
+The optional administrator profile is follow-on work (#282); it preserves
+personal-user defaults and governs operations inside an approved installation.
+Endpoint and provider controls remain responsible for enforcement outside that
+process. Quota/authentication evidence and audit-write failures are advisory and
+do not themselves block otherwise authorised launches (decision for #286). This
+decision does not remove native permissions or approved-executable requirements.
+
+Clarification: this section defines the deployment trust boundary; it changes no
+credential resolution, runtime quota handling or canonical API contract in #281.
+Provider permission and company acceptance are separate evidence requirements.
