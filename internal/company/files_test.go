@@ -34,6 +34,21 @@ func TestNativeProtectedEnrollment(t *testing.T) {
 	}
 	state, err := loadAt(filepath.Join(dir, "valid"), readProtected)
 	if err != nil || !state.Managed || !state.Required {
+		path := filepath.Join(dir, "valid", "required.json")
+		for _, component := range append(parentPaths(path), path) {
+			info, statErr := os.Lstat(component)
+			if statErr != nil {
+				t.Log(component, "lstat", statErr)
+				continue
+			}
+			f, openErr := os.Open(component)
+			if openErr != nil {
+				t.Log(component, "open", openErr)
+				continue
+			}
+			t.Logf("component=%s mode=%s sys=%T redirect=%v protection=%v", component, info.Mode(), info.Sys(), isRedirect(info), trustOpened(f, info.IsDir()))
+			f.Close()
+		}
 		t.Fatal("native protected enrollment failed", err)
 	}
 	for _, name := range []string{"missing", "writable", "invalid", "redirect"} {
