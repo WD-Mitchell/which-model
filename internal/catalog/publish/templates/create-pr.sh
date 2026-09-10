@@ -70,3 +70,19 @@ gh pr create --base "$BASE_BRANCH" --head "$HEAD_BRANCH" --title "$PR_TITLE" --b
 GH_TOKEN="$METADATA_TOKEN" gh pr edit "$HEAD_BRANCH" --add-assignee "$uploader"
 gh pr view "$HEAD_BRANCH" --json assignees --jq '.assignees[].login' | grep -Fx "$uploader"
 gh pr view "$HEAD_BRANCH" --json closingIssuesReferences --jq '.closingIssuesReferences[].number' | grep -Fx "$issue_number"
+# Only retire previous refreshes once their replacement exists and is verified.
+current_number=$(gh pr view "$HEAD_BRANCH" --json number --jq .number)
+gh api --method GET 'repos/{owner}/{repo}/pulls' --paginate \
+  -f state=open -f base="$BASE_BRANCH" -f per_page=100 > "$work_dir/open-prs.json"
+jq -r --arg base "$BASE_BRANCH" --argjson current "$current_number" '
+  .[] | select(.state == "open" and .number < $current)
+  | select(.base.ref == $base and .head.repo.full_name == .base.repo.full_name)
+  | select(.head.ref | test("^refresh-model-data-[0-9]+-[0-9]+$"))
+  | .number
+' "$work_dir/open-prs.json" > "$work_dir/superseded-prs"
+while IFS= read -r stale_number; do
+  gh pr close "$stale_number"
+  [ "$(gh pr view "$stale_number" --json state --jq .state)" = CLOSED ] || {
+    echo "Superseded PR #$stale_number was not closed"; exit 1;
+  }
+done < "$work_dir/superseded-prs"

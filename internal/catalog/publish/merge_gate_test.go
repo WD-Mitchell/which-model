@@ -73,6 +73,9 @@ case "$*" in
  'pr create '*) [ "$GH_TOKEN" = publish ]; echo https://github.com/owner/repo/pull/43;;
  'pr edit '*) [ "$GH_TOKEN" = metadata ];;
  *closingIssuesReferences*) echo 42;;
+ *'--json state'*) echo CLOSED;;
+ *'--json number'*) echo 43;;
+ 'api --method GET repos/'*) echo '[]';;
  'pr view '*) echo human;;
  *) exit 2;;
 esac
@@ -92,5 +95,65 @@ esac
 		if !strings.Contains(string(calls), want) {
 			t.Fatalf("missing %q in %s", want, calls)
 		}
+	}
+}
+
+func TestCreatePRClosesSupersededRefreshes(t *testing.T) {
+	for _, scenario := range []string{"pass", "create-failed", "verification-failed", "list-failed", "close-failed"} {
+		t.Run(scenario, func(t *testing.T) {
+			dir := t.TempDir()
+			stub := `#!/bin/bash
+set -eu
+case "$*" in
+ 'api user '*) echo human;;
+ 'issue create '*) echo https://github.com/owner/repo/issues/42;;
+ 'issue view '*) echo human;;
+ 'pr create '*) [ "$SCENARIO" != create-failed ]; echo https://github.com/owner/repo/pull/43;;
+ 'pr edit '*) :;;
+ *closingIssuesReferences*) [ "$SCENARIO" != verification-failed ]; echo 42;;
+ *'--json state'*) echo CLOSED;;
+ *'--json number'*) echo 43;;
+ 'pr view '*) echo human;;
+ 'api --method GET repos/'*)
+  [ "$SCENARIO" != list-failed ] || exit 1
+  [[ "$*" == *'--paginate'* && "$*" == *'base=main'* && "$*" == *'state=open'* ]] || exit 2
+  cat "$EVIDENCE/prs.json";;
+ 'pr close '*)
+  [ "$SCENARIO" != close-failed ] || exit 1
+  echo "$3" >> "$EVIDENCE/closed";;
+ *) echo "unexpected: $*" >&2; exit 2;;
+esac
+`
+			// Include another page, a fork, another base, a human branch, and newer PRs.
+			prs := `[
+{"number":10,"state":"open","head":{"ref":"refresh-model-data-100-0","repo":{"full_name":"owner/repo"}},"base":{"ref":"main","repo":{"full_name":"owner/repo"}}},
+{"number":11,"state":"open","head":{"ref":"refresh-model-data-101-0","repo":{"full_name":"fork/repo"}},"base":{"ref":"main","repo":{"full_name":"owner/repo"}}},
+{"number":12,"state":"open","head":{"ref":"refresh-model-data-102-0","repo":{"full_name":"owner/repo"}},"base":{"ref":"release","repo":{"full_name":"owner/repo"}}},
+{"number":13,"state":"open","head":{"ref":"refresh-model-data-manual","repo":{"full_name":"owner/repo"}},"base":{"ref":"main","repo":{"full_name":"owner/repo"}}},
+{"number":43,"state":"open","head":{"ref":"refresh-model-data-143-0","repo":{"full_name":"owner/repo"}},"base":{"ref":"main","repo":{"full_name":"owner/repo"}}},
+{"number":44,"state":"open","head":{"ref":"refresh-model-data-144-0","repo":{"full_name":"owner/repo"}},"base":{"ref":"main","repo":{"full_name":"owner/repo"}}}
+]
+[{"number":9,"state":"open","head":{"ref":"refresh-model-data-99-0","repo":{"full_name":"owner/repo"}},"base":{"ref":"main","repo":{"full_name":"owner/repo"}}}]
+`
+			for name, body := range map[string]string{"gh": stub, "git": "#!/bin/sh\nexit 0\n", "prs.json": prs} {
+				if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			cmd := exec.Command("bash", "-c", createPRScript)
+			cmd.Env = append(os.Environ(), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"), "EVIDENCE="+dir, "SCENARIO="+scenario, "GH_TOKEN=publish", "METADATA_TOKEN=metadata", "HEAD_BRANCH=refresh-model-data-143-0", "BASE_BRANCH=main", "PR_TITLE=refresh")
+			out, err := cmd.CombinedOutput()
+			if (err == nil) != (scenario == "pass") {
+				t.Fatalf("err=%v output=%s", err, out)
+			}
+			closed, _ := os.ReadFile(filepath.Join(dir, "closed"))
+			want := ""
+			if scenario == "pass" {
+				want = "10\n9\n"
+			}
+			if string(closed) != want {
+				t.Fatalf("closed=%q want=%q", closed, want)
+			}
+		})
 	}
 }

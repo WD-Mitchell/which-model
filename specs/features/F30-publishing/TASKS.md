@@ -500,3 +500,22 @@ generator failure before staging, and repeat generation matching committed bytes
 ### Additional regression: unattended check-gated publication
 
 `TestGeneratedMergeGate` executes the generated merge gate against inert commands: only all-pass checks on the unchanged commit can merge; pending, missing, failed, skipped, unreadable checks and stale heads cannot. A rejected or queued merge cannot report success. The repository schedule override is every 30 minutes. Template publication verifies human assignments and linked issue before merging.
+
+
+### Superseded refresh PR cleanup (September 2026)
+
+Owner decision following PR #279: when a new refresh PR is created, close older
+refresh PRs that remain unmerged. This supersedes retaining an open PR from every
+failed refresh run. After creating and verifying the replacement PR's assignment
+and Development link, enumerate all pages of open PRs for the configured base.
+Close only lower-numbered PRs from the same repository and base whose head matches
+`^refresh-model-data-[0-9]+-[0-9]+$`, and verify each is closed. The workflow's
+serialized runs mean these are previous unfinished refreshes. This applies in
+pull-request mode, including when auto-merge is disabled. No-change runs and
+failed creation or metadata verification do not close anything. Listing or closing
+errors fail the publication step. Issues and branches are retained; merge checks
+and protections are unchanged.
+
+`TestCreatePRClosesSupersededRefreshes` covers multiple result pages, exclusion of
+forks, other bases, unrelated branches, current/newer PRs, and failure before
+creation, during verification, listing, or closure.

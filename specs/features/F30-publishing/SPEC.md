@@ -170,3 +170,22 @@ The owner requested this repository refresh every 30 minutes and merge automatic
 ### Publishing metadata token correction
 
 A live refresh showed the existing fine-grained CSV_UPDATE_TOKEN can publish branches/PRs but cannot assign issues (`replaceActorsForAssignable`). Keep that token for branch/PR creation and merging; use the workflow's `github.token` for Task creation and explicit human assignment of the issue and PR. PR mode therefore grants `issues: write` alongside existing contents and pull-request permissions. No long-lived token scope change is required. Assignment targets the publishing token's human login, never the workflow bot.
+
+
+### Superseded refresh PR cleanup (September 2026)
+
+Owner decision following PR #279: when a new refresh PR is created, close older
+refresh PRs that remain unmerged. This supersedes retaining an open PR from every
+failed refresh run. After creating and verifying the replacement PR's assignment
+and Development link, enumerate all pages of open PRs for the configured base.
+Close only lower-numbered PRs from the same repository and base whose head matches
+`^refresh-model-data-[0-9]+-[0-9]+$`, and verify each is closed. The workflow's
+serialized runs mean these are previous unfinished refreshes. This applies in
+pull-request mode, including when auto-merge is disabled. No-change runs and
+failed creation or metadata verification do not close anything. Listing or closing
+errors fail the publication step. Issues and branches are retained; merge checks
+and protections are unchanged.
+
+`TestCreatePRClosesSupersededRefreshes` covers multiple result pages, exclusion of
+forks, other bases, unrelated branches, current/newer PRs, and failure before
+creation, during verification, listing, or closure.
