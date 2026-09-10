@@ -97,8 +97,9 @@ them in user configuration. Ranking preferences may select allowed profiles,
 weights and models without granting sensitive capabilities.
 
 An executable approval has `id`, absolute `path`, SHA-256 `sha256` and `args`
-(separate argument-template strings). A CodexBar approval has absolute `path`
-and `sha256`. Empty approvals prohibit execution/delegation. Approval metadata is
+(separate argument-template strings). A CodexBar approval has absolute `path`,
+`sha256`, and required `config: {path, sha256}`; both are protected reviewed inputs
+(global CONTRACTS §16, F14/APPROVED-CODEXBAR.md). Empty approvals prohibit execution/delegation. Approval metadata is
 not authorization to run a legacy unverified command path: the consuming operation
 must implement the approved path, digest, arguments and environment contract.
 Those consumers are completed by #285/#287. Retention and identity-free persistence
