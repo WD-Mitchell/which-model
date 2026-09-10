@@ -53,3 +53,16 @@ func TestCompanyAuditFailureIsVisibleAndAdvisory(t *testing.T) {
 		t.Fatal("failure leaked payload/path")
 	}
 }
+
+func TestCompanyAuditZeroRetentionReportsNoRecord(t *testing.T) {
+	p := company.Defaults()
+	p.Retention.AuditRecordsDays = 0
+	state := t.TempDir()
+	out, err := companyAudit(company.Snapshot{Managed: true, Policy: &p}, auditDocument{Candidate: "codex:model"}, Options{companyStateDir: state})
+	if err != nil || !strings.Contains(string(out), `"audit_recorded":false`) || !strings.Contains(string(out), `"audit_status":"disabled"`) {
+		t.Fatalf("zero retention: %s %v", out, err)
+	}
+	if _, err := os.Stat(filepath.Join(state, "audit", "evidence.jsonl")); !os.IsNotExist(err) {
+		t.Fatal("audit persisted with zero retention")
+	}
+}

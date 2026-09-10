@@ -22,7 +22,13 @@ export interface RankRequest {
   holds: number
 }
 
+export interface QuotaEvidence {
+  state: 'current' | 'missing' | 'unknown' | 'partial' | 'stale' | 'authentication_error' | 'provider_error' | 'disabled'
+  message: string
+}
+
 export interface RankedModel {
+  quota_evidence?: QuotaEvidence
   rank: number
   model_id: string
   model_name: string
@@ -36,6 +42,7 @@ export interface RankedModel {
 }
 
 export interface RankResponse {
+  recommendation_mode?: 'score_only'
   candidates: RankedModel[]
   total: number
 }
@@ -106,6 +113,7 @@ export interface HarnessInfo {
 }
 
 export interface LaunchResult {
+  advisories?: string[]
   copied: boolean
   command: string
 }

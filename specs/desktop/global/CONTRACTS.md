@@ -49,6 +49,7 @@ type RankRequest struct {
 }
 
 type RankedModel struct {
+    QuotaEvidence *advisory.Report `json:"quota_evidence,omitempty"` // company only; global §15
     Rank      int     `json:"rank"`       // 1-based
     ModelID   string  `json:"model_id"`
     ModelName string  `json:"model_name"`
@@ -59,6 +60,7 @@ type RankedModel struct {
 }
 
 type RankResponse struct {
+    RecommendationMode string `json:"recommendation_mode,omitempty"` // company: score_only
     Candidates []RankedModel `json:"candidates"` // top Holds, rank ascending
     Total      int           `json:"total"`      // candidates before truncation
 }
@@ -120,6 +122,7 @@ type HarnessInfo struct {
 }
 
 type LaunchResult struct {
+    Advisories []string `json:"advisories,omitempty"` // fixed company evidence/recording notices
     Copied  bool   `json:"copied"`  // true ⇒ frontend puts Command on the clipboard
     Command string `json:"command"` // fully substituted
 }

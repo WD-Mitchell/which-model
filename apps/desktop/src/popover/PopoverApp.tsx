@@ -76,6 +76,7 @@ export function PopoverApp() {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [harnessSlug, setHarnessSlug] = useState<string | undefined>(undefined)
   const [harnessMenuOpen, setHarnessMenuOpen] = useState(false)
+  const [launchNotice, setLaunchNotice] = useState<{ title: string; messages: string[] } | null>(null)
 
   const toast = useToast()
 
@@ -84,6 +85,8 @@ export function PopoverApp() {
   const settings = settingsQuery.data
 
   const userProfile = userProfilesQuery.data?.find((p) => p.slug === settings?.user_profile)
+  const noticeRef = useRef<HTMLDivElement>(null)
+  useEffect(() => { if (launchNotice) noticeRef.current?.scrollIntoView?.({ block: 'nearest' }) }, [launchNotice])
   const [seededProfile, setSeededProfile] = useState('')
   useEffect(() => {
     if (!userProfile || !profiles.length) return
@@ -265,12 +268,14 @@ export function PopoverApp() {
       return
     }
     try {
+      setLaunchNotice(null)
       const result = await getHost().harnesses.launch(harnessSlug, pick.route_key, activeSlug)
+      if (result.advisories?.length) { setLaunchNotice({ title: result.copied ? "Command prepared for copying" : "Process started", messages: result.advisories }) }
       if (result.copied) {
         await copyToClipboard(result.command)
       }
       toast.show(result.command)
-      if (settings?.close_popover_after_launch) {
+      if (settings?.close_popover_after_launch && !result.advisories?.length) {
         await hidePopover()
       }
     } catch (e) {
@@ -339,7 +344,24 @@ export function PopoverApp() {
     <PopoverShell header={header}>
       <ProfileSelector />
       <PopoverTabs tab={tab} onTab={setTabOverride} />
-      {body}
+      {rankQuery.data?.recommendation_mode === 'score_only' || launchNotice ? (
+        <div className="wa-company-content">
+          {body}
+          {rankQuery.data?.recommendation_mode === 'score_only' && pick && (
+            <div className="wa-evidence-note">
+              <strong>Score-only recommendation</strong>
+              <p>{pick.quota_evidence?.message ?? 'Quota evidence is unavailable; allowance is unconfirmed.'}</p>
+            </div>
+          )}
+          {launchNotice && (
+            <div ref={noticeRef} className="wa-evidence-note" role="status" aria-live="polite">
+              <strong>{launchNotice.title}</strong>
+              <ul>{launchNotice.messages.map((message, index) => <li key={index}>{message}</li>)}</ul>
+              <button className="wa-evidence-dismiss" onClick={() => setLaunchNotice(null)}>Dismiss launch notice</button>
+            </div>
+          )}
+        </div>
+      ) : body}
       {/* Tab-independent: Settings + Launch stay put on both tabs. Only the
           content area above changes. */}
       <PopoverFooter
