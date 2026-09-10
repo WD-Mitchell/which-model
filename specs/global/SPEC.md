@@ -183,7 +183,8 @@ a release-integrity gate, not a runtime quota or audit launch gate. Manual
 verification-only runs may produce signed candidate artifacts and evidence but
 never create tags, publish GitHub releases or publish npm packages.
 
-Installers stage candidate bytes privately without execute permission, verify
+Installers stage candidate bytes outside the launcher path (0600 on POSIX;
+Windows uses the package directory ACL), never execute the candidate, verify
 checksum, source identity and signature, then atomically expose the executable. A matching verification receipt and
 current digest are required when the npm launcher uses a local fallback; stale
 or unverified leftovers are refused.

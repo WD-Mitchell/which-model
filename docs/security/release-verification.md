@@ -113,7 +113,8 @@ Its result is uploaded as the `npm-provenance` workflow artifact.
 The launcher includes a release policy stamped from the verified manifest. If an
 optional platform package is unavailable, postinstall requires that policy and a
 trusted GitHub CLI. It downloads bounded checksum/binary/bundle data over approved
-GitHub HTTPS destinations, stages bytes privately with mode 0600, verifies the
+GitHub HTTPS destinations, stages bytes as `candidate.download` outside the launcher path (mode 0600 on
+POSIX; inherited package-directory ACL on Windows), never executes them, verifies the
 expected checksum and signed source identity, then grants execute permission and
 atomically installs the binary with a verification receipt. The launcher requires
 a matching version/source receipt and current binary digest before using a local
