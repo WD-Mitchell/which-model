@@ -30,6 +30,9 @@ function main() {
 
   const launcherManifest = read(path.join(npmRoot, "which-model", "package.json"));
   const version = launcherManifest.version;
+  // A release launcher must carry the verified policy used by its fallback.
+  const { validateManifest } = require("../which-model/verify-release");
+  validateManifest(read(path.join(npmRoot, "which-model", "release-policy.json")), version);
   const dirs = Object.keys(launcherManifest.optionalDependencies).map(
     (name) => name.replace("@wdm-uk/", "")
   );
@@ -66,6 +69,7 @@ function publish(dir, version) {
   }
   console.log(`${DRY_RUN ? "[dry-run] would publish" : "publishing"} ${name}@${version} from ${dir}`);
   const args = ["publish", "--access", "public"];
+  if (process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN) args.push("--provenance");
   // Prerelease versions (e.g. 1.1.0-beta.0) tag as `beta` so a beta release
   // never moves the `latest` dist-tag and is installed via
   // `pnpm add -g @wdm-uk/which-model@beta`.

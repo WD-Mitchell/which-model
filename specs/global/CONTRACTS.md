@@ -338,3 +338,26 @@ Pinned cases:
 | `Src/a.go` and `src/b.go` | rejected directory collision |
 | `A` and `a/file` | rejected file/directory collision |
 | `src/a.go` and `src/b.go` | accepted shared directory |
+
+## 10. Release evidence and verification (#288)
+
+`release-manifest.json` schema 1 contains `version`, `source_digest` (40 lowercase
+hex), `source_ref` (`refs/heads/...` or `refs/tags/...`), and `artifacts`. Each
+artifact entry has `name`, `sha256`, `sbom` and `sbom_sha256`; filenames are simple
+basenames with no traversal. The build also emits `<binary>.cdx.json`,
+`checksums.txt` and a Sigstore `provenance.jsonl` bundle.
+
+The npm launcher includes `release-policy.json` containing the same manifest;
+its version must match package.json before a fallback download. The verifier
+pins repository, signer workflow, OIDC issuer, source ref/digest, SLSA v1 predicate
+and hosted runner identity. A checksum match without successful cryptographic
+verification is rejected. Direct verification uses an explicitly supplied version,
+source ref and full source digest; mirror-supplied metadata cannot choose trust.
+
+Pinned cases: changed bytes, absent/malformed bundle, incorrect repository,
+workflow, source ref or source digest, mismatched package version, verifier
+absence/timeout/failure and interrupted installation expose no new runnable
+fallback. Optional-package success and download opt-out perform no fallback
+network or verifier calls. A fallback receipt binds version/source/digest and is written only after successful
+verification. The launcher refuses missing/mismatched receipts and changed bytes.
+Existing personal configuration, credential and harness defaults are unchanged.

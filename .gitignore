@@ -23,6 +23,7 @@ __pycache__/
 
 # Release artifacts (npm packaging)
 /dist/
+npm/which-model/release-policy.json
 npm/which-model-*/which-model
 
 # Desktop monorepo (S01)
