@@ -18,7 +18,7 @@ func TestWindowsDescriptorAuthority(t *testing.T) {
 		{"null DACL", "O:SYG:SY", false, false},
 		{"world write", "O:SYG:SYD:P(A;;FA;;;SY)(A;;GW;;;WD)", false, false},
 		{"world ACL edit", "O:SYG:SYD:P(A;;FA;;;SY)(A;;WD;;;WD)", false, false},
-		{"world delete child", "O:SYG:SYD:P(A;;FA;;;SY)(A;;DC;;;WD)", true, false},
+		{"world delete child", "O:SYG:SYD:P(A;;FA;;;SY)(A;;0x0040;;;WD)", true, false},
 		{"ancestor sibling creation", "O:SYG:SYD:P(A;;FA;;;SY)(A;;0x0004;;;BU)", true, true},
 		{"file append", "O:SYG:SYD:P(A;;FA;;;SY)(A;;0x0004;;;BU)", false, false},
 		{"deny does not mask unsafe allowance", "O:SYG:SYD:P(D;;GW;;;WD)(A;;GW;;;WD)", false, false},
