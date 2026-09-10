@@ -29,6 +29,13 @@ func (c *Config) LoadAuth() (AuthConfig, error) {
 
 // SetAuth writes the complete [auth] section into the raw document.
 func (c *Config) SetAuth(auth AuthConfig) error {
+	policy, err := readCompanyPolicy()
+	if err != nil {
+		return err
+	}
+	if err := validateManagedAuth(policy, auth); err != nil {
+		return err
+	}
 	c.setRaw("auth", map[string]any{
 		"use_keychain": auth.UseKeychain,
 	})

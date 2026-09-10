@@ -39,7 +39,7 @@ func NewConfigCmd() *cobra.Command {
 		Use:   "config",
 		Short: "inspect and update which-model configuration",
 	}
-	cmd.AddCommand(newConfigShowCmd(), newConfigSetCmd(), newConfigPathCmd(), newConfigValidateCmd())
+	cmd.AddCommand(newConfigShowCmd(), newConfigSetCmd(), newConfigPathCmd(), newConfigValidateCmd(), newConfigPolicyCmd())
 	return cmd
 }
 
@@ -106,6 +106,9 @@ func newConfigSetCmd() *cobra.Command {
 			setNestedKey(doc, key, parseTOMLValue(value))
 			out, err := toml.Marshal(doc)
 			if err != nil {
+				return err
+			}
+			if err := config.ValidateManagedDocument(out); err != nil {
 				return err
 			}
 			if err := config.AtomicWriteFile(path, out); err != nil {

@@ -346,6 +346,9 @@ func saveCredential(provider, token string) error {
 }
 
 func RunAuthLogin(provider string, stdout, stderr io.Writer, stdin io.Reader) error {
+	if err := requireCompanyProvider(provider); err != nil {
+		return err
+	}
 	if err := authUsageDisabled(Global.NoUsage, Global.ConfigPath); err != nil {
 		return err
 	}

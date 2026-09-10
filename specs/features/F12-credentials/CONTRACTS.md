@@ -264,3 +264,13 @@ func CheckExpired(exp time.Time, now time.Time) error
 |---|---|
 | Unsupported-platform keychain or wrapped not-found | Continue to file source |
 | Locked/denied keychain with secret-bearing error | `keychain_unavailable`, no secret in failure |
+
+
+## Company-policy extension (#282)
+
+Credential resolution reloads protected company policy before source access. Managed chains skip forbidden sources; direct resolvers refuse them. An unavailable keychain cannot trigger a forbidden managed-file read, stat or write, and managed keychain saves do not silently delete legacy files. Legacy CLI credential commands remain unavailable in managed mode until verified execution is implemented. Personal fallback behavior is unchanged.
+
+This intentionally supersedes unrestricted operation for enrolled installations only;
+see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
+`TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
+and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.

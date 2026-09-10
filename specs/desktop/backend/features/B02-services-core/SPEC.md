@@ -67,3 +67,13 @@ Service methods (B03–B11); `AtomicWriteFile`/GUI config sections (B01); histor
 ## Review correction — #32: host error normalization
 
 `ToErrorDTO(err error) ErrorDTO` exports the existing canonical mapper for the native adapter. Nil maps to an empty DTO, existing value/pointer DTOs pass through, wrapped sentinels retain their stable codes, and unknown errors retain existing sanitization. Binding wrappers must keep successful nil errors nil instead of returning the empty DTO as an error. No new error codes or message parsing are introduced.
+
+
+## Company-policy extension (#282)
+
+Desktop operation boundaries reload administrator policy. Company policy errors map to the existing validation_failed ErrorDTO with known diagnostic text and the protected origin; credential input is never echoed. A mutable Services configuration cannot authorize forbidden operations.
+
+This intentionally supersedes unrestricted operation for enrolled installations only;
+see the [F01 managed-policy contract](../../../../features/F01-config/MANAGED-POLICY.md). Pinned evidence:
+`TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
+and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.

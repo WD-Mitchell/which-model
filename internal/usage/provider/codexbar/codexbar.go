@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/WD-Mitchell/which-model/internal/company"
 	"os"
 	"os/exec"
 	"sort"
@@ -75,6 +76,9 @@ func fetchWithSourceEnvironment(
 	source usage.Source,
 	environment map[string]string,
 ) (usage.Snapshot, error) {
+	if err := company.Authorize(providerID, "", "codexbar"); err != nil {
+		return usage.Snapshot{}, err
+	}
 	binary, err := findBinary()
 	if err != nil {
 		return usage.Snapshot{}, err
@@ -154,6 +158,9 @@ func environmentWithOverrides(base []string, overrides map[string]string) []stri
 }
 
 func findBinary() (string, error) {
+	if err := company.Authorize("", "", "codexbar"); err != nil {
+		return "", err
+	}
 	if configured := strings.TrimSpace(os.Getenv("CODEXBAR_BIN")); configured != "" && isExecutable(configured) {
 		return configured, nil
 	}

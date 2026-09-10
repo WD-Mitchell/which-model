@@ -75,6 +75,13 @@ func (s ManagedStore) SaveAPIKey(provider, token string) error {
 }
 
 func (s ManagedStore) save(provider, token, source string) error {
+	policy, err := readCompanyPolicy()
+	if err != nil {
+		return err
+	}
+	if err := policy.RequireProvider(provider); err != nil {
+		return err
+	}
 	path := s.Path(provider)
 	if path == "" {
 		return errors.New("managed credential storage is unavailable")
@@ -92,15 +99,24 @@ func (s ManagedStore) save(provider, token, source string) error {
 		keychainValue = string(data)
 	}
 	if s.UseKeychain {
+		if err := policy.RequireSource("keychain"); err != nil {
+			return err
+		}
 		if err := s.keychain().Set(managedKeychainService, provider, keychainValue); err == nil {
 			// The credential is committed once Keychain accepts it. Fallback
 			// cleanup is best-effort: reporting a failure here would tell the
 			// caller to retry after authentication state had already changed.
-			_ = os.Remove(path)
+			// Managed enrollment does not authorize silent legacy-file deletion.
+			if !policy.Managed {
+				_ = os.Remove(path)
+			}
 			return nil
 		}
 	}
-	if err := config.AtomicWriteFile(path, append(data, '\n')); err != nil {
+	if err := policy.RequireSource("managed_file"); err != nil {
+		return err
+	}
+	if err := managedFileWrite(path, append(data, '\n')); err != nil {
 		return errors.New("managed credential file write failed")
 	}
 	return nil
@@ -112,12 +128,22 @@ func (s ManagedStore) Resolve(ctx context.Context, provider string) (usage.Crede
 	if err := ctx.Err(); err != nil {
 		return Credential{}, nil, err
 	}
+	policy, err := readCompanyPolicy()
+	if err != nil {
+		return Credential{}, nil, err
+	}
+	if err := policy.RequireProvider(provider); err != nil {
+		return Credential{}, nil, err
+	}
 	path := s.Path(provider)
 	if path == "" {
 		return Credential{}, nil, ErrNotFound
 	}
 	var warnings []Warning
 	if s.UseKeychain {
+		if err := policy.RequireSource("keychain"); err != nil {
+			return Credential{}, nil, err
+		}
 		value, err := managedKeychainGet(ctx, s.keychain(), managedKeychainService, provider)
 		if ctx.Err() != nil {
 			return Credential{}, nil, ctx.Err()
@@ -132,11 +158,16 @@ func (s ManagedStore) Resolve(ctx context.Context, provider string) (usage.Crede
 				return Credential{Token: stored.Token, Source: managedCredentialSource(stored.Source)}, nil, nil
 			}
 		} else if err != nil && !errors.Is(err, keyringNotFound) && !errors.Is(err, ErrNotFound) {
-			warnings = append(warnings, Warning{Message: "system keychain unavailable; using managed credential file"})
+			if !policy.Managed {
+				warnings = append(warnings, Warning{Message: "system keychain unavailable; using managed credential file"})
+			}
 		}
 	}
 
-	info, err := os.Stat(path)
+	if err := policy.RequireSource("managed_file"); err != nil {
+		return Credential{}, warnings, err
+	}
+	info, err := managedFileStat(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return Credential{}, warnings, ErrNotFound
@@ -149,7 +180,7 @@ func (s ManagedStore) Resolve(ctx context.Context, provider string) (usage.Crede
 	if info.Mode().Perm()&0o077 != 0 {
 		warnings = append(warnings, Warning{Message: fmt.Sprintf("credential file %q has broad permissions", path)})
 	}
-	data, err := os.ReadFile(path)
+	data, err := managedFileRead(path)
 	if err != nil {
 		return Credential{}, warnings, usage.NewFailureError("credential_file", "managed credential file could not be read")
 	}
@@ -205,6 +236,13 @@ func (s ManagedStore) Remove(provider string) error {
 // providers may still Validate that token; file-only providers (Claude, Codex)
 // use the store as a last source after declared files/env miss.
 func ResolveProvider(ctx context.Context, provider string, sources []usage.AuthSource, client *http.Client, store ManagedStore) (usage.Credential, []Warning, error) {
+	policy, policyErr := readCompanyPolicy()
+	if policyErr != nil {
+		return Credential{}, nil, policyErr
+	}
+	if err := policy.RequireProvider(provider); err != nil {
+		return Credential{}, nil, err
+	}
 	credential, warnings, err := ResolveChain(ctx, sources, client)
 	if err == nil || !errors.Is(err, ErrNotFound) {
 		return credential, warnings, err

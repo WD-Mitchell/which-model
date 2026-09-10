@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/WD-Mitchell/which-model/internal/company"
 	"io"
 	"os"
 	"path/filepath"
@@ -48,6 +49,9 @@ var (
 // silence) or an error for exit-2-class conditions. Never errors for
 // underlying command failures (fail-open).
 func Run(name string, passthrough []string, opts Options) ([]byte, error) {
+	if err := company.Authorize("", "", "hook_use"); err != nil {
+		return nil, err
+	}
 	h, ok := Get(name)
 	if !ok {
 		return nil, errUnknownHook

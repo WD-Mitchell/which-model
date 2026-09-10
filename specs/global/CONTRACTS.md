@@ -309,11 +309,13 @@ These are **compile-time-enforced** import boundaries:
 
 | Package | MAY import | MUST NOT import |
 |---|---|---|
-| `internal/config` | `BurntSushi/toml`, `shopspring/decimal` | anything else in `internal/` |
+| `internal/company` | standard library, platform `x/sys` protection APIs | other `internal/` packages |
+| `internal/config` | `BurntSushi/toml`, `shopspring/decimal`, `internal/company` | other `internal/` packages |
 | `internal/decimal` | `shopspring/decimal` | anything in `internal/` |
 | `internal/security` | `internal/config` | `internal/usage`, `internal/catalog` |
 | `internal/catalog/*` | `internal/config`, `internal/decimal`, `internal/httpkit`, `internal/security` | `internal/usage`, `internal/routing`, `internal/pick` |
-| `internal/usage/*` | `internal/config`, `internal/security`, `internal/httpkit` | `internal/catalog`, `internal/routing`, `internal/pick` |
+| `internal/usage/*` | `internal/config`, `internal/company`, `internal/security`, `internal/httpkit` | `internal/catalog`, `internal/routing`, `internal/pick` |
+| `internal/skills`, `internal/hooks` | standard library, `internal/company` | provider implementations |
 | `internal/routing` | `internal/catalog/identity`, `internal/usage` (types only) | `internal/pick` |
 | `internal/pick` | `internal/catalog`, `internal/routing`, `internal/usage` (types only) | `cmd/` |
 | `pkg/whichmodel` | any `internal/` | — |
@@ -391,3 +393,14 @@ restricted SBOM's `bundled-catalog`/`bundled-profiles` components against its in
 hashes. Historical full-only manifests remain valid. Embedded catalog checkout
 uses LF bytes on every OS; restricted builds use trimpath, no build-date stamp and
 `-buildvcs=false`, with full release commit supplied explicitly to the command.
+
+
+## 11. Protected company policy (#282)
+
+The [F01 policy contract](../features/F01-config/MANAGED-POLICY.md) owns the separate
+administrator schema, fixed platform origins, precedence, protection checks and
+inspection output. It adds no mutable authority to canonical Config or desktop DTOs.
+Policy failures are exit 2; desktop mapping uses existing `validation_failed`.
+Credential/provider/executable checks apply before effects, including direct callers.
+Optional enrollment preserves personal defaults. The restricted score-only artifact
+continues to exclude policy/configuration loading entirely.

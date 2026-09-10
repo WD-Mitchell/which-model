@@ -65,6 +65,9 @@ type KeychainResolver struct {
 // deliberately store-error-free: deterministic, and it can never leak
 // partial secret material (SPEC §7).
 func (r *KeychainResolver) Resolve(ctx context.Context) (usage.Credential, error) {
+	if err := requireSource("keychain"); err != nil {
+		return Credential{}, err
+	}
 	v, err := r.Store.Get(r.Service, r.Account)
 	if err != nil {
 		if errors.Is(err, keyringNotFound) || errors.Is(err, ErrNotFound) {

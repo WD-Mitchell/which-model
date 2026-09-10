@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"github.com/WD-Mitchell/which-model/internal/company"
 	"net/url"
 	"os"
 	"os/exec"
@@ -30,6 +31,9 @@ type BrowserLogin struct {
 // StartBrowserLogin starts Cursor Agent without letting it open a second
 // browser window, then returns the authorization URL printed by the CLI.
 func StartBrowserLogin(ctx context.Context) (*BrowserLogin, error) {
+	if err := company.Authorize("cursor", "cli", ""); err != nil {
+		return nil, err
+	}
 	binary, err := findBinary()
 	if err != nil {
 		return nil, errors.New("Cursor Agent is required for OAuth sign-in; install cursor-agent first")
