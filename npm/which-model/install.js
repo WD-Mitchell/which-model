@@ -68,10 +68,10 @@ function main() {
       const got = crypto.createHash("sha256").update(body).digest("hex");
       if (got !== want) throw new Error(`checksum mismatch for ${asset}`);
       const bundle = await download(`${base}/provenance.jsonl`, 0, 16 * 1024 * 1024);
-      // A private sibling directory keeps unverified bytes non-executable and
-      // allows the final rename to be atomic on the destination filesystem.
+      // A sibling staging directory keeps unverified bytes out of the launcher
+      // path and allows atomic final renames on the destination filesystem.
       stage = fs.mkdtempSync(path.join(__dirname, ".which-model-install-"));
-      const candidate = path.join(stage, binName);
+      const candidate = path.join(stage, "candidate.download");
       const evidence = path.join(stage, "provenance.jsonl");
       fs.writeFileSync(candidate, body, { mode: 0o600, flag: "wx" });
       fs.writeFileSync(evidence, bundle, { mode: 0o600, flag: "wx" });
