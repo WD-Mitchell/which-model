@@ -144,6 +144,14 @@ jobs:
           else
             sudo env GITHUB_ACTIONS=true python3 scripts/company_policy_fixture.py prepare --github-env "$GITHUB_ENV"
           fi
+      - name: Inspect native fixture ACLs
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          'C:\', 'C:\ProgramData', 'C:\ProgramData\which-model-company-ci', 'C:\ProgramData\which-model-company-ci\valid', 'C:\ProgramData\which-model-company-ci\valid\required.json' | ForEach-Object {
+            $policyAcl = Get-Acl -LiteralPath $_
+            Write-Output "$_ $($policyAcl.Sddl)"
+          }
       - name: Exercise actual protected enrollment and operation boundaries
         run: go test ./internal/company -run TestNative -v
       - name: Verify CLI authority and required-policy behavior
