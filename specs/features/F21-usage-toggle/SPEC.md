@@ -94,8 +94,9 @@ Only `pick`, `profiles`, `capabilities`, `version` and help are accepted.
 Unknown commands, extra positional arguments and unsupported flags exit 2
 before doing work. No file, environment or flag can enable excluded capabilities.
 The command does not read configuration or credentials, open network connections,
-start child processes or persist results. Go runtime OS initialization is outside
-this application-data boundary; shared types may bring in unused library code.
+start child processes or persist results. The import audit excludes `net`,
+`net/http` and `os/exec`; shared CSV vocabulary lives in a leaf package with no I/O.
+Go runtime OS initialization is outside this application-data boundary.
 
 Every JSON document uses the canonical output envelope with usage disabled for
 `compiled_out`; recommendations explicitly state that provider availability and

@@ -31,11 +31,13 @@ def main():
             directory.mkdir()
         # Invalid inputs deliberately fail if any full-product loader is reached.
         for relative in ('.codex/auth.json', '.claude/.credentials.json', '.config/github-copilot/apps.json',
-                         '.config/which-model/config.toml', '.config/which-model/credentials.json'):
+                         '.config/which-model/config.toml', '.config/which-model/credentials.json',
+                         'Library/Application Support/which-model/config.toml'):
             file = home / relative
             file.parent.mkdir(parents=True, exist_ok=True)
             file.write_text('SYNTHETIC_CREDENTIAL_CANARY invalid data', encoding='utf-8')
-        for name in ('which-model.toml', '.which-model.toml', 'config.toml'):
+        for name in ('which-model.toml', '.which-model/config.toml', 'config.toml'):
+            (project / name).parent.mkdir(parents=True, exist_ok=True)
             (project / name).write_text('invalid TOML [; launch must not run', encoding='utf-8')
         for name in ('codexbar', 'CodexBar', 'codex', 'claude', 'gh', 'sh', 'cmd.exe'):
             file = helpers / name
@@ -50,6 +52,7 @@ def main():
                        WHICH_MODEL_CONFIG=str(project / 'which-model.toml'),
                        CODEX_HOME=str(home / '.codex'), CLAUDE_CONFIG_DIR=str(home / '.claude'),
                        CODEX_ACCESS_TOKEN='SYNTHETIC_ENV_CANARY', CLAUDE_ACCESS_TOKEN='SYNTHETIC_ENV_CANARY',
+                       WHICH_MODEL_CLAUDE_OAUTH_TOKEN='SYNTHETIC_ENV_CANARY',
                        GH_TOKEN='SYNTHETIC_ENV_CANARY', GITHUB_TOKEN='SYNTHETIC_ENV_CANARY',
                        HTTP_PROXY='http://127.0.0.1:1', HTTPS_PROXY='http://127.0.0.1:1')
         before = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file()}

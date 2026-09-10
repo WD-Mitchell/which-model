@@ -15,9 +15,9 @@ import sys
 p = Path(sys.argv[1])
 deps = (p / 'deps.txt').read_text().splitlines()
 for package in deps:
-    assert package != 'os/exec', package
-    assert not any(x in package for x in ('/usage/credential', '/usage/fetch', '/usage/providers', '/usage/codexbar',
-                                          '/harness', '/hooks', '/skills', '/catalog/collect', '/pkg/whichmodel',
+    assert package not in ('os/exec', 'net/http', 'net'), package
+    assert not any(x in package for x in ('/usage/credential', '/usage/fetch', '/usage/provider/', '/usage/codexbar',
+                                          '/harness', '/hooks', '/skills', '/catalog/fetch', '/catalog/csvstore', '/internal/service', '/pkg/whichmodel',
                                           'go-keyring', 'go-gh')), package
 symbols = (p / 'symbols.txt').read_text()
 for name in ('net.Dial', 'net/http.(*Client).do', 'os/exec.', 'internal/config.Load',
