@@ -1,5 +1,10 @@
 # @wdm-uk/which-model
 
+This product is **pre-release**. A numeric version or npm distribution tag selects
+an artifact; it does not establish stable readiness or company approval. Review
+the [release readiness record](https://github.com/WD-Mitchell/which-model/blob/main/docs/releases/readiness.md)
+and pin the version approved for your deployment.
+
 Install the [which-model](https://github.com/WD-Mitchell/which-model) CLI:
 
 ```bash
