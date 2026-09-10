@@ -90,7 +90,10 @@ func (g *SettingsService) Set(ctx context.Context, in GUISettings) error {
 
 	payload := in
 	payload.AAAPIKey = ""
-	payload.AAAPIKeySet, _ = aaKeyIsSet(g.s.paths.ConfigDir)
+	payload.AAAPIKeySet, err = aaKeyIsSet(g.s.paths.ConfigDir)
+	if err != nil {
+		return toErrorDTO(err)
+	}
 	payload.CatalogRepo = guiConfig(in).CatalogRepo
 	payload.ConfigPath = g.s.paths.UserConfigFile
 	payload.Version = g.s.version

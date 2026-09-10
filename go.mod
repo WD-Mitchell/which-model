@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/danieljoos/wincred v1.2.3
+	github.com/ebitengine/purego v0.11.0
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/gofrs/flock v0.13.1
 	github.com/oklog/ulid/v2 v2.1.2
