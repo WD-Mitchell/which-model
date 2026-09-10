@@ -150,3 +150,7 @@ credential protection, identity/payload canaries, central hook audit, fixed usag
 diagnostics and structured launch output. The `company-privacy` CI matrix runs
 native macOS, Windows and Linux cases. #287 must update this inventory with the
 approved CodexBar containment behavior; #291 maps evidence to the listed controls.
+
+Zero retention is supported: an administrator value of `0` disables persistence
+for that category and removes its existing owned records when maintenance or a
+write is attempted. It never means unlimited retention.

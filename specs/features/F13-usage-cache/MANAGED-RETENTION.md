@@ -85,3 +85,7 @@ unknown provider codes become provider_status. Only exact application-owned
 native secure-store messages may pass through to preserve lock/denial guidance.
 Personal diagnostics are unchanged. This applies after either backend returns;
 #287 remains responsible for approving and containing the delegated executable.
+
+Zero retention is supported: an administrator value of `0` disables persistence
+for that category and removes its existing owned records when maintenance or a
+write is attempted. It never means unlimited retention.

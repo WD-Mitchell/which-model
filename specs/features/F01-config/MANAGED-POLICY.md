@@ -147,3 +147,7 @@ it grants neither ordinary plaintext fallback nor provider-file access. Native
 secure login and migration now follow [F12 secure stores](../F12-credentials/SECURE-STORES.md).
 `artificial-analysis` is the catalog API-key provider permission. Personal
 `auth.native_keychain` opts into native stores and cannot weaken company policy.
+
+Zero retention is supported: an administrator value of `0` disables persistence
+for that category and removes its existing owned records when maintenance or a
+write is attempted. It never means unlimited retention.
