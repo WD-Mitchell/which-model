@@ -34,3 +34,11 @@ npm uninstall -g @wdm-uk/which-model
 ## License
 
 MIT — see the [repository](https://github.com/WD-Mitchell/which-model).
+
+### Verified fallback downloads
+
+If the optional platform package is unavailable, fallback installation requires
+a trusted GitHub CLI 2.97.0+ and signed release evidence. Verification failures
+leave no new executable; install the matching platform package or correct the
+verifier/evidence issue. See the [release verification guide](https://github.com/WD-Mitchell/which-model/blob/main/docs/security/release-verification.md)
+for source-identity checks and offline/mirror handling.
