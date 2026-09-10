@@ -1,0 +1,2 @@
+# Keep embedded catalog bytes identical in native Windows and POSIX checkouts.
+data/available_model_scores.csv text eol=lf

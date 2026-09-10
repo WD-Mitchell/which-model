@@ -80,3 +80,38 @@ F21 implements the usage toggle — the three independent levels at which "usage
 - The six pick strategies — F20 (`internal/pick/strategy`); F21 supplies the degraded candidates and the resolution they consume.
 - Config file parsing and validation — F01 (owns `[usage]`/`[providers.*]` typing; resolution semantics are F21's).
 - `--no-usage` flag definition — F26; F21 owns its semantics (L0).
+
+## 7. Restricted offline distribution (#290)
+
+The separate `which-model-score-only` command is built with `-tags nousage`.
+It embeds the repository's `data/available_model_scores.csv` and uses F10's
+built-in profiles and `pick.Rank` directly. It does not call the full CLI's
+configuration, routing, usage, integration, history or catalog-update entry points.
+The same inputs produce byte-identical JSON. Complete Tier 1 evidence remains
+required; missing optional evidence remains visible in ranking warnings.
+
+Only `pick`, `profiles`, `capabilities`, `version` and help are accepted.
+Unknown commands, extra positional arguments and unsupported flags exit 2
+before doing work. No file, environment or flag can enable excluded capabilities.
+The command does not read configuration or credentials, open network connections,
+start child processes or persist results. Go runtime OS initialization is outside
+this application-data boundary; shared types may bring in unused library code.
+
+Every JSON document uses the canonical output envelope with usage disabled for
+`compiled_out`; recommendations explicitly state that provider availability and
+allowances are unverified. The artifact identity is `which-model-score-only`.
+Its capability manifest gives the release version, full source commit, embedded
+catalog SHA-256 and source path, and SHA-256 of the built-in profiles serialized
+with Go's deterministic JSON encoding. It lists enabled and excluded capabilities.
+
+Release builds produce separate binaries on macOS arm64/x64, Linux arm64/x64
+and Windows x64, with the provenance/SBOM verification required by global SPEC
+§12. Catalog updates require a reviewed source change and a new verified artifact;
+there is no runtime replacement/download command. Release owners must settle
+upstream data redistribution rights and company catalog acceptance before distribution.
+Source hashes establish identity, not license permission or model quality.
+
+Correction/extension: the existing `nousage` full CLI retains catalog and
+integration commands. It is not the restricted distribution, and its existing
+behavior and personal-user defaults remain unchanged. The distinct command and
+artifact boundary is the R1 pilot; it does not depend on the R2 managed profile.

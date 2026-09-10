@@ -318,6 +318,8 @@ These are **compile-time-enforced** import boundaries:
 | `internal/pick` | `internal/catalog`, `internal/routing`, `internal/usage` (types only) | `cmd/` |
 | `pkg/whichmodel` | any `internal/` | — |
 | `cmd/which-model` | `pkg/whichmodel` | direct `internal/` (goes through `pkg/`) |
+| `cmd/which-model-score-only` | `pkg/scoreonly` | full CLI `pkg/whichmodel`, direct `internal/` |
+| `pkg/scoreonly` | embedded `data`, `internal/catalog/score`, `internal/pick`, `internal/output` | configuration loaders, provider adapters, integrations, catalog collectors |
 
 ## 9. Tracked-path portability check
 
@@ -380,3 +382,12 @@ fallback. Optional-package success and download opt-out perform no fallback
 network or verifier calls. A fallback receipt binds version/source/digest and is written only after successful
 verification. The launcher refuses missing/mismatched receipts and changed bytes.
 Existing personal configuration, credential and harness defaults are unchanged.
+
+Restricted releases additionally require `score_only` on schema-1 manifests:
+`{"capabilities":"which-model-score-only-capabilities.json","sha256":"<64 hex>"}`.
+The verifier requires this entry whenever a restricted binary is listed, verifies
+the capability file's signature/digest and source/version, and checks each
+restricted SBOM's `bundled-catalog`/`bundled-profiles` components against its input
+hashes. Historical full-only manifests remain valid. Embedded catalog checkout
+uses LF bytes on every OS; restricted builds use trimpath, no build-date stamp and
+`-buildvcs=false`, with full release commit supplied explicitly to the command.
