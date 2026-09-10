@@ -179,13 +179,9 @@ jobs:
             gh release create "$RELEASE_TAG" --draft --generate-notes --verify-tag
           fi
           gh release upload "$RELEASE_TAG" dist/* --clobber
-          # Prerelease tags (contain '-') get the prerelease flag and do NOT
-          # become "Latest"; stable releases do.
-          if [[ "$RELEASE_TAG" == *-* ]]; then
-            gh release edit "$RELEASE_TAG" --draft=false --prerelease --latest=false
-          else
-            gh release edit "$RELEASE_TAG" --draft=false --latest
-          fi
+          # Product maturity is pre-release even for a plain numeric tag.
+          # Stable promotion requires the reviewed SPEC §14 readiness decision.
+          gh release edit "$RELEASE_TAG" --draft=false --prerelease --latest=false
       # The Publish environment only admits v* tags. A manual branch run
       # verifies a candidate, creates its tag, then queues publication at that tag.
       - name: Continue npm publish from release tag

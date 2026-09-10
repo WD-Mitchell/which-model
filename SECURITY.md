@@ -4,11 +4,16 @@ Security is a core product requirement for `which-model`, especially where provi
 
 ## Supported versions
 
-Before the first tagged release, security fixes are made on `main`. After releases begin, the latest release and `main` will receive security fixes; older releases may be asked to upgrade.
+The product remains pre-release. Security fixes target `main` and the newest
+published release; older releases may require an upgrade. There is no maintained
+backport series or LTS commitment. See the [readiness and platform matrix](docs/releases/readiness.md)
+for current publication status, validation limits and upgrade expectations.
+Version numbers, package channels and signed provenance do not constitute company
+security acceptance.
 
 | Version | Supported |
 |---|---|
-| `main` / latest release | Yes |
+| `main` / newest published release (including pre-release) | Security-fix focus |
 | Older releases | No |
 
 ## Reporting a vulnerability
@@ -29,7 +34,7 @@ Include, when safe and relevant:
 
 Never send real credentials. Replace sensitive values with unmistakable canary strings and remove personal data from screenshots or logs.
 
-Maintainers will acknowledge the report as soon as practical, investigate it privately, coordinate remediation and disclosure with the reporter, and credit the reporter if requested and appropriate. Please allow time for a fix before public disclosure.
+Maintainers will acknowledge the report as soon as practical, investigate it privately, coordinate remediation and disclosure with the reporter, and credit the reporter if requested and appropriate. Please allow time for a fix before public disclosure. This describes the existing practical process; it does not introduce a response deadline, remediation SLA or contractual support promise.
 
 ## Security-sensitive areas
 

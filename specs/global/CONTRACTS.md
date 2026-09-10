@@ -477,3 +477,13 @@ a maximum of 16 entries. Every entry requires valid protected image and config
 identity metadata. `Snapshot.RequireCodexBar` checks that approval metadata exists;
 only the verified consumer can execute. Generic legacy capability guards remain
 closed. F14/APPROVED-CODEXBAR.md governs execution and delegation semantics.
+
+
+## 17. Release maturity metadata (#289)
+
+No runtime DTO changes. Until the stable decision described in global SPEC §14,
+GitHub publication uses `--prerelease --latest=false` for every new tag, including
+plain numeric versions. Package descriptions state pre-release maturity; npm
+distribution-tag selection remains unchanged. Immutable existing releases are
+not edited. Readiness evidence and pending human/company decisions are recorded
+in docs/releases/readiness.md.
