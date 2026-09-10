@@ -6,6 +6,37 @@ on:
 permissions:
   contents: read
 jobs:
+  tracked-paths:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: python3 -m unittest discover -s scripts/tests -v
+      - run: python3 scripts/check_tracked_paths.py
+
+  windows-cli:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      # A real checkout catches path failures that Linux cross-compilation cannot.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: python -m unittest discover -s scripts/tests -v
+      - run: python scripts/check_tracked_paths.py
+      - run: go build -o which-model.exe ./cmd/which-model
+      - run: go build -tags nousage -o which-model-nousage.exe ./cmd/which-model
+      - name: Smoke-test both CLI variants
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./which-model.exe version --json
+          ./which-model.exe --help
+          ./which-model-nousage.exe version --json
+          ./which-model-nousage.exe --help
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
