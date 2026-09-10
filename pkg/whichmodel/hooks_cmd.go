@@ -68,6 +68,9 @@ func newHooksInstallCmd() *cobra.Command {
 		Short: "Install agent hooks into the repo config",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, args []string) error {
+			if err := requireCompanyCapability("hook_installation"); err != nil {
+				return err
+			}
 			if usage && noUsage {
 				return &UsageError{Message: "--usage and --no-usage are mutually exclusive"}
 			}

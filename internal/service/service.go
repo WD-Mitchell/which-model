@@ -15,6 +15,7 @@ import (
 
 	"github.com/WD-Mitchell/which-model/internal/catalog"
 	"github.com/WD-Mitchell/which-model/internal/catalog/score"
+	"github.com/WD-Mitchell/which-model/internal/company"
 	"github.com/WD-Mitchell/which-model/internal/config"
 	"github.com/WD-Mitchell/which-model/internal/routing"
 )
@@ -305,6 +306,10 @@ func toErrorDTO(err error) ErrorDTO {
 	var dtoPtr *ErrorDTO
 	if errors.As(err, &dtoPtr) {
 		return *dtoPtr
+	}
+	var denied *company.Error
+	if errors.As(err, &denied) {
+		return ErrorDTO{Code: "validation_failed", Message: denied.Error()}
 	}
 	switch {
 	case errors.Is(err, errValidation):

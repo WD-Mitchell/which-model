@@ -55,6 +55,9 @@ func newSkillsInstallCmd() *cobra.Command {
 		Use:   "install [name...]",
 		Short: "Install agent skills (default: all)",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := requireCompanyCapability("skill_installation"); err != nil {
+				return err
+			}
 			if repo != "" {
 				skills.SetRepoDir(repo)
 			}

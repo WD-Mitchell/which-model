@@ -62,6 +62,9 @@ func discoverLiveProviderModelsDefault(ctx context.Context, provider string) []r
 }
 
 func runProviderModelCommandDefault(ctx context.Context, binary string, args ...string) ([]byte, error) {
+	if err := requireCompanyCapability("harness_launch"); err != nil {
+		return nil, err
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}

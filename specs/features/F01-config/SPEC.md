@@ -7,6 +7,12 @@ project: which-model
 
 # F01 — config: SPEC
 
+The [administrator-managed policy extension](MANAGED-POLICY.md) adds a protected,
+optional machine layer above ordinary configuration. It supersedes the prior
+claim that explicit config/environment is the highest authority in managed mode;
+personal precedence is unchanged. `internal/company` is a new leaf dependency
+for this policy boundary, with no imports of other internal packages.
+
 ## Purpose
 
 `internal/config` owns the configuration surface of the `which-model` binary: the TOML config files, their discovery and precedence order, the `WHICH_MODEL_` environment overrides, the `[usage] enabled` three-state and the `[providers.<id>]` tables, data-directory resolution, and validation. It is deliberately **generic**: F01 types only `[usage]` and `[providers.<id>]` (which M1/M2 core features need at load time); every other section (`[bands]`, `[strategy]`, `[scoring]`, `[catalog]`, `[catalog.publish]`, `[output]`) is decoded on demand by the feature that owns its semantics through the single accessor `UnmarshalKey`. F01 is Layer 0: it imports no `internal/` package (dependency rule, `specs/global/CONTRACTS.md` §8; F01 has `depends_on: —` in `specs/DEPENDENCY-GRAPH.md` §2 and blocks F19, F21, F22, F30).

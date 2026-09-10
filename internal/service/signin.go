@@ -222,6 +222,7 @@ func (g *SignInService) Start(ctx context.Context, provider string) (SignInStart
 // Confirm waits for the active flow to complete, saves the credential, and
 // associates it with accountName in provider settings.
 func (g *SignInService) Confirm(ctx context.Context, provider, flowID, accountName string) error {
+ if err := requireCompanyProvider(provider); err != nil { return toErrorDTO(err) }
 	if err := ctx.Err(); err != nil {
 		return toErrorDTO(err)
 	}
@@ -545,6 +546,9 @@ func (s *Services) managedStoreLocked() (credential.ManagedStore, error) {
 }
 
 func (g *SignInService) signInGate(provider string) error {
+	if err := requireCompanyProvider(provider); err != nil {
+		return err
+	}
 	g.s.mu.RLock()
 	known := g.s.Providers().providerKnownLocked(provider)
 	cfg := g.s.cfg

@@ -67,3 +67,13 @@ File candidates expand a leading `~/` using `os.UserHomeDir` and `$NAME` or `${N
 ## Review correction (#177)
 
 Keychain absence includes both the keyring not-found sentinel and `credential.ErrNotFound`, including wrapped errors. Both continue resolution as required by D12. Locked, denied, and unexpected errors remain sanitized `keychain_unavailable` failures.
+
+
+## Company-policy extension (#282)
+
+Credential resolution reloads protected company policy before source access. Managed chains skip forbidden sources; direct resolvers refuse them. An unavailable keychain cannot trigger a forbidden managed-file read, stat or write, and managed keychain saves do not silently delete legacy files. Legacy CLI credential commands remain unavailable in managed mode until verified execution is implemented. Personal fallback behavior is unchanged.
+
+This intentionally supersedes unrestricted operation for enrolled installations only;
+see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
+`TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
+and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.

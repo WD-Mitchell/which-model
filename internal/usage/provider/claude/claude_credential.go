@@ -5,6 +5,7 @@ package claude
 import (
 	"encoding/json"
 	"errors"
+	"github.com/WD-Mitchell/which-model/internal/company"
 	"io/fs"
 	"math"
 	"strings"
@@ -34,6 +35,9 @@ type FileCredential struct {
 // (token fails security.ValidateOpaqueToken), expired_credential (expiry
 // known and past, or unparseable).
 func LoadFileCredential(dotPath, plainPath string, now time.Time) (FileCredential, error) {
+	if err := company.Authorize("claude", "provider_file", ""); err != nil {
+		return FileCredential{}, err
+	}
 	for _, path := range []string{dotPath, plainPath} {
 		data, mode, err := security.ReadBoundedFile(path, security.MaxCredentialBytes)
 		if err != nil {

@@ -7,6 +7,10 @@ project: which-model
 
 # F01 — config: CONTRACTS
 
+The [managed policy contract](MANAGED-POLICY.md) defines the separate machine
+policy schema, fixed origins, inspection surface and mandatory precedence.
+It is not a new user/project TOML section or environment override namespace.
+
 Package `internal/config` (Layer 0). Imports: Go stdlib, `github.com/BurntSushi/toml`, `github.com/shopspring/decimal`. MUST NOT import anything in `internal/` (`specs/global/CONTRACTS.md` §8). Files: `internal/config/usage.go`, `types.go`, `unmarshal.go`, `load.go`, `env.go`, `paths.go`, `discover.go`, `validate.go`, `marshal.go`. Feature `depends_on: —`, blocks F19, F21, F22, F30 (`specs/DEPENDENCY-GRAPH.md` §2).
 
 ## 1. Exported API

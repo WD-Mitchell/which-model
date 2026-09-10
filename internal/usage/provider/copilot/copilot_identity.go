@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/WD-Mitchell/which-model/internal/company"
 	"io"
 	"net/http"
 	"regexp"
@@ -54,6 +55,9 @@ func requestJSON(ctx context.Context, client *http.Client, url string, allowed [
 // doRequest is the shared enforcement core behind requestJSON and the device
 // flow's POSTs (SPEC §2.7: identical helper contract, provider-agnostic).
 func doRequest(ctx context.Context, client *http.Client, method, url string, allowed []string, headers map[string]string, body io.Reader) (int, json.RawMessage, error) {
+	if err := company.Authorize("copilot", "", ""); err != nil {
+		return 0, nil, err
+	}
 	// A context that is already done (deadline or cancellation) fails fast
 	// before any request is issued — the port of the .mjs aborted-signal →
 	// timeout mapping.
