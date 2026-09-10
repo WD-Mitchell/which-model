@@ -415,3 +415,18 @@ only category/operation, never paths or payloads. Bounded JSONL (64 MiB), record
 (4 MiB), directory inventory (1,024 entries), and lock wait (2 seconds) prevent
 unbounded individual operations; limits produce deletion of oversized owned data
 or explicit incomplete-work errors, as specified in F13.
+
+
+## 14. Approved company invocation (#285)
+
+`internal/approvedexec` imports the company policy leaf, standard library and the
+existing Windows syscall dependency. It prepares a native path/argv plan and an
+OS-derived child environment. It does not import credential/usage providers or
+mutable config. `company.VerifyInstallation` reuses the protected-file OS checks
+and streams at most 1 GiB to verify a native image or explicit input; scripts are
+not launch images. service consumes the plan at its launch boundary. The
+restricted score-only binary remains independent of these packages.
+
+No public harness or canonical usage DTO changes. Protected executable policy
+adds optional `inputs` as described by F01. Full executable, placeholder,
+environment, copy-mode and trust limits are in B07/MANAGED-EXECUTION.md.

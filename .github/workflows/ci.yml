@@ -159,6 +159,52 @@ jobs:
       - run: go test ./internal/usage/cache ./internal/usage/fetch ./internal/hooks ./internal/service -run 'TestCompany.*(Privacy|Retention|History|Audit|Launch|Diagnostics|Cache)|TestCompanyOffline|TestCompanyWrite' -v -count=1
       - run: go test ./pkg/whichmodel -run TestPrivacy -v -count=1
 
+  company-execution:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      CGO_ENABLED: '0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go test ./internal/approvedexec ./internal/company -run TestApproved -v
+      - run: go test ./internal/service ./internal/skills -run 'TestCompanyApprovedLaunch|TestCompanyCustomShell|TestCompanyRemoval' -v
+      - run: go test -c -o company-execution-fixture.exe ./internal/service
+      - name: Protect native image and enroll execution fixture
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            python scripts/company_execution_fixture.py prepare --binary company-execution-fixture.exe --github-env "$GITHUB_ENV"
+          else
+            sudo env GITHUB_ACTIONS=true python3 scripts/company_execution_fixture.py prepare --binary company-execution-fixture.exe --github-env "$GITHUB_ENV"
+          fi
+      - run: go test ./internal/service -run 'TestNativeCompanyExecution|TestNativeCompanyIntegrationInstall' -v -count=1
+      - name: Disable installation while retaining cleanup
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            python scripts/company_execution_fixture.py disable-integrations
+          else
+            sudo env GITHUB_ACTIONS=true python3 scripts/company_execution_fixture.py disable-integrations
+          fi
+      - run: go test ./internal/service -run TestNativeCompanyIntegrationRemoval -v -count=1
+      - name: Remove only owned CI enrollment fixtures
+        if: always()
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            python scripts/company_execution_fixture.py cleanup
+          else
+            sudo env GITHUB_ACTIONS=true python3 scripts/company_execution_fixture.py cleanup
+          fi
+
   company-policy:
     strategy:
       matrix:

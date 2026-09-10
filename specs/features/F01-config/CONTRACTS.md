@@ -343,3 +343,13 @@ No canonical Config/DTO fields are added. The protected schema in MANAGED-POLICY
 Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
 Decision: requester-approved optional company defaults and advisory audit handling;
 this supersedes conflicting personal-only persistence statements for company mode.
+
+
+## Approved company execution correction (#285)
+
+Protected Executable adds `Inputs []Installation` with JSON tag `inputs,omitempty`; schema version remains 1 because the field is optional. Existing policies without it retain their meaning. Launch argument placeholders must occupy an entire args element; model_id, reasoning, provider and profile are the supported names.
+
+Governing correction: `specs/desktop/backend/features/B07-harnesses/MANAGED-EXECUTION.md`.
+This implements the requester-approved optional managed profile while preserving
+personal defaults; it supersedes unconditional shell/policy-placeholder statements
+for company execution.
