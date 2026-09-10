@@ -99,3 +99,12 @@ This intentionally supersedes unrestricted operation for enrolled installations 
 see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
 `TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
 and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.
+
+
+## Company privacy correction (#284)
+
+Company cache writes minimize before persistence, including delegated snapshots. Return-time --show-identity remains separate from collection/storage policy. Offline use still performs no credential/provider/network operations, but company retention may rewrite/delete owned local records. FetchAll replaces free-form failure messages with fixed canonical diagnostics for either backend. Unknown failure codes map to provider_status; native OS-store remediation is preserved only when it exactly matches an application-owned string.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.

@@ -145,6 +145,23 @@ jobs:
       - run: go test ./internal/usage/provider/codex -run TestManagedCodexFetchDoesNotReopenProviderFiles -v
       - run: go test ./internal/config -run TestNativeWindows -v
 
+  company-privacy:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go test ./internal/privacy -v -count=1
+      - run: go test ./internal/usage/cache ./internal/usage/fetch ./internal/hooks ./internal/service -run 'TestCompany.*(Privacy|Retention|History|Audit|Launch|Diagnostics|Cache)|TestCompanyOffline|TestCompanyWrite' -v -count=1
+      - run: go test ./pkg/whichmodel -run TestPrivacy -v -count=1
+
   company-policy:
     strategy:
       matrix:

@@ -93,3 +93,12 @@ func EffectiveTTL(base time.Duration, maxAge time.Duration) time.Duration
 | Dependencies added | none (stdlib) |
 | Depends on | F11 (per `specs/DEPENDENCY-GRAPH.md` §2) |
 | Blocks | F14 (per `specs/DEPENDENCY-GRAPH.md` §2) |
+
+
+## Company privacy correction (#284)
+
+Store signatures and usage.Snapshot stay unchanged. Managed cache JSON additionally carries privacy_version=1; account/plan and free-form labels/reset hints are absent under identity_free. Failure payloads are never cached. Both current native and desktop/legacy cache roots are maintained. Cached identity cannot be recovered by --show-identity after minimization. Pinned cases: identity canary removal; unchanged original fetched_at; physical 25-hour expiry; redirected credential refusal; original personal suite unchanged.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/WD-Mitchell/which-model/internal/config"
+	"github.com/WD-Mitchell/which-model/internal/privacy"
 )
 
 // RunExplain emits ExplainResult (annex-c §4.3) for the selected history
@@ -68,7 +69,16 @@ func RunExplain(args ExplainArgs, stdout, stderr io.Writer) error {
 // readHistory parses every JSONL line of the history file. A missing file
 // is an empty history, not an error (first run).
 func readHistory(path string) ([]HistoryEntry, error) {
-	data, err := os.ReadFile(path)
+	policy, err := readCompanyPolicy()
+	if err != nil {
+		return nil, err
+	}
+	var data []byte
+	if policy.Managed {
+		data, err = (privacy.Controller{Policy: policy}).Read(path, privacy.History)
+	} else {
+		data, err = os.ReadFile(path)
+	}
 	if os.IsNotExist(err) {
 		return nil, nil
 	}

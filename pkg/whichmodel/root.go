@@ -51,7 +51,11 @@ func NewRootCmd() *cobra.Command {
 		if err := Global.Normalize(); err != nil {
 			return err
 		}
-		return Global.Validate()
+		if err := Global.Validate(); err != nil {
+			return err
+		}
+		startupPrivacyMaintenance(c)
+		return nil
 	}
 	cmd.AddCommand(registeredCommands()...)
 	return cmd

@@ -34,10 +34,11 @@ type Runner func(args []string, stdout, stderr io.Writer) int
 
 // Options carries the test seams (SPEC behaviour 4).
 type Options struct {
-	Runner   Runner
-	Stdin    []byte
-	Env      map[string]string
-	RepoRoot string
+	companyStateDir string // private fixture seam; production uses the OS state directory
+	Runner          Runner
+	Stdin           []byte
+	Env             map[string]string
+	RepoRoot        string
 }
 
 var (
@@ -187,6 +188,13 @@ func dispatch(h Hook, code int, out []byte, opts Options) ([]byte, error) {
 		}
 		if expected := envOr(opts.Env, "WHICH_MODEL_CANDIDATE_ID", ""); expected != "" && expected != doc.Candidate {
 			return approveFailOpen("model-audit", 0), nil
+		}
+		policy, err := readPrivacyPolicy()
+		if err != nil {
+			return companyAuditFailure(), nil
+		}
+		if policy.Managed {
+			return companyAudit(policy, doc, opts)
 		}
 		// Decode only documented fields, then emit one compact JSONL record.
 		// Unrelated host/provider fields must never enter dispatch evidence.

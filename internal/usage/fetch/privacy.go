@@ -1,0 +1,36 @@
+//go:build !nousage
+
+package fetch
+
+import (
+	"github.com/WD-Mitchell/which-model/internal/securestore"
+	"github.com/WD-Mitchell/which-model/internal/usage"
+)
+
+// Provider failures can contain echoed HTTP or delegated process payloads.
+// Company diagnostics retain the canonical code, never that free-form text.
+// Native-store messages are fixed application strings with useful remediation.
+func minimizeCompanyFailures(snapshots []usage.Snapshot) {
+	for i := range snapshots {
+		failure := snapshots[i].Failure
+		if failure == nil {
+			continue
+		}
+		code := failure.Code
+		switch code {
+		case "unauthorized", "rate_limited", "provider_status", "expired_credential", "unsupported_response", "login_required", "endpoint_refused", "untrusted_origin", "redirect_refused", "response_too_large", "timeout", "network", "response_json", "credential_file", "credential_json", "unsafe_credential", "access_denied", "device_expired", "fallback_unavailable", "usage_disabled", "usage_compiled_out", "keychain_unavailable", "cookie_unavailable", "signing_failed", "rpc_protocol":
+		default:
+			code = "provider_status"
+		}
+		message := "usage unavailable (" + code + "); inspect provider status or sign in again"
+		if code == "keychain_unavailable" {
+			for _, kind := range []securestore.Kind{securestore.Missing, securestore.Locked, securestore.Denied, securestore.Unavailable, securestore.TooLarge} {
+				if fixed := (&securestore.Error{Kind: kind}).Error(); failure.Message == fixed {
+					message = fixed
+					break
+				}
+			}
+		}
+		snapshots[i].Failure = &usage.Failure{Code: code, Message: message}
+	}
+}

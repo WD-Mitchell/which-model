@@ -26,6 +26,7 @@ import (
 	"github.com/WD-Mitchell/which-model/internal/pick"
 	"github.com/WD-Mitchell/which-model/internal/pick/band"
 	"github.com/WD-Mitchell/which-model/internal/pick/strategy"
+	"github.com/WD-Mitchell/which-model/internal/privacy"
 	"github.com/WD-Mitchell/which-model/internal/routing"
 	"github.com/WD-Mitchell/which-model/internal/usage"
 	"github.com/WD-Mitchell/which-model/internal/usage/fetch"
@@ -638,9 +639,16 @@ func appendHistory(stderr io.Writer, st *runState, profile, strategy string, top
 		warnHistory(stderr, err)
 		return
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+	policy, err := readCompanyPolicy()
+	if err != nil {
 		warnHistory(stderr, err)
 		return
+	}
+	if !policy.Managed {
+		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+			warnHistory(stderr, err)
+			return
+		}
 	}
 	entry := HistoryEntry{
 		ULID:          ulid.Make().String(),
@@ -657,6 +665,12 @@ func appendHistory(stderr io.Writer, st *runState, profile, strategy string, top
 	line, err := json.Marshal(entry)
 	if err != nil {
 		warnHistory(stderr, err)
+		return
+	}
+	if policy.Managed {
+		if err := (privacy.Controller{Policy: policy}).Append(path, privacy.History, line); err != nil {
+			warnHistory(stderr, err)
+		}
 		return
 	}
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)

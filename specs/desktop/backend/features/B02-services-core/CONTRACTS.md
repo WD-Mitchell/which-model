@@ -214,3 +214,12 @@ Usage passes native-store preference through fetch options. Company sign-in and 
 The [secure-store contract](../../../../features/F12-credentials/SECURE-STORES.md) supersedes earlier company-mode storage
 wording under the approved optional-profile decision. Personal defaults remain
 unchanged. Native tests and migration/fallback canaries are required evidence.
+
+
+## Company privacy correction (#284)
+
+No public Services DTO changes. Private privacyOnce controls the worker. The nousage build uses an inert implementation. State/cache paths come from the existing service paths and usage cache resolution; no credential or repository inventory is created.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.

@@ -414,3 +414,23 @@ native adapters. Credential resolution maps these to the existing canonical
 failure/sentinel contract; usage.Credential and public usage DTOs do not change.
 Native implementations require `!nousage`; the restricted offline command does
 not link the package. See [F12](../features/F12-credentials/SECURE-STORES.md).
+
+
+## 13. Company data minimization and retention (#284)
+
+`internal/privacy` may import company/config, the existing gofrs/flock dependency
+and standard library. It imports no usage adapter, credential, HTTP or execution
+package. Cache, service, hooks and CLI may call it; the restricted standalone
+score-only binary does not link it. Canonical usage/selection/desktop DTOs do not
+change. Internal persisted records carry `privacy_version:1` and the whitelist in
+[F13 managed retention](../features/F13-usage-cache/MANAGED-RETENTION.md).
+
+`privacy.Report` counts retained_records, removed_records, scrubbed_records,
+deleted_files and failed_files. A failed write/delete produces failed_files and
+never reports uncommitted removals as success. `privacy.Summary` is
+`{managed,categories:{<category>:Report}}`; canonical category names are
+usage_snapshots, pick_history, audit_records and launch_logs. Fixed errors expose
+only category/operation, never paths or payloads. Bounded JSONL (64 MiB), record
+(4 MiB), directory inventory (1,024 entries), and lock wait (2 seconds) prevent
+unbounded individual operations; limits produce deletion of oversized owned data
+or explicit incomplete-work errors, as specified in F13.

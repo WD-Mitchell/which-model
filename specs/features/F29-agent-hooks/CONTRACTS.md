@@ -221,3 +221,12 @@ This intentionally supersedes unrestricted operation for enrolled installations 
 see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
 `TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
 and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.
+
+
+## Company privacy correction (#284)
+
+Company files are state/audit/evidence.jsonl and mismatches.jsonl. Each record carries ts and privacy_version=1 plus the typed F13 audit whitelist. Successful output identifies managed audit store without an absolute path. Failure output has decision=approve and hookSpecificOutput.audit_recorded=false with a fixed reason. Personal project audit behavior remains unchanged. Pin canary removal, both timestamped stores, legacy deletion and visible non-blocking failure.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.
