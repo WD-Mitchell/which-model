@@ -69,7 +69,7 @@ The launched child receives a fresh environment:
 |---|---|
 | macOS | HOME/USER/LOGNAME from the OS user lookup; PATH `/usr/bin:/bin`; LANG `en_US.UTF-8`; TMPDIR `/tmp`. |
 | Linux | OS user home/name, fixed PATH `/usr/bin:/bin`, LANG `C.UTF-8`, TMPDIR `/tmp`; standard XDG home paths and `/run/user/<uid>` runtime/Secret Service bus path. |
-| Windows | OS-known user profile, roaming/local application data and ProgramData; OS Windows/system directory; fixed system PATH; profile home fields and local application-data Temp; fixed UTF-8 locale. |
+| Windows | Current-token user profile and non-inherited token environment for roaming/local application data and ProgramData; OS Windows/system directory; fixed system PATH; profile home fields and local application-data Temp; fixed UTF-8 locale. |
 
 Parent provider tokens, shell selectors, proxies, runtime/preload options and Git
 configuration injection variables are omitted. Native harnesses can use their
@@ -123,3 +123,10 @@ Recognized shell images require separate custom-shell permission even if placed
 under a built-in approval ID. Review the actual approved program and its command
 form: filename checks cannot classify renamed programs or prevent an authorized
 native application from invoking its own tools.
+
+Windows derives the source block using [CreateEnvironmentBlock](https://learn.microsoft.com/en-us/windows/win32/api/userenv/nf-userenv-createenvironmentblock)
+with inheritance disabled, then selects only the documented location fields.
+It does not pass the complete token environment or any arbitrary persisted
+user/system environment variables to the child. Credentials belong in the native
+secure store; keep them out of policy arguments, which are visible as process
+arguments and copyable command text.

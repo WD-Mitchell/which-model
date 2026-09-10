@@ -43,8 +43,10 @@ are available through the existing route mapping, with mapped values validated.
 Company children receive a fresh environment containing only OS-derived home,
 platform application/temp locations and a fixed system PATH. On Unix, UID/home
 come from the OS user database, not HOME; Linux also supplies the standard
-UID runtime/Secret Service bus location. Windows uses known folders and the OS
-Windows directory, not USERPROFILE/APPDATA/SystemRoot from the parent. UTF-8
+UID runtime/Secret Service bus location. Windows uses its current user token with CreateEnvironmentBlock(inherit=false),
+GetUserProfileDirectory and the OS Windows directory, not USERPROFILE/APPDATA/
+SystemRoot from the parent. Only the documented location fields are selected
+from the token environment; its arbitrary user/system variables are not forwarded. UTF-8
 locale is fixed. Parent provider tokens, proxy settings, runtime preload/options,
 Git configuration injection and arbitrary environment variables are omitted.
 Native harnesses can use their normal OS/home credential stores; environment-only
