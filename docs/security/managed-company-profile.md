@@ -120,3 +120,9 @@ The profile applies inside the approved application. Endpoint management must
 control enrollment, approved binaries, local administrator privileges and provider
 accounts. A user who can replace the application or act as an administrator can
 bypass application-level checks. See the [local identity and control-owner decision](company-identity.md).
+
+The [privacy inventory and retention guide](privacy-and-retention.md) documents
+live provider collection, default identity-free persistence, actual expiry
+processing, legacy-data transition and explicit cleanup/purge. These settings are
+now consumed by cache/history/audit/launch storage; a stopped application still
+requires endpoint-scheduled cleanup for wall-clock deletion requirements.

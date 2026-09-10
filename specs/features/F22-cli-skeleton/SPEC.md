@@ -196,3 +196,12 @@ features (registered via `RegisterExitCode`).
 ## Nested execution correction (#162)
 
 Hooks execute underlying CLI commands in the same process. Each nested command must use fresh Cobra command instances and restore the outer global flags and streams afterward. This prevents mutable parent pointers and parsed flags from redirecting the hook envelope or leaking request state across invocations. F29 governs host-context and inherited-flag behavior; its CLI integration tests pin the nested execution contract.
+
+
+## Company privacy correction (#284)
+
+The full CLI registers privacy after config and before version. privacy status reports protected company settings; privacy cleanup applies retention; privacy purge explicitly removes selected owned records. --category accepts usage, history, audit, launch (repeatable/comma separated; all by default). --project-root names one prior/current project for the two legacy audit files. Personal cleanup is a no-op; explicit personal purge is available without enrollment. Normal startup performs managed maintenance after configuration validation, except config, privacy, version and --no-usage. The nousage build excludes the privacy command and startup maintenance.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.

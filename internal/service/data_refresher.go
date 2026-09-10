@@ -27,6 +27,7 @@ func (s *Services) dataRefreshInterval() time.Duration {
 // configured interval. A minute tick observes interval changes without restart;
 // refreshes are serialized with manual operations by RefreshRoutes.
 func (s *Services) StartDataRefresher(ctx context.Context) {
+	s.startPrivacyMaintenance(ctx)
 	s.dataRefresherOnce.Do(func() {
 		go func() {
 			ticker := time.NewTicker(time.Minute)

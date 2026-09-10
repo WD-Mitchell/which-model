@@ -64,3 +64,12 @@ Secure-store errors contain known messages only. Secret values never enter helpe
 The [secure-store contract](../F12-credentials/SECURE-STORES.md) supersedes earlier company-mode storage
 wording under the approved optional-profile decision. Personal defaults remain
 unchanged. Native tests and migration/fallback canaries are required evidence.
+
+
+## Company privacy correction (#284)
+
+Company persistence excludes free-form provider/harness payloads and account identity by default. The privacy controller operates on explicitly named product stores, refuses redirected entries, and reports incomplete deletion without exposing content or local paths. This is data minimization, not a sandbox against another process with the same OS authority.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.

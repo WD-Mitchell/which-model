@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/WD-Mitchell/which-model/internal/privacy"
 	"github.com/WD-Mitchell/which-model/internal/usage"
 )
 
@@ -68,6 +69,13 @@ func (s *Store) filePath(providerID string) string {
 // Sync + Chmod 0600 + Rename; dir created 0700 if missing. Refuses
 // snapshots with Failure.Code != "" (never cache failures; SPEC D5).
 func (s *Store) Write(providerID string, snap usage.Snapshot) error {
+	ctl, err := companyController()
+	if err != nil {
+		return err
+	}
+	if ctl.Enabled() {
+		return s.companyWrite(ctl, providerID, snap)
+	}
 	if snap.Failure != nil && snap.Failure.Code != "" {
 		return errors.New("refusing to cache a failed snapshot")
 	}
@@ -112,6 +120,13 @@ const maxCacheFileSize = 4 << 20
 //   - valid file      → stored snapshot UNTOUCHED (F14 stamps
 //     Source/Confidence/Stale afterwards; SPEC D6), stale bool, nil
 func (s *Store) Read(providerID string, ttl time.Duration) (usage.Snapshot, bool, error) {
+	ctl, err := companyController()
+	if err != nil {
+		return usage.Snapshot{}, false, err
+	}
+	if ctl.Enabled() {
+		return s.companyRead(ctl, providerID, ttl)
+	}
 	if ttl <= 0 {
 		return usage.Snapshot{}, false, fmt.Errorf("no cache configured for provider %q: %w", providerID, ErrCacheMiss)
 	}
@@ -140,6 +155,17 @@ func (s *Store) Read(providerID string, ttl time.Duration) (usage.Snapshot, bool
 
 // Invalidate removes <providerID>.json. Missing file → nil (idempotent).
 func (s *Store) Invalidate(providerID string) error {
+	ctl, err := companyController()
+	if err != nil {
+		return err
+	}
+	if ctl.Enabled() {
+		if !companyProviderID.MatchString(providerID) {
+			return errors.New("invalid cache provider")
+		}
+		_, err := ctl.RemoveLegacy(s.filePath(providerID), privacy.Usage)
+		return err
+	}
 	if err := os.Remove(s.filePath(providerID)); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil
@@ -154,6 +180,18 @@ func (s *Store) Invalidate(providerID string) error {
 // {fallback_unavailable, "offline and no cached usage"}}. Stale file →
 // stored snapshot with Stale=true. Fresh file → stored snapshot as-is.
 func (s *Store) OfflineRead(providerID string, ttl time.Duration) usage.Snapshot {
+	ctl, err := companyController()
+	if err != nil {
+		return usage.Snapshot{Provider: providerID, Failure: &usage.Failure{Code: "fallback_unavailable", Message: "company cache policy is unavailable"}}
+	}
+	if ctl.Enabled() {
+		snap, stale, err := s.companyRead(ctl, providerID, ttl)
+		if err != nil {
+			return usage.Snapshot{Provider: providerID, Failure: &usage.Failure{Code: "fallback_unavailable", Message: "company cache unavailable or retention cleanup incomplete"}}
+		}
+		snap.Stale = stale
+		return snap
+	}
 	fallback := usage.Snapshot{
 		Provider: providerID,
 		Failure:  &usage.Failure{Code: "fallback_unavailable", Message: "offline and no cached usage"},
