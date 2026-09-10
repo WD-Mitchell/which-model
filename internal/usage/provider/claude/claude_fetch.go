@@ -135,6 +135,13 @@ func Fetch(ctx context.Context, cred usage.Credential, client *http.Client) (usa
 		}), nil
 	}
 
+	if raw := cred.Extra["expires_at"]; cred.Extra["managed_store"] == "keychain" && raw != "" {
+		expires, err := time.Parse(time.RFC3339, raw)
+		if err != nil || !expires.After(now) {
+			return failureSnapshot(&usage.Failure{Code: "expired_credential", Message: "The securely stored Claude access token is expired; sign in again."}), nil
+		}
+	}
+
 	// File-sourced credentials are enriched, not re-resolved (SPEC D2): the
 	// file leg re-reads the two declared paths (dot-file first) to enforce
 	// the prototype's expiry check and broad-permission warning.

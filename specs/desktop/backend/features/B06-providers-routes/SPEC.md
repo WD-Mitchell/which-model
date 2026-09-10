@@ -109,3 +109,10 @@ The user's new-model visibility requirement supersedes §2.11's reliance on scor
 This supersedes #183's fallback-success policy for explicit refresh: models.dev fetch or persistence failure is reported as a failed refresh; a previous cache remains available to read-only views. A full refresh must not claim success using a stale model catalog. Provider-local optional CLI failure still retains its last usable inventory and does not block other sources. Login retains its existing non-blocking refresh behavior.
 
 The desktop starts `Services.StartDataRefresher(ctx)` once. It refreshes data immediately, then at `gui.benchmark_check_frequency`, checking interval changes each minute without restart; weekly is seven days. Each attempt has a three-minute deadline and shares manual refresh serialization. Failures retry at the configured interval. Context cancellation stops the loop. Pin `TestDataRefresherUsesConfiguredIntervalAndStops` (startup, 15-minute boundary, changed frequency, cancellation). This connects the previously persisted-only interval to the data flow.
+
+## Deviations / secure-store correction (#283)
+
+Company sign-in uses the native store, preserving account/expiry metadata through configuration-failure rollback. No ID/refresh token or provider-owned file is written in company mode.
+The [secure-store contract](../../../../features/F12-credentials/SECURE-STORES.md) supersedes earlier company-mode storage
+wording under the approved optional-profile decision. Personal defaults remain
+unchanged. Native tests and migration/fallback canaries are required evidence.

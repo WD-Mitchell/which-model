@@ -310,11 +310,12 @@ These are **compile-time-enforced** import boundaries:
 | Package | MAY import | MUST NOT import |
 |---|---|---|
 | `internal/company` | standard library, platform `x/sys` protection APIs | other `internal/` packages |
-| `internal/config` | `BurntSushi/toml`, `shopspring/decimal`, `internal/company` | other `internal/` packages |
+| `internal/securestore` | standard library, pinned native OS-store/D-Bus libraries | all other `internal/` packages |
+| `internal/config` | `BurntSushi/toml`, `shopspring/decimal`, platform `x/sys` file replacement, `internal/company` | other `internal/` packages |
 | `internal/decimal` | `shopspring/decimal` | anything in `internal/` |
 | `internal/security` | `internal/config` | `internal/usage`, `internal/catalog` |
-| `internal/catalog/*` | `internal/config`, `internal/decimal`, `internal/httpkit`, `internal/security` | `internal/usage`, `internal/routing`, `internal/pick` |
-| `internal/usage/*` | `internal/config`, `internal/company`, `internal/security`, `internal/httpkit` | `internal/catalog`, `internal/routing`, `internal/pick` |
+| `internal/catalog/*` | `internal/config`, `internal/decimal`, `internal/httpkit`, `internal/security`, `internal/company`, `internal/securestore` | `internal/usage`, `internal/routing`, `internal/pick` |
+| `internal/usage/*` | `internal/config`, `internal/company`, `internal/security`, `internal/httpkit`, `internal/securestore` | `internal/catalog`, `internal/routing`, `internal/pick` |
 | `internal/skills`, `internal/hooks` | standard library, `internal/company` | provider implementations |
 | `internal/routing` | `internal/catalog/identity`, `internal/usage` (types only) | `internal/pick` |
 | `internal/pick` | `internal/catalog`, `internal/routing`, `internal/usage` (types only) | `cmd/` |
@@ -404,3 +405,12 @@ Policy failures are exit 2; desktop mapping uses existing `validation_failed`.
 Credential/provider/executable checks apply before effects, including direct callers.
 Optional enrollment preserves personal defaults. The restricted score-only artifact
 continues to exclude policy/configuration loading entirely.
+
+## 12. Native secure-store outcomes (#283)
+
+The internal leaf `securestore.Store` exposes Get/Set/Delete with typed missing,
+locked, denied, unavailable and too_large outcomes. Only known messages escape
+native adapters. Credential resolution maps these to the existing canonical
+failure/sentinel contract; usage.Credential and public usage DTOs do not change.
+Native implementations require `!nousage`; the restricted offline command does
+not link the package. See [F12](../features/F12-credentials/SECURE-STORES.md).

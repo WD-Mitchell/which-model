@@ -7,7 +7,8 @@ not enroll and keep their existing configuration, sign-in and launch behavior.
 There is no company account, central credential broker or application RBAC.
 
 This is the policy foundation for the managed-usage milestone. The complete
-deployment also needs secure-store support and migration (#283), retention and
+deployment includes [native secure stores and migration](secure-credentials.md)
+(#283) and still needs retention and
 identity-free persistence (#284), approved execution (#285) and approved CodexBar
 delegation (#287). Do not treat this foundation as completion of those controls.
 The [restricted offline package](offline-score-only.md) remains available separately.
@@ -48,8 +49,8 @@ identity-free persistence and retention of 24 hours for usage snapshots, 7 days
 for launch logs, and 30 days for pick history and audit records. The persistence
 consumer in #284 implements those retention settings; storing the settings alone
 does not delete existing data. Native provider files require a separate explicit
-source allowance. Secure-store-only policy also prevents legacy login flows from
-writing native credential files.
+source allowance. Company login now saves required access-token metadata in the native OS store;
+secure-store-only policy prevents native provider-file writes.
 
 A protected policy alone activates managed mode. The separate required marker
 ensures that an accidentally missing policy is an error rather than a return to

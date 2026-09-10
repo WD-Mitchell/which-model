@@ -2,11 +2,13 @@ package config
 
 // AuthConfig controls storage for credentials created by which-model.
 type AuthConfig struct {
-	UseKeychain bool `toml:"use_keychain" json:"use_keychain"`
+	UseKeychain    bool `toml:"use_keychain" json:"use_keychain"`
+	NativeKeychain bool `toml:"native_keychain" json:"native_keychain"`
 }
 
 type authConfigTOML struct {
-	UseKeychain *bool `toml:"use_keychain"`
+	UseKeychain    *bool `toml:"use_keychain"`
+	NativeKeychain *bool `toml:"native_keychain"`
 }
 
 // DefaultAuthConfig returns the credential-storage defaults.
@@ -24,6 +26,9 @@ func (c *Config) LoadAuth() (AuthConfig, error) {
 	if mirror.UseKeychain != nil {
 		auth.UseKeychain = *mirror.UseKeychain
 	}
+	if mirror.NativeKeychain != nil {
+		auth.NativeKeychain = *mirror.NativeKeychain
+	}
 	return auth, nil
 }
 
@@ -37,7 +42,8 @@ func (c *Config) SetAuth(auth AuthConfig) error {
 		return err
 	}
 	c.setRaw("auth", map[string]any{
-		"use_keychain": auth.UseKeychain,
+		"use_keychain":    auth.UseKeychain,
+		"native_keychain": auth.NativeKeychain,
 	})
 	return nil
 }

@@ -57,3 +57,10 @@ Milestone M1. `depends_on`: — (none, Wave W1, `specs/DEPENDENCY-GRAPH.md` §2�
 - Credential JSON parsing (`readCredentialJson`) → F12-credentials.
 - The permission-warning TEXT and its stderr emission → F12 (via `output.WriteWarning`); F05 only detects.
 - The `--trust-configured-origin` flag and Codex fallback orchestration → F16-provider-codex.
+
+## Deviations / secure-store correction (#283)
+
+Secure-store errors contain known messages only. Secret values never enter helper argv, logs or error causes. Native adapters are excluded from nousage; permission checks precede catalog and provider credential access.
+The [secure-store contract](../F12-credentials/SECURE-STORES.md) supersedes earlier company-mode storage
+wording under the approved optional-profile decision. Personal defaults remain
+unchanged. Native tests and migration/fallback canaries are required evidence.

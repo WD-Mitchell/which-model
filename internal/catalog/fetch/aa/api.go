@@ -14,8 +14,11 @@ import (
 	sdecimal "github.com/shopspring/decimal"
 
 	"github.com/WD-Mitchell/which-model/internal/catalog/fetch"
+	"github.com/WD-Mitchell/which-model/internal/company"
 	wdecimal "github.com/WD-Mitchell/which-model/internal/decimal"
 	"github.com/WD-Mitchell/which-model/internal/httpkit"
+	"github.com/WD-Mitchell/which-model/internal/securestore"
+	"github.com/WD-Mitchell/which-model/internal/security"
 )
 
 // PrimaryURL / FreeURL: the v2 language-models endpoint and its free tier.
@@ -57,7 +60,7 @@ type aaItem struct {
 
 // aaEnvelope is the paginated response envelope.
 type aaEnvelope struct {
-	Data []json.RawMessage `json:"data"`
+	Data       []json.RawMessage `json:"data"`
 	Pagination struct {
 		Page       int  `json:"page"`
 		HasMore    bool `json:"has_more"`
@@ -81,6 +84,22 @@ type mergedModel struct {
 // page) the entire pagination is retried once on freeURL; every other error
 // propagates.
 func FetchAAv2From(client *httpkit.Client, apiKey string, primaryURL, freeURL string) ([]AAModel, error) {
+	policy, err := company.Load()
+	if err != nil {
+		return nil, err
+	}
+	if err := policy.RequireProvider(securestore.CatalogAccount); err != nil {
+		return nil, err
+	}
+	if policy.Managed {
+		if primaryURL != PrimaryURL || freeURL != FreeURL {
+			return nil, &company.Error{Origin: policy.Origin, Reason: "catalog credential endpoint is not approved"}
+		}
+		if err := security.ValidateOpaqueToken(apiKey); err != nil {
+			return nil, err
+		}
+	}
+
 	models, err := fetchAllFrom(client, apiKey, primaryURL)
 	if err != nil {
 		var he *httpkit.Error

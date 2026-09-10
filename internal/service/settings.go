@@ -30,7 +30,11 @@ func (g *SettingsService) Get(ctx context.Context) (GUISettings, error) {
 	if err != nil {
 		return GUISettings{}, toErrorDTO(err)
 	}
-	return guiDTO(gui, auth, g.s.paths.UserConfigFile, g.s.version, readAAKeyFile(g.s.paths.ConfigDir) != ""), nil
+	keySet, err := aaKeyIsSet(g.s.paths.ConfigDir)
+	if err != nil {
+		return GUISettings{}, toErrorDTO(err)
+	}
+	return guiDTO(gui, auth, g.s.paths.UserConfigFile, g.s.version, keySet), nil
 }
 
 // Set validates and atomically replaces the complete GUI section.
@@ -51,7 +55,12 @@ func (g *SettingsService) Set(ctx context.Context, in GUISettings) error {
 		err = copyCfg.SetGUI(guiConfig(in))
 	}
 	if err == nil {
-		err = copyCfg.SetAuth(config.AuthConfig{UseKeychain: in.UseKeychain})
+		var auth config.AuthConfig
+		auth, err = copyCfg.LoadAuth()
+		if err == nil {
+			auth.UseKeychain = in.UseKeychain
+			err = copyCfg.SetAuth(auth)
+		}
 	}
 	var data []byte
 	if err == nil {
@@ -81,7 +90,7 @@ func (g *SettingsService) Set(ctx context.Context, in GUISettings) error {
 
 	payload := in
 	payload.AAAPIKey = ""
-	payload.AAAPIKeySet = readAAKeyFile(g.s.paths.ConfigDir) != ""
+	payload.AAAPIKeySet, _ = aaKeyIsSet(g.s.paths.ConfigDir)
 	payload.CatalogRepo = guiConfig(in).CatalogRepo
 	payload.ConfigPath = g.s.paths.UserConfigFile
 	payload.Version = g.s.version

@@ -23,6 +23,7 @@ import (
 
 	"github.com/WD-Mitchell/which-model/internal/company"
 	"github.com/WD-Mitchell/which-model/internal/config"
+	"github.com/WD-Mitchell/which-model/internal/output"
 	"github.com/WD-Mitchell/which-model/internal/security"
 	"github.com/WD-Mitchell/which-model/internal/usage"
 	"github.com/WD-Mitchell/which-model/internal/usage/credential"
@@ -58,9 +59,10 @@ func managedCredentialStore() (credential.ManagedStore, error) {
 	}
 	paths := config.ResolvePaths(runtime.GOOS, home, os.Getenv)
 	return credential.ManagedStore{
-		StateDir:    paths.StateDir,
-		Keychain:    credential.DefaultKeychain(),
-		UseKeychain: auth.UseKeychain,
+		StateDir:       paths.StateDir,
+		Keychain:       credential.KeychainFor(auth.NativeKeychain),
+		UseKeychain:    auth.UseKeychain,
+		NativeKeychain: auth.NativeKeychain,
 	}, nil
 }
 
@@ -463,6 +465,33 @@ func RunAuthLogout(provider string, yes bool, stdout, stderr io.Writer, stdin io
 			}
 			return nil
 		}
+	}
+	policy, err := readCompanyPolicy()
+	if err != nil {
+		return err
+	}
+	if policy.Managed {
+		store, err := managedCredentialStore()
+		if err != nil {
+			return err
+		}
+		removed := true
+		err = store.RemoveSecure(provider)
+		if errors.Is(err, credential.ErrNotFound) {
+			removed = false
+			err = nil
+		}
+		if err != nil {
+			return err
+		}
+		if stdout == nil {
+			stdout = io.Discard
+		}
+		if Global.JSON {
+			return output.RenderJSON(stdout, output.OutputEnvelope{}, map[string]any{"provider": provider, "secure_removed": removed, "legacy_copy": "not_inspected", "provider_owned_files": "unchanged"})
+		}
+		_, err = fmt.Fprintf(stdout, "which-model OS credential removed: %t; legacy copies were not inspected or removed; provider-owned credentials are unchanged\n", removed)
+		return err
 	}
 	path, mode, infoErr := managedCredentialFileInfoFunc(provider)
 	if infoErr == nil && path != "" && hasBroadPermsFunc(mode) {

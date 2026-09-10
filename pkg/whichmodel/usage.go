@@ -44,6 +44,7 @@ type FetchAllOptions struct {
 	Timeout                time.Duration
 	Offline                bool
 	IncludeIdentity        bool
+	NativeKeychain         bool
 	DisableManagedKeychain bool
 }
 
@@ -70,6 +71,7 @@ func fetchAll(ctx context.Context, opts FetchAllOptions) (*FetchResult, error) {
 		Timeout:                opts.Timeout,
 		Source:                 opts.Source,
 		DisableManagedKeychain: opts.DisableManagedKeychain,
+		NativeKeychain:         opts.NativeKeychain,
 	})
 	if err != nil {
 		return nil, err
@@ -144,6 +146,7 @@ func RunUsage(args UsageArgs, stdout, stderr io.Writer) error {
 		Offline:                args.Offline,
 		IncludeIdentity:        args.ShowIdentity,
 		DisableManagedKeychain: !auth.UseKeychain,
+		NativeKeychain:         auth.NativeKeychain,
 	})
 	if err != nil {
 		return &CodedError{Code: "runtime", Message: err.Error()}

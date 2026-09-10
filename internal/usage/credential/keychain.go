@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/WD-Mitchell/which-model/internal/securestore"
 	"github.com/WD-Mitchell/which-model/internal/security"
 	"github.com/WD-Mitchell/which-model/internal/usage"
 )
@@ -70,8 +71,12 @@ func (r *KeychainResolver) Resolve(ctx context.Context) (usage.Credential, error
 	}
 	v, err := r.Store.Get(r.Service, r.Account)
 	if err != nil {
-		if errors.Is(err, keyringNotFound) || errors.Is(err, ErrNotFound) {
+		if errors.Is(err, keyringNotFound) || errors.Is(err, ErrNotFound) || errors.Is(err, &securestore.Error{Kind: securestore.Missing}) {
 			return Credential{}, ErrNotFound
+		}
+		var native *securestore.Error
+		if errors.As(err, &native) {
+			return Credential{}, nativeStoreFailure(err)
 		}
 		return Credential{}, usage.NewFailureError(
 			"keychain_unavailable",

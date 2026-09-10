@@ -174,8 +174,14 @@ func Fetch(ctx context.Context, cred usage.Credential, client *http.Client) (usa
 		return usage.Snapshot{}, err
 	}
 	now := time.Now().UTC()
-	authPath, configPath := resolveCredentialPaths()
-	credential, err := LoadCredential(authPath, configPath)
+	var credential Credential
+	var err error
+	if cred.Extra["managed_store"] == "keychain" {
+		credential, err = managedFetchCredential(cred)
+	} else {
+		authPath, configPath := resolveCredentialPaths()
+		credential, err = LoadCredential(authPath, configPath)
+	}
 	if err != nil {
 		var ce *Error
 		if errors.As(err, &ce) {

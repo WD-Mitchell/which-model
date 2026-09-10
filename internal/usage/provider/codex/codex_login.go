@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/WD-Mitchell/which-model/internal/company"
+	"github.com/WD-Mitchell/which-model/internal/usage/credential"
 	"net/http"
 	"net/url"
 	"os"
@@ -80,7 +81,7 @@ func defaultValidateURL(raw string) error {
 
 // StartDeviceLogin requests a user code from issuer (production: Issuer).
 func StartDeviceLogin(ctx context.Context, issuer, clientID string, client *http.Client) (*DeviceLogin, error) {
-	if err := company.AuthorizeProviderFileWrite("codex"); err != nil {
+	if err := company.AuthorizeProviderLogin("codex"); err != nil {
 		return nil, err
 	}
 	if client == nil {
@@ -239,7 +240,7 @@ func (d *DeviceLogin) exchange(ctx context.Context, authorizationCode, codeVerif
 }
 
 func (d *DeviceLogin) post(ctx context.Context, rawURL, contentType string, body []byte) (int, []byte, error) {
-	if err := company.AuthorizeProviderFileWrite("codex"); err != nil {
+	if err := company.AuthorizeProviderLogin("codex"); err != nil {
 		return 0, nil, err
 	}
 	if d.ValidateURL != nil {
@@ -300,7 +301,26 @@ func (d *DeviceLogin) maxWait() time.Duration {
 // PersistLogin writes ~/.codex/auth.json (or $CODEX_HOME/auth.json) in the
 // shape Codex CLI and usage.AuthFile expect.
 func PersistLogin(tok Tokens) error {
-	if err := company.AuthorizeProviderFileWrite("codex"); err != nil {
+	policy, err := company.Load()
+	if err != nil {
+		return err
+	}
+	if err := policy.RequireProvider("codex"); err != nil {
+		return err
+	}
+	if policy.Managed {
+		if err := policy.RequireSource("keychain"); err != nil {
+			return err
+		}
+		cred, err := tok.ManagedCredential()
+		if err != nil {
+			return err
+		}
+		store := credential.ManagedStore{UseKeychain: true, NativeKeychain: true}
+		return store.SaveCredential("codex", cred)
+	}
+
+	if err := company.AuthorizeProviderLogin("codex"); err != nil {
 		return err
 	}
 	if security.ValidateOpaqueToken(tok.AccessToken) != nil {
