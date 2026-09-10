@@ -26,7 +26,10 @@ are refused. POSIX files must be root-owned and not group/other-writable, with
 root-owned protected parents. macOS extended ACLs are refused conservatively;
 Linux access ACLs cannot grant write beyond the checked mode's group mask.
 Windows requires an administrator/SYSTEM (or OS TrustedInstaller) owner and a DACL with no untrusted write,
-delete, ACL/owner-change grants; parent delete-child/replacement rights are checked.
+delete, ACL/owner-change grants on policy files; parent delete-child/replacement
+rights are checked. Normal ProgramData directory metadata/sibling-creation grants
+are permitted: every existing next component is separately protected against
+removal and a nonempty directory cannot become a reparse point.
 Unrecognized ACL grants are refused rather than guessed. Readers inspect the
 opened file as well as its path and reject replacement during the read.
 

@@ -73,8 +73,10 @@ The reader also accepts OS TrustedInstaller ownership for protected system
 ancestors. It rejects null DACLs, unfamiliar grant types, writable policy files,
 and untrusted delete-child or security-change rights on parents. It does not try
 to compensate for unsafe allow entries using deny entries. Mere permission to
-create an unrelated sibling in a system ancestor is not permission to replace an
-existing protected child. The Windows origin comes from the known-folder API,
+create an unrelated sibling or change directory metadata in a system ancestor is
+not permission to replace an existing protected child. Such ancestors remain
+nonempty because their existing children are protected against deletion; Windows
+[refuses setting a reparse point on a nonempty directory](https://learn.microsoft.com/en-us/windows-hardware/drivers/ifs/fsctl-set-reparse-point). The Windows origin comes from the known-folder API,
 not `%PROGRAMDATA%` supplied by the application environment.
 
 Symlinks and Windows reparse points are refused, including redirects above a
