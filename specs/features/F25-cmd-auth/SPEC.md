@@ -90,3 +90,10 @@ This intentionally supersedes unrestricted operation for enrolled installations 
 see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
 `TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
 and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.
+
+## Deviations / secure-store correction (#283)
+
+auth migrate <provider> adds explicit --remove-source and --replace. Company migration requires allow_credential_migration. JSON reports secure_store, legacy_copy, optional recovery_file/error; failure has nonzero exit. Company logout removes the owned OS item and reports legacy copies as not_inspected and provider-owned files as unchanged.
+The [secure-store contract](../F12-credentials/SECURE-STORES.md) supersedes earlier company-mode storage
+wording under the approved optional-profile decision. Personal defaults remain
+unchanged. Native tests and migration/fallback canaries are required evidence.

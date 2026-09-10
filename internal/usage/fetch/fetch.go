@@ -55,7 +55,8 @@ type Options struct {
 	CacheDir               string              // "" → cache.New() (system dir); test seam (SPEC D11)
 	Source                 usage.Source        // optional forced credential source; empty preserves auto
 	StateDir               string              // "" resolves the platform state directory
-	DisableManagedKeychain bool                // false (default) prefers the OS keychain
+	NativeKeychain         bool
+	DisableManagedKeychain bool // false (default) prefers the OS keychain
 }
 
 var (
@@ -295,9 +296,10 @@ func runProvider(gctx context.Context, store *cache.Store, client *http.Client, 
 		var rerr error
 		var rwarns []credential.Warning
 		cred, rwarns, rerr = credential.ResolveProvider(pctx, id, filterChainForSource(desc.Auth, opts.Source), client, credential.ManagedStore{
-			StateDir:    opts.StateDir,
-			Keychain:    credential.DefaultKeychain(),
-			UseKeychain: !opts.DisableManagedKeychain,
+			StateDir:       opts.StateDir,
+			Keychain:       credential.KeychainFor(opts.NativeKeychain),
+			NativeKeychain: opts.NativeKeychain,
+			UseKeychain:    !opts.DisableManagedKeychain,
 		})
 		warns = append(warns, rwarns...)
 		if rerr != nil {
@@ -554,9 +556,10 @@ func codexbarCredentialEnvironment(ctx context.Context, provider string, opts Op
 		return nil
 	}
 	store := credential.ManagedStore{
-		StateDir:    opts.StateDir,
-		Keychain:    credential.DefaultKeychain(),
-		UseKeychain: !opts.DisableManagedKeychain,
+		StateDir:       opts.StateDir,
+		Keychain:       credential.KeychainFor(opts.NativeKeychain),
+		NativeKeychain: opts.NativeKeychain,
+		UseKeychain:    !opts.DisableManagedKeychain,
 	}
 	managed, _, err := store.Resolve(ctx, provider)
 	if err != nil {

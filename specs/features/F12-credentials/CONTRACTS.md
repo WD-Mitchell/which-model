@@ -11,7 +11,7 @@ Package: `internal/usage/credential` (Layer 1b). Import boundary (global CONTRAC
 
 Build tags: EVERY file in this package carries `//go:build !nousage` (annex-a §1a.2). The `nousage`-tagged package-presence stub is owned by F21-usage-toggle.
 
-New dependency: `github.com/zalando/go-keyring` (darwin-only, referenced only from `keychain_darwin.go`; see SPEC decision D2).
+Native adapters use already-pinned `go-keyring`, `wincred`, `godbus/dbus/v5` and `x/sys`; see the #283 correction below. Personal legacy selection retains D2/D12.
 
 ---
 
@@ -157,6 +157,8 @@ type ManagedStore struct {
     StateDir    string
     Keychain    ManagedKeychainStore
     UseKeychain bool
+    NativeKeychain bool
+    // private migration controls omitted
 }
 
 func (s ManagedStore) Path(provider string) string
@@ -274,3 +276,43 @@ This intentionally supersedes unrestricted operation for enrolled installations 
 see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
 `TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
 and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.
+
+## Native secure-store correction (#283)
+
+[SECURE-STORES.md](SECURE-STORES.md) governs company mode and explicit personal
+native selection. It supersedes the earlier unconditional non-Darwin absence,
+plaintext fallback and both-location removal wording **for company mode**.
+The default personal adapter and fallback semantics remain unchanged.
+
+```go
+func KeychainFor(native bool) ManagedKeychainStore
+func (s ManagedStore) SaveCredential(provider string, cred usage.Credential) error
+func (s ManagedStore) RemoveSecure(provider string) error
+type MigrationOptions struct {
+    RemoveSource bool
+    Replace bool
+    Transition func() error
+}
+type MigrationReport struct {
+    Provider string
+    SecureStore string // unchanged | unverified | verified
+    LegacyCopy string // retained | removed | recovery
+    RecoveryFile string // optional adjacent basename
+}
+func (s ManagedStore) Migrate(ctx context.Context, provider string, opts MigrationOptions) (MigrationReport, error)
+func MigrateCatalog(ctx context.Context, configDir string, opts MigrationOptions) (MigrationReport, error)
+```
+
+Only `account_id` and `expires_at` are stored as metadata. `managed_store=keychain`
+is a resolution-only marker, never persisted. Existing raw-token entries remain
+readable. Native missing maps to `ErrNotFound`; locked, denied, unavailable and
+oversize retain typed `securestore.Error` outcomes and the existing canonical
+`keychain_unavailable` external code. No new canonical usage DTO is introduced.
+
+| Pinned scenario | Required result |
+|---|---|
+| `TestCompanyCredentialFallbackHasNoFileSideEffects` | Every native failure, zero managed-file I/O |
+| `TestNativeCredentialMigration` | Verify before transition/removal; report retained/changed source; explicit replacement |
+| `TestNativeMigrationRejectsRedirectedSource` | Reject leaf symlink without changing its target |
+| `TestNativeMetadataSurvivesRestore` | Routing/expiry metadata survives replacement rollback |
+| Native Windows/macOS/Linux store tests | Synthetic save/update/read/delete, missing and native failure evidence |

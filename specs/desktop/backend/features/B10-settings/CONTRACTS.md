@@ -104,3 +104,10 @@ See the canonical DTO/API extension in `specs/desktop/global/CONTRACTS.md` and
 behavior in `specs/desktop/backend/features/B03-profiles/SPEC.md` §Correction.
 The new `gui.user_profile` key persists the selected profile, defaults to
 `software_engineering`, and accepts `software_engineering`, `marketing`, `general`.
+
+## Deviations / secure-store correction (#283)
+
+Company catalog key operations use a dedicated OS entry and apply provider/source permission before access. Required native failures are surfaced; normal key removal leaves legacy copies uninspected. Company refresh does not export the key into process environment. Personal settings behavior is preserved.
+The [secure-store contract](../../../../features/F12-credentials/SECURE-STORES.md) supersedes earlier company-mode storage
+wording under the approved optional-profile decision. Personal defaults remain
+unchanged. Native tests and migration/fallback canaries are required evidence.

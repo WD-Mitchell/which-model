@@ -129,3 +129,10 @@ All catalog consumers, including desktop benchmark-group loading, decode the
 complete shared catalog schema. The legacy `catalog.publish.run_tests` boolean
 remains accepted for config/env compatibility; the option does not change generated workflow behavior. F30 owns the
 verification steps (paired-artifact verification is introduced by #165).
+
+## Deviations / secure-store correction (#283)
+
+AuthConfig adds NativeKeychain (TOML/JSON native_keychain, default false). SetAuth and desktop mutations preserve it. Company native selection is independent. Windows atomic writes sync the staged file then use MoveFileEx replacement/write-through; unsupported parent fsync is omitted.
+The [secure-store contract](../F12-credentials/SECURE-STORES.md) supersedes earlier company-mode storage
+wording under the approved optional-profile decision. Personal defaults remain
+unchanged. Native tests and migration/fallback canaries are required evidence.

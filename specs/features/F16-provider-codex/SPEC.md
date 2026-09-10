@@ -90,3 +90,10 @@ This intentionally supersedes unrestricted operation for enrolled installations 
 see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
 `TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
 and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.
+
+## Deviations / secure-store correction (#283)
+
+Company login persists access-token/account/expiry metadata in the native OS store. Secure resolution bypasses auth.json/config.toml and calls only the fixed official usage endpoint; its account metadata is routing data, not independently verified identity. Personal native-file behavior remains unchanged.
+The [secure-store contract](../F12-credentials/SECURE-STORES.md) supersedes earlier company-mode storage
+wording under the approved optional-profile decision. Personal defaults remain
+unchanged. Native tests and migration/fallback canaries are required evidence.

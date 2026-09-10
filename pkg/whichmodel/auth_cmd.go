@@ -27,7 +27,7 @@ type AuthStatusArgs struct {
 func NewAuthCmd() *cobra.Command {
 	cobra.EnableCommandSorting = false
 	cmd := &cobra.Command{
-		Use:   "auth status|login|logout",
+		Use:   "auth status|login|logout|migrate",
 		Short: "Manage provider credentials",
 		Args:  cobra.NoArgs,
 		RunE: func(_ *cobra.Command, args []string) error {
@@ -37,7 +37,7 @@ func NewAuthCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.AddCommand(newAuthStatusCmd(), newAuthLoginCmd(), newAuthLogoutCmd())
+	cmd.AddCommand(newAuthStatusCmd(), newAuthLoginCmd(), newAuthLogoutCmd(), newAuthMigrateCmd())
 	return cmd
 }
 

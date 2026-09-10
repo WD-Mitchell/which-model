@@ -38,3 +38,19 @@ func AuthorizeProviderFileWrite(provider string) error {
 	}
 	return s.RequireSource("provider_file")
 }
+
+// AuthorizeProviderLogin permits managed flows whose persistence uses the native
+// secure store. Personal flows retain their existing provider-file behavior.
+func AuthorizeProviderLogin(provider string) error {
+	s, err := Load()
+	if err != nil {
+		return err
+	}
+	if err := s.RequireProvider(provider); err != nil {
+		return err
+	}
+	if s.Managed {
+		return s.RequireSource("keychain")
+	}
+	return nil
+}

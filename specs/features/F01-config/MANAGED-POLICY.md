@@ -46,6 +46,7 @@ the protected origin and violated restriction, not file contents or secrets.
   "allowed_providers": [],
   "credential_sources": ["keychain"],
   "secure_store_only": true,
+  "allow_credential_migration": false,
   "identity_free": true,
   "retention": {
     "usage_snapshots_hours": 24,
@@ -115,3 +116,12 @@ override the native harness permission model.
 - Native macOS, Windows and Linux protection checks supplement deterministic
   precedence and operation-boundary tests. The restricted offline distribution's
   import/credential/network exclusions remain intact.
+
+## Secure-storage correction (#283)
+
+`allow_credential_migration` defaults to false. An explicit administrator grant
+permits only the `auth migrate` workflow's selected which-model-owned legacy file;
+it grants neither ordinary plaintext fallback nor provider-file access. Native
+secure login and migration now follow [F12 secure stores](../F12-credentials/SECURE-STORES.md).
+`artificial-analysis` is the catalog API-key provider permission. Personal
+`auth.native_keychain` opts into native stores and cannot weaken company policy.

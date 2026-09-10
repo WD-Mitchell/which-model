@@ -54,3 +54,10 @@ Both carousel and list show `Missing benchmark data: <axes>. Ranked using availa
 ## Correction (2026-09-05)
 
 The Profiles / Use Cases correction in `specs/desktop/backend/features/B03-profiles/SPEC.md` governs the new persisted profile selection and desktop terminology. The DTO extension is canonical in `specs/desktop/global/CONTRACTS.md`. Settings navigation now has both Profiles (curated defaults) and Use Cases (ranking presets).
+
+## Deviations / secure-store correction (#283)
+
+Company catalog key operations use a dedicated OS entry and apply provider/source permission before access. Required native failures are surfaced; normal key removal leaves legacy copies uninspected. Company refresh does not export the key into process environment. Personal settings behavior is preserved.
+The [secure-store contract](../../../../features/F12-credentials/SECURE-STORES.md) supersedes earlier company-mode storage
+wording under the approved optional-profile decision. Personal defaults remain
+unchanged. Native tests and migration/fallback canaries are required evidence.
