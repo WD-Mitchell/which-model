@@ -60,3 +60,15 @@ Pinned regressions marshal invalid-slug/missing-profile native errors, preserve 
 ## Create-only profile binding — #171
 
 ProfilesAPI additionally binds `Create(ProfileDetail) error`; bindings are regenerated through the pinned Wails generator. An occupied slug crosses the native boundary as `conflict`, verified by `TestProfilesBindingStructuredErrors`.
+
+
+## Test runtime initialization correction — PR #310
+
+Desktop Vitest setup imports the real Wails runtime under controlled fake timers,
+executes its startup callbacks, verifies that no startup timers remain, and restores
+real timers before test modules execute. This applies to every desktop test file,
+including mock-host tests that transitively import Wails. It supersedes the
+file-local timer handling in `wailsHost.test.ts`, which left other files exposed
+to the drag polling interval accessing `window` after jsdom teardown. Runtime
+errors remain fatal; the real RuntimeError and generated-binding tests remain in
+place. Application and production runtime behavior is unchanged.

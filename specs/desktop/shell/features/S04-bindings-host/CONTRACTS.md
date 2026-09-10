@@ -150,3 +150,15 @@ See the canonical DTO/API extension in `specs/desktop/global/CONTRACTS.md` and
 behavior in `specs/desktop/backend/features/B03-profiles/SPEC.md` §Correction.
 The new `gui.user_profile` key persists the selected profile, defaults to
 `software_engineering`, and accepts `software_engineering`, `marketing`, `general`.
+
+
+## Test runtime initialization correction — PR #310
+
+Desktop Vitest setup imports the real Wails runtime under controlled fake timers,
+executes its startup callbacks, verifies that no startup timers remain, and restores
+real timers before test modules execute. This applies to every desktop test file,
+including mock-host tests that transitively import Wails. It supersedes the
+file-local timer handling in `wailsHost.test.ts`, which left other files exposed
+to the drag polling interval accessing `window` after jsdom teardown. Runtime
+errors remain fatal; the real RuntimeError and generated-binding tests remain in
+place. Application and production runtime behavior is unchanged.
