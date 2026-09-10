@@ -140,7 +140,7 @@ requested source. Explicit cache-only reads retain their existing policy.
 
 ## Company-policy extension (#282)
 
-FetchAll checks protected policy before enabled-provider cache, credential or network activity, including direct callers and explicit backend/storage options. Disallowed providers and CodexBar delegation are refused. Disabled providers remain untouched. The guard is independent of ordinary configuration; per-provider API boundaries also recheck authorization.
+FetchAll checks protected policy before enabled-provider cache, credential or network activity, including direct callers and explicit backend/storage options. Disallowed providers and unapproved CodexBar delegation are refused. Disabled providers remain untouched. The guard is independent of ordinary configuration; per-provider API boundaries also recheck authorization.
 
 This intentionally supersedes unrestricted operation for enrolled installations only;
 see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
@@ -150,8 +150,13 @@ and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.
 
 ## Company privacy correction (#284)
 
-Options/API/usage DTOs remain unchanged. Personal cache identity and error rendering remain as before. Company tests pin raw native/delegated error-canary removal and lock-remediation preservation. CodexBar remains denied until the approved-installation consumer in #287; this change prepares its shared cache/output boundary without authorizing it.
+Options/API/usage DTOs remain unchanged. Personal cache identity and error rendering remain as before. Company tests pin raw native/delegated error-canary removal and lock-remediation preservation. The #287 approved-installation consumer governs delegation; shared cache/output minimization does not itself grant approval.
 
 Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
 Decision: requester-approved optional company defaults and advisory audit handling;
 this supersedes conflicting personal-only persistence statements for company mode.
+
+
+## Approved CodexBar correction (#287)
+
+The requester requires company CodexBar to remain disabled until an administrator approves a specific installation. Personal behavior stays unchanged. [APPROVED-CODEXBAR.md](APPROVED-CODEXBAR.md) is normative. Unapproved delegation is refused before cache/credential effects. Approved offline and fresh-cache paths execute nothing; a cache miss preflights the image/config before credential inputs, then the adapter re-verifies before invocation. Per-provider errors stay partial results. Existing cache/source/timeout tests remain binding. New pinned tests: TestCompanyCodexBarPreflightPrecedesCredentialsAndProcess, TestCompanyCodexBarCacheOnlyNeverPreflightsOrDelegates, TestCompanyCodexBarOutputAndTimeoutMatrix, TestNativeCompanyCodexBarApproval.

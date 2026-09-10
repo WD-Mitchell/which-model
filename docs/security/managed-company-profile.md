@@ -126,3 +126,6 @@ live provider collection, default identity-free persistence, actual expiry
 processing, legacy-data transition and explicit cleanup/purge. These settings are
 now consumed by cache/history/audit/launch storage; a stopped application still
 requires endpoint-scheduled cleanup for wall-clock deletion requirements.
+
+
+CodexBar delegation remains default-off. An administrator can now approve a protected native image and configuration together; see [approved CodexBar](approved-codexbar.md) for the schema, child inputs, reapproval process and separate upstream trust boundary.

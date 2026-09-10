@@ -1,6 +1,7 @@
 package company
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -108,5 +109,20 @@ func TestEnrollmentRequiresTrustedPolicy(t *testing.T) {
 	_, err = loadAt(dir, func(string) ([]byte, error) { return nil, errors.New("CANARY unsafe permissions") })
 	if err == nil || strings.Contains(err.Error(), "CANARY") {
 		t.Fatal("protection failure must be sanitized and fatal")
+	}
+}
+
+func TestCompanyCodexBarApprovalRequiresConfigIdentity(t *testing.T) {
+	p := Defaults()
+	dir := t.TempDir()
+	p.CodexBarInstallations = []CodexBarInstallation{{Path: filepath.Join(dir, "image.exe"), SHA256: strings.Repeat("a", 64)}}
+	data, _ := json.Marshal(p)
+	if _, err := Parse(data); err == nil {
+		t.Fatal("binary-only metadata accepted as delegation approval")
+	}
+	p.CodexBarInstallations[0].Config = Installation{Path: filepath.Join(dir, "config.json"), SHA256: strings.Repeat("b", 64)}
+	data, _ = json.Marshal(p)
+	if _, err := Parse(data); err != nil {
+		t.Fatal(err)
 	}
 }

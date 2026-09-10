@@ -236,3 +236,8 @@ Expected file: `internal/usage/registry.go`. Used for arg validation (SPEC §2.6
 ## Forced-source execution correction (#184)
 
 After #28 validates `--source`, F14 enforces it for the resolved credential, including managed fallback, before native fetch. A mismatch yields sanitized `login_required` without invoking the provider. A fresh online cache is eligible only when its original source matches the forced source; unknown/mismatched provenance proceeds to the matching live path. Empty source preserves automatic precedence; `--source cache` and offline mode remain cache-only. Regression coverage is pinned in F14 CONTRACTS: managed OAuth/API mismatch, matching/auto fallback, and matching/mismatched/unknown stored provenance. Human codeowner review is required before merge.
+
+
+## Approved CodexBar correction (#287)
+
+The requester requires company CodexBar to remain disabled until an administrator approves a specific installation. Personal behavior stays unchanged. For the company CodexBar backend, allowed provider discovery comes from protected policy without executing --help or reusing personal discovery. Backend configuration does not grant delegation. Fixed company adapter failures use existing snapshot/exit classes, and cache-only behavior remains unchanged. The native provider list/collection path stays separate. Governing contract: F14/APPROVED-CODEXBAR.md; test matrix runs on macOS, Windows and Linux.

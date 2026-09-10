@@ -43,7 +43,7 @@ func (c *Config) ValidateManaged() error {
 		return err
 	}
 	if c.Usage.Backend == UsageBackendCodexBar {
-		if err := policy.RequireCapability("codexbar"); err != nil {
+		if err := policy.RequireCodexBar(); err != nil {
 			return err
 		}
 	}

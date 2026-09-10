@@ -457,3 +457,23 @@ All are optional/omitted for personal behavior. No success-shaped result is used
 for a native start or approval failure. F26 uses its existing candidate warnings
 for reports; persisted Evidence optionally adds `quota_state` from the same closed
 state list. No numeric ranking, strategy or candidate-exclusion contract changes.
+
+
+## 16. Approved delegated installation (#287)
+
+The company policy replaces the formerly reserved CodexBar `[]Installation` metadata
+with the following canonical type; executable/input `Installation` is unchanged:
+
+```go
+type CodexBarInstallation struct {
+    Path string `json:"path"`
+    SHA256 string `json:"sha256"`
+    Config Installation `json:"config"`
+}
+```
+
+`Policy.CodexBarInstallations` is `[]CodexBarInstallation`, defaults empty and has
+a maximum of 16 entries. Every entry requires valid protected image and config
+identity metadata. `Snapshot.RequireCodexBar` checks that approval metadata exists;
+only the verified consumer can execute. Generic legacy capability guards remain
+closed. F14/APPROVED-CODEXBAR.md governs execution and delegation semantics.
