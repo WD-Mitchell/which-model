@@ -329,6 +329,11 @@ The conservative collision key is Unicode case-folding of every path prefix.
 The GitHub Actions check names `tracked-paths` and `windows-cli` are required
 status checks for `main`; their failure blocks PR and stack merges.
 
+| Merge-check state | Outcome |
+|---|---|
+| `test` passes; `tracked-paths` fails | merge blocked |
+| `test` passes; `windows-cli` fails | merge blocked |
+
 Pinned cases:
 
 | Input paths | Outcome |
@@ -344,8 +349,3 @@ Pinned cases:
 | `Src/a.go` and `src/b.go` | rejected directory collision |
 | `A` and `a/file` | rejected file/directory collision |
 | `src/a.go` and `src/b.go` | accepted shared directory |
-
-| Merge-check state | Outcome |
-|---|---|
-| `test` passes; `tracked-paths` fails | merge blocked |
-| `test` passes; `windows-cli` fails | merge blocked |
