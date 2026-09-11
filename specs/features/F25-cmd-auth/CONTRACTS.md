@@ -215,6 +215,14 @@ F25 wraps `Start` so only `UserCode`/`VerificationURI` reach the renderer, polls
 - Login refuses unattended contexts outright (SPEC §2.7); the device code appears only in the primary prompt line.
 
 
+## Device-login policy correction (#305)
+
+The CLI binds the selected provider to the shared device flow. Company policy
+errors from Start, Poll and credential persistence retain exit code 2 and their
+sanitized diagnostic; they are not converted into generic runtime failures.
+`TestAuthLoginPreservesCompanyPolicyErrors` pins all three stages. F12's request
+boundary tests pin revocation between polls.
+
 ## Company-policy extension (#282)
 
 Auth login checks company provider authorization before starting a flow. Managed credential persistence rechecks storage permissions before using a keychain or file. Policy errors are configuration-class exit 2 and never echo credential input.

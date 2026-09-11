@@ -134,7 +134,7 @@ jobs:
       # and path assertions. Run the complete new policy matrix natively here;
       # the test job still runs the full suites on Linux.
       - run: go test ./internal/config -run 'TestManagedConfigurationPrecedence|TestManagedStorageAndDesktopMutation|TestRequiredPolicyPrecedesOrdinaryConfigReads|TestManagedRankingPreferencesRemainAvailable'
-      - run: go test ./internal/usage/credential -run TestCompanyCredentialFallbackHasNoFileSideEffects
+      - run: go test ./internal/usage/credential -run 'TestCompanyCredentialFallbackHasNoFileSideEffects|TestDeviceFlowCompany'
       - run: go build -o company-policy-cli.exe ./cmd/which-model
       - name: Provision native ownership and ACL fixtures
         shell: bash

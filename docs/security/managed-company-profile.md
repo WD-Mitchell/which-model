@@ -89,6 +89,10 @@ These checks use [Windows security descriptors](https://learn.microsoft.com/en-u
 [known folders](https://learn.microsoft.com/en-us/windows/win32/api/shlobj_core/nf-shlobj_core-shgetknownfolderpath)
 and [Apple's file-attribute interface](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/man/man2/getattrlist.2).
 
+Policy JSON field names are case-sensitive throughout both documents. Mixed-case
+and Unicode aliases are rejected, including duplicate spellings that an ordinary
+Go JSON decoder might otherwise merge.
+
 ## Inspection and changes
 
 Run `which-model config policy --json` to inspect enrollment, the fixed policy
@@ -102,6 +106,11 @@ Policy is reloaded at operation boundaries, so an administrator change affects
 subsequent operations without making mutable desktop state authoritative. Stop
 the application when revoking access immediately: an already issued request or
 child process is not retroactively cancelled by changing a file.
+
+Device login also reloads policy before every token poll. Revoking the provider
+or losing a required policy stops the next request, including after a pending or
+slow-down response. CLI reports policy errors with exit code 2 and desktop reports
+`validation_failed`.
 
 Default managed policy refuses legacy shell launch, credential CLI helpers,
 CodexBar discovery/delegation and model-discovery subprocesses. Approval metadata
