@@ -136,9 +136,9 @@ The `tracked-paths` and `windows-cli` GitHub Actions checks must be required by
 the active `main` rules alongside the existing `test` check. A failure of either
 portability check must prevent merging a PR or stack into `main`.
 
+Review correction (#298): include the remaining Git for Windows reserved device
+names and enforce both portability jobs as required merge checks.
+
 Correction: #280 removes the accidentally tracked `xd:/lsp` editor diagnostic
 artifact and adds the missing portability gate. It changes no CLI runtime
 behaviour or provider credential policy.
-
-Review correction (#298): include the remaining Git for Windows reserved device
-names and enforce both portability jobs as required merge checks.
