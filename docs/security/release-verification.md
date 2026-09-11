@@ -59,12 +59,13 @@ actual immutable GitHub release assets, not newly rebuilt bytes.
 ## Direct downloads and mirrors
 
 Acquire the expected version, complete source commit and source ref through your
-approved release review. Download the binary, its SBOM, manifest, checksum list
-and bundle into one directory. Use the verification helper from a trusted source
+approved release review. Download all binaries, their SBOMs and
+`<binary>.govulncheck.txt` reports, manifest, checksum list and bundle into one
+directory. Use the verification helper from a trusted source
 checkout containing this change. It verifies the manifest before consuming its
-artifact metadata, checks every listed binary/SBOM and confirms each SBOM names
-and hashes the matching binary. Therefore download all listed files for this
-whole-release check; a missing file fails verification.
+artifact metadata, checks every listed binary/SBOM and its signed scan report,
+and confirms each SBOM names and hashes the matching binary. A missing or altered
+report fails this whole-release check before artifacts can be republished.
 
 With `release_dir`, `release_version` and `release_commit` set to the approved
 values, run in Bash on macOS/Linux:
@@ -108,6 +109,12 @@ an explicit signature/attestation check where the package manager supports it.
 The release gate installs all six exact-version packages with scripts disabled,
 verifies their npm signatures/attestations and checks the recorded repository,
 workflow, tag and source revision using `npm/scripts/verify-provenance.js`.
+It also downloads the exact registry tarballs with scripts disabled and uses
+GitHub CLI 2.97.0+ to verify their SHA-512 subjects and OIDC-derived certificate
+identities against the same repository, workflow, tag, commit, issuer and hosted
+runner policy. Predicate values are consistency checks; they cannot substitute
+for certificate identity. Success evidence lists all six packages under
+`certificate_identities_verified` only after these checks pass.
 Its result is uploaded as the `npm-provenance` workflow artifact.
 
 The launcher includes a release policy stamped from the verified manifest. If an

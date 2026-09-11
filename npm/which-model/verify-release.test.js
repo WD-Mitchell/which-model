@@ -49,6 +49,44 @@ test('missing evidence and verifier refusal never become verification success', 
   } finally { fs.rmSync(dir,{recursive:true,force:true}); }
 });
 
+test('release verification requires every signed vulnerability report', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'which-model-scan-evidence-'));
+  try {
+    const m = manifest();
+    const artifact = m.artifacts[0];
+    const report = path.join(dir, `${artifact.name}.govulncheck.txt`);
+    const sbom = JSON.stringify({ bomFormat: 'CycloneDX', specVersion: '1.6', metadata: {
+      component: { name: artifact.name, version: m.version, hashes: [{ alg: 'SHA-256', content: sha }] },
+    } });
+    artifact.sbom_sha256 = crypto.createHash('sha256').update(sbom).digest('hex');
+    fs.writeFileSync(path.join(dir, 'release-manifest.json'), JSON.stringify(m));
+    fs.writeFileSync(path.join(dir, artifact.name), bytes);
+    fs.writeFileSync(path.join(dir, artifact.sbom), sbom);
+    fs.writeFileSync(path.join(dir, 'checksums.txt'), `${sha}  ${artifact.name}\n`);
+    fs.writeFileSync(path.join(dir, 'provenance.jsonl'), 'synthetic signed subjects');
+    fs.writeFileSync(report, 'signed scan result');
+    // Model a cryptographic verifier accepting only the original signed bytes.
+    const signed = new Map(fs.readdirSync(dir).map(name => [path.join(dir, name), fs.readFileSync(path.join(dir, name))]));
+    const checked = [];
+    const run = (_command, args) => {
+      const file = args[2];
+      checked.push(file);
+      assert.deepEqual(fs.readFileSync(file), signed.get(file));
+    };
+    const loaded = { exports: {} };
+    require('node:vm').runInNewContext(fs.readFileSync(path.join(__dirname, 'verify-release.js'), 'utf8'), {
+      module: loaded, require: name => name === 'node:child_process' ? { execFileSync: run } : require(name),
+    });
+    const { verifyRelease } = loaded.exports;
+    verifyRelease(dir, m.version, source, ref);
+    assert.ok(checked.includes(report), 'the published scan report must be verified');
+    fs.writeFileSync(report, 'changed after signing');
+    assert.throws(() => verifyRelease(dir, m.version, source, ref), /verification failed/);
+    fs.unlinkSync(report);
+    assert.throws(() => verifyRelease(dir, m.version, source, ref), /verification failed/);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('fallback launch requires a matching verification receipt and unchanged bytes', () => {
   const { hasVerifiedFallback } = require('./verify-release');
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'which-model-receipt-'));

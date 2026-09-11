@@ -354,6 +354,14 @@ and hosted runner identity. A checksum match without successful cryptographic
 verification is rejected. Direct verification uses an explicitly supplied version,
 source ref and full source digest; mirror-supplied metadata cannot choose trust.
 
+Whole-release verification additionally requires a signed
+`<binary>.govulncheck.txt` for every manifest artifact, with the same certificate
+identity policy. Exact npm tarballs use SHA-512 subjects; their certificate
+identity must pass independently of their SLSA predicate's claimed identity.
+The npm success report lists `certificate_identities_verified` only after all
+six packages pass. Missing/altered scan reports and matching npm predicates with
+rejected certificate identities are pinned failure cases (review correction #301).
+
 Pinned cases: changed bytes, absent/malformed bundle, incorrect repository,
 workflow, source ref or source digest, mismatched package version, verifier
 absence/timeout/failure and interrupted installation expose no new runnable

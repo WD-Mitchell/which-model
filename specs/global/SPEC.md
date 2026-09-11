@@ -172,9 +172,17 @@ The build emits a CycloneDX 1.6 SBOM for each CLI binary from its embedded Go
 build information, with the artifact digest, linked modules and Go runtime. The
 repository-owned generator is versioned with the source; no guessed licences or
 transitive dependency graph are emitted. Release provenance covers binaries,
-SBOMs, checksum list and release manifest. A signed manifest binds the version,
-full source revision/ref and artifact/SBOM digests. Release jobs independently
+SBOMs, per-binary vulnerability reports, checksum list and release manifest.
+A signed manifest binds the version, full source revision/ref and artifact/SBOM
+digests. Release jobs independently
 verify the downloaded artifacts before publishing or packaging.
+
+Review correction (#301): whole-release verification requires each binary's
+signed `govulncheck` report and rejects missing or altered reports before
+publication. Exact-version npm verification also checks the original tarball's
+SHA-512 subject and OIDC-derived certificate identity using GitHub CLI. Repository,
+workflow, tag, source commit, issuer and hosted runner policy are enforced on the
+certificate; matching workflow-controlled predicate claims alone cannot pass.
 
 Release tests/builds use pinned Go 1.26.8 (the scanner requires Go 1.26+).
 Release evidence records `govulncheck` v1.8.0 binary scans and exact npm package
