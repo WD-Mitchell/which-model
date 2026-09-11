@@ -105,13 +105,13 @@ and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.
 
 Company cache writes minimize before persistence, including delegated snapshots. Return-time --show-identity remains separate from collection/storage policy. Offline use still performs no credential/provider/network operations, but company retention may rewrite/delete owned local records. FetchAll replaces free-form failure messages with fixed canonical diagnostics for either backend. Unknown failure codes map to provider_status; native OS-store remediation is preserved only when it exactly matches an application-owned string.
 
-Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
-Decision: requester-approved optional company defaults and advisory audit handling;
-this supersedes conflicting personal-only persistence statements for company mode.
-
 Review correction (PR #307): the managed return boundary also filters every
 credential/cache warning. Permission warnings retain fixed remediation without
 the credential path; cache warnings direct the user to privacy cleanup without
 printing provider/error payloads. The exact application-owned keychain fallback
 warning remains useful. Unknown warnings become a fixed status/settings notice.
 Warning count/order and personal diagnostic text remain unchanged.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.
