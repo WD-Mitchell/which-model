@@ -141,20 +141,6 @@ agent/CodexBar logs, provider-side records and OS credential stores have separat
 owners and deletion policies. Audit/history failures remain visible and advisory;
 they do not grant or deny permission to launch an agent.
 
-## Review evidence
-
-The governing contract is [managed retention](../../specs/features/F13-usage-cache/MANAGED-RETENTION.md).
-Synthetic tests cover original-clock preservation, configured category expiry,
-physical deletion, concurrent append/prune, explicit partial failure, redirected
-credential protection, identity/payload canaries, central hook audit, fixed usage
-diagnostics and structured launch output. The `company-privacy` CI matrix runs
-native macOS, Windows and Linux cases. #287 must update this inventory with the
-approved CodexBar containment behavior; #291 maps evidence to the listed controls.
-
-Zero retention is supported: an administrator value of `0` disables persistence
-for that category and removes its existing owned records when maintenance or a
-write is attempted. It never means unlimited retention.
-
 ### Review corrections for #307
 
 Company usage warnings now use fixed remediation messages too. Credential-file
@@ -171,3 +157,17 @@ stop older personal processes as described in rollout. Unrelated backups and loc
 files remain outside deletion. State-directory scans share the 1,024-entry bound.
 Successful temporary-file removals appear in `deleted_files`, while unsafe entries
 or incomplete scans still make cleanup/purge fail with accurate partial counts.
+
+## Review evidence
+
+The governing contract is [managed retention](../../specs/features/F13-usage-cache/MANAGED-RETENTION.md).
+Synthetic tests cover original-clock preservation, configured category expiry,
+physical deletion, concurrent append/prune, explicit partial failure, redirected
+credential protection, identity/payload canaries, central hook audit, fixed usage
+diagnostics and structured launch output. The `company-privacy` CI matrix runs
+native macOS, Windows and Linux cases. #287 must update this inventory with the
+approved CodexBar containment behavior; #291 maps evidence to the listed controls.
+
+Zero retention is supported: an administrator value of `0` disables persistence
+for that category and removes its existing owned records when maintenance or a
+write is attempted. It never means unlimited retention.
