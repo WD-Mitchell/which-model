@@ -122,7 +122,7 @@ When the platform optional package is unavailable, postinstall may fetch the ver
 Every tracked path must be portable to a normal Windows checkout. The CI path
 check rejects reserved characters/control bytes, invalid Unicode, empty or
 relative components, trailing periods/spaces, reserved Windows device names
-(including extensions and numbered COM/LPT names), and case-insensitive
+(including `CONIN$`, `CONOUT$`, `LPT0`, extensions and numbered COM/LPT names), and case-insensitive
 file/directory collisions at every path component. The check examines Git's
 index with NUL-delimited filenames; it does not inspect untracked local files.
 
@@ -132,6 +132,13 @@ Linux cross-compilation remains part of release packaging but does not replace
 this native checkout/build gate. This requirement concerns the CLI; it does not
 expand desktop Windows feature support.
 
+The `tracked-paths` and `windows-cli` GitHub Actions checks must be required by
+the active `main` rules alongside the existing `test` check. A failure of either
+portability check must prevent merging a PR or stack into `main`.
+
 Correction: #280 removes the accidentally tracked `xd:/lsp` editor diagnostic
 artifact and adds the missing portability gate. It changes no CLI runtime
 behaviour or provider credential policy.
+
+Review correction (#298): include the remaining Git for Windows reserved device
+names and enforce both portability jobs as required merge checks.

@@ -23,6 +23,18 @@ class TrackedPathsTests(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertTrue(check_paths(["dir/" + name]))
 
+    def test_console_and_lpt_zero_device_names(self):
+        for name in ["CONIN$", "CONOUT$", "LPT0"]:
+            for spelling in [name, name.lower()]:
+                for suffix in ["", ".txt", " .log"]:
+                    for path in [f"dir/{spelling}{suffix}", f"dir/{spelling}{suffix}/file.go"]:
+                        with self.subTest(path=path):
+                            self.assertEqual(check_paths([path]), [f"{path!r}: reserved Windows device name"])
+
+    def test_device_name_lookalikes_are_allowed(self):
+        names = ["CONIN", "CONOUT", "CONIN$extra", "CONOUT$extra", "LPT01", "LPT10", "COM0"]
+        self.assertEqual(check_paths([f"dir/{name}.txt" for name in names]), [])
+
     def test_trailing_spaces_periods_and_empty_components(self):
         for path in ["a.", "a /file", "a/file ", "/absolute", "a//b", "a/../b", "a/./b"]:
             with self.subTest(path=path):
@@ -52,6 +64,20 @@ class TrackedPathsTests(unittest.TestCase):
         result = subprocess.run([sys.executable, str(script), "--stdin"], input=b"src/ok.go\0", capture_output=True)
         self.assertEqual(result.returncode, 0)
         self.assertIn(b"OK", result.stdout)
+
+    def test_console_and_lpt_zero_names_fail_stdin_check(self):
+        script = Path(__file__).resolve().parents[1] / "check_tracked_paths.py"
+        for name in ["CONIN$", "conout$", "LPT0"]:
+            for path in [name, f"{name}.txt", f"src/{name}/file.go"]:
+                with self.subTest(path=path):
+                    result = subprocess.run(
+                        [sys.executable, str(script), "--stdin"],
+                        input=path.encode() + b"\0", capture_output=True,
+                    )
+                    self.assertEqual(result.returncode, 1)
+                    self.assertEqual(result.stdout, b"")
+                    self.assertIn(path.encode(), result.stderr)
+                    self.assertIn(b"reserved Windows device name", result.stderr)
 
 
 if __name__ == "__main__":
