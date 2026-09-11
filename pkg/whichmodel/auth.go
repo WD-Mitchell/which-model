@@ -21,6 +21,7 @@ import (
 
 	"golang.org/x/term"
 
+	"github.com/WD-Mitchell/which-model/internal/company"
 	"github.com/WD-Mitchell/which-model/internal/config"
 	"github.com/WD-Mitchell/which-model/internal/security"
 	"github.com/WD-Mitchell/which-model/internal/usage"
@@ -319,7 +320,7 @@ func startDeviceFlow(provider string) (DeviceFlow, error) {
 		if spec.VerificationURI == "" && provider == "copilot" {
 			spec.VerificationURI = "https://github.com/login/device"
 		}
-		flow := credential.NewDeviceFlow(spec)
+		flow := credential.NewProviderDeviceFlow(provider, spec)
 		code, err := flow.Start(context.Background())
 		if err != nil {
 			return DeviceFlow{}, err
@@ -361,8 +362,12 @@ func RunAuthLogin(provider string, stdout, stderr io.Writer, stdin io.Reader) er
 	if provider != "copilot" {
 		return &CodedError{Code: "unsupported", Message: fmt.Sprintf("login for %s is not supported until M5; sign in with the provider's own client, then run which-model auth status %s", provider, provider)}
 	}
+	var denied *company.Error
 	flow, err := startDeviceFlowFunc(provider)
 	if err != nil {
+		if errors.As(err, &denied) {
+			return err
+		}
 		message := redactAuthMessage(err.Error(), "")
 		if stderr != nil {
 			_, _ = fmt.Fprintf(stderr, "[runtime] %s\n", message)
@@ -380,6 +385,9 @@ func RunAuthLogin(provider string, stdout, stderr io.Writer, stdin io.Reader) er
 	}
 	token, err := flow.Poll()
 	if err != nil {
+		if errors.As(err, &denied) {
+			return err
+		}
 		message := redactAuthMessage(err.Error(), "")
 		if stderr != nil {
 			_, _ = fmt.Fprintf(stderr, "[runtime] %s\n", message)
@@ -387,6 +395,9 @@ func RunAuthLogin(provider string, stdout, stderr io.Writer, stdin io.Reader) er
 		return &CodedError{Code: "runtime", Message: message}
 	}
 	if err := saveCredentialFunc(provider, token); err != nil {
+		if errors.As(err, &denied) {
+			return err
+		}
 		message := redactAuthMessage(err.Error(), token)
 		if stderr != nil {
 			_, _ = fmt.Fprintf(stderr, "[runtime] %s\n", message)

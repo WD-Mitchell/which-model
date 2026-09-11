@@ -37,6 +37,28 @@ Both JSON documents are bounded to 64 KiB, schema-versioned, reject unknown or
 duplicate fields and never contain credential material. Policy diagnostics name
 the protected origin and violated restriction, not file contents or secrets.
 
+## Review corrections (#305)
+
+JSON property names must match the schema tags exactly at every object level,
+including enrollment markers and nested policy objects. Case variants and Unicode
+case aliases are unknown fields, even when Go's ordinary JSON decoder would map
+them to a known field. Reject the whole document before it grants authority.
+Canonical JSON-escaped names remain valid; duplicates after unescaping are refused.
+Pinned tests: `TestPolicyRejectsCaseAliasedFields` and
+`TestEnrollmentRejectsCaseAliasedFields`.
+
+The shared OAuth device flow checks the current policy before its initial request
+and every token poll, including retries after `authorization_pending` or
+`slow_down`. CLI and desktop supply the provider identity through
+`credential.NewProviderDeviceFlow`; managed mode refuses legacy flows without that
+binding. Missing or invalid required policy and provider revocation stop the next
+request and return a policy error. CLI preserves exit 2; desktop preserves
+`validation_failed`. An already issued HTTP request is not retroactively cancelled.
+Pinned tests: `TestDeviceFlowCompanyRequestBoundaries`,
+`TestDeviceFlowCompanyRevocationBetweenPolls`,
+`TestAuthLoginPreservesCompanyPolicyErrors`, and native
+`TestNativeManagedDeviceFlowBoundaries` on all three supported OSes.
+
 ## Policy schema and defaults
 
 ```json

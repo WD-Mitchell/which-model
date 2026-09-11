@@ -200,7 +200,10 @@ type DeviceFlow struct {
     ValidateURL    func(rawURL string) error
 }
 
+// NewDeviceFlow retains the legacy personal flow. Managed requests require
+// the provider binding supplied by NewProviderDeviceFlow.
 func NewDeviceFlow(spec usage.OAuthSpec) *DeviceFlow
+func NewProviderDeviceFlow(provider string, spec usage.OAuthSpec) *DeviceFlow
 
 // DeviceCode carries the validated device-flow state. Only UserCode and
 // VerificationURI may ever be displayed; DeviceCode is opaque.
@@ -222,6 +225,26 @@ func (f *DeviceFlow) Start(ctx context.Context) (DeviceCode, error)
 // validated opaque token.
 func (f *DeviceFlow) Poll(ctx context.Context, code DeviceCode) (string, error)
 ```
+
+### Company device-flow correction (#305)
+
+The provider binding is private to `DeviceFlow`; it adds no field to canonical
+`usage.OAuthSpec`. Start and every token POST reload protected policy, including
+pending/slow-down retries. Managed unbound flows, forbidden providers and policy
+load failures return `*company.Error` before transport access. Personal unbound
+flows retain their existing behavior.
+
+| Pinned scenario | Required result |
+|---|---|
+| Managed allowed provider; Start and Poll | Requests succeed using mocked transport |
+| Managed forbidden/unbound flow; Start or Poll | Policy error; zero requests |
+| Required policy missing; Start or Poll | Policy error; zero requests |
+| Provider revoked or required policy lost between pending/slow-down polls | Policy error; no second request or token |
+| Personal unbound flow | Existing device-code behavior |
+
+Evidence: `TestDeviceFlowCompanyRequestBoundaries`,
+`TestDeviceFlowCompanyRevocationBetweenPolls`, and native
+`TestNativeManagedDeviceFlowBoundaries`.
 
 ## 8. Expiry — `internal/usage/credential/expiry.go`
 

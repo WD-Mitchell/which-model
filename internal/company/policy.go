@@ -12,6 +12,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"slices"
 	"strings"
@@ -156,17 +157,20 @@ func Parse(data []byte) (Policy, error) {
 	return p, nil
 }
 
-// decodeStrict rejects duplicate object keys, unknown fields and trailing JSON.
+// decodeStrict rejects duplicate object keys, noncanonical fields and trailing JSON.
 // Diagnostics intentionally omit decoder text, which may quote private input.
 func decodeStrict(data []byte, out any) error {
 	if len(data) == 0 || len(data) > MaxPolicyBytes {
 		return errors.New("invalid document size")
 	}
 	decoder := json.NewDecoder(bytes.NewReader(data))
-	var walk func(int) error
-	walk = func(depth int) error {
+	var walk func(int, reflect.Type) error
+	walk = func(depth int, typ reflect.Type) error {
 		if depth > 16 {
 			return errors.New("document too deep")
+		}
+		for typ.Kind() == reflect.Pointer {
+			typ = typ.Elem()
 		}
 		token, err := decoder.Token()
 		if err != nil {
@@ -178,6 +182,19 @@ func decodeStrict(data []byte, out any) error {
 		}
 		switch delimiter {
 		case '{':
+			if typ.Kind() != reflect.Struct {
+				return errors.New("unexpected object")
+			}
+			// encoding/json matches struct fields case-insensitively, including
+			// Unicode aliases. Accept only the exact schema tags before decoding.
+			fields := map[string]reflect.Type{}
+			for i := 0; i < typ.NumField(); i++ {
+				field := typ.Field(i)
+				name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+				if name != "" && name != "-" {
+					fields[name] = field.Type
+				}
+			}
 			keys := map[string]bool{}
 			for decoder.More() {
 				key, err := decoder.Token()
@@ -189,13 +206,20 @@ func decodeStrict(data []byte, out any) error {
 					return errors.New("duplicate key")
 				}
 				keys[name] = true
-				if err := walk(depth + 1); err != nil {
+				fieldType, known := fields[name]
+				if !known {
+					return errors.New("noncanonical field")
+				}
+				if err := walk(depth+1, fieldType); err != nil {
 					return err
 				}
 			}
 		case '[':
+			if typ.Kind() != reflect.Slice && typ.Kind() != reflect.Array {
+				return errors.New("unexpected array")
+			}
 			for decoder.More() {
-				if err := walk(depth + 1); err != nil {
+				if err := walk(depth+1, typ.Elem()); err != nil {
 					return err
 				}
 			}
@@ -205,7 +229,7 @@ func decodeStrict(data []byte, out any) error {
 		_, err = decoder.Token()
 		return err
 	}
-	if err := walk(0); err != nil {
+	if err := walk(0, reflect.TypeOf(out)); err != nil {
 		return err
 	}
 	if _, err := decoder.Token(); err != io.EOF {
