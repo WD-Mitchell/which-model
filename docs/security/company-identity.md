@@ -6,6 +6,19 @@ Decision: retain local OS and provider identity, accepted by the requester in
 This is an architecture and deployment decision, not company or provider approval.
 No application login, product RBAC service or central credential broker is added.
 
+## Current implementation supplement (#291)
+
+The original provider/source assessment below is a dated baseline at `95bc6bf`;
+its references to planned controls and unavailable Windows/Linux stores are not
+the current company-mode implementation. At `b0bc8dacd20d95adc50c141433d1d74888222641`,
+#282–#287 have implemented protected policy, native stores on all three OSes,
+retention, approved execution/delegation and advisory reporting.
+[The current data inventory](privacy-and-retention.md) supersedes the baseline's
+company credential-source/persistence descriptions; [the assessment](company-assessment.md)
+links exact verification and pending external decisions. Personal source chains,
+local identity limits and unresolved provider permission remain as described.
+No new provider terms review or permission is claimed by this supplement.
+
 ## Actors and trust boundaries
 
 ```mermaid
