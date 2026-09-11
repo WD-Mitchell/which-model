@@ -189,14 +189,11 @@ func (s ManagedStore) Resolve(ctx context.Context, provider string) (usage.Crede
 				stored = encoded
 			}
 			if security.ValidateOpaqueToken(stored.Token) == nil {
-				extra := make(map[string]string, len(stored.Extra)+1)
-				for key, value := range stored.Extra {
-					extra[key] = value
-				}
+				resolvedStore := ""
 				if policy.Managed || s.NativeKeychain || s.secureOnly {
-					extra["managed_store"] = "keychain"
+					resolvedStore = "keychain"
 				}
-				return Credential{Token: stored.Token, Source: managedCredentialSource(stored.Source), Extra: extra}, nil, nil
+				return resolvedManagedCredential(stored, resolvedStore), nil, nil
 			}
 			if s.secureOnly || (policy.Managed && policy.Policy.SecureStoreOnly) {
 				return Credential{}, nil, usage.NewFailureError("unsafe_credential", "OS secure store contains an invalid credential")
@@ -240,7 +237,25 @@ func (s ManagedStore) Resolve(ctx context.Context, provider string) (usage.Crede
 	if err := security.ValidateOpaqueToken(stored.Token); err != nil {
 		return Credential{}, warnings, usage.NewFailureError("unsafe_credential", "managed credential file contains an unsafe credential")
 	}
-	return Credential{Token: stored.Token, Source: managedCredentialSource(stored.Source), Extra: stored.Extra}, warnings, nil
+	resolvedStore := ""
+	if policy.Managed || s.NativeKeychain {
+		resolvedStore = "managed_file"
+	}
+	return resolvedManagedCredential(stored, resolvedStore), warnings, nil
+}
+
+func resolvedManagedCredential(stored managedCredentialFile, source string) Credential {
+	extra := make(map[string]string, len(stored.Extra)+1)
+	for key, value := range stored.Extra {
+		if key != "managed_store" {
+			extra[key] = value
+		}
+	}
+	// Provenance describes this resolution, never a claim read from the record.
+	if source != "" {
+		extra["managed_store"] = source
+	}
+	return Credential{Token: stored.Token, Source: managedCredentialSource(stored.Source), Extra: extra}
 }
 
 func managedCredentialSource(source string) usage.AuthKind {

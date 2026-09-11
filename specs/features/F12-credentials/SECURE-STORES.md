@@ -20,6 +20,14 @@ behavior on other systems. Explicit `[auth] native_keychain = true` opts a perso
 installation into the new native adapter. Company authority selects native secure
 storage independently of that preference. Desktop settings preserve this setting.
 
+The resolution-only `managed_store` marker records the actual permitted source:
+`keychain` or `managed_file`. Native personal mode retains file fallback when
+the keychain is disabled or unavailable; Codex consumes that resolved token and
+routing metadata without reopening provider files. The marker is never stored
+in a credential record, and a stored marker cannot override the actual source.
+Default personal mode retains its existing provider-file precedence. A failed
+personal sign-in rolls back a newly saved fallback file as well as OS storage.
+
 The pinned go-keyring Windows adapter is reused. The macOS adapter calls the
 fixed Security/CoreFoundation frameworks through pinned purego v0.11.0, including
 CGO-disabled release builds. It selects the OS default keychain, checks lock state,
@@ -28,6 +36,13 @@ It verifies writes by reading the exact value back.
 The Linux adapter uses the already-pinned D-Bus dependency and the Secret Service
 protocol without implicit unlock prompts; it connects to the protected local
 session bus independently of user-supplied bus-address environment variables.
+Lookup, update and removal select the same unique matching item across collections.
+An existing item is updated in its original collection even if the default changes;
+only a missing item is created in the current default collection. Locked or
+ambiguous matches refuse the write. Writes require unique lookup and exact secret
+read-back before reporting success; a missing or mismatched result is unavailable.
+Other native failures retain their typed outcomes. Failed verification may leave
+a committed OS entry; it never authorizes company plaintext fallback.
 Unsupported sizes or unavailable OS services are explicit failures, never a reason
 to persist plaintext. Native integration tests use disposable synthetic stores.
 

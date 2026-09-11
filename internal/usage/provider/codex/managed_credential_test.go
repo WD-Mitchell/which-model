@@ -37,19 +37,24 @@ func TestManagedCodexCredentialMetadata(t *testing.T) {
 }
 
 func TestManagedCodexFetchDoesNotReopenProviderFiles(t *testing.T) {
-	// A missing provider directory would make the legacy loader fail. A secure
-	// credential must reach only the official usage endpoint without reading it.
-	t.Setenv("CODEX_HOME", t.TempDir())
-	transport := &stubTransport{fn: canned(200, fixtureCase6)}
-	cred := usage.Credential{Token: canaryToken, Source: usage.AuthOAuthDeviceFlow, Extra: map[string]string{"managed_store": "keychain", "account_id": canaryAcct, "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}}
-	snap, err := Fetch(context.Background(), cred, &http.Client{Transport: transport})
-	if err != nil || snap.Failure != nil || len(transport.reqs) != 1 {
-		t.Fatalf("secure fetch failed: %v failure=%v requests=%d", err, snap.Failure, len(transport.reqs))
-	}
-	wantHeaders(t, transport.reqs[0])
-	cred.Extra["expires_at"] = "2000-01-01T00:00:00Z"
-	snap, err = Fetch(context.Background(), cred, &http.Client{Transport: transport})
-	if err != nil || snap.Failure == nil || snap.Failure.Code != "expired_credential" || len(transport.reqs) != 1 {
-		t.Fatal("expired secure credential reached network")
+	for _, source := range []string{"keychain", "managed_file"} {
+		t.Run(source, func(t *testing.T) {
+			// An explicitly resolved managed credential must reach only the official
+			// usage endpoint, including when personal native mode permits file fallback.
+			t.Setenv("CODEX_HOME", t.TempDir())
+			transport := &stubTransport{fn: canned(200, fixtureCase6)}
+			cred := usage.Credential{Token: canaryToken, Source: usage.AuthOAuthDeviceFlow, Extra: map[string]string{"managed_store": source, "account_id": canaryAcct, "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}}
+			snap, err := Fetch(context.Background(), cred, &http.Client{Transport: transport})
+			if err != nil || snap.Failure != nil || len(transport.reqs) != 1 {
+				t.Fatalf("secure fetch failed: %v failure=%v requests=%d", err, snap.Failure, len(transport.reqs))
+			}
+			wantHeaders(t, transport.reqs[0])
+			cred.Extra["expires_at"] = "2000-01-01T00:00:00Z"
+			snap, err = Fetch(context.Background(), cred, &http.Client{Transport: transport})
+			if err != nil || snap.Failure == nil || snap.Failure.Code != "expired_credential" || len(transport.reqs) != 1 {
+				t.Fatal("expired secure credential reached network")
+			}
+
+		})
 	}
 }

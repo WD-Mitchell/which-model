@@ -304,8 +304,9 @@ func (s ManagedStore) Migrate(ctx context.Context, provider string, opts Migrati
 func MigrateCatalog(ctx context.Context, configDir string, opts MigrationOptions) (MigrationReport, error)
 ```
 
-Only `account_id` and `expires_at` are stored as metadata. `managed_store=keychain`
-is a resolution-only marker, never persisted. Existing raw-token entries remain
+Only `account_id` and `expires_at` are stored as metadata. `managed_store` records
+`keychain` or permitted `managed_file` resolution in native/company mode. It is
+never persisted or trusted from stored data. Existing raw-token entries remain
 readable. Native missing maps to `ErrNotFound`; locked, denied, unavailable and
 oversize retain typed `securestore.Error` outcomes and the existing canonical
 `keychain_unavailable` external code. No new canonical usage DTO is introduced.
@@ -317,3 +318,9 @@ oversize retain typed `securestore.Error` outcomes and the existing canonical
 | `TestNativeMigrationRejectsRedirectedSource` | Reject leaf symlink without changing its target |
 | `TestNativeMetadataSurvivesRestore` | Routing/expiry metadata survives replacement rollback |
 | Native Windows/macOS/Linux store tests | Synthetic save/update/read/delete, missing and native failure evidence |
+| `TestNativeManagedCredentialSource` | Actual keychain/file source, preserved routing metadata, no persisted or forged marker |
+| `TestSignInNativeCodexPersonalFileFallback` | Successful personal fallback sign-in reaches Codex usage without provider files |
+| `TestSignInNativePersonalRollbackRemovesFallback` | Failed personal sign-in leaves no newly created fallback credential |
+| `TestLinuxUpdateAfterDefaultCollectionChanges`, native Linux default-change scenario | Update original item; read and delete still work after default changes |
+| `TestLinuxWriteRequiresExactReadback` | Both creation and update refuse false success on read-back mismatch |
+| `TestLinuxWriteRefusesAmbiguousOrLockedMatches` | Neither locked nor duplicate matches permit a write |

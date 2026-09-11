@@ -309,9 +309,9 @@ func (g *SignInService) Confirm(ctx context.Context, provider, flowID, accountNa
 		if err != nil {
 			return toErrorDTO(err)
 		}
-		secureLogin := policy.Managed || store.NativeKeychain
+		managedLogin := policy.Managed || store.NativeKeychain
 		saved := usage.Credential{Token: token, Source: usage.AuthOAuthDeviceFlow}
-		if secureLogin {
+		if managedLogin {
 			switch active.kind {
 			case signInCodex:
 				saved, err = codexT.ManagedCredential()
@@ -331,7 +331,7 @@ func (g *SignInService) Confirm(ctx context.Context, provider, flowID, accountNa
 			}
 			return toErrorDTO(err)
 		}
-		if !secureLogin {
+		if !managedLogin {
 			switch provider {
 			case "claude":
 				_ = persistClaudeLogin(claudeT)
@@ -520,9 +520,10 @@ func restoreManagedCredential(store credential.ManagedStore, provider string, pr
 		if err != nil {
 			return err
 		}
-		if policy.Managed || store.NativeKeychain {
+		if policy.Managed {
 			err = store.RemoveSecure(provider)
 		} else {
+			// Native personal selection can still have saved a fallback file.
 			err = store.Remove(provider)
 		}
 		if errors.Is(err, credential.ErrNotFound) {

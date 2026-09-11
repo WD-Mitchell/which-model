@@ -7,6 +7,12 @@ plaintext managed file when secure-store-only policy applies. Personal defaults
 remain unchanged; a personal user can explicitly select the native adapter with
 `auth.native_keychain = true` in configuration.
 
+Personal native mode still permits a managed-file fallback when keychain use is
+disabled or its adapter is unavailable. Codex uses the saved token and routing
+metadata from that permitted source; it does not require a separate provider file.
+This fallback remains plaintext and is unavailable under company secure-store-only
+policy.
+
 ## Before sign-in
 
 Provision the [company profile](managed-company-profile.md). Linux also needs an
@@ -17,6 +23,11 @@ management tools to unlock the store or resolve access denial, then retry.
 Missing credentials, locked/interaction-required stores, denied access, unavailable
 services and oversize credentials have distinct internal outcomes and known
 messages. None authorizes a plaintext fallback.
+
+On Linux, changing the default keyring does not move an existing which-model
+entry: updates and removal target its original collection. New entries use the
+current default. Duplicate or locked matches require correction with OS tools;
+writes are read back before success is reported.
 
 Company Codex/Claude sign-in retains the access token and required routing/expiry
 metadata in the OS store. It does not retain ID/refresh tokens or write native
