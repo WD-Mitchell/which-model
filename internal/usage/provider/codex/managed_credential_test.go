@@ -49,12 +49,17 @@ func TestManagedCodexFetchDoesNotReopenProviderFiles(t *testing.T) {
 				t.Fatalf("secure fetch failed: %v failure=%v requests=%d", err, snap.Failure, len(transport.reqs))
 			}
 			wantHeaders(t, transport.reqs[0])
+			writeAuth(t, `{"tokens":{"access_token":"OTHER_SYNTHETIC_TOKEN","account_id":"other-account"}}`)
+			snap, err = Fetch(context.Background(), cred, &http.Client{Transport: transport})
+			if err != nil || snap.Failure != nil || len(transport.reqs) != 2 {
+				t.Fatalf("provider file displaced resolved credential: %v failure=%v", err, snap.Failure)
+			}
+			wantHeaders(t, transport.reqs[1])
 			cred.Extra["expires_at"] = "2000-01-01T00:00:00Z"
 			snap, err = Fetch(context.Background(), cred, &http.Client{Transport: transport})
-			if err != nil || snap.Failure == nil || snap.Failure.Code != "expired_credential" || len(transport.reqs) != 1 {
+			if err != nil || snap.Failure == nil || snap.Failure.Code != "expired_credential" || len(transport.reqs) != 2 {
 				t.Fatal("expired secure credential reached network")
 			}
-
 		})
 	}
 }
