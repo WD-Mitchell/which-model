@@ -58,10 +58,10 @@ func ProjectRoot(cwd string) string {
 
 var cacheName = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,127}\.json$`)
 
-// A cache contains a small provider inventory. Bound directory enumeration even
+// Product stores contain small file inventories. Bound directory enumeration even
 // when the directory contains unrelated entries. Report incomplete work at the
 // limit instead of claiming every entry was inspected.
-func cacheEntries(dir string) ([]os.DirEntry, error) {
+func directoryEntries(dir string) ([]os.DirEntry, error) {
 	f, err := os.Open(dir)
 	if err != nil {
 		return nil, err
@@ -72,7 +72,7 @@ func cacheEntries(dir string) ([]os.DirEntry, error) {
 		err = nil
 	}
 	if len(entries) > 1024 {
-		return nil, errors.New("cache inventory limit")
+		return nil, errors.New("record directory inventory limit")
 	}
 	return entries, err
 }
@@ -118,7 +118,7 @@ func (c Controller) Maintain(layout Layout, purge bool, categories []Category) (
 				apply(Usage, Report{Failed: 1}, &Error{Usage, "directory inspection"})
 				continue
 			}
-			entries, err := cacheEntries(dir)
+			entries, err := directoryEntries(dir)
 			if errors.Is(err, os.ErrNotExist) {
 				continue
 			}
@@ -126,9 +126,11 @@ func (c Controller) Maintain(layout Layout, purge bool, categories []Category) (
 				apply(Usage, Report{Failed: 1}, &Error{Usage, "directory read"})
 				continue
 			}
+			stores := map[string]bool{}
 			for _, entry := range entries {
-				if cacheName.MatchString(entry.Name()) {
-					report, err := c.Prune(filepath.Join(dir, entry.Name()), Usage, purge)
+				if name := cacheRecordName(entry.Name()); name != "" && !stores[name] {
+					stores[name] = true
+					report, err := c.Prune(filepath.Join(dir, name), Usage, purge)
 					apply(Usage, report, err)
 				}
 			}

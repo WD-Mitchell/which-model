@@ -223,20 +223,31 @@ func (c Controller) maintain(path string, category Category, purge bool) ([]byte
 	if !c.Enabled() {
 		return nil, Report{}, nil
 	}
+	var temporaryReport Report
 	failure := func(operation string) ([]byte, Report, error) {
-		return nil, Report{Failed: 1}, &Error{category, operation}
+		return nil, addReport(temporaryReport, Report{Failed: 1}), &Error{category, operation}
 	}
 	if !validCategory(category) || c.age(category) < 0 {
 		return failure("policy")
 	}
 	if _, err := os.Lstat(path); errors.Is(err, os.ErrNotExist) {
-		return nil, Report{}, nil
+		files, err := temporaryFiles(path, category)
+		if err != nil {
+			return failure("temporary inspection")
+		}
+		if len(files) == 0 {
+			return nil, Report{}, nil
+		}
 	}
 	unlock, err := lockOwned(path, false)
 	if err != nil {
 		return failure("lock")
 	}
 	defer unlock()
+	temporaryReport, err = c.pruneTemporaryFiles(path, category)
+	if err != nil {
+		return nil, temporaryReport, err
+	}
 	limit := int64(maxStoreBytes)
 	if category == Usage {
 		limit = maxRecordBytes
@@ -246,7 +257,7 @@ func (c Controller) maintain(path string, category Category, purge bool) ([]byte
 		return failure("read")
 	}
 	if !exists {
-		return nil, Report{}, nil
+		return nil, temporaryReport, nil
 	}
 	kept, report := c.filter(category, data, purge)
 	if len(kept) == 0 {
@@ -259,7 +270,7 @@ func (c Controller) maintain(path string, category Category, purge bool) ([]byte
 			return failure("rewrite")
 		}
 	}
-	return kept, report, nil
+	return kept, addReport(temporaryReport, report), nil
 }
 
 // WriteUsage applies the same payload policy to live and delegated snapshots.
@@ -291,6 +302,9 @@ func (c Controller) WriteUsage(path string, data []byte) error {
 		return &Error{Usage, "lock"}
 	}
 	defer unlock()
+	if _, err := c.pruneTemporaryFiles(path, Usage); err != nil {
+		return err
+	}
 	// Inspect the previous leaf without reading its contents; a symlink must not
 	// authorize even an atomic replacement of an unowned/redirected cache entry.
 	if info, err := os.Lstat(path); err == nil {
@@ -338,6 +352,9 @@ func (c Controller) Append(path string, category Category, data []byte) error {
 		return &Error{category, "lock"}
 	}
 	defer unlock()
+	if _, err := c.pruneTemporaryFiles(path, category); err != nil {
+		return err
+	}
 	old, _, err := readOwned(path, maxStoreBytes)
 	if err != nil {
 		return &Error{category, "read"}

@@ -45,12 +45,19 @@ func TestPrivacyExplicitPurgeReportsPartialFailure(t *testing.T) {
 	if err := os.WriteFile(path, []byte("LEGACY_IDENTITY_CANARY"), 0600); err != nil {
 		t.Fatal(err)
 	}
+	leftover := filepath.Join(filepath.Dir(path), ".history.jsonl.123456")
+	if err := os.WriteFile(leftover, []byte("INTERRUPTED_IDENTITY_CANARY"), 0600); err != nil {
+		t.Fatal(err)
+	}
 	code, out, stderr = captureExecute(t, []string{"privacy", "purge", "--category", "history", "--project-root", home})
-	if code != 0 || !strings.Contains(out, `"deleted_files":1`) {
+	if code != 0 || !strings.Contains(out, `"deleted_files":2`) {
 		t.Fatalf("purge failed: exit=%d out=%s stderr=%s", code, out, stderr)
 	}
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		t.Fatal("purged history still exists")
+	}
+	if _, err := os.Stat(leftover); !os.IsNotExist(err) {
+		t.Fatal("purged interrupted record still exists")
 	}
 	if strings.Contains(out, "CANARY") || strings.Contains(stderr, "CANARY") {
 		t.Fatal("purge echoed content")

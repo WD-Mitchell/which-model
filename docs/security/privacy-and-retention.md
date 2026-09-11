@@ -154,3 +154,20 @@ approved CodexBar containment behavior; #291 maps evidence to the listed control
 Zero retention is supported: an administrator value of `0` disables persistence
 for that category and removes its existing owned records when maintenance or a
 write is attempted. It never means unlimited retention.
+
+### Review corrections for #307
+
+Company usage warnings now use fixed remediation messages too. Credential-file
+permission notices omit user/workspace paths, cache-write failures point to
+`privacy cleanup`, and unknown diagnostic payloads are replaced. Personal warning
+text is unchanged.
+
+Cleanup also removes abandoned write files in the reserved numeric namespaces
+`.<final-basename>.<decimal-uint32>` for all four record categories and
+`.tmp-<provider>-<decimal-uint32>` for older personal caches (1–10 decimal digits).
+They are uncommitted product data and are removed regardless of age, including
+when the final file is missing. Each store's lock protects active company writers;
+stop older personal processes as described in rollout. Unrelated backups and lock
+files remain outside deletion. State-directory scans share the 1,024-entry bound.
+Successful temporary-file removals appear in `deleted_files`, while unsafe entries
+or incomplete scans still make cleanup/purge fail with accurate partial counts.

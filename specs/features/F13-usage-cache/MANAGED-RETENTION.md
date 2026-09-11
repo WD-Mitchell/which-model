@@ -89,3 +89,30 @@ Personal diagnostics are unchanged. This applies after either backend returns;
 Zero retention is supported: an administrator value of `0` disables persistence
 for that category and removes its existing owned records when maintenance or a
 write is attempted. It never means unlimited retention.
+
+## Review corrections: warnings and interrupted writes (PR #307)
+
+Managed diagnostic filtering includes returned credential/cache warnings, as well
+as snapshot failures. All emitted warning messages are application-owned fixed
+text: broad credential permissions, cache-write/cleanup remediation, exact native
+keychain fallback guidance, or a generic provider-status/credential-settings notice.
+Neither path text nor an unknown warning payload may reach the desktop logger.
+Personal warnings keep their original diagnostics.
+
+Uncommitted temporary files are product-owned records. For the supported Go
+writers, the reserved namespaces are `.<final-basename>.<decimal-uint32>` beside
+each usage/history/audit/launch store, and the older personal cache namespace
+`.tmp-<provider>-<decimal-uint32>`. The decimal suffix has 1–10 digits. These names
+are reserved for writers; similarly named nonnumeric backups are not selected.
+Cleanup discovers usage stores from both final and temporary names. Reads,
+writes, maintenance and purge discard those temporary files without decoding them,
+even when no final record exists or retention is zero. An uncommitted file has no
+eligible retained record, regardless of its embedded timestamp.
+
+Each store's existing lock covers enumeration and deletion. A writer that commits
+while cleanup waits is rechecked after lock acquisition; its committed record
+receives normal retention processing. Locks are never unlinked. Deletions add to
+`deleted_files`; unsafe entries and inventory/lock failures report incomplete
+work, preserving counts for other files already deleted. The 1,024-entry bound
+also applies to state-store directories. Existing rollout instructions still
+require stopping older personal writers, which do not use company locks.
