@@ -34,6 +34,13 @@ proof of merge or deployment.
 | E9 | Ten candidate binaries and SBOMs, signed scan reports, bundled hashes, altered-source/ref/manifest refusals and independently reproduced restricted binary | Exact candidate and commands below; [machine-readable inventory](evidence/company-291.json) | Verification-only [run 34544198645](https://github.com/WD-Mitchell/which-model/actions/runs/34544198645). Release and npm publish jobs skipped. No published-release provenance or live installation claim. |
 | E10 | Windows path hygiene, explicit local identity/owners, pre-release metadata/support and outstanding approval | `python3 scripts/check_tracked_paths.py`; native `windows-cli`; `actionlint -oneline .github/workflows/npm-release.yml`; reviewed [identity](company-identity.md) and [readiness](../releases/readiness.md) | [#298](https://github.com/WD-Mitchell/which-model/pull/298), [#299](https://github.com/WD-Mitchell/which-model/pull/299), [#315](https://github.com/WD-Mitchell/which-model/pull/315). Human readiness/assessment review remains pending; private reporting was enabled when read on 2026-09-11. |
 
+Historical npm verification in E8 also checked all six published `2.5.5` packages
+against source `90abb8d07c8b21930350f01d57fe14b6f755b8d5` with
+`node npm/scripts/verify-provenance.js`, including a wrong-source refusal. The
+[PR #301 record](https://github.com/WD-Mitchell/which-model/pull/301) identifies
+that observation. It does not validate an npm publication of the new company
+candidate; that publication has not occurred.
+
 These tests are adversarial fixtures, not a full penetration test. No complete
 end-to-end prompt injection/exfiltration evaluation, independent assessor report,
 live company-account test or fleet rollout is credited. A known broader legacy
