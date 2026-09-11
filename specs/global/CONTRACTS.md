@@ -326,6 +326,8 @@ These are **compile-time-enforced** import boundaries:
 Exit 0 prints `tracked-paths: OK (N files)`; exit 1 prints deterministic, escaped
 path diagnostics to stderr; exit 2 reports failure to obtain the path list.
 The conservative collision key is Unicode case-folding of every path prefix.
+The GitHub Actions check names `tracked-paths` and `windows-cli` are required
+status checks for `main`; their failure blocks PR and stack merges.
 
 Pinned cases:
 
@@ -334,7 +336,16 @@ Pinned cases:
 | `.github/ci.yml`, `src/CONSOLE.go` | accepted |
 | `xd:/lsp`, a component containing newline or backslash | rejected |
 | `nul.txt`, `COM1.log`, `LPT²`, `NUL .txt` | rejected |
+| `CONIN$`, `conout$.txt`, `LPT0`, `LPT0 .log` | rejected device names |
+| `src/CONIN$/file.go`, `src/CONOUT$.txt/file.go`, `src/lpt0/file.go` | rejected parent components |
+| `CONIN.txt`, `CONOUT.txt`, `CONIN$extra.txt`, `LPT01.txt`, `LPT10.txt`, `COM0.txt` | accepted lookalikes |
+| NUL-delimited console/LPT0 names on `--stdin` | exit 1, diagnostic on stderr, empty stdout |
 | `a.`, `a /file`, `a//b`, `a/../b` | rejected |
 | `Src/a.go` and `src/b.go` | rejected directory collision |
 | `A` and `a/file` | rejected file/directory collision |
 | `src/a.go` and `src/b.go` | accepted shared directory |
+
+| Merge-check state | Outcome |
+|---|---|
+| `test` passes; `tracked-paths` fails | merge blocked |
+| `test` passes; `windows-cli` fails | merge blocked |

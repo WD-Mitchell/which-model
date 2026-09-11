@@ -9,7 +9,10 @@ import subprocess
 import sys
 
 
-RESERVED = re.compile(r"^(CON|PRN|AUX|NUL|COM[1-9¹²³]|LPT[1-9¹²³])$", re.IGNORECASE)
+# Include the console aliases and LPT0 rejected by Git for Windows.
+RESERVED = re.compile(
+    r"^(CON|CONIN\$|CONOUT\$|PRN|AUX|NUL|COM[1-9¹²³]|LPT[0-9¹²³])$", re.IGNORECASE,
+)
 FORBIDDEN = set('<>:"\\|?*')
 
 
