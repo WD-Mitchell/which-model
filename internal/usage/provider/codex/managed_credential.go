@@ -72,12 +72,12 @@ func managedFetchCredential(cred usage.Credential) (Credential, error) {
 		account, _ = tokenMetadata(cred.Token)
 	}
 	if security.ValidateOpaqueToken(cred.Token) != nil || !validateIdentifier(account) {
-		return Credential{}, &Error{Code: "unsafe_credential", Message: "The securely stored Codex credential needs account metadata; sign in again."}
+		return Credential{}, &Error{Code: "unsafe_credential", Message: "The stored Codex credential needs account metadata; sign in again."}
 	}
 	if raw := cred.Extra["expires_at"]; raw != "" {
 		expires, err := time.Parse(time.RFC3339, raw)
 		if err != nil || !expires.After(time.Now()) {
-			return Credential{}, &Error{Code: "expired_credential", Message: "The securely stored Codex access token is expired; sign in again."}
+			return Credential{}, &Error{Code: "expired_credential", Message: "The stored Codex access token is expired; sign in again."}
 		}
 	}
 	return Credential{Token: cred.Token, AccountID: account}, nil

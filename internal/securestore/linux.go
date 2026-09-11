@@ -177,8 +177,12 @@ func (s linuxStore) Get(service, account string) (string, error) {
 		return "", err
 	}
 	defer conn.Object(secretName, session).CallWithContext(ctx, "org.freedesktop.Secret.Session.Close", 0)
+	return readItemSecret(ctx, conn, item, session)
+}
+
+func readItemSecret(ctx context.Context, conn *dbus.Conn, item, session dbus.ObjectPath) (string, error) {
 	var secret linuxSecret
-	err = conn.Object(secretName, item).CallWithContext(ctx, secretItem+".GetSecret", 0, session).Store(&secret)
+	err := conn.Object(secretName, item).CallWithContext(ctx, secretItem+".GetSecret", 0, session).Store(&secret)
 	if err != nil {
 		return "", classifyLinux(err)
 	}
@@ -207,31 +211,70 @@ func (s linuxStore) Set(service, account, value string) error {
 		return err
 	}
 	defer close()
-	col, err := collection(ctx, conn)
-	if err != nil {
-		return err
+	item, lookupErr := findItem(ctx, conn, service, account)
+	if lookupErr != nil && !errors.Is(lookupErr, &Error{Missing}) {
+		return lookupErr
 	}
 	session, err := openSession(ctx, conn)
 	if err != nil {
 		return err
 	}
 	defer conn.Object(secretName, session).CallWithContext(ctx, "org.freedesktop.Secret.Session.Close", 0)
+	secret := linuxSecret{session, []byte{}, []byte(value), "text/plain; charset=utf-8"}
+	if lookupErr == nil {
+		// Keep the item selected by Get/Delete even if its collection is no
+		// longer the default. CreateItem only replaces within one collection.
+		err = conn.Object(secretName, item).CallWithContext(ctx, secretItem+".SetSecret", 0, secret).Err
+	} else {
+		item, err = createItem(ctx, conn, service, account, secret)
+	}
+	if err != nil {
+		return classifyLinux(err)
+	}
+	selected, err := findItem(ctx, conn, service, account)
+	if err != nil {
+		if errors.Is(err, &Error{Missing}) {
+			return &Error{Unavailable}
+		}
+		return err
+	}
+	if selected != item {
+		return &Error{Unavailable}
+	}
+	stored, err := readItemSecret(ctx, conn, item, session)
+	if err != nil {
+		if errors.Is(err, &Error{Missing}) {
+			return &Error{Unavailable}
+		}
+		return err
+	}
+	if stored != value {
+		return &Error{Unavailable}
+	}
+	return nil
+}
+
+func createItem(ctx context.Context, conn *dbus.Conn, service, account string, secret linuxSecret) (dbus.ObjectPath, error) {
+	col, err := collection(ctx, conn)
+	if err != nil {
+		return "", err
+	}
 	properties := map[string]dbus.Variant{
 		secretItem + ".Label":      dbus.MakeVariant("which-model credential"),
 		secretItem + ".Attributes": dbus.MakeVariant(map[string]string{"service": service, "username": account}),
 	}
 	var item, prompt dbus.ObjectPath
-	err = conn.Object(secretName, col).CallWithContext(ctx, secretCollection+".CreateItem", 0, properties, linuxSecret{session, []byte{}, []byte(value), "text/plain; charset=utf-8"}, true).Store(&item, &prompt)
+	err = conn.Object(secretName, col).CallWithContext(ctx, secretCollection+".CreateItem", 0, properties, secret, true).Store(&item, &prompt)
 	if err != nil {
-		return classifyLinux(err)
+		return "", classifyLinux(err)
 	}
 	if err := dismissPrompt(ctx, conn, prompt); err != nil {
-		return err
+		return "", err
 	}
 	if item == "/" || !item.IsValid() {
-		return &Error{Unavailable}
+		return "", &Error{Unavailable}
 	}
-	return nil
+	return item, nil
 }
 
 func (s linuxStore) Delete(service, account string) error {

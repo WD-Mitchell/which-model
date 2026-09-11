@@ -93,6 +93,11 @@ and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.
 
 ## Deviations / secure-store correction (#283)
 
+PR #306 review correction: explicit personal native mode can resolve an allowed
+managed-file fallback. Fetch consumes its token/account/expiry metadata directly,
+checks that actual source against current company authority, and does not reopen
+provider auth/config files. The default personal provider-file path is unchanged.
+
 Company login persists access-token/account/expiry metadata in the native OS store. Secure resolution bypasses auth.json/config.toml and calls only the fixed official usage endpoint; its account metadata is routing data, not independently verified identity. Personal native-file behavior remains unchanged.
 The [secure-store contract](../F12-credentials/SECURE-STORES.md) supersedes earlier company-mode storage
 wording under the approved optional-profile decision. Personal defaults remain

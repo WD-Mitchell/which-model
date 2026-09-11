@@ -140,6 +140,8 @@ jobs:
           sudo apt-get install -y dbus gnome-keyring
       - run: go test ./internal/securestore -v -count=1
       - run: go test ./internal/usage/credential -run 'TestNative|TestCompanyCredentialFallbackHasNoFileSideEffects' -v
+      - run: go test ./internal/service -run TestSignInNative -v
+      - run: go test ./internal/usage/provider/codex -run TestManagedCodexFetchDoesNotReopenProviderFiles -v
       - run: go test ./internal/config -run TestNativeWindows -v
 
   company-policy:

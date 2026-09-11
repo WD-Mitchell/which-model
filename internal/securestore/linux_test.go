@@ -103,6 +103,9 @@ func TestNativeLinuxStore(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 	}
 	roundTrip(t, store, "which-model-ci-native")
+	t.Run("default collection changes", func(t *testing.T) {
+		testNativeLinuxDefaultChange(t, store)
+	})
 	if err := store.Set("which-model-ci-native", "locked", "SYNTHETIC_CANARY"); err != nil {
 		t.Fatal(err)
 	}
@@ -143,5 +146,51 @@ func TestNativeLinuxStore(t *testing.T) {
 		}
 	case <-unavailableCtx.Done():
 		t.Fatal("unavailable bus exceeded bound")
+	}
+}
+
+func testNativeLinuxDefaultChange(t *testing.T, store linuxStore) {
+	t.Helper()
+	ctx, conn, close, err := store.connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer close()
+	original, err := collection(ctx, conn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The disposable GNOME fixture also provides an unlocked session collection.
+	var other dbus.ObjectPath
+	service := conn.Object(secretName, "/org/freedesktop/secrets")
+	if err := service.CallWithContext(ctx, secretService+".ReadAlias", 0, "session").Store(&other); err != nil || other == "/" || !other.IsValid() || other == original {
+		t.Fatalf("fixture needs two distinct collections: %v", err)
+	}
+	const serviceName = "which-model-ci-default-change"
+	if err := store.Set(serviceName, "account", "SYNTHETIC_BEFORE"); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.CallWithContext(ctx, secretService+".SetAlias", 0, "default", other).Err; err != nil {
+		t.Fatal("fixture could not change default collection")
+	}
+	defer func() {
+		if err := service.CallWithContext(ctx, secretService+".SetAlias", 0, "default", original).Err; err != nil {
+			t.Error("fixture could not restore default collection")
+		}
+	}()
+	if value, err := store.Get(serviceName, "account"); err != nil || value != "SYNTHETIC_BEFORE" {
+		t.Fatalf("original entry unavailable after default change: %v", err)
+	}
+	if err := store.Set(serviceName, "account", "SYNTHETIC_AFTER"); err != nil {
+		t.Fatal(err)
+	}
+	if value, err := store.Get(serviceName, "account"); err != nil || value != "SYNTHETIC_AFTER" {
+		t.Fatalf("updated entry unavailable after default change: %v", err)
+	}
+	if err := store.Delete(serviceName, "account"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Get(serviceName, "account"); !errors.Is(err, &Error{Missing}) {
+		t.Fatalf("deletion left an entry: %v", err)
 	}
 }
