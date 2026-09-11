@@ -74,7 +74,10 @@ func FetchAll(ctx context.Context, providers []string, opts Options) (snapshots 
 		return nil, nil, err
 	}
 	if policy.Managed {
-		defer func() { minimizeCompanyFailures(snapshots) }()
+		defer func() {
+			minimizeCompanyFailures(snapshots)
+			minimizeCompanyWarnings(warnings)
+		}()
 	}
 	if opts.Backend != config.UsageBackendOff {
 		for _, id := range providers {

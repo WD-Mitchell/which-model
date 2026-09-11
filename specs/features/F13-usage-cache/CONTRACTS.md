@@ -102,3 +102,13 @@ Store signatures and usage.Snapshot stay unchanged. Managed cache JSON additiona
 Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
 Decision: requester-approved optional company defaults and advisory audit handling;
 this supersedes conflicting personal-only persistence statements for company mode.
+
+PR #307 review regression cases: interrupted writes for usage/history/audit/launch
+with no final file; old personal cache temporaries; an active writer that commits
+while cleanup waits; zero-retention writes; redirected/nonregular temporaries;
+partial deletion counts; unrelated backups and bounded directory enumeration.
+`TestCompanyRetentionAbandonedWrites`, `TestCompanyRetentionLegacyTemporaryCache`,
+`TestCompanyRetentionTemporaryWriterLock`, `TestCompanyRetentionUnsafeTemporaryFiles`,
+`TestCompanyRetentionTemporaryInventoryBound`, and
+`TestCompanyRetentionTemporaryZeroAndWrite` pin these outcomes. The CLI
+`TestPrivacyExplicitPurgeReportsPartialFailure` includes abandoned-record counts.

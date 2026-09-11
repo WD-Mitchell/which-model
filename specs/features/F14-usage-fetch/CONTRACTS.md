@@ -155,3 +155,10 @@ Options/API/usage DTOs remain unchanged. Personal cache identity and error rende
 Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
 Decision: requester-approved optional company defaults and advisory audit handling;
 this supersedes conflicting personal-only persistence statements for company mode.
+
+PR #307 pins returned warnings through `TestCompanyDiagnosticsCredentialWarnings`
+(provider-file and managed-file permission notices, plus personal controls) and
+`TestCompanyDiagnosticsCacheWarning` (successful fetch with failed persistence).
+`TestCompanyDiagnosticsUnknownWarnings` verifies unknown-payload removal and exact
+fallback guidance. These tests retain the message-only Warning shape and add no
+canonical DTO fields or error codes.

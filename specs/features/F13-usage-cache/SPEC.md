@@ -58,3 +58,9 @@ The rules below supersede the identity-preserving, no-deletion and strictly read
 Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
 Decision: requester-approved optional company defaults and advisory audit handling;
 this supersedes conflicting personal-only persistence statements for company mode.
+
+Review correction (PR #307): abandoned atomic-write files belong to the same
+retention category as their final store. Maintenance, reads and writes discard
+known uncommitted temporary files under that store's lock, including when the
+final file is absent. Cleanup and purge report their deletion and any refusal.
+The shared contract specifies reserved names, inventory bounds and rollout limits.
