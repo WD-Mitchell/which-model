@@ -513,3 +513,12 @@ selection. The private shell boundary and pinned cases are governed by
 Immutable existing releases are
 not edited. Readiness evidence and pending human/company decisions are recorded
 in docs/releases/readiness.md.
+
+## 18. Company evidence record (#291)
+
+No runtime DTO or public API changes. The documentation-owned
+`docs/security/evidence/company-291.json` records assessment version, exact
+source/ref, candidate identity, binary/SBOM/evidence hashes, observed verification
+and explicit review limits. It is an inventory, not a signed attestation or
+company approval. Subsequent assessments version the record and preserve the
+source/artifact identity to which each result applies.
