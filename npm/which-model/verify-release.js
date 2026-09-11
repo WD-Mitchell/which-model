@@ -35,11 +35,13 @@ function digest(file) {
   return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 }
 
-function verifyArtifact({ artifact, bundle, sha256, sourceDigest, sourceRef, trustedRoot, run = execFileSync }) {
+function verifyArtifact({ artifact, bundle, sha256, sourceDigest, sourceRef, trustedRoot, digestAlgorithm = 'sha256', run = execFileSync }) {
   if (!COMMIT.test(sourceDigest) || !REF.test(sourceRef)) throw new Error('expected source identity is required');
+  if (!['sha256', 'sha512'].includes(digestAlgorithm)) throw new Error('unsupported artifact digest algorithm');
   if (sha256 !== undefined && (!DIGEST.test(sha256) || digest(artifact) !== sha256)) throw new Error('artifact checksum mismatch');
   if (!fs.existsSync(bundle) || fs.statSync(bundle).size === 0) throw new Error('provenance bundle is missing');
   const args = ['attestation', 'verify', path.resolve(artifact), '--bundle', path.resolve(bundle),
+    '--digest-alg', digestAlgorithm,
     '--hostname', 'github.com', '--repo', REPO, '--signer-workflow', WORKFLOW, '--source-digest', sourceDigest,
     '--source-ref', sourceRef, '--predicate-type', 'https://slsa.dev/provenance/v1',
     '--cert-oidc-issuer', 'https://token.actions.githubusercontent.com', '--deny-self-hosted-runners'];
@@ -73,6 +75,7 @@ function verifyRelease(dir, version, sourceDigest, sourceRef, trustedRoot) {
   for (const a of manifest.artifacts) {
     verifyArtifact({ artifact: path.join(dir, a.name), sha256: a.sha256, ...identity });
     verifyArtifact({ artifact: path.join(dir, a.sbom), sha256: a.sbom_sha256, ...identity });
+    verifyArtifact({ artifact: path.join(dir, `${a.name}.govulncheck.txt`), ...identity });
     const sbom = JSON.parse(fs.readFileSync(path.join(dir, a.sbom), 'utf8'));
     if (sbom.bomFormat !== 'CycloneDX' || sbom.specVersion !== '1.6' ||
         sbom.metadata?.component?.name !== a.name || sbom.metadata?.component?.version !== version ||

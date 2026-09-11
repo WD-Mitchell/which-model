@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
+const { verifyArtifact } = require('../which-model/verify-release');
 const [version, commit, output] = process.argv.slice(2);
 let scratch;
 try {
@@ -34,11 +35,28 @@ try {
         !build?.resolvedDependencies?.some(d=>d.uri===`git+https://github.com/WD-Mitchell/which-model@refs/tags/v${version}` && d.digest?.gitCommit===commit)) {
       throw new Error('verified package provenance has an unexpected source or workflow');
     }
+    // npm audit verifies signatures and subjects, but does not enforce our
+    // certificate identity policy. Verify the original registry tarball with
+    // GitHub CLI so workflow-controlled predicate claims cannot select trust.
+    const packReport = JSON.parse(execFileSync('npm', ['pack', `${name}@${version}`, '--json',
+      '--ignore-scripts', '--pack-destination', scratch, '--registry=https://registry.npmjs.org'], settings));
+    // npm 12 keys JSON results by package name; earlier npm returns an array.
+    const packed = Array.isArray(packReport) ? packReport :
+      packReport && typeof packReport === 'object' ? Object.values(packReport) : [];
+    if (packed.length !== 1 || packed[0].name !== name || packed[0].version !== version ||
+        typeof packed[0].filename !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]*\.tgz$/.test(packed[0].filename)) {
+      throw new Error('npm pack did not return the expected package tarball');
+    }
+    const bundlePath = path.join(scratch, `${packed[0].filename}.sigstore.json`);
+    fs.writeFileSync(bundlePath, JSON.stringify(signed.bundle), { mode: 0o600, flag: 'wx' });
+    verifyArtifact({ artifact: path.join(scratch, packed[0].filename), bundle: bundlePath,
+      digestAlgorithm: 'sha512', sourceDigest: commit, sourceRef: `refs/tags/v${version}` });
   }
-  fs.writeFileSync(output, JSON.stringify({version,source_digest:commit,checked_at:new Date().toISOString(),...report},null,2)+'\n');
+  fs.writeFileSync(output, JSON.stringify({...report,version,source_digest:commit,checked_at:new Date().toISOString(),
+    certificate_identities_verified:names},null,2)+'\n');
   console.log(`Verified registry signatures, provenance and source identity for all ${names.length} npm packages at ${version}.`);
 } catch (_) {
-  console.error('npm provenance validation failed; check package availability, signatures, attestations and expected source identity.');
+  console.error('npm provenance validation failed; check package availability, signatures, attestations, expected source identity and a trusted GitHub CLI 2.97.0+.');
   process.exitCode=1;
 } finally {
   if (scratch) fs.rmSync(scratch,{recursive:true,force:true});
