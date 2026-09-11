@@ -49,7 +49,9 @@ func TestNativeManagedDeviceFlowBoundaries(t *testing.T) {
 			})}
 			_, startErr := flow.Start(context.Background())
 			_, pollErr := flow.Poll(context.Background(), credential.DeviceCode{DeviceCode: "SYNTHETIC_DEVICE", ExpiresIn: time.Minute})
-			if provider == "copilot" {
+			// Later stack fixtures deny every provider to exercise secure login
+			// refusals. The transport must follow the installed policy in either case.
+			if provider != "" && state.RequireProvider(provider) == nil {
 				if startErr != nil || pollErr != nil || requests != 2 {
 					t.Fatalf("allowed provider: Start=%v Poll=%v requests=%d", startErr, pollErr, requests)
 				}
