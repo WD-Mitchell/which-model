@@ -10,24 +10,6 @@ import (
 	"github.com/WD-Mitchell/which-model/internal/usage/credential"
 )
 
-// Warnings are message-only diagnostics. Classify the application-generated
-// permission/cache notices, but never copy their path or underlying error text.
-// Unknown warnings also get a fixed message so new sources fail closed here.
-func minimizeCompanyWarnings(warnings []credential.Warning) {
-	for i, warning := range warnings {
-		message := "usage warning; inspect provider status and credential settings"
-		switch {
-		case strings.HasPrefix(warning.Message, "credential file ") && strings.Contains(warning.Message, " has broad permissions"):
-			message = "credential file has broad permissions; review before continuing"
-		case strings.HasPrefix(warning.Message, "failed to cache usage for provider "):
-			message = "usage cache write failed; run privacy cleanup for category results"
-		case warning.Message == "system keychain unavailable; using managed credential file":
-			message = warning.Message
-		}
-		warnings[i] = credential.Warning{Message: message}
-	}
-}
-
 // Provider failures can contain echoed HTTP or delegated process payloads.
 // Company diagnostics retain the canonical code, never that free-form text.
 // Native-store messages are fixed application strings with useful remediation.
@@ -53,5 +35,23 @@ func minimizeCompanyFailures(snapshots []usage.Snapshot) {
 			}
 		}
 		snapshots[i].Failure = &usage.Failure{Code: code, Message: message}
+	}
+}
+
+// Warnings are message-only diagnostics. Classify the application-generated
+// permission/cache notices, but never copy their path or underlying error text.
+// Unknown warnings also get a fixed message so new sources fail closed here.
+func minimizeCompanyWarnings(warnings []credential.Warning) {
+	for i, warning := range warnings {
+		message := "usage warning; inspect provider status and credential settings"
+		switch {
+		case strings.HasPrefix(warning.Message, "credential file ") && strings.Contains(warning.Message, " has broad permissions"):
+			message = "credential file has broad permissions; review before continuing"
+		case strings.HasPrefix(warning.Message, "failed to cache usage for provider "):
+			message = "usage cache write failed; run privacy cleanup for category results"
+		case warning.Message == "system keychain unavailable; using managed credential file":
+			message = warning.Message
+		}
+		warnings[i] = credential.Warning{Message: message}
 	}
 }

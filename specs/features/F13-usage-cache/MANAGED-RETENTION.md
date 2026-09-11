@@ -65,31 +65,6 @@ requester's #286 decision. No raw diagnostic payload is substituted for a failed
 structured write.
 
 
-## Command cadence and bounded processing
-
-The full CLI skips startup maintenance for config, privacy, version and
---no-usage; the explicit privacy command performs its requested operation once.
-Desktop startup here means StartDataRefresher, then a one-minute tick until its
-context ends. A newly enrolled running desktop must restart. Maintenance is not
-a background service while the application is stopped.
-
-Each owned JSONL store is bounded at 64 MiB, each record/cache at 4 MiB and each
-cache directory enumeration at 1,024 entries. Oversized owned record files are
-deleted without retaining their raw content; an overfull directory reports
-incomplete work rather than claiming complete inspection. Empty stores are
-removed. An adjacent empty .privacy.lock file coordinates append/read/prune with
-a two-second lock timeout; it carries no record data and is not an audit record.
-
-Managed FetchAll diagnostics retain canonical error codes and fixed messages;
-unknown provider codes become provider_status. Only exact application-owned
-native secure-store messages may pass through to preserve lock/denial guidance.
-Personal diagnostics are unchanged. This applies after either backend returns;
-#287 remains responsible for approving and containing the delegated executable.
-
-Zero retention is supported: an administrator value of `0` disables persistence
-for that category and removes its existing owned records when maintenance or a
-write is attempted. It never means unlimited retention.
-
 ## Review corrections: warnings and interrupted writes (PR #307)
 
 Managed diagnostic filtering includes returned credential/cache warnings, as well
@@ -116,3 +91,28 @@ receives normal retention processing. Locks are never unlinked. Deletions add to
 work, preserving counts for other files already deleted. The 1,024-entry bound
 also applies to state-store directories. Existing rollout instructions still
 require stopping older personal writers, which do not use company locks.
+
+## Command cadence and bounded processing
+
+The full CLI skips startup maintenance for config, privacy, version and
+--no-usage; the explicit privacy command performs its requested operation once.
+Desktop startup here means StartDataRefresher, then a one-minute tick until its
+context ends. A newly enrolled running desktop must restart. Maintenance is not
+a background service while the application is stopped.
+
+Each owned JSONL store is bounded at 64 MiB, each record/cache at 4 MiB and each
+cache directory enumeration at 1,024 entries. Oversized owned record files are
+deleted without retaining their raw content; an overfull directory reports
+incomplete work rather than claiming complete inspection. Empty stores are
+removed. An adjacent empty .privacy.lock file coordinates append/read/prune with
+a two-second lock timeout; it carries no record data and is not an audit record.
+
+Managed FetchAll diagnostics retain canonical error codes and fixed messages;
+unknown provider codes become provider_status. Only exact application-owned
+native secure-store messages may pass through to preserve lock/denial guidance.
+Personal diagnostics are unchanged. This applies after either backend returns;
+#287 remains responsible for approving and containing the delegated executable.
+
+Zero retention is supported: an administrator value of `0` disables persistence
+for that category and removes its existing owned records when maintenance or a
+write is attempted. It never means unlimited retention.
