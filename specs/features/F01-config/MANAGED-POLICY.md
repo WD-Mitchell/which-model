@@ -151,3 +151,13 @@ secure login and migration now follow [F12 secure stores](../F12-credentials/SEC
 Zero retention is supported: an administrator value of `0` disables persistence
 for that category and removes its existing owned records when maintenance or a
 write is attempted. It never means unlimited retention.
+
+
+The #285 executable consumer verifies administrator ownership/ACLs and exact
+SHA-256 at launch and passes only protected argument forms to os/exec. Each
+entry may additionally declare `inputs:[{"path":"<canonical absolute input>",
+"sha256":"<64 lowercase hex>"}]` (maximum 16, unique paths). Inputs support
+approved native runtimes with pinned script/assets. The immutable command contract
+and environment are specified in B07/MANAGED-EXECUTION.md. A harness approval does
+not authorize legacy credential CLI discovery or CodexBar; their generic guards
+remain denied until their specific consumers prove the operation.

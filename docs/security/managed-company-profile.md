@@ -9,8 +9,8 @@ There is no company account, central credential broker or application RBAC.
 This is the policy foundation for the managed-usage milestone. The complete
 deployment includes [native secure stores and migration](secure-credentials.md)
 (#283) and [retention and identity-free persistence](privacy-and-retention.md)
-(#284). Approved execution (#285) and approved CodexBar delegation (#287) remain
-separate controls.
+(#284) and [approved execution](approved-execution.md) (#285). Approved CodexBar
+delegation (#287) remains a separate control.
 The [restricted offline package](offline-score-only.md) remains available separately.
 
 ## Enrollment

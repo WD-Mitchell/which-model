@@ -157,3 +157,13 @@ Known canonical failure codes remain unchanged. Managed usage diagnostics replac
 Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
 Decision: requester-approved optional company defaults and advisory audit handling;
 this supersedes conflicting personal-only persistence statements for company mode.
+
+
+## Approved company execution correction (#285)
+
+No new public security/usage error code. Company approval failures use the existing company.Error validation mapping; native start errors use launch_failed with fixed text. Typed launch/pick-record failure diagnostics remain advisory and exclude raw process/record errors.
+
+Governing correction: `specs/desktop/backend/features/B07-harnesses/MANAGED-EXECUTION.md`.
+This implements the requester-approved optional managed profile while preserving
+personal defaults; it supersedes unconditional shell/policy-placeholder statements
+for company execution.
