@@ -155,3 +155,8 @@ Governing correction: `specs/desktop/backend/features/B07-harnesses/MANAGED-EXEC
 This implements the requester-approved optional managed profile while preserving
 personal defaults; it supersedes unconditional shell/policy-placeholder statements
 for company execution.
+
+
+## Approved CodexBar correction (#287)
+
+The requester requires company CodexBar to remain disabled until an administrator approves a specific installation. Personal behavior stays unchanged. Global §16 defines required image/config identities, a 16-entry limit and empty-list default denial. Ordinary configuration can select the backend only when metadata is present; the verified consumer separately checks protected files before credential resolution/execution. Binary-only reserved metadata is no longer sufficient. Test: TestCompanyCodexBarApprovalRequiresConfigIdentity.

@@ -40,6 +40,12 @@ type Installation struct {
 	SHA256 string `json:"sha256"`
 }
 
+type CodexBarInstallation struct {
+	Path   string       `json:"path"`
+	SHA256 string       `json:"sha256"`
+	Config Installation `json:"config"`
+}
+
 type Executable struct {
 	ID     string         `json:"id"`
 	Path   string         `json:"path"`
@@ -49,18 +55,18 @@ type Executable struct {
 }
 
 type Policy struct {
-	SchemaVersion            int            `json:"schema_version"`
-	Name                     string         `json:"name"`
-	AllowedProviders         []string       `json:"allowed_providers"`
-	CredentialSources        []string       `json:"credential_sources"`
-	SecureStoreOnly          bool           `json:"secure_store_only"`
-	IdentityFree             bool           `json:"identity_free"`
-	Retention                Retention      `json:"retention"`
-	Integrations             Integrations   `json:"integrations"`
-	Executables              []Executable   `json:"executables"`
-	CodexBarInstallations    []Installation `json:"codexbar_installations"`
-	AllowCustomShell         bool           `json:"allow_custom_shell"`
-	AllowCredentialMigration bool           `json:"allow_credential_migration"`
+	SchemaVersion            int                    `json:"schema_version"`
+	Name                     string                 `json:"name"`
+	AllowedProviders         []string               `json:"allowed_providers"`
+	CredentialSources        []string               `json:"credential_sources"`
+	SecureStoreOnly          bool                   `json:"secure_store_only"`
+	IdentityFree             bool                   `json:"identity_free"`
+	Retention                Retention              `json:"retention"`
+	Integrations             Integrations           `json:"integrations"`
+	Executables              []Executable           `json:"executables"`
+	CodexBarInstallations    []CodexBarInstallation `json:"codexbar_installations"`
+	AllowCustomShell         bool                   `json:"allow_custom_shell"`
+	AllowCredentialMigration bool                   `json:"allow_credential_migration"`
 }
 
 type Snapshot struct {
@@ -86,7 +92,7 @@ func Defaults() Policy {
 	return Policy{SchemaVersion: 1, Name: "Company profile", AllowedProviders: []string{},
 		CredentialSources: []string{"keychain"}, SecureStoreOnly: true, IdentityFree: true,
 		Retention:   Retention{UsageSnapshotsHours: 24, LaunchLogsDays: 7, PickHistoryDays: 30, AuditRecordsDays: 30},
-		Executables: []Executable{}, CodexBarInstallations: []Installation{}}
+		Executables: []Executable{}, CodexBarInstallations: []CodexBarInstallation{}}
 }
 
 var identifier = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,63}$`)
@@ -157,8 +163,11 @@ func Parse(data []byte) (Policy, error) {
 		}
 	}
 	seen = map[string]bool{}
+	if len(p.CodexBarInstallations) > 16 {
+		return invalid("codexbar_installations")
+	}
 	for _, installation := range p.CodexBarInstallations {
-		if !validInstallation(installation.Path, installation.SHA256) || seen[installation.Path] {
+		if !validInstallation(installation.Path, installation.SHA256) || !validInstallation(installation.Config.Path, installation.Config.SHA256) || seen[installation.Path] {
 			return invalid("codexbar_installations")
 		}
 		seen[installation.Path] = true
@@ -345,6 +354,18 @@ func (s Snapshot) RequireCapability(capability string) error {
 	}
 	if !allowed {
 		return s.denied("managed capability permissions")
+	}
+	return nil
+}
+
+// RequireCodexBar checks metadata only. The adapter verifies protected image and
+// configuration identities before resolving credentials and starting a child.
+func (s Snapshot) RequireCodexBar() error {
+	if !s.Managed {
+		return nil
+	}
+	if s.Policy == nil || len(s.Policy.CodexBarInstallations) == 0 {
+		return s.denied("codexbar_installations")
 	}
 	return nil
 }
