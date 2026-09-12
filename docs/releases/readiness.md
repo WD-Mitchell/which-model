@@ -24,6 +24,13 @@ A client following only GitHub Latest may continue seeing the historical release
 preview adopters and company administrators must select the intended version
 explicitly from the release list and verify its evidence.
 
+The source-built desktop's `Check for updates…` action includes published
+prereleases and compares semantic versions. It offers only a newer version and
+opens that version's release page; an older historical Latest release is never
+offered as an update. Development and unrecognized builds open the release list
+with manual-selection guidance. The action does not install a binary or approve
+the selected version for a company deployment.
+
 Security fixes target `main` and the newest published release. Older versions may
 require an upgrade; there is no maintained backport series or LTS promise. Preserve
 configuration before upgrading, review changes to specs/configuration, and test the
