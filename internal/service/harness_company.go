@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
-	"runtime"
 	"strings"
 
 	"github.com/WD-Mitchell/which-model/internal/approvedexec"
@@ -33,20 +32,6 @@ func approvedHarness(policy company.Snapshot, slug string) (company.Executable, 
 	}
 	return company.Executable{}, false
 }
-func displayApprovedCommand(plan approvedexec.Plan) string {
-	quote := func(value string) string { return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'" }
-	prefix := ""
-	if runtime.GOOS == "windows" {
-		quote = func(value string) string { return "'" + strings.ReplaceAll(value, "'", "''") + "'" }
-		prefix = "& "
-	}
-	words := []string{quote(plan.Path)}
-	for _, arg := range plan.Args {
-		words = append(words, quote(arg))
-	}
-	return prefix + strings.Join(words, " ")
-}
-
 func (h *HarnessService) launchCompany(ctx context.Context, policy company.Snapshot, slug, routeKey, profile string) (LaunchResult, error) {
 	// Resolve authority before parsing untrusted display values or reading harness
 	// config. Disabled company launches have no file/process effects.

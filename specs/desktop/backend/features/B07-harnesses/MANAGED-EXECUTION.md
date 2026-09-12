@@ -40,6 +40,8 @@ are available through the existing route mapping, with mapped values validated.
 
 ## Child environment and launch
 
+Review correction for #308: pure-Go Linux (and `osusergo` builds) reads `/etc/passwd` directly, bounded to 4 MiB and scanner-bounded records. It never accepts `os/user`'s cached HOME/USER fallback. A missing, malformed or unavailable account record refuses launch with a fixed diagnostic; NSS-only accounts require a build using native lookup. Native macOS and CGO Linux continue to use the OS account database.
+
 Company children receive a fresh environment containing only OS-derived home,
 platform application/temp locations and a fixed system PATH. On Unix, UID/home
 come from the OS user database, not HOME; Linux also supplies the standard
@@ -88,7 +90,12 @@ harness files. Cline's optional configured-provider mapping requires provider_fi
 permission; otherwise the existing compiled catalog/provider alias is used.
 
 Copy-command mode verifies the same approval then returns quoted POSIX-shell
-syntax (PowerShell on Windows). Copying does not start a process; manually running
+syntax. Windows PowerShell 5.1 and PowerShell 7 copy text uses ProcessStartInfo
+with UseShellExecute=false and the same Windows argv serialization as os/exec,
+bypassing PowerShell's version-dependent native argument binder. Empty arguments,
+embedded quotes and backslashes must survive unchanged. It inherits the terminal's
+current filesystem location and standard I/O, waits for completion and publishes
+the native exit status through LASTEXITCODE. Copying does not start a process; manually running
 the text uses the terminal's environment and is outside the app's child-environment
 boundary. The approved application's later subprocesses, dynamic dependencies,
 project hooks and network actions remain under endpoint/native harness controls.

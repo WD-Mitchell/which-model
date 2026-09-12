@@ -186,6 +186,17 @@ jobs:
             sudo env GITHUB_ACTIONS=true python3 scripts/company_execution_fixture.py prepare --binary company-execution-fixture.exe --github-env "$GITHUB_ENV"
           fi
       - run: go test ./internal/service -run 'TestNativeCompanyExecution|TestNativeCompanyIntegrationInstall' -v -count=1
+      - name: Refuse inherited identity without an OS account
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          account_fixture=$(mktemp -d)
+          trap 'sudo rm -f "$account_fixture/environment.test"; rmdir "$account_fixture"' EXIT
+          go test -c -o "$account_fixture/environment.test" ./internal/approvedexec
+          sudo env HOME=/ENV_HOME_CANARY USER=ENV_USER_CANARY chroot "$account_fixture" /environment.test -test.run '^TestApprovedEnvironmentMissingAccount$' -test.v
+      - name: Preserve copied arguments in Windows PowerShell and PowerShell 7
+        if: runner.os == 'Windows'
+        run: go test ./internal/service -run '^TestCompanyApprovedCopyPowerShellArguments$' -v -count=1
       - name: Disable installation while retaining cleanup
         shell: bash
         run: |

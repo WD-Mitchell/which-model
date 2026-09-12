@@ -4,7 +4,6 @@ package approvedexec
 
 import (
 	"os"
-	"os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -12,9 +11,8 @@ import (
 
 func Environment() ([]string, error) {
 	uid := strconv.Itoa(os.Getuid())
-	// LookupId avoids Current's environment fallback in pure-Go Unix builds.
-	account, err := user.LookupId(uid)
-	if err != nil || account.Uid != uid || !filepath.IsAbs(account.HomeDir) {
+	account, err := lookupAccount(uid)
+	if err != nil || account == nil || account.Uid != uid || account.Username == "" || !filepath.IsAbs(account.HomeDir) {
 		return nil, refusal("OS user environment is unavailable")
 	}
 	home := account.HomeDir
