@@ -130,6 +130,8 @@ this supersedes conflicting personal-only persistence statements for company mod
 
 Company Launch uses the compiled built-in registry plus a protected executable approval, validates route/provider/profile values, verifies the native image and optional input digests/OS protection, and calls os/exec with separate approved arguments and a fresh OS-derived environment. Saved command/builtin fields cannot choose execution. Custom slugs require separate allow_custom_shell. Personal shell launch behavior is unchanged. Full rules are in MANAGED-EXECUTION.md.
 
+Company launches require an OS account record. Pure-Go Linux reads the bounded local passwd database directly and refuses absent/NSS-only identities; native-lookup builds retain OS directory-service support. Inherited HOME/USER never supply missing account data. Windows copied commands preserve the approved native argument array, including empty and quoted literal values, in Windows PowerShell 5.1 and PowerShell 7; they retain the terminal filesystem location, standard output and native exit status.
+
 Governing correction: `specs/desktop/backend/features/B07-harnesses/MANAGED-EXECUTION.md`.
 This implements the requester-approved optional managed profile while preserving
 personal defaults; it supersedes unconditional shell/policy-placeholder statements

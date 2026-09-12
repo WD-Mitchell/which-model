@@ -71,6 +71,12 @@ The launched child receives a fresh environment:
 | Linux | OS user home/name, fixed PATH `/usr/bin:/bin`, LANG `C.UTF-8`, TMPDIR `/tmp`; standard XDG home paths and `/run/user/<uid>` runtime/Secret Service bus path. |
 | Windows | Current-token user profile and non-inherited token environment for roaming/local application data and ProgramData; OS Windows/system directory; fixed system PATH; profile home fields and local application-data Temp; fixed UTF-8 locale. |
 
+Pure-Go Linux requires an account record in `/etc/passwd`; an NSS-only or missing
+account is refused even when HOME/USER are set. Use a build with native account
+lookup for NSS-only directory-service accounts. The local database read is bounded
+to 4 MiB with bounded records. macOS native lookup and CGO Linux retain OS account
+service support. No missing account details are filled from inherited variables.
+
 Parent provider tokens, shell selectors, proxies, runtime/preload options and Git
 configuration injection variables are omitted. Native harnesses can use their
 approved OS/home credential stores. Environment-only login needs the native
@@ -90,7 +96,11 @@ The Installed flag is a discovery hint that an approved regular file exists; the
 full hash/ownership proof runs immediately before launch.
 
 Copy mode checks the same approval and returns quoted POSIX-shell text, or
-PowerShell text on Windows. It starts no child; manually running the copied text
+PowerShell text on Windows. The Windows text supports Windows PowerShell 5.1 and
+PowerShell 7, preserving empty/quoted arguments through an explicit native command
+line. Running it retains the terminal filesystem location and standard I/O and
+sets LASTEXITCODE when the child finishes. It starts no child until pasted and run;
+manually running the copied text
 uses the terminal's environment. A user already able to run native tools directly
 remains governed by endpoint/native permissions.
 
