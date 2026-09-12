@@ -1,7 +1,7 @@
 {
   "name": "@wdm-uk/which-model-linux-x64",
   "version": "0.1.1",
-  "description": "linux/x64 binary for @wdm-uk/which-model",
+  "description": "Pre-release. linux/x64 binary for @wdm-uk/which-model",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/WD-Mitchell/which-model.git"
