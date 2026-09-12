@@ -43,6 +43,7 @@ func CacheDir() (string, error)
 func New() (*Store, error)
 
 // Read loads one provider's snapshot. stale = now - fetched_at > ttl.
+// Company entries also remain stale when Snapshot.Stale is set by the producer.
 //   - ttl <= 0        → ErrCacheMiss (no cache for this provider)
 //   - missing file    → error wrapping ErrCacheMiss
 //   - corrupt/oversized (> 4 MiB) file → plain error (F14 refetches)
@@ -94,6 +95,18 @@ func EffectiveTTL(base time.Duration, maxAge time.Duration) time.Duration
 | Depends on | F11 (per `specs/DEPENDENCY-GRAPH.md` §2) |
 | Blocks | F14 (per `specs/DEPENDENCY-GRAPH.md` §2) |
 
+
+## Company producer-staleness correction (PR #314)
+
+Read returns the stored snapshot and `Snapshot.Stale || recordingTTLExpired` for
+company entries. OfflineRead carries that combined flag. Online native/delegated
+consumers therefore refetch producer-stale observations; no new public field or
+cache schema is needed. This requester-approved correction supersedes company
+TTL-only eligibility; recording-time retention and personal rules are unchanged.
+Pinned tests: `TestCompanyCacheProducerStaleness` (current, missing/invalid, future,
+and producer-stale observations with one-minute/24-hour TTLs) and native
+`TestNativeCompanyCodexBarApprovalCache` (real approved child through FetchAll,
+managed writes, offline/cache reads, and online refetch).
 
 ## Company privacy correction (#284)
 

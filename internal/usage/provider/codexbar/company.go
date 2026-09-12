@@ -186,17 +186,12 @@ func fetchApproved(ctx context.Context, policy company.Snapshot, provider string
 	if runErr != nil {
 		return failure("provider_status", "codexbar usage command failed")
 	}
-	switch strings.ToLower(selected.Source) {
-	case "oauth", "api", "web", "cli", "local":
-		snap.Source = sourceFor(strings.ToLower(selected.Source))
-	case "openai-web":
-		snap.Source = usage.SourceWeb
-	case "codex-cli", "claude-cli":
-		snap.Source = usage.SourceCLI
-	default:
+	actual, known := companySource(provider, selected.Source)
+	if !known {
 		return failure("provider_status", "codexbar returned an unsupported source")
 	}
-	if source != "" && snap.Source != source {
+	snap.Source = actual
+	if !CompanySourceMatches(provider, snap.Source, source) {
 		return failure("provider_status", "codexbar returned a different source than requested")
 	}
 	if selected.Usage == nil {

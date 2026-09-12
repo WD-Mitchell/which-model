@@ -160,3 +160,17 @@ this supersedes conflicting personal-only persistence statements for company mod
 ## Approved CodexBar correction (#287)
 
 The requester requires company CodexBar to remain disabled until an administrator approves a specific installation. Personal behavior stays unchanged. [APPROVED-CODEXBAR.md](APPROVED-CODEXBAR.md) is normative. Unapproved delegation is refused before cache/credential effects. Approved offline and fresh-cache paths execute nothing; a cache miss preflights the image/config before credential inputs, then the adapter re-verifies before invocation. Per-provider errors stay partial results. Existing cache/source/timeout tests remain binding. New pinned tests: TestCompanyCodexBarPreflightPrecedesCredentialsAndProcess, TestCompanyCodexBarCacheOnlyNeverPreflightsOrDelegates, TestCompanyCodexBarOutputAndTimeoutMatrix, TestNativeCompanyCodexBarApproval.
+
+The requester-approved PR #314 review correction and pinned regression matrix are
+in [APPROVED-CODEXBAR.md, Source and cache correction](APPROVED-CODEXBAR.md#source-and-cache-correction-pr-314-review).
+The adapter and delegated cache consumer share this pure internal-package helper:
+
+```go
+func CompanySourceMatches(provider string, actual, requested usage.Source) bool
+```
+
+It accepts auto, equal canonical sources, and the reviewed Antigravity/Windsurf
+local result for CLI selection. It performs no authorization or effects. Live
+normalization rejects unrecognized provider/label pairs before this comparison.
+Canonical Snapshot/Source/Options types remain unchanged. Personal fetching and
+native credential-source matching retain their existing rules.

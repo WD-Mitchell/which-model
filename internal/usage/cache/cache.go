@@ -114,6 +114,7 @@ func (s *Store) Write(providerID string, snap usage.Snapshot) error {
 const maxCacheFileSize = 4 << 20
 
 // Read loads one provider's snapshot. stale = now - fetched_at > ttl.
+// Company entries also remain stale when Snapshot.Stale is set by the producer.
 //   - ttl <= 0        → ErrCacheMiss (no cache for this provider)
 //   - missing file    → error wrapping ErrCacheMiss
 //   - corrupt/oversized (> 4 MiB) file → plain error (F14 refetches)

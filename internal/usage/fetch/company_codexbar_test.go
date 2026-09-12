@@ -65,3 +65,25 @@ func TestCompanyCodexBarCacheOnlyNeverPreflightsOrDelegates(t *testing.T) {
 		}
 	}
 }
+
+func TestCompanyCodexBarLocalCacheMatchesCLIMode(t *testing.T) {
+	oldPolicy, oldPreflight := readCompanyPolicy, codexbarPreflight
+	t.Cleanup(func() { readCompanyPolicy, codexbarPreflight = oldPolicy, oldPreflight })
+	for _, provider := range []string{"antigravity", "windsurf"} {
+		t.Run(provider, func(t *testing.T) {
+			p := company.Defaults()
+			p.AllowedProviders = []string{provider}
+			p.CodexBarInstallations = []company.CodexBarInstallation{{Path: filepath.Join(t.TempDir(), "image.exe")}}
+			readCompanyPolicy = func() (company.Snapshot, error) { return company.Snapshot{Managed: true, Policy: &p}, nil }
+			codexbarPreflight = func(string) error { t.Fatal("matching local cache triggered a child"); return nil }
+			dir := t.TempDir()
+			if err := (&cache.Store{Dir: dir}).Write(provider, usage.Snapshot{Provider: provider, Source: usage.SourceLocal, FetchedAt: time.Now()}); err != nil {
+				t.Fatal(err)
+			}
+			got, _, err := FetchAll(context.Background(), []string{provider}, Options{Backend: config.UsageBackendCodexBar, Enabled: map[string]bool{provider: true}, CacheDir: dir, Source: usage.SourceCLI})
+			if err != nil || len(got) != 1 || got[0].Failure != nil || got[0].Source != usage.SourceCache {
+				t.Fatalf("matching CLI-mode cache: %+v %v", got, err)
+			}
+		})
+	}
+}

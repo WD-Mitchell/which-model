@@ -101,7 +101,7 @@ func FetchAll(ctx context.Context, providers []string, opts Options) (snapshots 
 	case config.UsageBackendOff:
 		return nil, nil, nil
 	case config.UsageBackendCodexBar:
-		return fetchCodexBarAll(ctx, providers, opts)
+		return fetchCodexBarAll(ctx, providers, opts, policy.Managed)
 	case config.UsageBackendNative, "":
 		return fetchNativeAll(ctx, providers, opts)
 	default:
@@ -412,7 +412,7 @@ func SourceFor(cred usage.Credential, kind usage.Kind) usage.Source {
 		return usage.SourceAPI
 	}
 }
-func fetchCodexBarAll(ctx context.Context, providers []string, opts Options) ([]usage.Snapshot, []credential.Warning, error) {
+func fetchCodexBarAll(ctx context.Context, providers []string, opts Options, managed bool) ([]usage.Snapshot, []credential.Warning, error) {
 	active := make([]string, 0, len(providers))
 	for _, id := range providers {
 		if opts.Enabled == nil || !opts.Enabled[id] {
@@ -473,7 +473,11 @@ func fetchCodexBarAll(ctx context.Context, providers []string, opts Options) ([]
 			if !opts.Refresh {
 				ttl := cache.EffectiveTTL(defaultCodexBarCacheTTL, opts.MaxAge)
 				snap, stale, err := store.Read(id, ttl)
-				if err == nil && !stale && snap.Failure == nil && matchesRequestedSource(snap.Source, opts.Source) {
+				sourceMatches := matchesRequestedSource(snap.Source, opts.Source)
+				if managed {
+					sourceMatches = codexbar.CompanySourceMatches(id, snap.Source, opts.Source)
+				}
+				if err == nil && !stale && snap.Failure == nil && sourceMatches {
 					snap.Source = usage.SourceCache
 					snap.Confidence = "cached"
 					snap.Stale = false
