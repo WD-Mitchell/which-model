@@ -56,6 +56,8 @@ jobs:
       - name: nousage audit (build matrix + strings scan)
         if: hashFiles('scripts/audit-nousage.sh') != ''
         run: bash scripts/audit-nousage.sh
+      - name: Restricted score-only audit
+        run: bash scripts/audit-score-only.sh
 
   build:
     needs: test

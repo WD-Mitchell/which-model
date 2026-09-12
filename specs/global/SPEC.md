@@ -207,3 +207,19 @@ Failures clean staging and preserve the existing best-effort npm-install exit
 behaviour with an actionable warning. Offline verification requires an approved
 source revision/ref, the bundle and independently obtained Sigstore trust roots;
 unavailable evidence is not a reason to skip verification.
+
+## 13. Restricted offline assets (#290)
+
+In addition to the five full CLI artifacts, the same verified release emits five
+`which-model-score-only-<os>-<arch>[.exe]` artifacts. F21 SPEC §7 governs their
+restricted command boundary. They embed the reviewed repository catalog and
+built-in ranking profiles and carry no runtime catalog-update mechanism.
+The full npm packages remain the full product; this pilot adds separate GitHub
+release assets, not a change to npm's default executable.
+
+The signed `which-model-score-only-capabilities.json` is digest-pinned in the
+release manifest. Each restricted SBOM also identifies the embedded catalog and
+profiles by SHA-256. Verification checks these bindings before installation.
+Catalog source/licensing approval and company acceptance are release-owner
+decisions distinct from artifact integrity. The build pipeline is capable of
+producing candidates; a passing candidate is not permission to distribute them.
