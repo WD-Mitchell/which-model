@@ -363,6 +363,7 @@ var pickFetchAllFunc = func(ctx context.Context, providers []string, opts pickFe
 		Enabled:                enabled,
 		StateDir:               stateDirFunc(),
 		DisableManagedKeychain: !auth.UseKeychain,
+		NativeKeychain:         auth.NativeKeychain,
 	})
 	if err != nil {
 		return nil, nil, err

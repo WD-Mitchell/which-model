@@ -50,7 +50,7 @@ def prepare(env_file):
     protect(fixture)
     (fixture / "owned-by-ci").touch()
     marker = {"schema_version": 1, "required": True}
-    policy = {"schema_version": 1, "allowed_providers": ["codex", "claude", "copilot", "cursor"]}
+    policy = {"schema_version": 1, "allowed_providers": []}
     for name in ("valid", "missing", "writable", "invalid", "redirect"):
         directory = fixture / name
         directory.mkdir()

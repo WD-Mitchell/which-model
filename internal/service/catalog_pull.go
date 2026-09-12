@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -11,6 +12,8 @@ import (
 
 	"github.com/WD-Mitchell/which-model/internal/config"
 	"github.com/WD-Mitchell/which-model/internal/httpkit"
+	"github.com/WD-Mitchell/which-model/internal/securestore"
+	"github.com/WD-Mitchell/which-model/internal/security"
 )
 
 const (
@@ -44,7 +47,6 @@ func (s *Services) refreshCatalogSource(ctx context.Context) error {
 	}
 	s.mu.RLock()
 	gui, guiErr := s.cfg.LoadGUI()
-	key := readAAKeyFile(s.paths.ConfigDir)
 	s.mu.RUnlock()
 	if guiErr != nil {
 		gui = config.DefaultGUIConfig()
@@ -53,6 +55,17 @@ func (s *Services) refreshCatalogSource(ctx context.Context) error {
 	if gui.UseLocalAA {
 		if s.catalogRefresh == nil {
 			return fmt.Errorf("local Artificial Analysis collect is not available in this build")
+		}
+		policy, err := readCompanyPolicy()
+		if err != nil {
+			return err
+		}
+		if policy.Managed {
+			return s.catalogRefresh(ctx)
+		}
+		key, err := loadAAKey(s.paths.ConfigDir)
+		if err != nil {
+			return err
 		}
 		if key != "" {
 			prev, had := os.LookupEnv("ARTIFICIAL_ANALYSIS_API")
@@ -137,15 +150,66 @@ func aaKeyPath(configDir string) string {
 	return filepath.Join(configDir, aaKeyFileName)
 }
 
-func readAAKeyFile(configDir string) string {
-	data, err := os.ReadFile(aaKeyPath(configDir))
+func readAAKeyFile(configDir string) string { key, _ := loadAAKey(configDir); return key }
+
+func aaKeyIsSet(configDir string) (bool, error) {
+	policy, err := readCompanyPolicy()
 	if err != nil {
-		return ""
+		return false, err
 	}
-	return strings.TrimSpace(string(data))
+	if policy.Managed && (policy.RequireProvider(securestore.CatalogAccount) != nil || policy.RequireSource("keychain") != nil) {
+		return false, nil
+	}
+	key, err := loadAAKey(configDir)
+	return key != "", err
 }
 
+func loadAAKey(configDir string) (string, error) {
+	policy, err := readCompanyPolicy()
+	if err != nil {
+		return "", err
+	}
+	if policy.Managed {
+		if err := policy.RequireProvider(securestore.CatalogAccount); err != nil {
+			return "", err
+		}
+		if err := policy.RequireSource("keychain"); err != nil {
+			return "", err
+		}
+		key, err := catalogSecureStore().Get(securestore.CatalogService, securestore.CatalogAccount)
+		if errors.Is(err, &securestore.Error{Kind: securestore.Missing}) {
+			return "", nil
+		}
+		return key, err
+	}
+	data, err := os.ReadFile(aaKeyPath(configDir))
+	if err != nil {
+		return "", nil
+	}
+	return strings.TrimSpace(string(data)), nil
+}
+
+var catalogSecureStore = securestore.Native
+
 func writeAAKeyFile(configDir, key string) error {
+	policy, err := readCompanyPolicy()
+	if err != nil {
+		return err
+	}
+	if policy.Managed {
+		if err := policy.RequireProvider(securestore.CatalogAccount); err != nil {
+			return err
+		}
+		if err := policy.RequireSource("keychain"); err != nil {
+			return err
+		}
+		key = strings.TrimSpace(key)
+		if err := security.ValidateOpaqueToken(key); err != nil {
+			return err
+		}
+		return catalogSecureStore().Set(securestore.CatalogService, securestore.CatalogAccount, key)
+	}
+
 	if err := os.MkdirAll(configDir, 0o700); err != nil {
 		return err
 	}
@@ -153,7 +217,20 @@ func writeAAKeyFile(configDir, key string) error {
 }
 
 func clearAAKeyFile(configDir string) error {
-	err := os.Remove(aaKeyPath(configDir))
+	policy, err := readCompanyPolicy()
+	if err != nil {
+		return err
+	}
+	if policy.Managed {
+		// Explicit removal may delete the owned OS item after permission revocation;
+		// it never reads or removes the legacy file or provider-owned credentials.
+		err := catalogSecureStore().Delete(securestore.CatalogService, securestore.CatalogAccount)
+		if errors.Is(err, &securestore.Error{Kind: securestore.Missing}) {
+			return nil
+		}
+		return err
+	}
+	err = os.Remove(aaKeyPath(configDir))
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}

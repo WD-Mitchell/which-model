@@ -41,7 +41,7 @@ func AtomicWriteFile(path string, data []byte) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	if err := os.Rename(tmpName, path); err != nil {
+	if err := replaceFile(tmpName, path); err != nil {
 		return err
 	}
 	renamed = true
@@ -63,11 +63,4 @@ func WriteCommitted(err error) bool {
 	return errors.As(err, &committed)
 }
 
-var syncDirectory = func(dir string) error {
-	dirFile, err := os.Open(dir)
-	if err != nil {
-		return err
-	}
-	defer dirFile.Close()
-	return dirFile.Sync()
-}
+var syncDirectory = platformSyncDirectory

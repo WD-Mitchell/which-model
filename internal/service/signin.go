@@ -305,7 +305,24 @@ func (g *SignInService) Confirm(ctx context.Context, provider, flowID, accountNa
 		if previousErr != nil && !errors.Is(previousErr, credential.ErrNotFound) {
 			return toErrorDTO(previousErr)
 		}
-		if err := store.Save(provider, token); err != nil {
+		policy, err := readCompanyPolicy()
+		if err != nil {
+			return toErrorDTO(err)
+		}
+		managedLogin := policy.Managed || store.NativeKeychain
+		saved := usage.Credential{Token: token, Source: usage.AuthOAuthDeviceFlow}
+		if managedLogin {
+			switch active.kind {
+			case signInCodex:
+				saved, err = codexT.ManagedCredential()
+			case signInClaude:
+				saved, err = claudeT.ManagedCredential()
+			}
+			if err != nil {
+				return toErrorDTO(err)
+			}
+		}
+		if err := store.SaveCredential(provider, saved); err != nil {
 			return toErrorDTO(err)
 		}
 		if err := g.recordOAuthAccount(provider, accountName, accountRef); err != nil {
@@ -314,11 +331,13 @@ func (g *SignInService) Confirm(ctx context.Context, provider, flowID, accountNa
 			}
 			return toErrorDTO(err)
 		}
-		switch provider {
-		case "claude":
-			_ = persistClaudeLogin(claudeT)
-		case "codex":
-			_ = persistCodexLogin(codexT)
+		if !managedLogin {
+			switch provider {
+			case "claude":
+				_ = persistClaudeLogin(claudeT)
+			case "codex":
+				_ = persistCodexLogin(codexT)
+			}
 		}
 	}
 	_ = g.s.Providers().RefreshRoutes(ctx)
@@ -497,16 +516,22 @@ func (g *SignInService) SaveAPIKey(ctx context.Context, provider, accountName, a
 
 func restoreManagedCredential(store credential.ManagedStore, provider string, previous usage.Credential, found bool) error {
 	if !found {
-		err := store.Remove(provider)
+		policy, err := readCompanyPolicy()
+		if err != nil {
+			return err
+		}
+		if policy.Managed {
+			err = store.RemoveSecure(provider)
+		} else {
+			// Native personal selection can still have saved a fallback file.
+			err = store.Remove(provider)
+		}
 		if errors.Is(err, credential.ErrNotFound) {
 			return nil
 		}
 		return err
 	}
-	if previous.Source == usage.AuthEnvVar {
-		return store.SaveAPIKey(provider, previous.Token)
-	}
-	return store.Save(provider, previous.Token)
+	return store.SaveCredential(provider, previous)
 }
 
 func removeManagedCredential(
@@ -541,9 +566,10 @@ func (s *Services) managedStoreLocked() (credential.ManagedStore, error) {
 		return credential.ManagedStore{}, err
 	}
 	return credential.ManagedStore{
-		StateDir:    s.paths.StateDir,
-		Keychain:    credential.DefaultKeychain(),
-		UseKeychain: auth.UseKeychain,
+		StateDir:       s.paths.StateDir,
+		Keychain:       credential.KeychainFor(auth.NativeKeychain),
+		UseKeychain:    auth.UseKeychain,
+		NativeKeychain: auth.NativeKeychain,
 	}, nil
 }
 

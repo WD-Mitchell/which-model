@@ -11,7 +11,7 @@ func TestAuthConfigDefaultAndRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !got.UseKeychain {
+	if !got.UseKeychain || got.NativeKeychain {
 		t.Fatal("default use_keychain = false, want true")
 	}
 
@@ -24,7 +24,7 @@ func TestAuthConfigDefaultAndRoundTrip(t *testing.T) {
 		t.Fatal("configured use_keychain = true, want false")
 	}
 
-	if err := cfg.SetAuth(AuthConfig{UseKeychain: true}); err != nil {
+	if err := cfg.SetAuth(AuthConfig{UseKeychain: true, NativeKeychain: true}); err != nil {
 		t.Fatal(err)
 	}
 	data, err := cfg.MarshalTOML()
@@ -32,7 +32,7 @@ func TestAuthConfigDefaultAndRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(data)
-	if !strings.Contains(text, "[auth]") || !strings.Contains(text, "use_keychain = true") {
+	if !strings.Contains(text, "[auth]") || !strings.Contains(text, "use_keychain = true") || !strings.Contains(text, "native_keychain = true") {
 		t.Fatalf("marshaled auth config = %q", text)
 	}
 }

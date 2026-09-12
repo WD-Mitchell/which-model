@@ -92,7 +92,7 @@ func (u *UsageService) Snapshots(ctx context.Context, force bool) ([]UsageDTO, e
 	if force {
 		maxAge = time.Minute
 	}
-	snaps, warns, err := fetch.FetchAll(ctx, providers, fetch.Options{Backend: backend, Enabled: enabled, MaxAge: maxAge, Timeout: 10 * time.Second, CacheDir: dir, StateDir: stateDir, DisableManagedKeychain: !auth.UseKeychain, ShowIdentity: true})
+	snaps, warns, err := fetch.FetchAll(ctx, providers, fetch.Options{Backend: backend, Enabled: enabled, MaxAge: maxAge, Timeout: 10 * time.Second, CacheDir: dir, StateDir: stateDir, DisableManagedKeychain: !auth.UseKeychain, NativeKeychain: auth.NativeKeychain, ShowIdentity: true})
 	for _, w := range warns {
 		log.Printf("usage: %s", w.Message)
 	}
