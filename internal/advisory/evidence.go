@@ -68,8 +68,19 @@ func Evaluate(enabled bool, snapshot *usage.Snapshot, windowIDs []string, maxAge
 	if snapshot.Stale || snapshot.FetchedAt.IsZero() || snapshot.FetchedAt.After(now) || (maxAge > 0 && now.Sub(snapshot.FetchedAt) > maxAge) {
 		return ForState(Stale)
 	}
-	if !snapshot.UsageKnown || len(windowIDs) == 0 {
-		return ForState(Unknown)
+	return ForState(windowState(snapshot, windowIDs))
+}
+
+// HasCompleteWindows reports whether all of this route's required windows have
+// computable readings, independently of their age. Historical numeric evidence
+// needs this check even when Evaluate reports Stale before checking coverage.
+func HasCompleteWindows(snapshot *usage.Snapshot, windowIDs []string) bool {
+	return windowState(snapshot, windowIDs) == Current
+}
+
+func windowState(snapshot *usage.Snapshot, windowIDs []string) string {
+	if snapshot == nil || snapshot.Failure != nil || !snapshot.UsageKnown || len(windowIDs) == 0 {
+		return Unknown
 	}
 	seen := map[string]bool{}
 	known, required := 0, 0
@@ -89,10 +100,10 @@ func Evaluate(enabled bool, snapshot *usage.Snapshot, windowIDs []string, maxAge
 		}
 	}
 	if known == 0 {
-		return ForState(Unknown)
+		return Unknown
 	}
 	if known < required {
-		return ForState(Partial)
+		return Partial
 	}
-	return ForState(Current)
+	return Current
 }

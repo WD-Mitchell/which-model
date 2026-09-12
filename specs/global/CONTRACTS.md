@@ -450,6 +450,8 @@ the caller's freshness budget and an explicit clock. It does not fetch, authenti
 retry, persist or authorize execution. It may import canonical usage types and
 F19's existing computable-window rule. Private usage observations remain in memory.
 
+`advisory.HasCompleteWindows(snapshot, windowIDs)` exposes the same required-window coverage rule independently of freshness. It returns false for absent/failed/unknown snapshots, an empty required set, or any missing, synthetic or uncomputable required window. Numeric historical band evidence uses it even when the state is stale. It does not change Report or canonical usage types.
+
 Company-only additions to desktop canonical DTOs: RankedModel may carry
 `quota_evidence` (Report); RankResponse may carry `recommendation_mode` with value
 `score_only`; LaunchResult may carry `advisories` (array of fixed strings).

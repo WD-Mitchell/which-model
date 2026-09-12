@@ -741,7 +741,7 @@ func buildEvidence(st *runState, top *Candidate, excluded []ExcludedCandidate) E
 			}
 		}
 		if ev.QuotaState == advisory.Current || ev.QuotaState == advisory.Stale {
-			if snap != nil && snap.UsageKnown {
+			if advisory.HasCompleteWindows(snap, top.Route.WindowIDs) {
 				ev.Band = &BandEvidence{Name: top.Band, UsedPercent: st.bandUsedPercent[top.CandidateID], Weight: top.BandWeight}
 			}
 		}

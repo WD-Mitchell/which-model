@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/WD-Mitchell/which-model/internal/advisory"
 	"github.com/WD-Mitchell/which-model/internal/config"
 	"github.com/WD-Mitchell/which-model/internal/privacy"
 )
@@ -110,6 +111,9 @@ func FormatExplainText(entry HistoryEntry) string {
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "explain %s (%s): picked %s (score %s)\n", ev.Profile, entry.ULID, candidate, formatPickNumber(entry.FinalScore))
+	if ev.QuotaState != "" {
+		fmt.Fprintf(&b, "  quota at pick: %s\n", advisory.ForState(ev.QuotaState).Message)
+	}
 	if ev.Confidence != "" {
 		fmt.Fprintf(&b, "  confidence: %s\n", ev.Confidence)
 	}
