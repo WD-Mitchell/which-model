@@ -5,9 +5,12 @@ package service
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/WD-Mitchell/which-model/internal/privacy"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -36,17 +39,31 @@ type PickHistoryEntry struct {
 // file -> empty non-nil map, 0, nil. Only real I/O errors are returned.
 func AggregatePicks(path string) (stats map[string]ProfileStats, skipped int, err error) {
 	stats = make(map[string]ProfileStats)
-	f, err := os.Open(path)
+	policy, err := readCompanyPolicy()
 	if err != nil {
-		if os.IsNotExist(err) {
-			return stats, 0, nil
-		}
-		return nil, 0, fmt.Errorf("history: %w", err)
+		return nil, 0, err
 	}
-	defer f.Close()
+	var reader io.Reader
+	if policy.Managed {
+		data, err := (privacy.Controller{Policy: policy}).Read(path, privacy.History)
+		if err != nil {
+			return nil, 0, err
+		}
+		reader = bytes.NewReader(data)
+	} else {
+		f, err := os.Open(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return stats, 0, nil
+			}
+			return nil, 0, fmt.Errorf("history: %w", err)
+		}
+		defer f.Close()
+		reader = f
+	}
 
 	lastParsed := make(map[string]time.Time)
-	sc := bufio.NewScanner(f)
+	sc := bufio.NewScanner(reader)
 	sc.Buffer(make([]byte, 64*1024), 4*1024*1024)
 	for sc.Scan() {
 		line := strings.TrimSpace(sc.Text())
@@ -90,6 +107,17 @@ func AggregatePicks(path string) (stats map[string]ProfileStats, skipped int, er
 // line + "\n" via O_APPEND|O_CREATE|O_WRONLY, 0600. Nil Evidence is written
 // as {}. No event; the caller emits pick:recorded (SPEC §2.6).
 func AppendPick(path string, entry PickHistoryEntry) error {
+	policy, err := readCompanyPolicy()
+	if err != nil {
+		return err
+	}
+	if policy.Managed {
+		line, err := json.Marshal(entry)
+		if err != nil {
+			return &privacy.Error{Category: privacy.History, Operation: "encode"}
+		}
+		return (privacy.Controller{Policy: policy}).Append(path, privacy.History, line)
+	}
 	if entry.Profile == "" {
 		return errors.New("history: entry profile must not be empty")
 	}

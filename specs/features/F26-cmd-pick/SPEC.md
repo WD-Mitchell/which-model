@@ -162,3 +162,12 @@ project: which-model
 ## Correction — usage request options (#164, 2026-09-04)
 
 The pick usage stage honors the configured backend (`off`, `native`, `codexbar`) and normalized global `--offline`, `--refresh-usage`, `--max-age`, and `--timeout` flags. Per-run input is captured before fetching and forwarded unchanged to F14. Offline remains read-only even with targeted refresh set; `--no-usage` bypasses fetching. This corrects the adapter omission, without changing F14 or the public pick JSON shape.
+
+
+## Company privacy correction (#284)
+
+Company history writes and explain/history reads use the shared privacy controller. Only typed operational selection evidence is retained; raw reasons, account identity and unknown fields are removed. The application stamps new records, preserves old timestamps when scrubbing, and deletes entries at configured expiry. History-write failure remains advisory. Personal JSONL behavior is unchanged.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.

@@ -136,3 +136,12 @@ AuthConfig adds NativeKeychain (TOML/JSON native_keychain, default false). SetAu
 The [secure-store contract](../F12-credentials/SECURE-STORES.md) supersedes earlier company-mode storage
 wording under the approved optional-profile decision. Personal defaults remain
 unchanged. Native tests and migration/fallback canaries are required evidence.
+
+
+## Company privacy correction (#284)
+
+Protected retention settings now govern actual company storage. `identity_free=true` and finite retention defaults (usage 24 hours, launch 7 days, history/audit 30 days) apply through the independently loaded company snapshot; mutable TOML/environment values cannot override them. Personal automatic storage behavior remains unchanged.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.

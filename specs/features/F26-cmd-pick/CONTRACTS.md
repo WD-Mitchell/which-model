@@ -390,3 +390,12 @@ F26's seam `scoreFunc` (default `scoring.Score`) is injectable in tests; the inp
 ## Usage request policy correction (#164)
 
 The private `pickFetchOptions` seam carries `Backend config.UsageBackend`, `Offline bool`, `Refresh bool`, `MaxAge time.Duration`, and `Timeout time.Duration`. `runPickE` copies normalized global flags into `PickArgs`; `RunPick` captures these and `cfg.Usage.Backend` once in per-run state. The production adapter forwards all five fields unchanged to F14 `fetch.Options`, alongside provider enablement and managed-auth settings. F14 owns offline/cache/deadline semantics. `--no-usage` skips this stage entirely.
+
+
+## Company privacy correction (#284)
+
+No selection/ranking/candidate contract changes. The owned history adds privacy_version=1 only in company mode and uses the F13 whitelist. Missing/invalid/future timestamps cannot extend retention. Existing CLI history and desktop aggregation share the same lock and store.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.

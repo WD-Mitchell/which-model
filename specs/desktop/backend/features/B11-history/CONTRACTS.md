@@ -75,3 +75,12 @@ All cases use `t.TempDir()` files; no `newTestServices`. A shared fixture JSONL 
 5. **Append creates parents**: path with two missing directory levels → file created, dirs 0700, file 0600 (permission assertions unix-only via build tag or runtime.GOOS guard).
 6. **Append validation**: empty profile and bad ts → exact §4 messages; file not created.
 7. **CLI interleaving**: a fixture line copied verbatim from the CLI writer's output shape (full evidence object per `pkg/whichmodel/pick.go`) decodes and counts — guards the comment-sync clause.
+
+
+## Company privacy correction (#284)
+
+PickHistoryEntry/public statistics DTOs are unchanged. Company JSONL carries privacy_version=1 and the F13 history whitelist; 30-day default is administrator configurable. Pin opaque-evidence canary removal, valid aggregation and physical expiry.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.

@@ -115,3 +115,12 @@ This intentionally supersedes unrestricted operation for enrolled installations 
 see the [F01 managed-policy contract](../../../../features/F01-config/MANAGED-POLICY.md). Pinned evidence:
 `TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
 and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.
+
+
+## Company privacy correction (#284)
+
+Authorized company launches discard captured child stdout/stderr and append only a timestamp, operational harness/provider/model/profile IDs and a fixed started/copied/failed outcome to state/launch.jsonl. Legacy state/launch.log is removed by maintenance. Record-write failures do not block an otherwise authorized launch. The #282 temporary execution denial remains until #285 supplies approved execution. Personal appendable launch.log behavior remains unchanged.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.

@@ -93,3 +93,22 @@ func EffectiveTTL(base time.Duration, maxAge time.Duration) time.Duration
 | Dependencies added | none (stdlib) |
 | Depends on | F11 (per `specs/DEPENDENCY-GRAPH.md` §2) |
 | Blocks | F14 (per `specs/DEPENDENCY-GRAPH.md` §2) |
+
+
+## Company privacy correction (#284)
+
+Store signatures and usage.Snapshot stay unchanged. Managed cache JSON additionally carries privacy_version=1; account/plan and free-form labels/reset hints are absent under identity_free. Failure payloads are never cached. Both current native and desktop/legacy cache roots are maintained. Cached identity cannot be recovered by --show-identity after minimization. Pinned cases: identity canary removal; unchanged original fetched_at; physical 25-hour expiry; redirected credential refusal; original personal suite unchanged.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.
+
+PR #307 review regression cases: interrupted writes for usage/history/audit/launch
+with no final file; old personal cache temporaries; an active writer that commits
+while cleanup waits; zero-retention writes; redirected/nonregular temporaries;
+partial deletion counts; unrelated backups and bounded directory enumeration.
+`TestCompanyRetentionAbandonedWrites`, `TestCompanyRetentionLegacyTemporaryCache`,
+`TestCompanyRetentionTemporaryWriterLock`, `TestCompanyRetentionUnsafeTemporaryFiles`,
+`TestCompanyRetentionTemporaryInventoryBound`, and
+`TestCompanyRetentionTemporaryZeroAndWrite` pin these outcomes. The CLI
+`TestPrivacyExplicitPurgeReportsPartialFailure` includes abandoned-record counts.

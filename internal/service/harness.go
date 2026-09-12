@@ -410,6 +410,10 @@ func (h *HarnessService) Launch(ctx context.Context, slug, routeKey, profileSlug
 	if err := requireCompanyCapability("harness_launch"); err != nil {
 		return LaunchResult{}, err
 	}
+	policy, err := readCompanyPolicy()
+	if err != nil {
+		return LaunchResult{}, err
+	}
 	provider, modelID, reasoning, err := ParseRouteKey(routeKey)
 	if err != nil {
 		return LaunchResult{}, err
@@ -460,26 +464,34 @@ func (h *HarnessService) Launch(ctx context.Context, slug, routeKey, profileSlug
 	h.s.mu.RUnlock()
 
 	if copyMode {
+		h.recordCompanyLaunch(slug, provider, modelID, profileSlug, "copied")
 		h.recordPick(ctx, profileSlug, routeKey)
 		return LaunchResult{Copied: true, Command: cmd}, nil
 	}
 
-	logFile, err := os.OpenFile(filepath.Join(h.s.paths.StateDir, "launch.log"),
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	logFile, err := h.launchOutput(policy)
 	if err != nil {
 		return LaunchResult{}, err
 	}
 	proc := exec.Command(userShell(), "-lc", cmd)
 	proc.SysProcAttr = launchSysProcAttr()
 	proc.Stdin = nil
-	proc.Stdout = logFile
-	proc.Stderr = logFile
+	if logFile != nil {
+		proc.Stdout = logFile
+		proc.Stderr = logFile
+	}
 	if err := proc.Start(); err != nil {
-		logFile.Close()
+		h.recordCompanyLaunch(slug, provider, modelID, profileSlug, "failed")
+		if logFile != nil {
+			logFile.Close()
+		}
 		return LaunchResult{}, fmt.Errorf("%w: launch %q: %v", errLaunchFailed, slug, err)
 	}
-	logFile.Close()
+	if logFile != nil {
+		logFile.Close()
+	}
 	proc.Process.Release() // never waited on (SPEC §2.9.4)
+	h.recordCompanyLaunch(slug, provider, modelID, profileSlug, "started")
 	h.recordPick(ctx, profileSlug, routeKey)
 	return LaunchResult{Copied: false, Command: cmd}, nil
 }

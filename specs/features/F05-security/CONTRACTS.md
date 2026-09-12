@@ -148,3 +148,12 @@ Secure-store errors contain known messages only. Secret values never enter helpe
 The [secure-store contract](../F12-credentials/SECURE-STORES.md) supersedes earlier company-mode storage
 wording under the approved optional-profile decision. Personal defaults remain
 unchanged. Native tests and migration/fallback canaries are required evidence.
+
+
+## Company privacy correction (#284)
+
+Known canonical failure codes remain unchanged. Managed usage diagnostics replace arbitrary provider error text with fixed messages; exact native secure-store remediation strings remain available. No raw child-output capture is created by company launches.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.

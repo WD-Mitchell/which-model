@@ -228,3 +228,12 @@ paths from `config.ResolvePaths` for `_sources` and `config path`.
 ## Nested command execution correction (#162)
 
 `ExecuteCommand` must build fresh command instances before dispatching a hook's underlying command and restore the caller's global flags/output streams on return. Cached Cobra commands cannot be reparented while the outer hook is still executing. The registry's inspection cache remains available; nested execution invalidates it before constructing a new tree.
+
+
+## Company privacy correction (#284)
+
+These commands always emit the standard JSON envelope. status data is {managed, settings:{identity_free,retention}|null, offline_deletion}; cleanup/purge data is {managed,categories:{<category>:{retained_records,removed_records,scrubbed_records,deleted_files,failed_files}}}. Categories are usage_snapshots, pick_history, audit_records and launch_logs. A failed explicit operation emits category results and exits nonzero; startup failures emit one fixed advisory warning. No payload/path is printed. Help ordering and partial-failure output are pinned by tests.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.
