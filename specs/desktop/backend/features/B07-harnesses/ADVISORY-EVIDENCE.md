@@ -51,6 +51,8 @@ gates and exit classes; `--no-usage` remains the explicit score-only route. Advi
 messages use stable application text and operational IDs, without account identity,
 credential material or raw provider/harness payloads.
 
+Stored numeric band evidence requires every selected-route window to be computable, independently of age. Aging a partial/unknown observation must not introduce a numeric band. CLI text explanations display the fixed stored quota message as `quota at pick`, including stale and score-only reports; they do not reinterpret a historical observation as a new live check.
+
 ## Intent, outcome and persistence
 
 For an approved actual launch, write a best-effort audit intent immediately before

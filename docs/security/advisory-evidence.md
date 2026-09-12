@@ -27,6 +27,11 @@ Copy mode says **Command prepared for copying**, which does not claim a process
 started or the clipboard operation succeeded. Actual process-start failures remain
 launch errors. There is no new launch-time fetch, login prompt or retry.
 
+`explain --last` labels the stored quota report as **quota at pick**, including stale
+and score-only observations. This describes the original pick, not a fresh quota
+check. A numeric historical band is kept only when every required route window was
+computable; partial or unknown readings stay omitted even after they become stale.
+
 Audit intent and outcome records share a generated launch ID and include only
 allowed operational fields. A successful intent is not proof of execution. Audit
 retention defaults to 30 days and launch summaries to seven days; zero-day audit
