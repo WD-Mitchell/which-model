@@ -318,3 +318,34 @@ These are **compile-time-enforced** import boundaries:
 | `internal/pick` | `internal/catalog`, `internal/routing`, `internal/usage` (types only) | `cmd/` |
 | `pkg/whichmodel` | any `internal/` | — |
 | `cmd/which-model` | `pkg/whichmodel` | direct `internal/` (goes through `pkg/`) |
+
+## 9. Tracked-path portability check
+
+`python3 scripts/check_tracked_paths.py` validates paths from the Git index.
+`--stdin` accepts the same NUL-delimited format for historical trees and tests.
+Exit 0 prints `tracked-paths: OK (N files)`; exit 1 prints deterministic, escaped
+path diagnostics to stderr; exit 2 reports failure to obtain the path list.
+The conservative collision key is Unicode case-folding of every path prefix.
+The GitHub Actions check names `tracked-paths` and `windows-cli` are required
+status checks for `main`; their failure blocks PR and stack merges.
+
+| Merge-check state | Outcome |
+|---|---|
+| `test` passes; `tracked-paths` fails | merge blocked |
+| `test` passes; `windows-cli` fails | merge blocked |
+
+Pinned cases:
+
+| Input paths | Outcome |
+|---|---|
+| `.github/ci.yml`, `src/CONSOLE.go` | accepted |
+| `xd:/lsp`, a component containing newline or backslash | rejected |
+| `nul.txt`, `COM1.log`, `LPT²`, `NUL .txt` | rejected |
+| `CONIN$`, `conout$.txt`, `LPT0`, `LPT0 .log` | rejected device names |
+| `src/CONIN$/file.go`, `src/CONOUT$.txt/file.go`, `src/lpt0/file.go` | rejected parent components |
+| `CONIN.txt`, `CONOUT.txt`, `CONIN$extra.txt`, `LPT01.txt`, `LPT10.txt`, `COM0.txt` | accepted lookalikes |
+| NUL-delimited console/LPT0 names on `--stdin` | exit 1, diagnostic on stderr, empty stdout |
+| `a.`, `a /file`, `a//b`, `a/../b` | rejected |
+| `Src/a.go` and `src/b.go` | rejected directory collision |
+| `A` and `a/file` | rejected file/directory collision |
+| `src/a.go` and `src/b.go` | accepted shared directory |
