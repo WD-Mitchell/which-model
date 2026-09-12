@@ -116,3 +116,8 @@ Personal diagnostics are unchanged. This applies after either backend returns;
 Zero retention is supported: an administrator value of `0` disables persistence
 for that category and removes its existing owned records when maintenance or a
 write is attempted. It never means unlimited retention.
+
+
+## Advisory launch audit fields (#286)
+
+The central audit store additionally permits generated `launch_id`, operational `profile`, `quota_state` (global §15 enum), and phase `launch_intent`, `launch_started`, `launch_failed` or `copy_prepared`. They retain the approved 30-day audit default; structured launch summaries retain seven days. A zero-day audit policy persists no evidence and cannot report audit success. Intent is not a process-start claim; neither a missing audit record nor a recording failure proves launch was blocked.

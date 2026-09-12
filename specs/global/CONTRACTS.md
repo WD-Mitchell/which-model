@@ -449,3 +449,32 @@ restricted score-only binary remains independent of these packages.
 No public harness or canonical usage DTO changes. Protected executable policy
 adds optional `inputs` as described by F01. Full executable, placeholder,
 environment, copy-mode and trust limits are in B07/MANAGED-EXECUTION.md.
+
+## 15. Company advisory evidence (#286)
+
+The shared `internal/advisory.Report` is exactly:
+
+```go
+type Report struct {
+    State string `json:"state"`
+    Message string `json:"message"`
+}
+```
+
+State is one of `current`, `missing`, `unknown`, `partial`, `stale`,
+`authentication_error`, `provider_error`, `disabled`. Message is fixed application
+text derived solely from state, with no identity or provider error payload.
+The pure evaluator receives usage-enabled status, one route's snapshot/window IDs,
+the caller's freshness budget and an explicit clock. It does not fetch, authenticate,
+retry, persist or authorize execution. It may import canonical usage types and
+F19's existing computable-window rule. Private usage observations remain in memory.
+
+`advisory.HasCompleteWindows(snapshot, windowIDs)` exposes the same required-window coverage rule independently of freshness. It returns false for absent/failed/unknown snapshots, an empty required set, or any missing, synthetic or uncomputable required window. Numeric historical band evidence uses it even when the state is stale. It does not change Report or canonical usage types.
+
+Company-only additions to desktop canonical DTOs: RankedModel may carry
+`quota_evidence` (Report); RankResponse may carry `recommendation_mode` with value
+`score_only`; LaunchResult may carry `advisories` (array of fixed strings).
+All are optional/omitted for personal behavior. No success-shaped result is used
+for a native start or approval failure. F26 uses its existing candidate warnings
+for reports; persisted Evidence optionally adds `quota_state` from the same closed
+state list. No numeric ranking, strategy or candidate-exclusion contract changes.

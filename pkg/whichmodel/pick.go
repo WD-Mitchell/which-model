@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/WD-Mitchell/which-model/internal/advisory"
 	"io"
 	"os"
 	"path/filepath"
@@ -178,6 +179,7 @@ type ExcludedCandidate struct {
 
 // PickResult is the pick --json document root (CONTRACTS §5; SPEC D-17/D-18).
 type PickResult struct {
+	managed             bool
 	SchemaVersion       string              `json:"schema_version"` // "2.0"
 	UsageEnabled        bool                `json:"usage_enabled"`
 	UsageDisabledReason *string             `json:"usage_disabled_reason"` // null when enabled
@@ -234,6 +236,7 @@ type HistoryEntry struct {
 // additionalProperties false. Degraded mode omits band/snapshot_age_seconds/
 // confidence/last_verified (annex-c §5.1).
 type Evidence struct {
+	QuotaState         string              `json:"quota_state,omitempty"`
 	Profile            string              `json:"profile"`
 	ScoreInputs        map[string]float64  `json:"score_inputs"` // tier1 + category composite values (numbers)
 	Band               *BandEvidence       `json:"band,omitempty"`
@@ -278,6 +281,7 @@ type timeValue = time.Time
 // adapters (score rows, snapshots, evidence inputs). Single-threaded: set
 // at RunPick start, restored on exit.
 type runState struct {
+	managed        bool
 	fetchOptions   pickFetchOptions
 	cfg            *config.Config
 	strategyConfig strategy.Config
@@ -716,7 +720,31 @@ func buildEvidence(st *runState, top *Candidate, excluded []ExcludedCandidate) E
 		ev.ScoreInputs = inputs
 	}
 	ev.RouteProvenance = routeProvenanceForEvidence(st.routesByKey[candidateRouteKey(*top)].Provenance, st.usageEnabled)
+	if st.managed {
+		ev.QuotaState = pickQuotaReport(st, top).State
+	}
 	if !st.usageEnabled {
+		return ev
+	}
+	if st.managed {
+		snap := st.snapshots[top.Route.Provider]
+		if snap != nil {
+			age := int64(time.Since(snap.FetchedAt).Seconds())
+			if !snap.FetchedAt.IsZero() && age >= 0 {
+				ev.SnapshotAgeSeconds = &age
+			}
+			if snap.Confidence == "live" && snap.Source != usage.SourceCache && snap.Failure == nil && ev.QuotaState == advisory.Current {
+				ev.Confidence = "live"
+				ev.LastVerified = snap.FetchedAt.UTC().Format(time.RFC3339)
+			} else if snap.Confidence == "cached" || snap.Source == usage.SourceCache {
+				ev.Confidence = "cached"
+			}
+		}
+		if ev.QuotaState == advisory.Current || ev.QuotaState == advisory.Stale {
+			if advisory.HasCompleteWindows(snap, top.Route.WindowIDs) {
+				ev.Band = &BandEvidence{Name: top.Band, UsedPercent: st.bandUsedPercent[top.CandidateID], Weight: top.BandWeight}
+			}
+		}
 		return ev
 	}
 	ev.Band = &BandEvidence{Name: top.Band, UsedPercent: st.bandUsedPercent[top.CandidateID], Weight: top.BandWeight}
@@ -882,12 +910,18 @@ func FormatPickText(res *PickResult) string {
 	fmt.Fprintf(&b, "picked %s via %s (score %s)\n", top.Route.ModelID, top.Route.Provider, formatPickNumber(top.FinalScore))
 	fmt.Fprintf(&b, "  profile: %s\n", res.Profile)
 	fmt.Fprintf(&b, "  strategy: %s\n", res.Strategy)
-	if res.UsageEnabled && top.Band != "" {
+	if res.UsageEnabled && top.Band != "" && !res.managed {
 		used := res.bandUsedPercent[top.CandidateID]
 		fmt.Fprintf(&b, "  band: %s (%s%% used, weight %s)\n", top.Band, formatPickNumber(used), formatPickNumber(top.BandWeight))
 	}
 	if len(top.Warnings) > 0 {
-		fmt.Fprintf(&b, "  warnings: %d\n", len(top.Warnings))
+		if res.managed {
+			for _, warning := range top.Warnings {
+				fmt.Fprintf(&b, "  %s\n", warning)
+			}
+		} else {
+			fmt.Fprintf(&b, "  warnings: %d\n", len(top.Warnings))
+		}
 	}
 	return b.String()
 }
@@ -901,6 +935,10 @@ func formatPickNumber(v float64) string {
 // pick, UsageError on argument errors, CodedError for exit classes
 // 1/3/4/5/2 (F26 CONTRACTS §2, §4).
 func RunPick(args PickArgs, stdout, stderr io.Writer) error {
+	policy, policyErr := readCompanyPolicy()
+	if policyErr != nil {
+		return policyErr
+	}
 	// Selector validation (SPEC §2.1; T1).
 	switch {
 	case args.Profile == "" && args.TaskCategory == "":
@@ -946,7 +984,7 @@ func RunPick(args PickArgs, stdout, stderr io.Writer) error {
 			return err
 		}
 	}
-	st := &runState{cfg: cfg, strategyConfig: strategyConfig, profile: profile, dryRun: args.DryRun, scores: loadScoreRows(cfg), dataDir: stateDirFunc()}
+	st := &runState{managed: policy.Managed, cfg: cfg, strategyConfig: strategyConfig, profile: profile, dryRun: args.DryRun, scores: loadScoreRows(cfg), dataDir: stateDirFunc()}
 	st.fetchOptions = pickFetchOptions{Backend: cfg.Usage.Backend, Offline: args.Offline, Refresh: args.Refresh, MaxAge: args.MaxAge, Timeout: args.Timeout}
 	prev := pickRun
 	pickRun = st
@@ -1035,6 +1073,7 @@ func RunPick(args PickArgs, stdout, stderr io.Writer) error {
 	if len(cands) == 0 {
 		if args.JSON {
 			res := &PickResult{
+				managed:            st.managed,
 				SchemaVersion:      "2.0",
 				UsageEnabled:       enabled,
 				Profile:            profile,
@@ -1066,8 +1105,15 @@ func RunPick(args PickArgs, stdout, stderr io.Writer) error {
 		return classifyNoPick(excluded)
 	}
 	cands = survivors
+	if st.managed {
+		for i := range cands {
+			report := pickQuotaReport(st, &cands[i])
+			cands[i].Warnings = append(cands[i].Warnings, report.Message)
+		}
+	}
 
 	res := &PickResult{
+		managed:            st.managed,
 		SchemaVersion:      "2.0",
 		UsageEnabled:       enabled,
 		Profile:            profile,

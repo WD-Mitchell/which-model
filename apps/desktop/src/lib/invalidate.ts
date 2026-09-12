@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useQueryClient, type QueryKey } from '@tanstack/react-query'
-import type { EngineEvent } from '@which-model/core'
+import type { EngineEvent, RankResponse } from '@which-model/core'
 import { getHost } from './host'
 
 // U05 §2.12 / U00 CONTRACTS §5 — subscribe once per app root to every host
@@ -34,6 +34,9 @@ export function useEngineEvents(): void {
   useEffect(() => {
     const disposers = EVENTS.map((event) =>
       host.on(event, () => {
+        if (event === 'usage:updated' && qc.getQueriesData<RankResponse>({ queryKey: ['rank'] }).some(([, result]) => result?.recommendation_mode === 'score_only')) {
+          void qc.invalidateQueries({ queryKey: ['rank'] })
+        }
         for (const qkey of INVALIDATION[event]) {
           void qc.invalidateQueries({ queryKey: qkey })
         }

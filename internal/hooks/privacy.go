@@ -23,6 +23,9 @@ func companyAudit(policy company.Snapshot, doc auditDocument, opts Options) ([]b
 	if _, err := ctl.Maintain(layout, false, []privacy.Category{privacy.Audit}); err != nil {
 		return companyAuditFailure(), nil
 	}
+	if policy.Policy.Retention.AuditRecordsDays == 0 {
+		return MarshalEnvelope(Envelope{Decision: "approve", Reason: "Company audit retention is zero; no evidence was recorded. Dispatch remains advisory.", HookSpecificOutput: map[string]any{"audit_recorded": false, "audit_status": "disabled"}}), nil
+	}
 	data, err := json.Marshal(doc)
 	if err != nil {
 		return companyAuditFailure(), nil
@@ -43,7 +46,7 @@ func companyAudit(policy company.Snapshot, doc auditDocument, opts Options) ([]b
 			return companyAuditFailure(), nil
 		}
 	}
-	return MarshalEnvelope(Envelope{Decision: "approve", Reason: "dispatch evidence recorded", HookSpecificOutput: map[string]any{"evidence_logged": "managed audit store", "mismatch": mismatch}}), nil
+	return MarshalEnvelope(Envelope{Decision: "approve", Reason: "dispatch evidence recorded", HookSpecificOutput: map[string]any{"audit_recorded": true, "evidence_logged": "managed audit store", "mismatch": mismatch}}), nil
 }
 
 func companyAuditFailure() []byte {

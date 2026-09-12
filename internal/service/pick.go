@@ -35,6 +35,14 @@ var tier1KeySet = map[string]bool{"intelligence": true, "cost": true, "speed": t
 // RankResponse{Total: 0}, nil error (SPEC §2.5). Read-only; emits nothing.
 func (s *Services) Rank(ctx context.Context, req RankRequest) (RankResponse, error) {
 	_ = ctx
+	policy, policyErr := readCompanyPolicy()
+	if policyErr != nil {
+		return RankResponse{}, policyErr
+	}
+	mode := ""
+	if policy.Managed {
+		mode = "score_only"
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -45,7 +53,7 @@ func (s *Services) Rank(ctx context.Context, req RankRequest) (RankResponse, err
 
 	available := s.availableIdentities()
 	if len(available) == 0 {
-		return RankResponse{Candidates: []RankedModel{}, Total: 0}, nil
+		return RankResponse{Candidates: []RankedModel{}, Total: 0, RecommendationMode: mode}, nil
 	}
 
 	holds, err := s.effectiveHolds(req.Holds)
@@ -64,7 +72,7 @@ func (s *Services) Rank(ctx context.Context, req RankRequest) (RankResponse, err
 	result, err := pick.RankWithOptions(s.scores, profile, available, categories, pick.RankOptions{AllowIncomplete: gui.AllowIncompleteRecommendations})
 	var noCand *pick.NoCandidatesError
 	if errors.As(err, &noCand) {
-		return RankResponse{Candidates: []RankedModel{}, Total: 0}, nil
+		return RankResponse{Candidates: []RankedModel{}, Total: 0, RecommendationMode: mode}, nil
 	}
 	var rankErr *pick.RankingError
 	if errors.As(err, &rankErr) {
@@ -98,10 +106,14 @@ func (s *Services) Rank(ctx context.Context, req RankRequest) (RankResponse, err
 			cand.Provider = route.Provider
 			cand.ModelID = route.ModelID
 			cand.RouteKey = FormatRouteKey(route.Provider, route.ModelID, route.Reasoning)
+			if policy.Managed {
+				report := s.routeEvidenceLocked(route, time.Now())
+				cand.QuotaEvidence = &report
+			}
 		}
 		candidates = append(candidates, cand)
 	}
-	return RankResponse{Candidates: candidates, Total: result.CandidateCount}, nil
+	return RankResponse{Candidates: candidates, Total: result.CandidateCount, RecommendationMode: mode}, nil
 }
 
 // resolveProfile returns the effective engine profile: req.Overrides, if

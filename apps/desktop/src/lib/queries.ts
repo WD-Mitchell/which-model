@@ -97,6 +97,8 @@ export function useRank(
         holds,
       }),
     enabled: Boolean(slug),
+    // Re-evaluate company evidence age locally; ranking does not fetch usage.
+    refetchInterval: query => query.state.data?.recommendation_mode === 'score_only' ? 60_000 : false,
   })
 }
 

@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/shopspring/decimal"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/WD-Mitchell/which-model/internal/company"
 	"github.com/WD-Mitchell/which-model/internal/config"
 	"github.com/WD-Mitchell/which-model/internal/routing"
+	"github.com/WD-Mitchell/which-model/internal/usage"
 )
 
 // EmitFunc delivers an event to the host. Must be non-blocking (host's duty).
@@ -28,22 +30,24 @@ type EmitFunc func(event string, payload any)
 // unusable. One sync.RWMutex guards the config document, catalog caches, and
 // routes table; read methods take RLock for the whole read (B00 SPEC §2.2).
 type Services struct {
-	harnessHome       string // local discovery home; empty uses the OS home; tests isolate it
-	mu                sync.RWMutex
-	dataRefreshMu     sync.Mutex
-	paths             config.Paths
-	cfg               *config.Config
-	emit              EmitFunc
-	scores            []catalog.ScoreRow
-	rawValues         map[string]map[modelKey]decimal.Decimal // B05 §2.2: benchmark -> (model,reasoning) -> raw cell
-	benchConfig       *score.BenchmarkConfig
-	routes            routing.Table
-	warnings          []string
-	usageCacheDir     string
-	usageFetchMu      sync.Mutex
-	refresherOnce     sync.Once
-	dataRefresherOnce sync.Once
-	privacyOnce       sync.Once
+	harnessHome            string // local discovery home; empty uses the OS home; tests isolate it
+	mu                     sync.RWMutex
+	dataRefreshMu          sync.Mutex
+	paths                  config.Paths
+	cfg                    *config.Config
+	emit                   EmitFunc
+	scores                 []catalog.ScoreRow
+	rawValues              map[string]map[modelKey]decimal.Decimal // B05 §2.2: benchmark -> (model,reasoning) -> raw cell
+	benchConfig            *score.BenchmarkConfig
+	routes                 routing.Table
+	warnings               []string
+	usageCacheDir          string
+	usageObservations      map[string]usage.Snapshot
+	usageObservationMaxAge map[string]time.Duration
+	usageFetchMu           sync.Mutex
+	refresherOnce          sync.Once
+	dataRefresherOnce      sync.Once
+	privacyOnce            sync.Once
 	// recordPick records a profile pick after a successful harness launch
 	// (B07 SPEC §2.10). Wired to B04's RecordPick by New; Launch logs (never
 	// returns) a failure. Tests may override it.

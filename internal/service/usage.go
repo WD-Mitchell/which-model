@@ -59,6 +59,7 @@ func (u *UsageService) Snapshots(ctx context.Context, force bool) ([]UsageDTO, e
 	stateDir := s.paths.StateDir
 	s.mu.RUnlock()
 	if authErr != nil {
+		s.observeUsage(providers, nil, 0, authErr)
 		return nil, authErr
 	}
 	ok, reason := toggle.ResolveUsageEnabled(false, cfg)
@@ -85,6 +86,7 @@ func (u *UsageService) Snapshots(ctx context.Context, force bool) ([]UsageDTO, e
 		var err error
 		dir, err = cache.CacheDir()
 		if err != nil {
+			s.observeUsage(providers, nil, 0, err)
 			return nil, err
 		}
 	}
@@ -93,6 +95,7 @@ func (u *UsageService) Snapshots(ctx context.Context, force bool) ([]UsageDTO, e
 		maxAge = time.Minute
 	}
 	snaps, warns, err := fetch.FetchAll(ctx, providers, fetch.Options{Backend: backend, Enabled: enabled, MaxAge: maxAge, Timeout: 10 * time.Second, CacheDir: dir, StateDir: stateDir, DisableManagedKeychain: !auth.UseKeychain, NativeKeychain: auth.NativeKeychain, ShowIdentity: true})
+	s.observeUsage(providers, snaps, maxAge, err)
 	for _, w := range warns {
 		log.Printf("usage: %s", w.Message)
 	}
