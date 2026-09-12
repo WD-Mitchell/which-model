@@ -310,6 +310,8 @@ jobs:
           go-version-file: go.mod
           cache: true
       - run: go build ./cmd/which-model-desktop
+      - name: Verify desktop release discovery and version ordering
+        run: go test ./cmd/which-model-desktop -run TestReleaseUpdate -v -count=1
 
   desktop-frontend:
     # The web frontends (packages/*, apps/desktop) had zero CI: vitest and

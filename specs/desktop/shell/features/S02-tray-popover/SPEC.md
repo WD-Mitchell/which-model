@@ -96,6 +96,33 @@ The tray action is named `Refresh data`. It invokes B06's full refresh of the co
 The Profiles / Use Cases correction in `specs/desktop/backend/features/B03-profiles/SPEC.md` governs the new persisted profile selection and desktop terminology. The DTO extension is canonical in `specs/desktop/global/CONTRACTS.md`. Settings navigation now has both Profiles (curated defaults) and Use Cases (ranking presets).
 
 
+## Release update correction (#289, PR #315)
+
+The review finding in [PR #315](https://github.com/WD-Mitchell/which-model/pull/315#discussion_r3995707997)
+and the request to fix it supersede the tray's GitHub Latest lookup and
+any-different-tag update rule. GitHub Latest excludes the numeric prereleases
+required by global SPEC's product-maturity policy and can point to an older build.
+
+`Check for updates…` reads the repository's published release list, including
+prereleases, and selects the greatest full semantic version. Drafts and tags that
+are not full semantic versions are ignored. An optional `v` prefix is normalized;
+numeric components and prerelease identifiers use semantic ordering, while build
+metadata does not affect precedence. Only a strictly greater version is an update:
+the notice names it and the browser opens its specific release page. Equal or older
+published versions produce a notice without opening a browser. Empty, `dev`, and
+unrecognized build versions get manual-selection guidance and open the release
+list without a network lookup or an update/up-to-date claim.
+
+The action remains single-flight and runs off the UI thread. All pages share a
+10-second deadline. Fetch 100 releases per page, at most 10 pages and 4 MiB per
+page. A short page completes the listing; a limit, network/HTTP/JSON failure or no
+eligible release reports `could not check for updates`, never a result based on
+an incomplete list. Requests stay on the repository API; browser links are built
+from its release-page origin and the selected escaped tag. The action does not
+install software, promote maturity, or approve a company deployment.
+
+Pinned cases and the macOS CI command are in CONTRACTS' release update correction.
+
 ## Company-policy extension (#282)
 
 Desktop startup reads machine enrollment before creating default configuration or starting services. Missing, invalid or unprotected required policy uses the existing fatal-startup diagnostic. The origin cannot be changed through desktop path settings or environment variables.

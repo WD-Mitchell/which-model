@@ -231,6 +231,11 @@ numeric tag alone does not change maturity. All newly published GitHub releases
 are marked pre-release and are not promoted to GitHub Latest. npm retains its
 existing latest/numeric and beta/suffixed distribution channels; package
 descriptions and installation guidance identify pre-release product maturity.
+The desktop update action follows the published release list, including
+prereleases, and offers only a strictly greater semantic version with a link to
+that release. It cannot advertise an older historical Latest release as an update.
+Unversioned builds receive manual-selection guidance; S02's release update
+correction governs the lookup, limits, notices and regression cases.
 Historical releases/dist-tags are not rewritten by this change. Stable promotion
 requires a reviewed spec, documentation and metadata change together.
 
