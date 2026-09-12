@@ -50,3 +50,11 @@ Reports are especially valuable for issues involving:
 - malformed remote responses that bypass size, status, or schema checks.
 
 For non-sensitive defects and feature requests, use the public issue tracker instead.
+
+## Company deployment evidence
+
+The [company assessment package](docs/security/company-assessment.md) records
+mode-specific threat boundaries, framework editions, technical evidence and
+external owner decisions. Its tests and signatures are evidence for review, not
+certification or organisational approval. Update it when a security-sensitive
+behavior or trust boundary changes.

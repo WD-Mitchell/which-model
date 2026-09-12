@@ -15,6 +15,13 @@ Spec-as-source development. The specs in this tree are the source of truth for i
 3. [`global/TASK-FORMAT.md`](./global/TASK-FORMAT.md) — how tasks are written and what "done" means
 4. [`DEPENDENCY-GRAPH.md`](./DEPENDENCY-GRAPH.md) — feature DAG, parallel waves, milestone map
 
+## Company assurance
+
+[Global SPEC §15](global/SPEC.md#15-company-assurance-evidence-291) governs the
+[versioned assessment and exact evidence inventory](../docs/security/company-assessment.md).
+It separates product implementation, human review, release readiness and company
+acceptance across all four deployment modes.
+
 ## Feature index
 
 Every feature lives in `features/F<NN>-<slug>/` with three files:

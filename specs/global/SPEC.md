@@ -269,3 +269,19 @@ tag denotes stable maturity. The existing README pre-release statement remains
 authoritative until explicit maintainer promotion. The `go_version` frontmatter
 is corrected from the stale 1.23 value to the existing go.mod floor, 1.25; this
 does not raise the module requirement.
+
+## 15. Company assurance evidence (#291)
+
+The [versioned company assessment](../../docs/security/company-assessment.md)
+covers the restricted executable, managed native usage, approved CodexBar and
+agent integration separately. Evidence must identify its exact source, artifact
+and observed verification; planned work and successful signatures are not proof
+of security effectiveness or company acceptance. Human maintainer review and
+organisation decisions are recorded separately. Changes to trust boundaries,
+credential/data handling, execution or release trust update the assessment and
+relevant feature contracts in the changing PR.
+
+This is an assurance documentation contract, with no new runtime behavior. It
+retains optional managed policy, personal defaults, local OS/provider identity and
+advisory quota/audit semantics. Framework labels do not turn advisory reporting
+into a security-enforcement control.
