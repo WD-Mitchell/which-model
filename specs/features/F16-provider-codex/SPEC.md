@@ -80,3 +80,13 @@ Successful fetches set the existing `Snapshot.UsageKnown` field to whether any n
 | Mixed real and synthetic windows, when supported | `true` |
 | Synthetic-only windows, when supported | `false` |
 | Provider failure | `false` |
+
+
+## Company-policy extension (#282)
+
+Managed policy is checked before authoritative native auth/config-file reads and provider requests. Legacy device login checks provider-file persistence permission before starting, polling/exchanging and saving tokens; secure-store-only policy refuses that legacy persistence path until #283 supplies native secure persistence.
+
+This intentionally supersedes unrestricted operation for enrolled installations only;
+see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
+`TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
+and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.

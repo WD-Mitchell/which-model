@@ -45,6 +45,9 @@ func NewRootCmd() *cobra.Command {
 		panic(err)
 	}
 	cmd.PersistentPreRunE = func(c *cobra.Command, args []string) error {
+		if _, err := readCompanyPolicy(); err != nil {
+			return err
+		}
 		if err := Global.Normalize(); err != nil {
 			return err
 		}

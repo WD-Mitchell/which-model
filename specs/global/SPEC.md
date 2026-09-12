@@ -39,6 +39,7 @@ Layer 5: Integration   — agent skills, hooks, publishing
 
 | Package | Layer | Purpose |
 |---|---|---|
+| `internal/company` | 0 | Protected machine enrollment and independent policy authority |
 | `internal/config` | 0 | TOML config, env, flag resolution |
 | `internal/decimal` | 0 | `shopspring/decimal` wrappers, `ROUND_HALF_UP` |
 | `internal/output` | 0 | JSON/text/schema renderers |
@@ -223,3 +224,15 @@ profiles by SHA-256. Verification checks these bindings before installation.
 Catalog source/licensing approval and company acceptance are release-owner
 decisions distinct from artifact integrity. The build pipeline is capable of
 producing candidates; a passing candidate is not permission to distribute them.
+
+
+## 14. Optional administrator-managed policy (#282)
+
+Enrolled installations use the [F01 managed-policy contract](../features/F01-config/MANAGED-POLICY.md).
+Machine policy is independent of user/project/environment/flag configuration and is
+reloaded at sensitive operation boundaries. Required enrollment with missing or
+untrusted policy refuses restricted operations. Personal installations retain their
+existing behavior; the separate offline artifact still has no policy/config I/O.
+This foundation records retention and executable approvals; #283–#285 and #287
+complete secure-store, persistence and verified-execution consumers. Quota/audit
+failures remain advisory under the user decision for #286.

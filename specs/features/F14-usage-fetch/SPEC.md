@@ -89,3 +89,13 @@ Before reusing an online CodexBar cache entry for an explicitly requested source
 compare its original source with the request. Only then stamp the returned
 snapshot as cached. A mismatching cache entry causes live collection with the
 requested source. Explicit cache-only reads retain their existing policy.
+
+
+## Company-policy extension (#282)
+
+FetchAll checks protected policy before enabled-provider cache, credential or network activity, including direct callers and explicit backend/storage options. Disallowed providers and CodexBar delegation are refused. Disabled providers remain untouched. The guard is independent of ordinary configuration; per-provider API boundaries also recheck authorization.
+
+This intentionally supersedes unrestricted operation for enrolled installations only;
+see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
+`TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
+and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.

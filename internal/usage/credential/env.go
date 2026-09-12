@@ -26,6 +26,9 @@ type EnvResolver struct {
 // value with embedded whitespace/control characters is rejected, never
 // silently cleaned.
 func (r *EnvResolver) Resolve(ctx context.Context) (usage.Credential, error) {
+	if err := requireSource("environment"); err != nil {
+		return Credential{}, err
+	}
 	raw := os.Getenv(r.Var)
 	if strings.TrimSpace(raw) == "" {
 		return Credential{}, ErrNotFound

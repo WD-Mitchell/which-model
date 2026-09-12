@@ -80,3 +80,21 @@ project: which-model
 - Browser-cookie extraction and browser-handoff login (deferred to M5 by Decision D-4).
 - Credential persistence implementation: F12 owns `ManagedStore`; F25 only orchestrates it.
 - Provider-native credential stores: F25 never reads or writes them.
+
+
+## Device-login policy correction (#305)
+
+The CLI binds the selected provider to the shared device flow. Company policy
+errors from Start, Poll and credential persistence retain exit code 2 and their
+sanitized diagnostic; they are not converted into generic runtime failures.
+`TestAuthLoginPreservesCompanyPolicyErrors` pins all three stages. F12's request
+boundary tests pin revocation between polls.
+
+## Company-policy extension (#282)
+
+Auth login checks company provider authorization before starting a flow. Managed credential persistence rechecks storage permissions before using a keychain or file. Policy errors are configuration-class exit 2 and never echo credential input.
+
+This intentionally supersedes unrestricted operation for enrolled installations only;
+see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
+`TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
+and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.

@@ -407,6 +407,9 @@ func (h *HarnessService) BuildCommand(slug, modelID, reasoning string) (string, 
 // modes) the pick is recorded via the recordPick seam; a record failure is
 // logged, not returned (SPEC §2.9–2.10).
 func (h *HarnessService) Launch(ctx context.Context, slug, routeKey, profileSlug string) (LaunchResult, error) {
+	if err := requireCompanyCapability("harness_launch"); err != nil {
+		return LaunchResult{}, err
+	}
 	provider, modelID, reasoning, err := ParseRouteKey(routeKey)
 	if err != nil {
 		return LaunchResult{}, err

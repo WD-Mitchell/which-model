@@ -30,6 +30,15 @@ All resolvers operate only behind the §1a gates (binary built without `nousage`
 12. **Expiry helpers.** `ParseExpiry(v any) (time.Time, error)`: JSON number → seconds-vs-milliseconds heuristic (`> 10_000_000_000` = ms, prototype `resetText`, `usage-allowance-checks-spec.md` §1); string → RFC3339/RFC3339Nano or numeric string; anything else → error. `CheckExpired(exp, now) error`: `now.After(exp)` → `expired_credential` FailureError, else nil.
 13. **Build tags.** Every file in `internal/usage/credential/` carries `//go:build !nousage` (annex-a §1a.2). F21 provides the package-presence stub under `nousage`.
 
+## Device-flow policy correction (#305)
+
+CLI and desktop use `NewProviderDeviceFlow(provider, spec)`. Its private provider
+binding is checked against freshly loaded company policy before Start and every
+token request, including pending and slow-down retries. Direct unbound flows are
+refused in managed mode; personal `NewDeviceFlow` behavior remains available.
+Revocation or a required-policy error stops the next request with `*company.Error`.
+The pinned request and revocation cases are in CONTRACTS §7.
+
 ## Error behaviour
 
 All hard errors are `*usage.FailureError` with canonical codes: `credential_file`, `credential_json`, `unsafe_credential`, `expired_credential`, `keychain_unavailable`, `redirect_refused`, `unsupported_response`, `access_denied`, `device_expired`, `timeout` (device-flow request deadline), `provider_status` (non-2xx device endpoints), `network` (transport). `ErrNotFound` is a plain sentinel (never a FailureError). Messages are sanitised; every resolver carries a canary-token test proving its error paths never leak the token (global SPEC §6 invariant 5).
@@ -67,3 +76,13 @@ File candidates expand a leading `~/` using `os.UserHomeDir` and `$NAME` or `${N
 ## Review correction (#177)
 
 Keychain absence includes both the keyring not-found sentinel and `credential.ErrNotFound`, including wrapped errors. Both continue resolution as required by D12. Locked, denied, and unexpected errors remain sanitized `keychain_unavailable` failures.
+
+
+## Company-policy extension (#282)
+
+Credential resolution reloads protected company policy before source access. Managed chains skip forbidden sources; direct resolvers refuse them. An unavailable keychain cannot trigger a forbidden managed-file read, stat or write, and managed keychain saves do not silently delete legacy files. Legacy CLI credential commands remain unavailable in managed mode until verified execution is implemented. Personal fallback behavior is unchanged.
+
+This intentionally supersedes unrestricted operation for enrolled installations only;
+see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
+`TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
+and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.

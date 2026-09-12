@@ -105,3 +105,13 @@ This supersedes the initial four-entry spec and seven-entry implementation, firs
 Discovered gateways absent from the global catalog (for example Cline's gateway) remain in the harness provider map and numeric count. Detail shows a switch and `Configured in this harness`. This metadata does not add/enable a global provider or trigger usage reads. Explicit switches and bulk changes include these ids.
 
 Launch uses the current native effort controls: non-default Claude effort uses `--effort` (minimal is omitted because Claude does not accept it); Codex uses `-c model_reasoning_effort=…`. A default reasoning pick adds no effort override. Cline retains its configured OAuth adapter id when it differs from the canonical provider alias.
+
+
+## Company-policy extension (#282)
+
+Managed policy is checked before legacy shell launch, copy-mode history/log effects or provider-model discovery subprocesses. Those legacy executable paths remain unavailable in managed mode until #285 implements approved executable/argv handling; policy metadata alone cannot grant execution. Personal launch and discovery behavior remains unchanged. This permission boundary does not introduce a quota/auth-evidence/audit-write launch gate.
+
+This intentionally supersedes unrestricted operation for enrolled installations only;
+see the [F01 managed-policy contract](../../../../features/F01-config/MANAGED-POLICY.md). Pinned evidence:
+`TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
+and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.

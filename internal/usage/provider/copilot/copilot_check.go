@@ -4,6 +4,7 @@ package copilot
 
 import (
 	"context"
+	"github.com/WD-Mitchell/which-model/internal/company"
 	"net/http"
 	"slices"
 	"time"
@@ -19,6 +20,9 @@ import (
 // sources), then fetchUsage; Snapshot.Account = login. The usage call MUST
 // NOT happen unless ValidateIdentity succeeded in this same run (SPEC D3).
 func Fetch(ctx context.Context, cred usage.Credential, client *http.Client) (usage.Snapshot, error) {
+	if err := company.Authorize("copilot", "", ""); err != nil {
+		return usage.Snapshot{}, err
+	}
 	if cred.Token == "" {
 		return usage.Snapshot{
 			Provider: "copilot",

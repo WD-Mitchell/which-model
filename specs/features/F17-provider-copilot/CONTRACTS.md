@@ -247,3 +247,13 @@ Successful fetches set the existing `Snapshot.UsageKnown` field to whether any n
 | Mixed real and synthetic windows, when supported | `true` |
 | Synthetic-only windows, when supported | `false` |
 | Provider failure | `false` |
+
+
+## Company-policy extension (#282)
+
+Provider authorization is rechecked before fetching Copilot allowance or sending identity/device-flow requests. The managed credential-store boundary independently prevents forbidden plaintext fallback. Existing provider identity validation and private-endpoint limitations remain unchanged.
+
+This intentionally supersedes unrestricted operation for enrolled installations only;
+see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
+`TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
+and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.

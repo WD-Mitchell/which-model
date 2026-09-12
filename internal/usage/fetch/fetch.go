@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/WD-Mitchell/which-model/internal/company"
 	"net/http"
 	"sort"
 	"strings"
@@ -58,6 +59,7 @@ type Options struct {
 }
 
 var (
+	readCompanyPolicy        = company.Load
 	codexbarFetch            = codexbar.FetchWithSource
 	codexbarFetchEnvironment = codexbar.FetchWithSourceEnvironment
 )
@@ -66,6 +68,29 @@ var (
 // enabled-provider gate. An unset backend retains the native implementation
 // for direct callers; config.Default selects off.
 func FetchAll(ctx context.Context, providers []string, opts Options) ([]usage.Snapshot, []credential.Warning, error) {
+	policy, err := readCompanyPolicy()
+	if err != nil {
+		return nil, nil, err
+	}
+	if opts.Backend != config.UsageBackendOff {
+		for _, id := range providers {
+			if opts.Enabled[id] {
+				if err := policy.RequireProvider(id); err != nil {
+					return nil, nil, err
+				}
+			}
+		}
+		if opts.Backend == config.UsageBackendCodexBar {
+			if err := policy.RequireCapability("codexbar"); err != nil {
+				return nil, nil, err
+			}
+		}
+		if opts.DisableManagedKeychain {
+			if err := policy.RequireSource("managed_file"); err != nil {
+				return nil, nil, err
+			}
+		}
+	}
 	switch opts.Backend {
 	case config.UsageBackendOff:
 		return nil, nil, nil

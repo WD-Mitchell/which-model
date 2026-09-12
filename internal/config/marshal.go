@@ -12,6 +12,9 @@ import (
 )
 
 func (c *Config) MarshalTOML() ([]byte, error) {
+	if err := c.ValidateManaged(); err != nil {
+		return nil, err
+	}
 	doc := make(map[string]any)
 	usage := make(map[string]any)
 	switch c.Usage.Enabled {

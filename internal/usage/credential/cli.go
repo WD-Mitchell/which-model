@@ -34,6 +34,9 @@ type CLIResolver struct {
 // to fall through to the next source when a CLI is missing, slow, or
 // malformed (SPEC §5, D5). Command output never leaks into errors.
 func (r *CLIResolver) Resolve(ctx context.Context) (usage.Credential, error) {
+	if err := requireSource("cli"); err != nil {
+		return Credential{}, err
+	}
 	cap := int64(MaxCLIOutputBytes)
 	if r.MaxOutputBytes > 0 {
 		cap = r.MaxOutputBytes
@@ -71,8 +74,8 @@ func (r *CLIResolver) Resolve(ctx context.Context) (usage.Credential, error) {
 // maxBufferWriter accumulates stdout up to max bytes and then fails the
 // write, aborting the copy loop (io.LimitedReader-style capping).
 type maxBufferWriter struct {
-	buf    bytes.Buffer
-	max    int64
+	buf     bytes.Buffer
+	max     int64
 	overCap bool
 }
 

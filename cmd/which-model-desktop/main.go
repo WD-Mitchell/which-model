@@ -13,6 +13,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/WD-Mitchell/which-model/internal/company"
 	"io/fs"
 	"log"
 	"os"
@@ -33,6 +34,10 @@ import (
 const fatalStartupTitle = "which-model can't start"
 
 func main() {
+	if _, err := company.Load(); err != nil {
+		fatalStartup(nil, fatalStartupTitle, err.Error())
+		return
+	}
 	// 1. Resolve config paths.
 	home, _ := os.UserHomeDir()
 	paths := config.ResolvePaths(runtime.GOOS, home, os.Getenv)

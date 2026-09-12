@@ -94,3 +94,13 @@ The tray action is named `Refresh data`. It invokes B06's full refresh of the co
 ## Correction (2026-09-05)
 
 The Profiles / Use Cases correction in `specs/desktop/backend/features/B03-profiles/SPEC.md` governs the new persisted profile selection and desktop terminology. The DTO extension is canonical in `specs/desktop/global/CONTRACTS.md`. Settings navigation now has both Profiles (curated defaults) and Use Cases (ranking presets).
+
+
+## Company-policy extension (#282)
+
+Desktop startup reads machine enrollment before creating default configuration or starting services. Missing, invalid or unprotected required policy uses the existing fatal-startup diagnostic. The origin cannot be changed through desktop path settings or environment variables.
+
+This intentionally supersedes unrestricted operation for enrolled installations only;
+see the [F01 managed-policy contract](../../../../features/F01-config/MANAGED-POLICY.md). Pinned evidence:
+`TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
+and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.
