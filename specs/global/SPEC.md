@@ -162,3 +162,48 @@ decision does not remove native permissions or approved-executable requirements.
 Clarification: this section defines the deployment trust boundary; it changes no
 credential resolution, runtime quota handling or canonical API contract in #281.
 Provider permission and company acceptance are separate evidence requirements.
+
+## 12. Verified CLI release distribution (#288)
+
+Correction to §9: fallback installation additionally requires signed GitHub/Sigstore
+SLSA v1 provenance. Checksums alone no longer authorise installation. The trusted
+repository is `WD-Mitchell/which-model`, the signer is its
+`.github/workflows/npm-release.yml`, and the source ref and full commit must match
+the release policy stamped into the npm launcher. GitHub-hosted runners and the
+GitHub Actions OIDC issuer are required. GitHub CLI 2.97.0 or later supplies the
+cryptographic verifier; an absent/failing verifier leaves no runnable fallback.
+The optional npm platform package remains verified through npm registry integrity
+and provenance. No company signing service is added.
+
+The build emits a CycloneDX 1.6 SBOM for each CLI binary from its embedded Go
+build information, with the artifact digest, linked modules and Go runtime. The
+repository-owned generator is versioned with the source; no guessed licences or
+transitive dependency graph are emitted. Release provenance covers binaries,
+SBOMs, per-binary vulnerability reports, checksum list and release manifest.
+A signed manifest binds the version, full source revision/ref and artifact/SBOM
+digests. Release jobs independently
+verify the downloaded artifacts before publishing or packaging.
+
+Review correction (#301): whole-release verification requires each binary's
+signed `govulncheck` report and rejects missing or altered reports before
+publication. Exact-version npm verification also checks the original tarball's
+SHA-512 subject and OIDC-derived certificate identity using GitHub CLI. Repository,
+workflow, tag, source commit, issuer and hosted runner policy are enforced on the
+certificate; matching workflow-controlled predicate claims alone cannot pass.
+
+Release tests/builds use pinned Go 1.26.8 (the scanner requires Go 1.26+).
+Release evidence records `govulncheck` v1.8.0 binary scans and exact npm package
+provenance assessment. Scanner errors/findings stop release publication; this is
+a release-integrity gate, not a runtime quota or audit launch gate. Manual
+verification-only runs may produce signed candidate artifacts and evidence but
+never create tags, publish GitHub releases or publish npm packages.
+
+Installers stage candidate bytes outside the launcher path (0600 on POSIX;
+Windows uses the package directory ACL), never execute the candidate, verify
+checksum, source identity and signature, then atomically expose the executable. A matching verification receipt and
+current digest are required when the npm launcher uses a local fallback; stale
+or unverified leftovers are refused.
+Failures clean staging and preserve the existing best-effort npm-install exit
+behaviour with an actionable warning. Offline verification requires an approved
+source revision/ref, the bundle and independently obtained Sigstore trust roots;
+unavailable evidence is not a reason to skip verification.

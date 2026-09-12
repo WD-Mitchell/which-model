@@ -39,3 +39,6 @@ build windows amd64 which-model-windows-x64.exe
   done
 )
 echo "wrote ${DIST}/checksums.txt"
+SOURCE_COMMIT="$(git rev-parse HEAD)"
+SOURCE_REF="${GITHUB_REF:-$(git symbolic-ref HEAD)}"
+python3 scripts/release_metadata.py "$DIST" "$VERSION" "$SOURCE_COMMIT" "$SOURCE_REF"

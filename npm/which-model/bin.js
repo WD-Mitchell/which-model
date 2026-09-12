@@ -52,7 +52,16 @@ function resolveBinary() {
   //    directory or the package's bin directory (used when the optional dep
   //    could not be installed and install.js downloaded a GitHub release asset).
   const local = path.join(__dirname, BINARY_NAME);
-  if (fs.existsSync(local)) return local;
+  if (fs.existsSync(local)) {
+    try {
+      const { hasVerifiedFallback } = require("./verify-release");
+      const policy = require("./release-policy.json");
+      const receipt = JSON.parse(fs.readFileSync(path.join(__dirname, ".which-model-verification.json"), "utf8"));
+      const asset = `which-model-${WINDOWS ? "windows" : process.platform}-${process.arch}${WINDOWS ? ".exe" : ""}`;
+      if (hasVerifiedFallback(local, asset, policy, receipt, require("./package.json").version)) return local;
+    } catch (_) { /* missing/unreadable evidence is not an executable fallback */ }
+    fail("the fallback binary lacks matching verification evidence; reinstall the verified platform package.");
+  }
 
   return null;
 }
