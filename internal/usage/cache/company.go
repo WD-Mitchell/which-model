@@ -47,5 +47,8 @@ func (s *Store) companyRead(c privacy.Controller, id string, ttl time.Duration) 
 	if json.Unmarshal(data, &record) != nil {
 		return usage.Snapshot{}, false, ErrCacheMiss
 	}
-	return record.Snapshot, time.Since(record.FetchedAt) > ttl, nil
+	// An observation the producer marked stale cannot become current merely by
+	// writing it recently or increasing the cache TTL. Online callers refetch;
+	// offline callers retain this flag without changing the recording clock.
+	return record.Snapshot, record.Snapshot.Stale || time.Since(record.FetchedAt) > ttl, nil
 }

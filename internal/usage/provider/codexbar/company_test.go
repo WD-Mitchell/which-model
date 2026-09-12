@@ -134,7 +134,12 @@ func TestCompanyCodexBarDelegatesOnlyAntigravityCredential(t *testing.T) {
 func TestCompanyCodexBarOutputAndTimeoutMatrix(t *testing.T) {
 	for _, scenario := range []string{"web-alias", "wrong-provider", "duplicate", "wrong-source", "unknown-source", "invalid-time", "bad-exit", "provider-error", "oversized", "invalid-json", "timeout"} {
 		t.Run(scenario, func(t *testing.T) {
-			companyFixture(t)
+			p := companyFixture(t)
+			provider := "claude"
+			if scenario == "web-alias" {
+				provider = "codex"
+				p.AllowedProviders = append(p.AllowedProviders, provider)
+			}
 			budget := 5 * time.Second
 			if scenario == "timeout" {
 				budget = 20 * time.Millisecond
@@ -145,7 +150,7 @@ func TestCompanyCodexBarOutputAndTimeoutMatrix(t *testing.T) {
 				data := companyPayload("claude", "web")
 				switch scenario {
 				case "web-alias":
-					data = companyPayload("claude", "openai-web")
+					data = companyPayload(provider, "openai-web")
 				case "wrong-provider":
 					data = companyPayload("codex", "web")
 				case "duplicate":
@@ -172,7 +177,7 @@ func TestCompanyCodexBarOutputAndTimeoutMatrix(t *testing.T) {
 				}
 				return nil
 			}
-			snap, err := FetchWithSource(ctx, "claude", usage.SourceWeb)
+			snap, err := FetchWithSource(ctx, provider, usage.SourceWeb)
 			if scenario == "web-alias" {
 				if err != nil || snap.Failure != nil || snap.Source != usage.SourceWeb {
 					t.Fatalf("web source alias lost: %+v %v", snap, err)

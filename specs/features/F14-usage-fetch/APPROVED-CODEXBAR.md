@@ -50,11 +50,59 @@ Company output is at most 1 MiB; stderr is discarded. The existing 30-second ada
 ceiling and earlier caller deadline remain, with a one-second wait bound for pipes.
 Timeout/cancellation/output/parse/process errors have fixed messages. Require the
 requested provider; never relabel a different provider's single result. An explicit
-source must match normalized returned provenance. A nonzero exit cannot produce a
+source must be compatible with normalized returned provenance as defined below. A nonzero exit cannot produce a
 successful snapshot. Duplicate provider results and unknown source labels are
-refused. Invalid/future provider timestamps stay stale; openai-web maps to web. Provider error text is replaced with fixed code-based text.
+refused. Invalid/future provider timestamps stay stale. Provider error text is replaced with fixed code-based text.
 Cache writes, freshness overrides, forced-source cache eligibility and offline
 reads retain F13/F14 behavior and #284 minimization/retention.
+
+## Source and cache correction (PR #314 review)
+
+Decision: the requester approved fixes for both review findings on PR #314.
+Provider labels describe the strategy actually used, which can differ from the
+upstream source selector. The company adapter accepts the canonical live labels
+`oauth`, `api`, `web`, `cli`, and `local`, plus these reviewed provider-specific
+aliases (case-insensitive labels; provider IDs remain exact):
+
+| Provider | Returned labels | Canonical source | Compatible explicit selector |
+|---|---|---|---|
+| Antigravity | `app`, `ide` | `local` | `cli` |
+| Codex | `pat` | `api` | `api` |
+| Codex | `openai-web` | `web` | `web` |
+| Codex | `codex-cli` | `cli` | `cli` |
+| Claude | `claude`, `claude-cli` | `cli` | `cli` |
+| Claude | `admin-api` | `api` | `api` |
+| Windsurf | `windsurf-web` | `web` | `web` |
+
+Antigravity and Windsurf's `cli` selector includes local probes. Preserve their
+`local` provenance for both live results and cache eligibility; do not relabel it
+as a CLI execution. Otherwise explicit selectors must equal the canonical source.
+Auto accepts any recognized source. An alias cannot be borrowed from another
+provider, and unlisted labels (including upstream `offline`) remain refused.
+Personal normalization and native credential-source filtering are unchanged.
+This corrects the earlier global alias list and strict selector equality using the
+pinned upstream Antigravity, Codex, Claude, and Windsurf provider descriptors and
+CLI result serialization.
+
+Company cache eligibility combines the original producer `Snapshot.Stale` flag
+with the outer recording-time TTL. Missing, invalid, or future provider timestamps
+marked stale by the adapter remain stale through persistence and offline or
+`--source cache` reads, even after increasing `--max-age` or the wall clock passing
+a formerly future timestamp. Online reads refetch producer-stale observations;
+they do not label them current using the cache recording time. A successful new
+observation may replace them. Both native and delegated consumers use this shared
+company-cache rule. Retention continues to use the original application recording
+time, and personal cache semantics are unchanged.
+
+Pinned regressions: `TestCompanyCodexBarProviderSourceLabels` exercises auto and
+forced sources against actual labels, `TestCompanyCodexBarSourceAliasesStayProviderBound`
+rejects borrowed/unrecognized labels, `TestCompanyCodexBarLocalCacheMatchesCLIMode`
+checks cached local provenance, and `TestCompanyCacheProducerStaleness` checks
+current/missing/future/producer-stale observations under multiple TTLs.
+`TestNativeCompanyCodexBarApprovalCache` runs the approved child through FetchAll
+and the company cache on the existing three-platform native CI fixture: local
+app provenance, invalid timestamp, offline/cache-only no-child reads, and online
+refetch. The fixture carries only synthetic quota data.
 
 ## Limits and evidence
 

@@ -36,6 +36,12 @@ func TestMain(m *testing.M) {
 		if os.WriteFile(cfg.FixtureOutput, data, 0600) != nil {
 			os.Exit(10)
 		}
+		for i := 1; i+1 < len(os.Args); i++ {
+			if os.Args[i] == "--source" && os.Args[i+1] == "cli" {
+				os.Stdout.WriteString(`[{"provider":"antigravity","source":"app","usage":{"updatedAt":"bad","primary":{"usedPercent":25}}}]`)
+				os.Exit(0)
+			}
+		}
 		os.Stdout.WriteString(companyPayload("antigravity", "oauth"))
 		os.Exit(0)
 	}

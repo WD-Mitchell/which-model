@@ -97,6 +97,21 @@ application text. The resulting typed snapshot follows the
 [company privacy/retention inventory](privacy-and-retention.md); CodexBar's own
 stores, refresh writes and child processes are outside which-model cleanup.
 
+Returned source labels are normalized per provider: Antigravity `app`/`ide` are
+local evidence; Codex `pat`, `openai-web`, and `codex-cli` are API, web, and CLI;
+Claude `admin-api` is API and `claude`/`claude-cli` are CLI; Windsurf `windsurf-web`
+is web. Antigravity and Windsurf's CLI source selector permits their local probes,
+including when matching a cached observation. Other explicit selections must
+match the canonical source. Aliases from a different provider and unlisted labels
+are refused; the [source contract](../../specs/features/F14-usage-fetch/APPROVED-CODEXBAR.md#source-and-cache-correction-pr-314-review)
+records the reviewed mapping and tests.
+
+Company caches retain producer staleness independently of cache age. Offline and
+explicit cache reads preserve bad-timestamp warnings; online requests fetch a new
+observation. Increasing the cache age allowance cannot make a producer-stale
+observation current. A valid new response may replace it, and retention still
+uses the application's recording timestamp.
+
 Approval verification is implemented and tested on macOS, Windows and Linux.
 The reviewed upstream revision documents macOS/Linux CLI distributions; native
 Windows CI uses a synthetic executable to test which-model's controls. It does not
