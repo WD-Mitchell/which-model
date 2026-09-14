@@ -67,8 +67,9 @@ BODY
 git push origin "HEAD:refs/heads/${HEAD_BRANCH}"
 # Configured labels are passed as separate, shell-quoted arguments by the renderer.
 gh pr create --base "$BASE_BRANCH" --head "$HEAD_BRANCH" --title "$PR_TITLE" --body-file "$work_dir/pr.md" "$@"
-[ "$(gh pr view "$HEAD_BRANCH" --json assignees --jq '.assignees | length')" = 0 ] || {
-  echo 'Automated data-update PR must have no assignees'; exit 1;
+assignee_count=$(gh pr view "$HEAD_BRANCH" --json assignees --jq '.assignees | length')
+[ "$assignee_count" = 0 ] || {
+  echo "Automated data-update PR must have no assignees, found $assignee_count"; exit 1;
 }
 gh pr view "$HEAD_BRANCH" --json closingIssuesReferences --jq '.closingIssuesReferences[].number' | grep -Fx "$issue_number"
 # Only retire previous refreshes once their replacement exists and is verified.
