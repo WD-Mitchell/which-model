@@ -146,3 +146,8 @@ by B05. Save validates with `pick.ValidateProfileWithCategories`; Rank calls
 `pick.RankWithOptions`, supplying canonical categories union config group slugs
 and the saved partial-data policy. Unregistered categories
 remain invalid. See `specs/features/F10-ranking/CONTRACTS.md` §Correction.
+
+
+## Company advisory evidence correction (#286)
+
+Decision: quota, usage-authentication and audit evidence failures do not need to block launches. The optional managed profile uses advisory reporting; personal defaults remain unchanged. Company Rank remains pure model-score ranking. It sets recommendation_mode=score_only and each candidate quota_evidence to the selected route's independent global §15 report. All scores/order/availability/provider priority rules remain unchanged. Reporting uses only the latest in-memory usage collection; restart begins with missing evidence. Tests: `TestCompanyRankLabelsWithoutChangingScores`, `TestCompanySelectedRouteKeepsIndependentEvidence`.

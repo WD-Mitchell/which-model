@@ -74,6 +74,16 @@ func Run(name string, passthrough []string, opts Options) ([]byte, error) {
 
 // dispatch interprets the underlying run per hook (SPEC behaviours 5–8).
 func dispatch(h Hook, code int, out []byte, opts Options) ([]byte, error) {
+	policy, err := readPrivacyPolicy()
+	if err != nil {
+		if h.ID == "model-audit" {
+			return companyAuditFailure(), nil
+		}
+		return MarshalEnvelope(Envelope{Decision: "approve", Reason: "Company evidence is unavailable; dispatch remains advisory.", HookSpecificOutput: map[string]any{"evidence_available": false}}), nil
+	}
+	if policy.Managed {
+		return companyDispatch(policy, h, code, out, opts)
+	}
 	switch h.ID {
 	case "usage-refresh":
 		if code != 0 {
