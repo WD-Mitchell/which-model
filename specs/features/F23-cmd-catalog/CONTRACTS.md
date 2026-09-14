@@ -411,3 +411,10 @@ accessor guidance that contradicted F01's table-only contract.
 `catalog refresh --rebuild` sets `CollectOptions.Rebuild bool`. It bypasses the model-catalog TTL and does not read or merge previous raw observations, so collection and derivation rebuild data from the current configured sources. Existing raw data is backed up before replacement. `--rebuild` with a `--provider` subset is a usage error. Ordinary refresh retains its existing merge policy. This explicit option implements the 2026-09-05 request for desktop Refresh data to perform a full rebuild.
 
 Pinned tests: `TestCatalogRebuildBypassesCachedModelsAndOldRawData` (fresh-but-stale model cache and corrupt old raw CSV are replaced from current sources), `TestCatalogRefreshRebuildFlagReachesCollector` (flag reaches the collector).
+
+## Deviations / secure-store correction (#283)
+
+Company Artificial Analysis API-key operations require artificial-analysis provider permission and approved sources. Native keychain is preferred; hard store failures cannot fall through to files. Company API requests use only fixed canonical URLs. No catalog key is exported into process environment.
+The [secure-store contract](../F12-credentials/SECURE-STORES.md) supersedes earlier company-mode storage
+wording under the approved optional-profile decision. Personal defaults remain
+unchanged. Native tests and migration/fallback canaries are required evidence.

@@ -18,14 +18,14 @@ func TestAuthCommandRegistered(t *testing.T) {
 
 func TestAuthCommandShape(t *testing.T) {
 	cmd := NewAuthCmd()
-	if cmd.Name() != "auth" || cmd.Use != "auth status|login|logout" {
+	if cmd.Name() != "auth" || cmd.Use != "auth status|login|logout|migrate" {
 		t.Fatalf("auth shape = %q %q", cmd.Name(), cmd.Use)
 	}
 	var names []string
 	for _, child := range cmd.Commands() {
 		names = append(names, child.Name())
 	}
-	want := []string{"status", "login", "logout"}
+	want := []string{"status", "login", "logout", "migrate"}
 	if strings.Join(names, " ") != strings.Join(want, " ") {
 		t.Fatalf("subcommands = %v, want %v", names, want)
 	}

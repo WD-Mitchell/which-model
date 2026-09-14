@@ -164,18 +164,28 @@ func failureSnapshot(e *Error, now time.Time) (usage.Snapshot, error) {
 }
 
 // Fetch is the FetchFunc port of checkCodexUsage (codex.mjs:102-117) per SPEC
-// §2.5-§2.9, §2.12. The operational credential always comes from the verbatim
-// loader (D1); cred is advisory. Provider failures are returned as
-// (Snapshot{Provider:"codex", Failure: ...}, nil); the error return is
+// §2.5-§2.9, §2.12. Explicit native/company credentials carry their resolved
+// storage source; other credentials use the verbatim loader (D1). Provider
+// failures are returned as (Snapshot{Provider:"codex", Failure: ...}, nil); the error return is
 // reserved for programming errors. The trusted origin is read from ctx
 // (WithTrustedOrigin).
 func Fetch(ctx context.Context, cred usage.Credential, client *http.Client) (usage.Snapshot, error) {
-	if err := company.Authorize("codex", "", ""); err != nil {
+	managedSource := cred.Extra["managed_store"]
+	if managedSource != "keychain" && managedSource != "managed_file" {
+		managedSource = ""
+	}
+	if err := company.Authorize("codex", managedSource, ""); err != nil {
 		return usage.Snapshot{}, err
 	}
 	now := time.Now().UTC()
-	authPath, configPath := resolveCredentialPaths()
-	credential, err := LoadCredential(authPath, configPath)
+	var credential Credential
+	var err error
+	if managedSource != "" {
+		credential, err = managedFetchCredential(cred)
+	} else {
+		authPath, configPath := resolveCredentialPaths()
+		credential, err = LoadCredential(authPath, configPath)
+	}
 	if err != nil {
 		var ce *Error
 		if errors.As(err, &ce) {

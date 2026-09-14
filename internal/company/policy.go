@@ -48,17 +48,18 @@ type Executable struct {
 }
 
 type Policy struct {
-	SchemaVersion         int            `json:"schema_version"`
-	Name                  string         `json:"name"`
-	AllowedProviders      []string       `json:"allowed_providers"`
-	CredentialSources     []string       `json:"credential_sources"`
-	SecureStoreOnly       bool           `json:"secure_store_only"`
-	IdentityFree          bool           `json:"identity_free"`
-	Retention             Retention      `json:"retention"`
-	Integrations          Integrations   `json:"integrations"`
-	Executables           []Executable   `json:"executables"`
-	CodexBarInstallations []Installation `json:"codexbar_installations"`
-	AllowCustomShell      bool           `json:"allow_custom_shell"`
+	SchemaVersion            int            `json:"schema_version"`
+	Name                     string         `json:"name"`
+	AllowedProviders         []string       `json:"allowed_providers"`
+	CredentialSources        []string       `json:"credential_sources"`
+	SecureStoreOnly          bool           `json:"secure_store_only"`
+	IdentityFree             bool           `json:"identity_free"`
+	Retention                Retention      `json:"retention"`
+	Integrations             Integrations   `json:"integrations"`
+	Executables              []Executable   `json:"executables"`
+	CodexBarInstallations    []Installation `json:"codexbar_installations"`
+	AllowCustomShell         bool           `json:"allow_custom_shell"`
+	AllowCredentialMigration bool           `json:"allow_credential_migration"`
 }
 
 type Snapshot struct {
@@ -327,6 +328,8 @@ func (s Snapshot) RequireCapability(capability string) error {
 		allowed = s.Policy.Integrations.HookInstallation
 	case "hook_use":
 		allowed = s.Policy.Integrations.HookUse
+	case "credential_migration":
+		allowed = s.Policy.AllowCredentialMigration
 	// Legacy launch/delegation cannot treat metadata as an executable approval.
 	// #285/#287 replace these guards with their verified operation implementations.
 	case "harness_launch", "codexbar":

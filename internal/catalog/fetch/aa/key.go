@@ -3,6 +3,9 @@ package aa
 import (
 	"errors"
 	"fmt"
+	"github.com/WD-Mitchell/which-model/internal/company"
+	"github.com/WD-Mitchell/which-model/internal/securestore"
+	"github.com/WD-Mitchell/which-model/internal/security"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,8 +27,37 @@ const APIKeyEnv = "ARTIFICIAL_ANALYSIS_API"
 // .env problems (unreadable file, malformed line, duplicate entry) are
 // credential_file errors whose text never echoes the key value.
 func LoadAAAPIKey(repoRoot string) (string, error) {
-	if v := strings.TrimSpace(os.Getenv(APIKeyEnv)); v != "" {
-		return v, nil
+	policy, err := company.Load()
+	if err != nil {
+		return "", err
+	}
+	if err := policy.RequireProvider(securestore.CatalogAccount); err != nil {
+		return "", err
+	}
+	if policy.RequireSource("environment") == nil {
+		if v := strings.TrimSpace(os.Getenv(APIKeyEnv)); v != "" {
+			if policy.Managed {
+				if err := security.ValidateOpaqueToken(v); err != nil {
+					return "", err
+				}
+			}
+			return v, nil
+		}
+	}
+	if policy.Managed && policy.RequireSource("keychain") == nil {
+		value, err := securestore.Native().Get(securestore.CatalogService, securestore.CatalogAccount)
+		if err == nil {
+			if err := security.ValidateOpaqueToken(value); err != nil {
+				return "", err
+			}
+			return value, nil
+		}
+		if !errors.Is(err, &securestore.Error{Kind: securestore.Missing}) {
+			return "", err
+		}
+	}
+	if err := policy.RequireSource("provider_file"); err != nil {
+		return "", fetch.MissingAPIKeyError()
 	}
 
 	path := filepath.Join(repoRoot, ".env")

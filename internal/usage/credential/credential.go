@@ -101,7 +101,7 @@ func resolverFor(s usage.AuthSource) (Resolver, bool) {
 		if s.Keychain == nil {
 			return nil, false
 		}
-		return &KeychainResolver{Store: DefaultKeychain(), Service: s.Keychain.Service, Account: s.Keychain.Account}, true
+		return &KeychainResolver{Store: KeychainFor(false), Service: s.Keychain.Service, Account: s.Keychain.Account}, true
 	case usage.AuthOAuthDeviceFlow:
 		return deviceFlowResolver{}, true
 	default:

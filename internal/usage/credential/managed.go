@@ -14,6 +14,7 @@ import (
 	"runtime"
 
 	"github.com/WD-Mitchell/which-model/internal/config"
+	"github.com/WD-Mitchell/which-model/internal/securestore"
 	"github.com/WD-Mitchell/which-model/internal/security"
 	"github.com/WD-Mitchell/which-model/internal/usage"
 )
@@ -25,16 +26,21 @@ const managedCredentialSourceAPIKey = "api_key"
 var managedProviderPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 
 type managedCredentialFile struct {
-	Token  string `json:"token"`
-	Source string `json:"source,omitempty"`
+	Token  string            `json:"token"`
+	Source string            `json:"source,omitempty"`
+	Extra  map[string]string `json:"extra,omitempty"`
 }
 
 // ManagedStore persists credentials created by which-model. The OS keychain
-// is preferred when enabled; its absence degrades to a private state file.
+// is preferred when enabled. Personal legacy mode may use a private state file;
+// company secure-store-only mode never permits that fallback.
 type ManagedStore struct {
-	StateDir    string
-	Keychain    ManagedKeychainStore
-	UseKeychain bool
+	StateDir       string
+	Keychain       ManagedKeychainStore
+	UseKeychain    bool
+	NativeKeychain bool
+	secureOnly     bool
+	keepLegacy     bool
 }
 
 // Path returns the fallback credential path, resolving the platform state
@@ -59,11 +65,11 @@ func (s ManagedStore) keychain() ManagedKeychainStore {
 	if s.Keychain != nil {
 		return s.Keychain
 	}
-	return DefaultKeychain()
+	return KeychainFor(s.NativeKeychain)
 }
 
 // Save validates and persists an OAuth token without including credential
-// material in any error. A keychain write failure falls back to the state file.
+// material in any error. Personal legacy mode may fall back to the state file.
 func (s ManagedStore) Save(provider, token string) error {
 	return s.save(provider, token, "")
 }
@@ -75,6 +81,32 @@ func (s ManagedStore) SaveAPIKey(provider, token string) error {
 }
 
 func (s ManagedStore) save(provider, token, source string) error {
+	return s.saveRecord(provider, managedCredentialFile{Token: token, Source: source})
+}
+
+// SaveCredential preserves only metadata required by native usage adapters.
+func (s ManagedStore) SaveCredential(provider string, cred usage.Credential) error {
+	source := ""
+	if cred.Source == usage.AuthEnvVar {
+		source = managedCredentialSourceAPIKey
+	}
+	extra := make(map[string]string, len(cred.Extra))
+	for key, value := range cred.Extra {
+		if key == "managed_store" {
+			continue
+		}
+		if key != "account_id" && key != "expires_at" {
+			return errors.New("unsupported managed credential metadata")
+		}
+		if len(value) > 1024 {
+			return errors.New("invalid managed credential metadata")
+		}
+		extra[key] = value
+	}
+	return s.saveRecord(provider, managedCredentialFile{Token: cred.Token, Source: source, Extra: extra})
+}
+
+func (s ManagedStore) saveRecord(provider string, stored managedCredentialFile) error {
 	policy, err := readCompanyPolicy()
 	if err != nil {
 		return err
@@ -86,16 +118,15 @@ func (s ManagedStore) save(provider, token, source string) error {
 	if path == "" {
 		return errors.New("managed credential storage is unavailable")
 	}
-	if err := security.ValidateOpaqueToken(token); err != nil {
+	if err := security.ValidateOpaqueToken(stored.Token); err != nil {
 		return errors.New("credential has an unsafe value")
 	}
-	stored := managedCredentialFile{Token: token, Source: source}
 	data, err := json.Marshal(stored)
 	if err != nil {
 		return errors.New("managed credential encoding failed")
 	}
-	keychainValue := token
-	if source != "" {
+	keychainValue := stored.Token
+	if stored.Source != "" || len(stored.Extra) > 0 {
 		keychainValue = string(data)
 	}
 	if s.UseKeychain {
@@ -107,10 +138,12 @@ func (s ManagedStore) save(provider, token, source string) error {
 			// cleanup is best-effort: reporting a failure here would tell the
 			// caller to retry after authentication state had already changed.
 			// Managed enrollment does not authorize silent legacy-file deletion.
-			if !policy.Managed {
+			if !policy.Managed && !s.keepLegacy {
 				_ = os.Remove(path)
 			}
 			return nil
+		} else if s.secureOnly || (policy.Managed && policy.Policy.SecureStoreOnly) {
+			return nativeStoreFailure(err)
 		}
 	}
 	if err := policy.RequireSource("managed_file"); err != nil {
@@ -123,7 +156,8 @@ func (s ManagedStore) save(provider, token, source string) error {
 }
 
 // Resolve loads a managed credential. Keychain failures are deliberately
-// treated as unavailable so a fallback file remains usable.
+// mapped to fixed failures in company secure-store-only mode. Personal legacy
+// mode retains its fallback behavior.
 func (s ManagedStore) Resolve(ctx context.Context, provider string) (usage.Credential, []Warning, error) {
 	if err := ctx.Err(); err != nil {
 		return Credential{}, nil, err
@@ -155,9 +189,21 @@ func (s ManagedStore) Resolve(ctx context.Context, provider string) (usage.Crede
 				stored = encoded
 			}
 			if security.ValidateOpaqueToken(stored.Token) == nil {
-				return Credential{Token: stored.Token, Source: managedCredentialSource(stored.Source)}, nil, nil
+				resolvedStore := ""
+				if policy.Managed || s.NativeKeychain || s.secureOnly {
+					resolvedStore = "keychain"
+				}
+				return resolvedManagedCredential(stored, resolvedStore), nil, nil
 			}
-		} else if err != nil && !errors.Is(err, keyringNotFound) && !errors.Is(err, ErrNotFound) {
+			if s.secureOnly || (policy.Managed && policy.Policy.SecureStoreOnly) {
+				return Credential{}, nil, usage.NewFailureError("unsafe_credential", "OS secure store contains an invalid credential")
+			}
+		} else if s.secureOnly || (policy.Managed && policy.Policy.SecureStoreOnly) {
+			if err == nil {
+				return Credential{}, nil, ErrNotFound
+			}
+			return Credential{}, nil, nativeStoreFailure(err)
+		} else if err != nil && !errors.Is(err, keyringNotFound) && !errors.Is(err, ErrNotFound) && !errors.Is(err, &securestore.Error{Kind: securestore.Missing}) {
 			if !policy.Managed {
 				warnings = append(warnings, Warning{Message: "system keychain unavailable; using managed credential file"})
 			}
@@ -191,7 +237,25 @@ func (s ManagedStore) Resolve(ctx context.Context, provider string) (usage.Crede
 	if err := security.ValidateOpaqueToken(stored.Token); err != nil {
 		return Credential{}, warnings, usage.NewFailureError("unsafe_credential", "managed credential file contains an unsafe credential")
 	}
-	return Credential{Token: stored.Token, Source: managedCredentialSource(stored.Source)}, warnings, nil
+	resolvedStore := ""
+	if policy.Managed || s.NativeKeychain {
+		resolvedStore = "managed_file"
+	}
+	return resolvedManagedCredential(stored, resolvedStore), warnings, nil
+}
+
+func resolvedManagedCredential(stored managedCredentialFile, source string) Credential {
+	extra := make(map[string]string, len(stored.Extra)+1)
+	for key, value := range stored.Extra {
+		if key != "managed_store" {
+			extra[key] = value
+		}
+	}
+	// Provenance describes this resolution, never a claim read from the record.
+	if source != "" {
+		extra["managed_store"] = source
+	}
+	return Credential{Token: stored.Token, Source: managedCredentialSource(stored.Source), Extra: extra}
 }
 
 func managedCredentialSource(source string) usage.AuthKind {
@@ -204,6 +268,13 @@ func managedCredentialSource(source string) usage.AuthKind {
 // Remove deletes both managed locations so toggling keychain use cannot leave
 // a credential active in an older store.
 func (s ManagedStore) Remove(provider string) error {
+	policy, err := readCompanyPolicy()
+	if err != nil {
+		return err
+	}
+	if policy.Managed {
+		return s.RemoveSecure(provider)
+	}
 	path := s.Path(provider)
 	if path == "" {
 		return ErrNotFound
@@ -212,7 +283,7 @@ func (s ManagedStore) Remove(provider string) error {
 	keychainErr := s.keychain().Delete(managedKeychainService, provider)
 	if keychainErr == nil {
 		found = true
-	} else if !errors.Is(keychainErr, keyringNotFound) && !errors.Is(keychainErr, ErrNotFound) {
+	} else if !errors.Is(keychainErr, keyringNotFound) && !errors.Is(keychainErr, ErrNotFound) && !errors.Is(keychainErr, &securestore.Error{Kind: securestore.Missing}) {
 		keychainErr = errors.New("managed credential keychain removal failed")
 	} else {
 		keychainErr = nil
@@ -229,6 +300,22 @@ func (s ManagedStore) Remove(provider string) error {
 		return ErrNotFound
 	}
 	return nil
+}
+
+// RemoveSecure removes only the app-owned OS item. It performs no legacy-file
+// probe and is also the safe rollback for a newly created secure credential.
+func (s ManagedStore) RemoveSecure(provider string) error {
+	if _, err := readCompanyPolicy(); err != nil {
+		return err
+	}
+	if !managedProviderPattern.MatchString(provider) {
+		return ErrNotFound
+	}
+	err := s.keychain().Delete(managedKeychainService, provider)
+	if err == nil {
+		return nil
+	}
+	return nativeStoreFailure(err)
 }
 
 // ResolveProvider preserves provider-declared source precedence, then tries a
