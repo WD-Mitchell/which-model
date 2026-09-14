@@ -46,7 +46,8 @@ source inventory includes provider environment tokens, provider-owned native
 files/keychain items, Git configuration, `gh auth token`, and which-model's owned
 fallback credential file. The default company profile permits keychain sources
 only and has no enabled providers until the administrator selects them. Legacy
-CLI credential discovery remains denied until #285 supplies approved execution.
+CLI credential discovery remains denied; a harness approval is not a credential-
+helper approval.
 The actual allowed sources are inspectable with `config policy --json`.
 
 Personal Codex may use its documented, explicitly trusted configured origin
@@ -62,7 +63,7 @@ company secure-store credential to be sent to a project-selected endpoint.
 | [Copilot device login](../../internal/usage/provider/copilot/copilot_device.go) | `https://github.com/login/device/code` and `/login/oauth/access_token`: client ID, device code and grant type; user visits `https://github.com/login/device`. | `read:user`; token also used by the existing Copilot internal allowance endpoint. | Owned OS credential entry in company mode. Logout removes the owned entry; provider grant revocation is separate. |
 | [CodexBar usage](../../internal/usage/provider/codexbar) | External process receives provider/source selection and may use its own credentials. It returns provider/source, account or identity.accountEmail, identity.loginMethod, window values/reset descriptions, updatedAt and error code/message. | Managed execution remains disabled in this baseline; #287 must approve a specific path/digest and constrain delegation/environment. | Shared which-model cache minimizes the typed result; company diagnostics replace arbitrary error text. CodexBar's own storage/keychain/network behavior is outside which-model cleanup and requires review for the approved installation. |
 | [Antigravity login/delegation](../../internal/usage/provider/antigravity) | Google OAuth at `https://accounts.google.com/o/oauth2/v2/auth`, `https://oauth2.googleapis.com/token`, `https://www.googleapis.com/oauth2/v2/userinfo`; authorization state/PKCE, tokens, email/user info. Existing delegation passes owned credential JSON via `ANTIGRAVITY_OAUTH_CREDENTIALS_JSON` to CodexBar. | `https://www.googleapis.com/auth/cloud-platform` and `https://www.googleapis.com/auth/userinfo.email`. No native usage adapter is registered; this is a login/delegation helper. | Owned credentials use the secure-store policy. Company CodexBar delegation is not yet authorized. #287 must review this environment handoff and its recipient, not infer approval from a provider toggle. |
-| [Cursor login helper](../../internal/usage/provider/cursor) | Existing external CLI login or browser dashboard at `https://cursor.com/dashboard`. | External/native provider login authority. No native usage adapter is registered. | Provider-owned sessions/files are outside product-data cleanup. Company external execution remains subject to #285; no approval is added here. |
+| [Cursor login helper](../../internal/usage/provider/cursor) | Existing external CLI login or browser dashboard at `https://cursor.com/dashboard`. | External/native provider login authority. No native usage adapter is registered. | Provider-owned sessions/files are outside product-data cleanup. Company external login helpers retain their legacy execution denial; a harness launch approval does not grant helper authority. |
 | [Artificial Analysis catalog](../../internal/catalog/fetch/aa) | API key in `x-api-key` to `https://artificialanalysis.ai/api/v2/language/models`, optional `/free` fallback, pagination. | Catalog retrieval; separate from provider allowance authentication. | Company key uses dedicated OS service `which-model-catalog`; old `aa_api_key` is touched only by explicit credential migration. Public model/benchmark data persists in catalog files and is not identity-bearing usage history. |
 
 Public catalog downloads/model discovery have their own [catalog](../../specs/features/F08-collectors/SPEC.md)
@@ -171,3 +172,14 @@ approved CodexBar containment behavior; #291 maps evidence to the listed control
 Zero retention is supported: an administrator value of `0` disables persistence
 for that category and removes its existing owned records when maintenance or a
 write is attempted. It never means unlimited retention.
+
+
+Inventory update for #285: approved company launch receives only OS-derived
+home/platform directories and fixed system PATH/locale. Parent provider tokens,
+proxy/runtime/preload and arbitrary variables are omitted. Approved harnesses may
+subsequently read their own OS/home credentials and the selected project under
+native permissions. Company provider discovery uses allowed provider IDs and
+explicit preferences instead of scanning credential-bearing harness files. Cline's
+optional provider-ID mapping reads its bounded configuration only with an explicit
+provider_file allowance. New launch records remain the typed seven-day store;
+raw child output is not captured. See [approved execution](approved-execution.md).

@@ -73,3 +73,13 @@ Company persistence excludes free-form provider/harness payloads and account ide
 Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
 Decision: requester-approved optional company defaults and advisory audit handling;
 this supersedes conflicting personal-only persistence statements for company mode.
+
+
+## Approved company execution correction (#285)
+
+Approved company launch images and explicitly declared inputs must be administrator-protected, nonredirected files whose SHA-256 matches. Parent credential/runtime/proxy/Git injection variables are not inherited. The launched application, OS loader/dependencies and selected project remain governed by endpoint/native harness controls; this is not a process sandbox.
+
+Governing correction: `specs/desktop/backend/features/B07-harnesses/MANAGED-EXECUTION.md`.
+This implements the requester-approved optional managed profile while preserving
+personal defaults; it supersedes unconditional shell/policy-placeholder statements
+for company execution.

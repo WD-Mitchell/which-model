@@ -24,6 +24,8 @@ const (
 // Names is the fixed skill set, in install order.
 var Names = []string{"model-selection", "provider-usage", "usage-aware-dispatch"}
 
+var readCompanyPolicy = company.Load
+
 // RepoRoot walks upward from cwd to the nearest ancestor containing ".git".
 // repoDir (the --repo flag) wins when non-empty. Error when neither exists.
 func RepoRoot() (string, error) {
@@ -146,6 +148,11 @@ func Install(name string, target Target, user, force bool) (string, error) {
 // Remove deletes the two installed files for name. Not-installed is a
 // no-op success. Modified files are refused without force.
 func Remove(name string, target Target, user, force bool) (string, error) {
+	policy, policyErr := readCompanyPolicy()
+	managed := policyErr != nil || policy.Managed
+	if managed {
+		force = false
+	} // cleanup remains available; authority cannot override ownership
 	if !validName(name) {
 		return "", errors.New("unknown skill: " + name + " (known: " + strings.Join(Names, ", ") + ")")
 	}
@@ -164,6 +171,9 @@ func Remove(name string, target Target, user, force bool) (string, error) {
 			continue
 		}
 		if err := removeFile(filepath.Join(root, "skills", name, rel), dst, force); err != nil {
+			if managed {
+				return "", &company.Error{Reason: "modified or unavailable installed skill requires manual review"}
+			}
 			return "", err
 		}
 		removed = true

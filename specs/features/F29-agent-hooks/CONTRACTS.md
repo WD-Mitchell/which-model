@@ -230,3 +230,19 @@ Company files are state/audit/evidence.jsonl and mismatches.jsonl. Each record c
 Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
 Decision: requester-approved optional company defaults and advisory audit handling;
 this supersedes conflicting personal-only persistence statements for company mode.
+
+
+## Approved company execution correction (#285)
+
+No protocol/manifest schema changes. Native CI installs owned hooks alongside foreign settings under allowed policy, disables installation/use, verifies refused actions, then removes only the owned entries. Existing personal ownership tests remain authoritative.
+
+Governing correction: `specs/desktop/backend/features/B07-harnesses/MANAGED-EXECUTION.md`.
+This implements the requester-approved optional managed profile while preserving
+personal defaults; it supersedes unconditional shell/policy-placeholder statements
+for company execution.
+
+Company Claude-hook removal validates manifest version 1 and exact shipped
+ID/event/matcher/command tuples (both shipped variants) before editing settings.
+A manifest claiming a foreign command or an unrecognized historical command is
+refused for manual review. Installation-disabled cleanup remains allowed for
+recognized owned entries. Personal removal behavior is unchanged.

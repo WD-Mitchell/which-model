@@ -64,6 +64,10 @@ var harnessTokenRe = regexp.MustCompile(`\{[a-z0-9_]+\}`)
 // provider discovery with explicit provider overrides over B06's universe.
 func (h *HarnessService) List(ctx context.Context) ([]HarnessInfo, error) {
 	_ = ctx
+	policy, err := readCompanyPolicy()
+	if err != nil {
+		return nil, err
+	}
 	if err := h.seedIfEmpty(); err != nil {
 		return nil, err
 	}
@@ -85,13 +89,25 @@ func (h *HarnessService) List(ctx context.Context) ([]HarnessInfo, error) {
 	out := make([]HarnessInfo, 0, len(slugs))
 	for _, slug := range slugs {
 		ht := harnesses[slug]
-		inst := installed(ht.Command)
-		if !inst && h.s.harnessHome == "" {
-			inst = installedInCommonLocations(ht.Command)
+		inst := false
+		if policy.Managed {
+			entry, approved := approvedHarness(policy, slug)
+			if approved && (compiledHarness(slug) || policy.Policy.AllowCustomShell) {
+				info, statErr := os.Lstat(entry.Path)
+				inst = statErr == nil && info.Mode().IsRegular()
+			}
+		} else {
+			inst = installed(ht.Command)
+			if !inst && h.s.harnessHome == "" {
+				inst = installedInCommonLocations(ht.Command)
+			}
 		}
 		en := inst
 		if ht.Enabled != nil {
 			en = *ht.Enabled
+		}
+		if policy.Managed && !inst {
+			en = false
 		}
 		out = append(out, HarnessInfo{
 			Slug:      slug,
@@ -407,12 +423,12 @@ func (h *HarnessService) BuildCommand(slug, modelID, reasoning string) (string, 
 // modes) the pick is recorded via the recordPick seam; a record failure is
 // logged, not returned (SPEC §2.9–2.10).
 func (h *HarnessService) Launch(ctx context.Context, slug, routeKey, profileSlug string) (LaunchResult, error) {
-	if err := requireCompanyCapability("harness_launch"); err != nil {
-		return LaunchResult{}, err
-	}
 	policy, err := readCompanyPolicy()
 	if err != nil {
 		return LaunchResult{}, err
+	}
+	if policy.Managed {
+		return h.launchCompany(ctx, policy, slug, routeKey, profileSlug)
 	}
 	provider, modelID, reasoning, err := ParseRouteKey(routeKey)
 	if err != nil {
@@ -503,6 +519,11 @@ func (h *HarnessService) recordPick(ctx context.Context, profileSlug, routeKey s
 		return
 	}
 	if err := h.s.recordPick(ctx, profileSlug, routeKey); err != nil {
+		policy, policyErr := readCompanyPolicy()
+		if policyErr != nil || policy.Managed {
+			log.Print("company pick history write failed; launch outcome is unchanged")
+			return
+		}
 		log.Printf("harness: record pick for %q: %v", routeKey, err)
 	}
 }
@@ -589,6 +610,29 @@ func withProviderOverride(current map[string]bool, id string, on bool) map[strin
 }
 
 func (h *HarnessService) providerMap(slug string, ht config.HarnessTOML, inst bool, universe map[string]bool) map[string]bool {
+	policy, policyErr := readCompanyPolicy()
+	if policyErr != nil {
+		return map[string]bool{}
+	}
+	if policy.Managed {
+		// Company discovery does not inspect credential-bearing provider files.
+		// User provider switches remain preferences within administrator authority.
+		out := map[string]bool{}
+		if policy.Policy == nil {
+			return out
+		}
+		for _, id := range policy.Policy.AllowedProviders {
+			on := contains(ht.Providers, id)
+			if ht.Providers == nil && compiledHarness(slug) {
+				on = providerAlias(slug) == id
+			}
+			if override, ok := ht.ProviderOverrides[id]; ok {
+				on = override
+			}
+			out[id] = on
+		}
+		return out
+	}
 	known := make(map[string]bool, len(universe))
 	for id := range universe {
 		known[id] = true
