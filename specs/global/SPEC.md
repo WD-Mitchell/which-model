@@ -116,3 +116,29 @@ Inherited from `docs/plan/research/usage-allowance-checks-spec.md` §9. Non-nego
 ## 9. npm fallback distribution (#161)
 
 When the platform optional package is unavailable, postinstall may fetch the version-matched release binary. Decode only `checksums.txt` as UTF-8 and parse sha256sum LF/CRLF records (including the binary marker). Hash and write the binary as unchanged bytes, with executable mode on Unix. Missing, malformed or mismatched checksums and download failures must leave no installed fallback and warn without failing npm installation. Existing optional binaries and `WHICH_MODEL_SKIP_DOWNLOAD=1` perform no fallback requests. Validate with `node --test npm/which-model/install.test.js` and the existing npm smoke test.
+
+## 10. Source checkout portability (#280)
+
+Every tracked path must be portable to a normal Windows checkout. The CI path
+check rejects reserved characters/control bytes, invalid Unicode, empty or
+relative components, trailing periods/spaces, reserved Windows device names
+(including `CONIN$`, `CONOUT$`, `LPT0`, extensions and numbered COM/LPT names), and case-insensitive
+file/directory collisions at every path component. The check examines Git's
+index with NUL-delimited filenames; it does not inspect untracked local files.
+
+CI must perform an actual Windows source checkout, build the default and
+`nousage` CLI variants there, and run each variant's version/help commands.
+Linux cross-compilation remains part of release packaging but does not replace
+this native checkout/build gate. This requirement concerns the CLI; it does not
+expand desktop Windows feature support.
+
+The `tracked-paths` and `windows-cli` GitHub Actions checks must be required by
+the active `main` rules alongside the existing `test` check. A failure of either
+portability check must prevent merging a PR or stack into `main`.
+
+Review correction (#298): include the remaining Git for Windows reserved device
+names and enforce both portability jobs as required merge checks.
+
+Correction: #280 removes the accidentally tracked `xd:/lsp` editor diagnostic
+artifact and adds the missing portability gate. It changes no CLI runtime
+behaviour or provider credential policy.
