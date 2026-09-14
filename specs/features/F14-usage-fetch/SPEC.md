@@ -93,7 +93,7 @@ requested source. Explicit cache-only reads retain their existing policy.
 
 ## Company-policy extension (#282)
 
-FetchAll checks protected policy before enabled-provider cache, credential or network activity, including direct callers and explicit backend/storage options. Disallowed providers and CodexBar delegation are refused. Disabled providers remain untouched. The guard is independent of ordinary configuration; per-provider API boundaries also recheck authorization.
+FetchAll checks protected policy before enabled-provider cache, credential or network activity, including direct callers and explicit backend/storage options. Disallowed providers and unapproved CodexBar delegation are refused. Disabled providers remain untouched. The guard is independent of ordinary configuration; per-provider API boundaries also recheck authorization.
 
 This intentionally supersedes unrestricted operation for enrolled installations only;
 see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
@@ -115,3 +115,15 @@ Warning count/order and personal diagnostic text remain unchanged.
 Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
 Decision: requester-approved optional company defaults and advisory audit handling;
 this supersedes conflicting personal-only persistence statements for company mode.
+
+
+## Approved CodexBar correction (#287)
+
+The requester requires company CodexBar to remain disabled until an administrator approves a specific installation. Personal behavior stays unchanged. [APPROVED-CODEXBAR.md](APPROVED-CODEXBAR.md) is normative. Unapproved delegation is refused before cache/credential effects. Approved offline and fresh-cache paths execute nothing; a cache miss preflights the image/config before credential inputs, then the adapter re-verifies before invocation. Per-provider errors stay partial results. Existing cache/source/timeout tests remain binding. New pinned tests: TestCompanyCodexBarPreflightPrecedesCredentialsAndProcess, TestCompanyCodexBarCacheOnlyNeverPreflightsOrDelegates, TestCompanyCodexBarOutputAndTimeoutMatrix, TestNativeCompanyCodexBarApproval.
+
+The requester-approved PR #314 review correction is specified in
+[APPROVED-CODEXBAR.md, Source and cache correction](APPROVED-CODEXBAR.md#source-and-cache-correction-pr-314-review).
+Recognized aliases are provider-specific; Antigravity/Windsurf CLI selection may
+return local evidence without losing its provenance. Producer-stale company cache
+entries trigger online refetch and retain their stale flag offline. The linked
+section pins source compatibility, cache roundtrips, and native child tests.
