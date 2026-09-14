@@ -1,7 +1,7 @@
 # which-model
 
 [![CI](https://github.com/WD-Mitchell/which-model/actions/workflows/ci.yml/badge.svg)](https://github.com/WD-Mitchell/which-model/actions/workflows/ci.yml)
-[![Go 1.25+](https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go)](https://go.dev/)
+[![Go 1.26+](https://img.shields.io/badge/Go-1.26%2B-00ADD8?logo=go)](https://go.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **Choose the right AI model for the task you are doing—not just the model at the top of a benchmark.**
@@ -90,7 +90,7 @@ binary is downloaded.
 
 ### With Go
 
-Requires Go 1.25 or later:
+Requires Go 1.26 or later:
 
 ```bash
 go install github.com/WD-Mitchell/which-model/cmd/which-model@latest
