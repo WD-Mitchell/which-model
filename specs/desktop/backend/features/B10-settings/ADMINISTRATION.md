@@ -13,3 +13,5 @@ Settings adds Security & privacy: policy identity, allowed providers/sources, re
 Managed harness DTOs identify administrator-controlled commands and show the protected path/argument template. Unapproved commands are unavailable, never replaced by mutable commands. The preview is a template, not proof of successful execution or verification. Personal previews remain unchanged.
 
 Pinned tests: managed command divergence; status without credential access; managed native-setting refusal; verified migration with partial removal; personal preference transition; selected purge and missing confirmation; partial maintenance results; UI confirmation and error-report persistence; personal preview compatibility.
+
+Offline distribution integration requires the Wails asset-discovery index to contain the offline entry, never the full app entry. Offline API calls use generated package-qualified bindings. Pinned checks cover the isolated asset closure including index.html and startup/profile changes through those bindings.

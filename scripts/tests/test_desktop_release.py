@@ -57,7 +57,8 @@ class DesktopReleaseTests(unittest.TestCase):
             (source/'.vite/manifest.json').write_text(json.dumps({'offline.html':{'file':'offline.js','imports':['shared']},'shared':{'file':'runtime.js'},'settings.html':{'file':'settings.js'}}))
             for name in ('offline.html','offline.js','runtime.js','settings.js'):(source/name).write_text(name)
             assets.copy_assets(source,dest)
-            self.assertEqual({f.name for f in dest.iterdir()},{'offline.html','offline.js','runtime.js'})
+            self.assertEqual({f.name for f in dest.iterdir()},{'index.html','offline.html','offline.js','runtime.js'})
+            self.assertEqual((dest/'index.html').read_bytes(), (source/'offline.html').read_bytes())
 
     def test_offline_asset_copy_refuses_path_escape(self):
         with tempfile.TemporaryDirectory() as td:

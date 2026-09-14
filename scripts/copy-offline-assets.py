@@ -28,6 +28,9 @@ def copy_assets(source, target):
             visit(child)
     visit('offline.html')
     copy('offline.html')
+    # Wails discovers the asset root through index.html before serving any URL.
+    # Use the restricted entry itself; never copy the full app's index.html.
+    shutil.copyfile(target / 'offline.html', target / 'index.html')
 
 if __name__ == '__main__':
     copy_assets(*sys.argv[1:])
