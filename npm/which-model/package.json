@@ -39,6 +39,8 @@
   "files": [
     "bin.js",
     "install.js",
-    "README.md"
+    "README.md",
+    "verify-release.js",
+    "release-policy.json"
   ]
 }
