@@ -147,13 +147,15 @@ type ProviderDetail struct {
 
 // HarnessInfo is one harness's shape.
 type HarnessInfo struct {
-	Slug      string          `json:"slug"`
-	Name      string          `json:"name"`
-	Command   string          `json:"command"` // template with {model_id}/{reasoning}
-	Builtin   bool            `json:"builtin"`
-	Installed bool            `json:"installed"` // argv[0] found on PATH
-	Enabled   bool            `json:"enabled"`   // active in launcher; defaults to installed
-	Providers map[string]bool `json:"providers"` // per-harness provider allow-map
+	CommandManaged   bool            `json:"command_managed,omitempty"`
+	CommandAvailable bool            `json:"command_available,omitempty"`
+	Slug             string          `json:"slug"`
+	Name             string          `json:"name"`
+	Command          string          `json:"command"` // template with {model_id}/{reasoning}
+	Builtin          bool            `json:"builtin"`
+	Installed        bool            `json:"installed"` // argv[0] found on PATH
+	Enabled          bool            `json:"enabled"`   // active in launcher; defaults to installed
+	Providers        map[string]bool `json:"providers"` // per-harness provider allow-map
 }
 
 // LaunchResult is the harness launch outcome.

@@ -90,6 +90,8 @@ export interface ProviderDetail {
     builtin: boolean;
 }
 export interface HarnessInfo {
+    command_managed?: boolean;
+    command_available?: boolean;
     slug: string;
     name: string;
     command: string;
@@ -255,5 +257,84 @@ export interface UserProfile {
     description: string;
     use_case_slugs: string[];
     default_use_case: string;
+}
+/** Read-only protected policy; mirrors internal/company.Snapshot. */
+export interface CompanyPolicy {
+    managed: boolean;
+    required: boolean;
+    origin?: string;
+    sha256?: string;
+    policy?: {
+        schema_version: number;
+        name: string;
+        allowed_providers: string[];
+        credential_sources: string[];
+        secure_store_only: boolean;
+        identity_free: boolean;
+        retention: {
+            usage_snapshots_hours: number;
+            launch_logs_days: number;
+            pick_history_days: number;
+            audit_records_days: number;
+        };
+        integrations: {
+            skill_installation: boolean;
+            hook_installation: boolean;
+            hook_use: boolean;
+        };
+        executables: Array<{
+            id: string;
+            path: string;
+            sha256: string;
+            args: string[];
+            inputs?: Array<{
+                path: string;
+                sha256: string;
+            }>;
+        }>;
+        codexbar_installations: Array<{
+            path: string;
+            sha256: string;
+            config: {
+                path: string;
+                sha256: string;
+            };
+        }>;
+        allow_custom_shell: boolean;
+        allow_credential_migration: boolean;
+    };
+}
+export type PrivacyCategory = 'usage_snapshots' | 'pick_history' | 'audit_records' | 'launch_logs';
+export interface MaintenanceResult {
+    managed: boolean;
+    operation: string;
+    completed_at: string;
+    error?: string;
+    categories: Partial<Record<PrivacyCategory, {
+        retained_records: number;
+        removed_records: number;
+        scrubbed_records: number;
+        deleted_files: number;
+        failed_files: number;
+    }>>;
+}
+export interface MigrationResult {
+    provider: string;
+    secure_store: string;
+    legacy_copy: string;
+    recovery_file?: string;
+    error?: string;
+}
+export interface DelegationCheck {
+    path: string;
+    config_path: string;
+    verified: boolean;
+    error?: string;
+}
+export interface AdministrationStatus {
+    policy: CompanyPolicy;
+    native_keychain: boolean;
+    use_keychain: boolean;
+    last_maintenance?: MaintenanceResult;
 }
 //# sourceMappingURL=types.d.ts.map

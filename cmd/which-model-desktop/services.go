@@ -247,6 +247,7 @@ func registerServices(svc *service.Services) []application.Service {
 		application.NewService(&SignInAPI{svc: svc}),
 		application.NewService(&FavouritesAPI{svc: svc}),
 		application.NewService(&SettingsAPI{svc: svc}),
+		application.NewService(&AdministrationAPI{svc: svc}),
 	}
 }
 
@@ -257,4 +258,23 @@ func registerWindowService(app *application.App, popover *application.WebviewWin
 		return
 	}
 	app.RegisterService(application.NewService(newWindowService(app, popover)))
+}
+
+// AdministrationAPI exposes explicit user operations and read-only authority.
+type AdministrationAPI struct{ svc *service.Services }
+
+func (a *AdministrationAPI) Status() (service.AdministrationStatus, error) {
+	return bindingResult(a.svc.Administration().Status(ctx))
+}
+func (a *AdministrationAPI) SetNativeStore(enabled bool) error {
+	return bindingError(a.svc.Administration().SetNativeStore(ctx, enabled))
+}
+func (a *AdministrationAPI) Migrate(provider string, removeSource, replace bool) (service.MigrationResult, error) {
+	return bindingResult(a.svc.Administration().Migrate(ctx, provider, removeSource, replace))
+}
+func (a *AdministrationAPI) Maintain(operation string, categories []string, projectRoot string, confirmed bool) (service.MaintenanceResult, error) {
+	return bindingResult(a.svc.Administration().Maintain(ctx, operation, categories, projectRoot, confirmed))
+}
+func (a *AdministrationAPI) VerifyDelegation() ([]service.DelegationCheck, error) {
+	return bindingResult(a.svc.Administration().VerifyDelegation(ctx))
 }

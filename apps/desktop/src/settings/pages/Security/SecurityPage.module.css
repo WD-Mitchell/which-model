@@ -1,0 +1,23 @@
+.page { padding-bottom: 24px; color: var(--color-text); }
+.page section { margin: 0 22px; padding: 22px 0; border-bottom: 1px solid var(--color-divider); }
+.page h2 { font-size: 15px; margin: 0 0 12px; }
+.page h3 { font-size: 13px; margin-top: 20px; }
+.page p { font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.page dl { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(0, 2fr); gap: 9px 18px; font-size: 12px; }
+.page dt { opacity: .7; }
+.page dd { margin: 0; overflow-wrap: anywhere; }
+.page details { margin: 12px 0; font-size: 12px; }
+.page summary { cursor: pointer; overflow-wrap: anywhere; }
+.page code, .digest { font-size: 11px; overflow-wrap: anywhere; }
+.page pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.page label { display: block; font-size: 12px; line-height: 1.6; margin: 12px 0; }
+.page input:not([type=checkbox]), .page select { display: block; width: 100%; margin-top: 6px; background: var(--color-bg); color: inherit; border: 1px solid var(--color-divider); border-radius: 6px; padding: 8px; }
+.page button { background: var(--color-surface); color: inherit; border: 1px solid var(--color-divider); border-radius: 6px; padding: 8px 12px; cursor: pointer; font-size: 12px; }
+.page button:disabled { opacity: .45; cursor: default; }
+.page fieldset { padding: 8px 14px; border: 1px solid var(--color-divider); border-radius: 6px; }
+.page legend { font-size: 12px; }
+.option input { margin-right: 8px; }
+.error { color: var(--error, #e8a39c); }
+.table { overflow-x: auto; }
+.table table { width: 100%; font-size: 11px; border-collapse: collapse; }
+.table th, .table td { text-align: left; padding: 8px 5px; border-bottom: 1px solid var(--color-divider); }

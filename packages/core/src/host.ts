@@ -1,4 +1,5 @@
 import type {
+  AdministrationStatus, MigrationResult, MaintenanceResult, DelegationCheck, PrivacyCategory,
   BenchmarkDetail,
   CatalogSummary,
   Favourite,
@@ -25,6 +26,13 @@ import type { EngineEvent } from './events.js'
 
 // EngineHost — verbatim from D00 CONTRACTS §5. Shape changes only via D00.
 export interface EngineHost {
+  administration: {
+    status(): Promise<AdministrationStatus>
+    setNativeStore(enabled: boolean): Promise<void>
+    migrate(provider: string, removeSource: boolean, replace: boolean): Promise<MigrationResult>
+    maintain(operation: 'cleanup' | 'purge', categories: PrivacyCategory[], projectRoot: string, confirmed: boolean): Promise<MaintenanceResult>
+    verifyDelegation(): Promise<DelegationCheck[]>
+  }
   profiles: {
     userProfiles(): Promise<UserProfile[]>
     list(): Promise<ProfileSummary[]>

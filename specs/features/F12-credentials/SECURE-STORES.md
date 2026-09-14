@@ -146,3 +146,8 @@ separate from #284's identity-free usage/history persistence. ID tokens and
 refresh tokens are not retained by company sign-in; expired access tokens require
 sign-in again. JWT claim parsing supplies routing metadata, never verification of
 identity, signature, organization membership or additional privileges.
+
+
+## Desktop workflow correction (#347)
+
+The requester-approved desktop administration facet exposes personal native-store selection and explicit verified migration with independent replacement/source-removal choices. It returns the canonical migration report on partial failure and serializes desktop credential mutations across migration, sign-in, account removal and settings. Protected policy remains authoritative. See [desktop administration](../../desktop/backend/features/B10-settings/ADMINISTRATION.md).

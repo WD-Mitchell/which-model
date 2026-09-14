@@ -121,3 +121,8 @@ write is attempted. It never means unlimited retention.
 ## Advisory launch audit fields (#286)
 
 The central audit store additionally permits generated `launch_id`, operational `profile`, `quota_state` (global §15 enum), and phase `launch_intent`, `launch_started`, `launch_failed` or `copy_prepared`. They retain the approved 30-day audit default; structured launch summaries retain seven days. A zero-day audit policy persists no evidence and cannot report audit success. Intent is not a process-start claim; neither a missing audit record nor a recording failure proves launch was blocked.
+
+
+## Desktop workflow correction (#347)
+
+Security & privacy exposes retention and the last in-memory maintenance outcome, explicit cleanup and selected-category purge with confirmation. Partial results remain visible. Usage purge serializes with desktop fetches and discards in-memory evidence; subsequent enabled fetches may create new observations. Provider data remains excluded. See [desktop administration](../../desktop/backend/features/B10-settings/ADMINISTRATION.md).

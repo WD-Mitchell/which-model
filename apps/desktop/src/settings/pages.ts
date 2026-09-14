@@ -32,6 +32,7 @@ export interface PageComponentProps {
 
 export type SettingsPageName =
   | 'General'
+  | 'Security & privacy'
   | 'Profiles'
   | 'Use Cases'
   | 'Benchmark groups'
@@ -70,7 +71,7 @@ export const NAV_GROUPS: ReadonlyArray<
   // backend) now sits at the top of Providers, next to the live limits it
   // governs, and the per-provider limits list it duplicated is the Providers
   // list itself.
-  ['app', ['General']],
+  ['app', ['General', 'Security & privacy']],
   ['ranking', ['Profiles', 'Use Cases', 'Benchmark groups', 'Models', 'Favourites']],
   ['routing', ['Providers', 'Harnesses']],
 ] as const
@@ -80,6 +81,7 @@ export const PAGE_REGISTRY: Record<
   SettingsPageName,
   React.LazyExoticComponent<SettingsPageComponent>
 > = {
+  'Security & privacy': React.lazy(() => import('./pages/Security/SecurityPage')),
   General: React.lazy(() => import('./pages/General/GeneralPage')),
   Profiles: React.lazy(() => import('./pages/Profiles/ProfilesPage')),
   'Use Cases': React.lazy(() => import('./pages/UseCases/UseCasesPage')),
@@ -125,6 +127,7 @@ export const PAGE_META: Record<
     'Every model in the catalog. Open one for its identity, reasoning levels, and catalog scores.',
     null,
   ],
+  'Security & privacy': ['Security & privacy', 'Inspect company controls and manage data stored by which-model.', null],
   General: [
     'General',
     'How which-model runs on this Mac, and how the pick is drawn in the popover.',

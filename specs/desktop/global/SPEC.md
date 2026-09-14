@@ -70,3 +70,8 @@ The design-system stylesheet is vendored at `specs/desktop/mockup/nocturne.css` 
 | Route identity | Single serialized grammar `provider/model_id@reasoning` everywhere | One parser, one formatter; favourites/disables/keys stay interoperable |
 | Score rounding | Backend rounds to 2dp before the boundary | Keeps decimal discipline in Go; UI stays arithmetic-free |
 | Spec governance | Deepest spec wins + mandatory Deviations note | Parallel authors can specialise without silently contradicting parents |
+
+
+## Company desktop compatibility correction (#347)
+
+The requester-approved [administration contract](../backend/features/B10-settings/ADMINISTRATION.md) adds Security & privacy without editable policy authority. The separate offline desktop is a distinct Wails executable with bundled ranking only, not the full service in a runtime mode. [Desktop workflows](../../../docs/desktop-company-workflows.md) state distribution and native-webview boundary limits. macOS release archives now include the full and offline apps on arm64/x64; source-only distribution statements are superseded for those targets.

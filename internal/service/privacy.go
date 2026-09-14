@@ -4,9 +4,10 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"github.com/WD-Mitchell/which-model/internal/privacy"
 	"log"
-	"path/filepath"
+
 	"time"
 )
 
@@ -20,17 +21,16 @@ func (s *Services) startPrivacyMaintenance(ctx context.Context) {
 	}
 	s.privacyOnce.Do(func() {
 		run := func() {
-			layout, err := privacy.DefaultLayout()
+			layout, err := s.privacyLayout("")
 			if err == nil {
-				layout.StateDir = s.paths.StateDir
-				layout.CacheDirs = append(layout.CacheDirs, filepath.Join(s.paths.CacheDir, "usage-cache"))
-				if s.usageCacheDir != "" {
-					layout.CacheDirs = append(layout.CacheDirs, s.usageCacheDir)
-				}
 				err = s.runPrivacyMaintenance(layout)
+			} else {
+				s.privacyMu.Lock()
+				s.lastMaintenance = &MaintenanceResult{Managed: true, Operation: "cleanup", CompletedAt: time.Now().UTC().Format(time.RFC3339), Categories: map[string]privacy.Report{}, Error: err.Error()}
+				s.privacyMu.Unlock()
 			}
 			if err != nil {
-				log.Print("company privacy maintenance incomplete; run privacy cleanup for category results")
+				log.Print("company privacy maintenance incomplete; see Security & privacy for category results")
 			}
 		}
 		run()
@@ -54,6 +54,9 @@ func (s *Services) runPrivacyMaintenance(layout privacy.Layout) error {
 	if err != nil {
 		return err
 	}
-	_, err = (privacy.Controller{Policy: policy}).Maintain(layout, false, nil)
-	return err
+	result := s.maintainWithReport(privacy.Controller{Policy: policy}, layout, "cleanup", nil)
+	if result.Error != "" {
+		return fmt.Errorf("%s", result.Error)
+	}
+	return nil
 }
