@@ -71,12 +71,12 @@ case "$*" in
  'issue create '*) [ "$GH_TOKEN" = metadata ]; echo https://github.com/owner/repo/issues/42;;
  'issue view '*) echo human;;
  'pr create '*) [ "$GH_TOKEN" = publish ]; echo https://github.com/owner/repo/pull/43;;
- 'pr edit '*) [ "$GH_TOKEN" = metadata ];;
+ 'pr edit '*) echo 'unexpected PR edit' >&2; exit 2;;
  *closingIssuesReferences*) echo 42;;
  *'--json state'*) echo CLOSED;;
  *'--json number'*) echo 43;;
  'api --method GET repos/'*) echo '[]';;
- 'pr view '*) echo human;;
+ *'--json assignees'*) echo 0;;
  *) exit 2;;
 esac
 `
@@ -91,15 +91,23 @@ esac
 		t.Fatalf("create PR: %v\n%s", err, out)
 	}
 	calls, _ := os.ReadFile(filepath.Join(dir, "calls"))
-	for _, want := range []string{"metadata issue create", "publish pr create", "metadata pr edit refresh-test --add-assignee human"} {
+	for _, want := range []string{"metadata issue create", "publish pr create", "metadata issue view 42 --json assignees", "publish pr view refresh-test --json assignees"} {
 		if !strings.Contains(string(calls), want) {
 			t.Fatalf("missing %q in %s", want, calls)
+		}
+	}
+	for _, call := range strings.Split(string(calls), "\n") {
+		if strings.Contains(call, " issue create ") && !strings.Contains(call, "--assignee human") {
+			t.Fatalf("Task must retain the publishing human assignee: %s", call)
+		}
+		if strings.Contains(call, " pr ") && strings.Contains(call, "--assignee") {
+			t.Fatalf("PR must remain unassigned: %s", call)
 		}
 	}
 }
 
 func TestCreatePRClosesSupersededRefreshes(t *testing.T) {
-	for _, scenario := range []string{"pass", "create-failed", "verification-failed", "list-failed", "close-failed"} {
+	for _, scenario := range []string{"pass", "create-failed", "verification-failed", "assigned", "assignee-read-failed", "list-failed", "close-failed"} {
 		t.Run(scenario, func(t *testing.T) {
 			dir := t.TempDir()
 			stub := `#!/bin/bash
@@ -109,11 +117,13 @@ case "$*" in
  'issue create '*) echo https://github.com/owner/repo/issues/42;;
  'issue view '*) echo human;;
  'pr create '*) [ "$SCENARIO" != create-failed ]; echo https://github.com/owner/repo/pull/43;;
- 'pr edit '*) :;;
+ 'pr edit '*) echo 'unexpected PR edit' >&2; exit 2;;
  *closingIssuesReferences*) [ "$SCENARIO" != verification-failed ]; echo 42;;
  *'--json state'*) echo CLOSED;;
  *'--json number'*) echo 43;;
- 'pr view '*) echo human;;
+ *'--json assignees'*)
+  [ "$SCENARIO" != assignee-read-failed ] || exit 1
+  if [ "$SCENARIO" = assigned ]; then echo 1; else echo 0; fi;;
  'api --method GET repos/'*)
   [ "$SCENARIO" != list-failed ] || exit 1
   [[ "$*" == *'--paginate'* && "$*" == *'base=main'* && "$*" == *'state=open'* ]] || exit 2

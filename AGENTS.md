@@ -48,8 +48,9 @@ This project uses GitHub Issues as its work-item system.
   issue paired with an implementation PR still uses Type `Bug`; the standalone
   investigation label rule is specifically for bug reports opened without a PR.
 - Any issue created alongside a PR MUST be assigned to the authenticated human
-  uploader (`@me`), the same as the PR. Read the issue assignment back after
-  creation; do not leave it unassigned or assign the agent or bot.
+  uploader (`@me`), including Tasks linked to unassigned automated data-update
+  PRs. Read the issue assignment back after creation; do not leave it unassigned
+  or assign the agent or bot.
 - Every PR MUST be associated with its GitHub issue through the platform's
   linked-issue/Development field. Do not rely on a body section or add the
   association after delivery.
@@ -90,7 +91,8 @@ blank PR. A maintenance PR that changes an execution or data flow should also
 include the diagram, while a purely mechanical maintenance change must explain
 why a graph adds no truthful information.
 
-Every PR MUST be assigned to the authenticated human uploader (`@me`), never
-the agent or bot, and it MUST NOT be left blank. Use only labels that exist in
-the repository and match the change. Read the PR back after opening and do not
-claim delivery from an unverified provider response.
+Automated data-update PRs created by the catalog refresh workflow MUST have no
+assignee. Every other PR MUST be assigned to the authenticated human uploader
+(`@me`), never the agent or bot, and it MUST NOT be left blank. Use only labels
+that exist in the repository and match the change. Read the PR back after opening
+and do not claim delivery from an unverified provider response.
