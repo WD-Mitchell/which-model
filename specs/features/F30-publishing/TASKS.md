@@ -177,7 +177,7 @@ graph TD
 
    Substitutions (all else verbatim): cron line comment uses `pc.Timezone`; non-empty `pc.Environment` emits the quoted job-level `environment`; `matrix.branch` list = `["` + `pc.Branches` joined `", "` + `"]` (values quoted, listed order); `git add --` paths = shell-quoted `pc.RawCSVPath` and `pc.ScoresCSVPath`; commit `-m` = `pc.CommitMessage`; `--title "…"` = `pc.PRTitle`; one `--label <l>` per `pc.PRLabels`; `--<merge_method>` = `pc.MergeMethod`. Mode-dependent sections:
    - `direct-push`: `permissions:` has only `contents: write`; PR steps become one `id: publish` push step; its successful report vocabulary is `published`.
-   - `pull-request`: `CSV_UPDATE_TOKEN` authenticates PR publication and check-gated merging. The linked issue and PR are assigned to the uploader. Successful completion reports `merged`, never a deferred request as completed.
+   - `pull-request`: `CSV_UPDATE_TOKEN` authenticates PR publication and check-gated merging. The linked issue is assigned to the uploader; the automated data-update PR has no assignee. Verify both and the Development link before cleanup or merging. Successful completion reports `merged`, never a deferred request as completed.
    - The workflow never emits Go setup, build, tests, a `which-model` invocation, ; Python-generated scores are staged together with raw values. The outcome-report step is always emitted last and keys success to `steps.publish.outcome` or `steps.merge.outcome`.
 4. Write the golden file `testdata/refresh-model-data.golden.yml` = the exact template output above (byte-for-byte; the test compares `Render` output to it).
 5. Create `internal/catalog/publish/workflow_test.go`:
