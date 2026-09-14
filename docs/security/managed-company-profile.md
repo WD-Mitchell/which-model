@@ -8,9 +8,9 @@ There is no company account, central credential broker or application RBAC.
 
 This is the policy foundation for the managed-usage milestone. The complete
 deployment includes [native secure stores and migration](secure-credentials.md)
-(#283) and still needs retention and
-identity-free persistence (#284), approved execution (#285) and approved CodexBar
-delegation (#287). Do not treat this foundation as completion of those controls.
+(#283) and [retention and identity-free persistence](privacy-and-retention.md)
+(#284). Approved execution (#285) and approved CodexBar delegation (#287) remain
+separate controls.
 The [restricted offline package](offline-score-only.md) remains available separately.
 
 ## Enrollment
@@ -129,3 +129,9 @@ The profile applies inside the approved application. Endpoint management must
 control enrollment, approved binaries, local administrator privileges and provider
 accounts. A user who can replace the application or act as an administrator can
 bypass application-level checks. See the [local identity and control-owner decision](company-identity.md).
+
+The [privacy inventory and retention guide](privacy-and-retention.md) documents
+live provider collection, default identity-free persistence, actual expiry
+processing, legacy-data transition and explicit cleanup/purge. These settings are
+now consumed by cache/history/audit/launch storage; a stopped application still
+requires endpoint-scheduled cleanup for wall-clock deletion requirements.

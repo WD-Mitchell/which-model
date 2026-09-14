@@ -162,3 +162,12 @@ This intentionally supersedes unrestricted operation for enrolled installations 
 see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
 `TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
 and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.
+
+
+## Company privacy correction (#284)
+
+Company model-audit persists timestamped, minimized evidence under the application state audit directory; it does not append raw project JSON. Current/explicit project legacy evidence.jsonl and audit-mismatches.jsonl are removed during transition. Unknown evidence/payload fields and provider error prose are discarded. Audit-write/cleanup failure is visible and advisory, consistent with the requester decision in #286. Native harness permissions and executable approval remain authoritative.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.

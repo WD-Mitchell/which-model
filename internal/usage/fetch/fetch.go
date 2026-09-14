@@ -46,7 +46,7 @@ const (
 type Options struct {
 	Backend                config.UsageBackend // off, native, or codexbar; empty preserves native
 	Refresh                bool                // skip cache reads; refetch and rewrite (annex-d --refresh-usage)
-	Offline                bool                // read-only: cache only, never credentials/fetch/writes
+	Offline                bool                // cache only; company retention may scrub/delete owned records
 	MaxAge                 time.Duration       // TTL override via cache.EffectiveTTL (annex-d --max-age)
 	ShowIdentity           bool                // false (default): Account/Plan cleared on RETURNED snapshots
 	Enabled                map[string]bool     // L1a gate, default-deny (SPEC D1)
@@ -68,10 +68,16 @@ var (
 // FetchAll selects the configured usage backend after applying the common
 // enabled-provider gate. An unset backend retains the native implementation
 // for direct callers; config.Default selects off.
-func FetchAll(ctx context.Context, providers []string, opts Options) ([]usage.Snapshot, []credential.Warning, error) {
+func FetchAll(ctx context.Context, providers []string, opts Options) (snapshots []usage.Snapshot, warnings []credential.Warning, resultErr error) {
 	policy, err := readCompanyPolicy()
 	if err != nil {
 		return nil, nil, err
+	}
+	if policy.Managed {
+		defer func() {
+			minimizeCompanyFailures(snapshots)
+			minimizeCompanyWarnings(warnings)
+		}()
 	}
 	if opts.Backend != config.UsageBackendOff {
 		for _, id := range providers {
@@ -217,7 +223,7 @@ func fetchNativeAll(ctx context.Context, providers []string, opts Options) ([]us
 	// Identity redaction (SPEC §10, D9): ShowIdentity false (default)
 	// clears Account/Plan on every RETURNED snapshot (live, cached,
 	// offline alike). Cache writes happened before this point, so the
-	// cache files keep full identity for later --show-identity runs.
+	// personal cache files keep identity; company persistence follows protected privacy settings.
 	if !opts.ShowIdentity {
 		for i := range results {
 			results[i].Account = ""

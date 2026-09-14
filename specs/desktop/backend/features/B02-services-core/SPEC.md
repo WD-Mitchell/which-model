@@ -84,3 +84,12 @@ Usage passes native-store preference through fetch options. Company sign-in and 
 The [secure-store contract](../../../../features/F12-credentials/SECURE-STORES.md) supersedes earlier company-mode storage
 wording under the approved optional-profile decision. Personal defaults remain
 unchanged. Native tests and migration/fallback canaries are required evidence.
+
+
+## Company privacy correction (#284)
+
+Desktop StartDataRefresher starts managed retention once: immediately and every minute until context cancellation. Each pass reloads protected settings and processes current cache/state roots; failures log a fixed advisory warning. Enrollment while running requires restart for the periodic worker. Constructors alone do not perform migration.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.

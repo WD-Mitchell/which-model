@@ -146,3 +146,19 @@ This intentionally supersedes unrestricted operation for enrolled installations 
 see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
 `TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
 and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.
+
+
+## Company privacy correction (#284)
+
+Options/API/usage DTOs remain unchanged. Personal cache identity and error rendering remain as before. Company tests pin raw native/delegated error-canary removal and lock-remediation preservation. CodexBar remains denied until the approved-installation consumer in #287; this change prepares its shared cache/output boundary without authorizing it.
+
+PR #307 pins returned warnings through `TestCompanyDiagnosticsCredentialWarnings`
+(provider-file and managed-file permission notices, plus personal controls) and
+`TestCompanyDiagnosticsCacheWarning` (successful fetch with failed persistence).
+`TestCompanyDiagnosticsUnknownWarnings` verifies unknown-payload removal and exact
+fallback guidance. These tests retain the message-only Warning shape and add no
+canonical DTO fields or error codes.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.

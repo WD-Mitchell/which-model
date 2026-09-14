@@ -43,6 +43,7 @@ type Services struct {
 	usageFetchMu      sync.Mutex
 	refresherOnce     sync.Once
 	dataRefresherOnce sync.Once
+	privacyOnce       sync.Once
 	// recordPick records a profile pick after a successful harness launch
 	// (B07 SPEC §2.10). Wired to B04's RecordPick by New; Launch logs (never
 	// returns) a failure. Tests may override it.

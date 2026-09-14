@@ -12,7 +12,7 @@ import (
 var commandOrder = []string{
 	"usage", "catalog", "pick", "routes", "auth",
 	"schema", "skills", "hooks", "explain", "serve",
-	"config", "version",
+	"config", "privacy", "version",
 }
 
 type registrar struct {
