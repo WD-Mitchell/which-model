@@ -1,6 +1,6 @@
 # macOS release signing
 
-Full and offline desktop release apps are Developer ID signed with hardened runtime and a secure timestamp, notarized by Apple, stapled, and assessed by Gatekeeper. Both arm64 and x64 must pass before publication. Local development packaging still uses ad-hoc signing.
+Full and offline desktop release apps are Developer ID signed with hardened runtime and a secure timestamp, notarized by Apple, stapled, and assessed by Gatekeeper. Both arm64 and x64 must pass before publication. Release builds use GitHub’s macOS 26 runners: `macos-26` for Apple Silicon and `macos-26-intel` for Intel. Local development packaging still uses ad-hoc signing.
 
 ## GitHub configuration
 
