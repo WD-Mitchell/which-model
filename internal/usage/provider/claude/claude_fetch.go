@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/WD-Mitchell/which-model/internal/company"
 	"log"
 	"net/http"
 	"os"
@@ -113,6 +114,9 @@ func mapStatus(provider string, status int) *Error {
 // for provider-level failures, or (Snapshot{}, error) for programming errors
 // only; provider errors are *Error with a global Failure.Code.
 func Fetch(ctx context.Context, cred usage.Credential, client *http.Client) (usage.Snapshot, error) {
+	if err := company.Authorize("claude", "", ""); err != nil {
+		return usage.Snapshot{}, err
+	}
 	now := time.Now().UTC()
 	failureSnapshot := func(f *usage.Failure) usage.Snapshot {
 		return usage.Snapshot{

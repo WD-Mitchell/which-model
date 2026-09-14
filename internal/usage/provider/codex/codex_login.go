@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/WD-Mitchell/which-model/internal/company"
 	"net/http"
 	"net/url"
 	"os"
@@ -79,6 +80,9 @@ func defaultValidateURL(raw string) error {
 
 // StartDeviceLogin requests a user code from issuer (production: Issuer).
 func StartDeviceLogin(ctx context.Context, issuer, clientID string, client *http.Client) (*DeviceLogin, error) {
+	if err := company.AuthorizeProviderFileWrite("codex"); err != nil {
+		return nil, err
+	}
 	if client == nil {
 		client = defaultLoginClient()
 	}
@@ -235,6 +239,9 @@ func (d *DeviceLogin) exchange(ctx context.Context, authorizationCode, codeVerif
 }
 
 func (d *DeviceLogin) post(ctx context.Context, rawURL, contentType string, body []byte) (int, []byte, error) {
+	if err := company.AuthorizeProviderFileWrite("codex"); err != nil {
+		return 0, nil, err
+	}
 	if d.ValidateURL != nil {
 		if err := d.ValidateURL(rawURL); err != nil {
 			return 0, nil, usage.NewFailureError("endpoint_refused", "The Codex login URL is not allowed.")
@@ -293,6 +300,9 @@ func (d *DeviceLogin) maxWait() time.Duration {
 // PersistLogin writes ~/.codex/auth.json (or $CODEX_HOME/auth.json) in the
 // shape Codex CLI and usage.AuthFile expect.
 func PersistLogin(tok Tokens) error {
+	if err := company.AuthorizeProviderFileWrite("codex"); err != nil {
+		return err
+	}
 	if security.ValidateOpaqueToken(tok.AccessToken) != nil {
 		return usage.NewFailureError("unsafe_credential", "The Codex access token is missing or unsafe.")
 	}

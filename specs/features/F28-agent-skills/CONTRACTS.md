@@ -190,3 +190,13 @@ All within the fixed six (`specs/global/SPEC.md §5`): `0` success, `1` runtime/
 - The `explain --json` root carries `schema_version`, `candidate`, `evidence` per `docs/plan/annex-c-agent-integration.md §4.3` (schema emitted here locks that shape).
 - Compiles under `-tags nousage`: `internal/schema` and `internal/skills` import nothing from `internal/usage`.
 - Import boundaries (`specs/global/CONTRACTS.md §8`): `internal/schema`/`internal/skills` import stdlib only; `pkg/whichmodel` files import `internal/schema`/`internal/skills` via `pkg/whichmodel`'s own package (allowed: `pkg/whichmodel` MAY import any `internal/`).
+
+
+## Company-policy extension (#282)
+
+CLI and component installation both check protected company skill-installation permission before repository discovery or copying artifacts. Personal installs retain their behavior. Existing removal remains available for cleanup; #285 completes approved integration and execution handling.
+
+This intentionally supersedes unrestricted operation for enrolled installations only;
+see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
+`TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
+and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.

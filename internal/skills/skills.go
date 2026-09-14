@@ -1,13 +1,14 @@
 // Package skills owns the agent-skill artifacts: the repo skills/ tree is the
 // single source of truth, and Install/Remove/List place those files into
-// harness-visible target directories (F28 agent skills). It imports only the
-// Go standard library (specs/global/CONTRACTS.md §8).
+// harness-visible target directories (F28 agent skills). It checks the independent
+// company policy before installation (specs/global/CONTRACTS.md §8).
 package skills
 
 import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/WD-Mitchell/which-model/internal/company"
 	"os"
 	"path/filepath"
 	"strings"
@@ -120,6 +121,9 @@ func removeFile(src, dst string, force bool) error {
 // Install copies skills/<name>/SKILL.md and skills/<name>/agents/openai.yaml
 // from the repo tree into the target dir. Returns a human message.
 func Install(name string, target Target, user, force bool) (string, error) {
+	if err := company.Authorize("", "", "skill_installation"); err != nil {
+		return "", err
+	}
 	if !validName(name) {
 		return "", errors.New("unknown skill: " + name + " (known: " + strings.Join(Names, ", ") + ")")
 	}

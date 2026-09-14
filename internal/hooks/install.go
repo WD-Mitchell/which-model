@@ -3,6 +3,7 @@ package hooks
 import (
 	"bytes"
 	"fmt"
+	"github.com/WD-Mitchell/which-model/internal/company"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -72,6 +73,9 @@ func genericInjectAs(id string) string {
 // behaviour 10). target "claude" | "generic". Returns a human summary line
 // per hook.
 func Install(target string, entries []Entry, repoRoot string) ([]string, error) {
+	if err := company.Authorize("", "", "hook_installation"); err != nil {
+		return nil, err
+	}
 	switch target {
 	case "claude":
 		return installClaude(entries, repoRoot)

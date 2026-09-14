@@ -117,6 +117,61 @@ jobs:
           sudo apt-get install -y strace
           sudo unshare --net -- python3 scripts/score_only_smoke.py --trace /tmp/which-model-score-only
 
+  company-policy:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go test ./internal/company
+      # Existing general config/credential suites contain POSIX-only permission
+      # and path assertions. Run the complete new policy matrix natively here;
+      # the test job still runs the full suites on Linux.
+      - run: go test ./internal/config -run 'TestManagedConfigurationPrecedence|TestManagedStorageAndDesktopMutation|TestRequiredPolicyPrecedesOrdinaryConfigReads|TestManagedRankingPreferencesRemainAvailable'
+      - run: go test ./internal/usage/credential -run 'TestCompanyCredentialFallbackHasNoFileSideEffects|TestDeviceFlowCompany'
+      - run: go build -o company-policy-cli.exe ./cmd/which-model
+      - name: Provision native ownership and ACL fixtures
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            python scripts/company_policy_fixture.py prepare --github-env "$GITHUB_ENV"
+          else
+            sudo env GITHUB_ACTIONS=true python3 scripts/company_policy_fixture.py prepare --github-env "$GITHUB_ENV"
+          fi
+      - name: Inspect native fixture ACLs
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          'C:\', 'C:\ProgramData', 'C:\ProgramData\which-model-company-ci', 'C:\ProgramData\which-model-company-ci\valid', 'C:\ProgramData\which-model-company-ci\valid\required.json' | ForEach-Object {
+            $policyAcl = Get-Acl -LiteralPath $_
+            Write-Output "$_ $($policyAcl.Sddl)"
+          }
+      - name: Exercise actual protected enrollment and operation boundaries
+        run: go test ./internal/company -run TestNative -v
+      - name: Verify CLI authority and required-policy behavior
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            python scripts/company_policy_fixture.py probe --binary company-policy-cli.exe
+          else
+            sudo env GITHUB_ACTIONS=true python3 scripts/company_policy_fixture.py probe --binary company-policy-cli.exe
+          fi
+      - name: Remove only owned CI enrollment fixtures
+        if: always()
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            python scripts/company_policy_fixture.py cleanup
+          else
+            sudo env GITHUB_ACTIONS=true python3 scripts/company_policy_fixture.py cleanup
+          fi
+
   desktop-backend:
     # The Wails desktop backend needs CGO + the GTK/webkitgtk toolchain on
     # Linux; macOS carries those natively, so the compile check runs there

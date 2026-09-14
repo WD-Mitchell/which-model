@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/WD-Mitchell/which-model/internal/company"
 	"net/http"
 	"net/url"
 	"os"
@@ -169,6 +170,9 @@ func failureSnapshot(e *Error, now time.Time) (usage.Snapshot, error) {
 // reserved for programming errors. The trusted origin is read from ctx
 // (WithTrustedOrigin).
 func Fetch(ctx context.Context, cred usage.Credential, client *http.Client) (usage.Snapshot, error) {
+	if err := company.Authorize("codex", "", ""); err != nil {
+		return usage.Snapshot{}, err
+	}
 	now := time.Now().UTC()
 	authPath, configPath := resolveCredentialPaths()
 	credential, err := LoadCredential(authPath, configPath)

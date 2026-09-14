@@ -37,6 +37,9 @@ type FileResolver struct {
 // parses and validates. The winning file's mode is carried on the
 // Credential for permission-warning purposes (SPEC §3).
 func (r *FileResolver) Resolve(ctx context.Context) (usage.Credential, error) {
+	if err := requireSource("provider_file"); err != nil {
+		return Credential{}, err
+	}
 	r.lastWarnings = nil
 	for _, candidate := range r.Paths {
 		path, usable := expandCredentialPath(candidate)

@@ -211,3 +211,13 @@ remain valid. Pin `TestAuditRejectsIncompleteEvidence`.
 ## Execution correction — #162
 
 `ExecuteCommand` builds fresh commands and restores the caller's flags and streams. Stdin is empty/whitespace or a JSON object containing host context; it never replaces command output. Only Runner injects output fixtures. Explicit outer global flags are forwarded ahead of passthrough flags; underlying output remains JSON.
+
+
+## Company-policy extension (#282)
+
+CLI and component installation check protected company hook-installation permission before writing settings. Hook Run separately checks hook-use permission before invoking its in-process Runner. A policy refusal is exit-2-class; existing quota/audit evidence handling remains advisory under the user decision for #286. Removal remains available for cleanup.
+
+This intentionally supersedes unrestricted operation for enrolled installations only;
+see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
+`TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
+and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.

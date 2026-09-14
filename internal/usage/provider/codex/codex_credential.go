@@ -5,6 +5,7 @@ package codex
 import (
 	"encoding/json"
 	"errors"
+	"github.com/WD-Mitchell/which-model/internal/company"
 	"unicode"
 
 	"github.com/WD-Mitchell/which-model/internal/security"
@@ -63,6 +64,9 @@ func stringField(raw json.RawMessage) string {
 // security.MaxCredentialBytes). A missing/unreadable/oversized config.toml is
 // silently ignored (returns "" for ConfiguredBaseURL).
 func LoadCredential(authPath, configPath string) (Credential, error) {
+	if err := company.Authorize("codex", "provider_file", ""); err != nil {
+		return Credential{}, err
+	}
 	data, _, err := security.ReadBoundedFile(authPath, security.MaxCredentialBytes)
 	if err != nil {
 		var se *security.Error

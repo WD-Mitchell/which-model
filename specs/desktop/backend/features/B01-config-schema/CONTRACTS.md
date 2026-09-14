@@ -257,3 +257,13 @@ See the canonical DTO/API extension in `specs/desktop/global/CONTRACTS.md` and
 behavior in `specs/desktop/backend/features/B03-profiles/SPEC.md` §Correction.
 The new `gui.user_profile` key persists the selected profile, defaults to
 `software_engineering`, and accepts `software_engineering`, `marketing`, `general`.
+
+
+## Company-policy extension (#282)
+
+Administrator authority is loaded independently of mutable desktop configuration. SetAuth and config serialization validate protected policy before mutation or persistence; cloning cannot serialize or weaken authority. User ranking preferences remain configurable. Authority schema and approved retention defaults are owned by F01/MANAGED-POLICY.md, not desktop-editable DTO fields.
+
+This intentionally supersedes unrestricted operation for enrolled installations only;
+see the [F01 managed-policy contract](../../../../features/F01-config/MANAGED-POLICY.md). Pinned evidence:
+`TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
+and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/WD-Mitchell/which-model/internal/company"
 	"github.com/WD-Mitchell/which-model/internal/security"
 	"github.com/WD-Mitchell/which-model/internal/usage"
 )
@@ -22,6 +23,7 @@ import (
 // ValidateURL defaults to security.ValidateExactHTTPS(rawURL, []string{rawURL});
 // tests replace it with a no-op to use httptest servers.
 type DeviceFlow struct {
+	provider         string // immutable binding supplied by the application caller
 	Spec             usage.OAuthSpec
 	HTTPClient       *http.Client // default: redirects hard-fail (CheckRedirect → http.ErrUseLastResponse)
 	MaxResponseBytes int64        // <= 0 → security.MaxResponseBytes
@@ -53,6 +55,25 @@ func NewDeviceFlow(spec usage.OAuthSpec) *DeviceFlow {
 			return err
 		},
 	}
+}
+
+// NewProviderDeviceFlow binds login requests to their provider. Start and every
+// token POST reload company policy; unbound legacy flows are personal-only.
+func NewProviderDeviceFlow(provider string, spec usage.OAuthSpec) *DeviceFlow {
+	flow := NewDeviceFlow(spec)
+	flow.provider = provider
+	return flow
+}
+
+func (f *DeviceFlow) authorizeRequest() error {
+	policy, err := readCompanyPolicy()
+	if err != nil {
+		return err
+	}
+	if policy.Managed && f.provider == "" {
+		return &company.Error{Origin: policy.Origin, Reason: "device login requires a provider-bound flow"}
+	}
+	return policy.RequireProvider(f.provider)
 }
 
 // DeviceCode carries the validated device-flow state. Only UserCode and
@@ -104,6 +125,9 @@ var (
 // pollOnce issues a single token request. The client_secret is sent only
 // when the spec supplies one (public clients omit it, RFC 8628 §3.2).
 func (f *DeviceFlow) pollOnce(ctx context.Context, code DeviceCode) (string, error) {
+	if err := f.authorizeRequest(); err != nil {
+		return "", err
+	}
 	if err := f.ValidateURL(f.Spec.TokenURL); err != nil {
 		return "", mapSecurityError(err, "endpoint_refused")
 	}
@@ -190,6 +214,9 @@ func parseDeviceError(data []byte) string {
 // Start POSTs DeviceCodeURL (form client_id+scope) and validates every
 // response field (SPEC §9). Violations → unsupported_response.
 func (f *DeviceFlow) Start(ctx context.Context) (DeviceCode, error) {
+	if err := f.authorizeRequest(); err != nil {
+		return DeviceCode{}, err
+	}
 	if err := f.ValidateURL(f.Spec.DeviceCodeURL); err != nil {
 		return DeviceCode{}, mapSecurityError(err, "endpoint_refused")
 	}

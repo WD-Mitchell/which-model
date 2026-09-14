@@ -78,3 +78,13 @@ No new `Failure.Code` values are added by this feature.
 - Shell completions, man pages, and alias symlinks listed under M6 — not part of this feature's assignment.
 - Harness-specific packaging beyond `SKILL.md` + `agents/openai.yaml` (no Claude Code plugin manifest, no Codex `AGENTS.md`-style wiring; Claude Code and generic discovery is the harness's own feature).
 - Editing F24/F26/F27 command implementations; this feature only documents and consumes their public `--json` surfaces (`docs/plan/annex-d-cli-reference.md §2.1/§2.4/§2.5`) and emits schemas for them.
+
+
+## Company-policy extension (#282)
+
+CLI and component installation both check protected company skill-installation permission before repository discovery or copying artifacts. Personal installs retain their behavior. Existing removal remains available for cleanup; #285 completes approved integration and execution handling.
+
+This intentionally supersedes unrestricted operation for enrolled installations only;
+see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
+`TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
+and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.

@@ -232,7 +232,8 @@ which-model hooks install --repo . --target claude
 All primary result commands support machine-readable JSON, and `which-model schema <command>` exposes the corresponding schema.
 
 For company deployment boundaries, provider scope limitations and control owners,
-see the [company identity decision](docs/security/company-identity.md).
+see the [company identity decision](docs/security/company-identity.md) and the
+[optional administrator-managed profile](docs/security/managed-company-profile.md).
 
 ## Configuration
 

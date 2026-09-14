@@ -95,3 +95,13 @@ Both carousel and list show `Missing benchmark data: <axes>. Ranked using availa
 ## Correction (2026-09-05)
 
 The Profiles / Use Cases correction in `specs/desktop/backend/features/B03-profiles/SPEC.md` governs the new persisted profile selection and desktop terminology. The DTO extension is canonical in `specs/desktop/global/CONTRACTS.md`. Settings navigation now has both Profiles (curated defaults) and Use Cases (ranking presets).
+
+
+## Company-policy extension (#282)
+
+Administrator authority is loaded independently of mutable desktop configuration. SetAuth and config serialization validate protected policy before mutation or persistence; cloning cannot serialize or weaken authority. User ranking preferences remain configurable. Authority schema and approved retention defaults are owned by F01/MANAGED-POLICY.md, not desktop-editable DTO fields.
+
+This intentionally supersedes unrestricted operation for enrolled installations only;
+see the [F01 managed-policy contract](../../../../features/F01-config/MANAGED-POLICY.md). Pinned evidence:
+`TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
+and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.
