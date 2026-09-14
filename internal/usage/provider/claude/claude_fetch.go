@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/WD-Mitchell/which-model/internal/company"
 	"log"
 	"net/http"
 	"os"
@@ -113,6 +114,9 @@ func mapStatus(provider string, status int) *Error {
 // for provider-level failures, or (Snapshot{}, error) for programming errors
 // only; provider errors are *Error with a global Failure.Code.
 func Fetch(ctx context.Context, cred usage.Credential, client *http.Client) (usage.Snapshot, error) {
+	if err := company.Authorize("claude", "", ""); err != nil {
+		return usage.Snapshot{}, err
+	}
 	now := time.Now().UTC()
 	failureSnapshot := func(f *usage.Failure) usage.Snapshot {
 		return usage.Snapshot{
@@ -129,6 +133,13 @@ func Fetch(ctx context.Context, cred usage.Credential, client *http.Client) (usa
 			Code:    "credential_file",
 			Message: "Claude credentials were not found; sign in with Claude Code first.",
 		}), nil
+	}
+
+	if raw := cred.Extra["expires_at"]; cred.Extra["managed_store"] == "keychain" && raw != "" {
+		expires, err := time.Parse(time.RFC3339, raw)
+		if err != nil || !expires.After(now) {
+			return failureSnapshot(&usage.Failure{Code: "expired_credential", Message: "The securely stored Claude access token is expired; sign in again."}), nil
+		}
 	}
 
 	// File-sourced credentials are enriched, not re-resolved (SPEC D2): the

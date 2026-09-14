@@ -5,6 +5,7 @@
 import { Events } from '@wailsio/runtime'
 import type { EngineHost, EngineEvent, ErrorDTO } from '@which-model/core'
 import {
+  AdministrationAPI,
   CatalogAPI,
   FavouritesAPI,
   HarnessesAPI,
@@ -55,6 +56,13 @@ function call<T, R>(p: Cancellable<T>, then: (v: T) => R): Promise<R> {
 
 export function createWailsHost(): EngineHost {
   return {
+    administration: {
+      status: () => call(AdministrationAPI.Status() as Cancellable<unknown>, r => r as never),
+      setNativeStore: enabled => call(AdministrationAPI.SetNativeStore(enabled) as Cancellable<void>, () => {}),
+      migrate: (provider, removeSource, replace) => call(AdministrationAPI.Migrate(provider, removeSource, replace) as Cancellable<unknown>, r => r as never),
+      maintain: (operation, categories, projectRoot, confirmed) => call(AdministrationAPI.Maintain(operation, categories, projectRoot, confirmed) as Cancellable<unknown>, r => r as never),
+      verifyDelegation: () => call(AdministrationAPI.VerifyDelegation() as Cancellable<unknown>, r => r as never),
+    },
     profiles: {
       userProfiles: () => call(ProfilesAPI.UserProfiles() as Cancellable<unknown>, (r) => r as never),
       list: () => call(ProfilesAPI.List() as Cancellable<unknown>, (r) => r as never),

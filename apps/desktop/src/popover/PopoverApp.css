@@ -73,3 +73,35 @@
     transparent
   );
 }
+
+/* Company evidence stays readable until dismissed, including after launch. */
+.wa-evidence-note {
+  flex: none;
+  margin: 0 16px 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-divider);
+  border-radius: 8px;
+  color: var(--color-text);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.wa-evidence-note p { margin: 4px 0 0; }
+.wa-evidence-note ul { margin: 4px 0 0; padding-left: 18px; }
+.wa-evidence-dismiss {
+  margin-top: 6px;
+  padding: 4px 0;
+  background: none;
+  border: 0;
+  color: var(--color-accent-300);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.wa-evidence-dismiss:focus-visible { outline: 2px solid var(--color-accent-300); outline-offset: 3px; }
+
+/* Company notices share a scroll region with the recommendation, keeping the
+   footer inside the host's 620px height ceiling without overlapping results. */
+.wa-company-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.wa-company-content > .lv, .wa-company-content > .wa-wbody { flex: none; }
+.wa-company-content .wa-evidence-note { margin-top: 10px; }

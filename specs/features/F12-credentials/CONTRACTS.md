@@ -11,7 +11,8 @@ Package: `internal/usage/credential` (Layer 1b). Import boundary (global CONTRAC
 
 Build tags: EVERY file in this package carries `//go:build !nousage` (annex-a §1a.2). The `nousage`-tagged package-presence stub is owned by F21-usage-toggle.
 
-New dependency: `github.com/zalando/go-keyring` (darwin-only, referenced only from `keychain_darwin.go`; see SPEC decision D2).
+Native adapters use pinned `go-keyring`, `wincred`, `godbus/dbus/v5`, `x/sys` and
+new `purego` v0.11.0 for CGO-disabled macOS framework calls; see the #283 correction below. Personal legacy selection retains D2/D12.
 
 ---
 
@@ -157,6 +158,8 @@ type ManagedStore struct {
     StateDir    string
     Keychain    ManagedKeychainStore
     UseKeychain bool
+    NativeKeychain bool
+    // private migration controls omitted
 }
 
 func (s ManagedStore) Path(provider string) string
@@ -200,7 +203,10 @@ type DeviceFlow struct {
     ValidateURL    func(rawURL string) error
 }
 
+// NewDeviceFlow retains the legacy personal flow. Managed requests require
+// the provider binding supplied by NewProviderDeviceFlow.
 func NewDeviceFlow(spec usage.OAuthSpec) *DeviceFlow
+func NewProviderDeviceFlow(provider string, spec usage.OAuthSpec) *DeviceFlow
 
 // DeviceCode carries the validated device-flow state. Only UserCode and
 // VerificationURI may ever be displayed; DeviceCode is opaque.
@@ -222,6 +228,26 @@ func (f *DeviceFlow) Start(ctx context.Context) (DeviceCode, error)
 // validated opaque token.
 func (f *DeviceFlow) Poll(ctx context.Context, code DeviceCode) (string, error)
 ```
+
+### Company device-flow correction (#305)
+
+The provider binding is private to `DeviceFlow`; it adds no field to canonical
+`usage.OAuthSpec`. Start and every token POST reload protected policy, including
+pending/slow-down retries. Managed unbound flows, forbidden providers and policy
+load failures return `*company.Error` before transport access. Personal unbound
+flows retain their existing behavior.
+
+| Pinned scenario | Required result |
+|---|---|
+| Managed allowed provider; Start and Poll | Requests succeed using mocked transport |
+| Managed forbidden/unbound flow; Start or Poll | Policy error; zero requests |
+| Required policy missing; Start or Poll | Policy error; zero requests |
+| Provider revoked or required policy lost between pending/slow-down polls | Policy error; no second request or token |
+| Personal unbound flow | Existing device-code behavior |
+
+Evidence: `TestDeviceFlowCompanyRequestBoundaries`,
+`TestDeviceFlowCompanyRevocationBetweenPolls`, and native
+`TestNativeManagedDeviceFlowBoundaries`.
 
 ## 8. Expiry — `internal/usage/credential/expiry.go`
 
@@ -264,3 +290,60 @@ func CheckExpired(exp time.Time, now time.Time) error
 |---|---|
 | Unsupported-platform keychain or wrapped not-found | Continue to file source |
 | Locked/denied keychain with secret-bearing error | `keychain_unavailable`, no secret in failure |
+
+
+## Company-policy extension (#282)
+
+Credential resolution reloads protected company policy before source access. Managed chains skip forbidden sources; direct resolvers refuse them. An unavailable keychain cannot trigger a forbidden managed-file read, stat or write, and managed keychain saves do not silently delete legacy files. Legacy CLI credential commands remain unavailable in managed mode until verified execution is implemented. Personal fallback behavior is unchanged.
+
+This intentionally supersedes unrestricted operation for enrolled installations only;
+see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
+`TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
+and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.
+
+## Native secure-store correction (#283)
+
+[SECURE-STORES.md](SECURE-STORES.md) governs company mode and explicit personal
+native selection. It supersedes the earlier unconditional non-Darwin absence,
+plaintext fallback and both-location removal wording **for company mode**.
+The default personal adapter and fallback semantics remain unchanged.
+
+```go
+func KeychainFor(native bool) ManagedKeychainStore
+func (s ManagedStore) SaveCredential(provider string, cred usage.Credential) error
+func (s ManagedStore) RemoveSecure(provider string) error
+type MigrationOptions struct {
+    RemoveSource bool
+    Replace bool
+    Transition func() error
+}
+type MigrationReport struct {
+    Provider string
+    SecureStore string // unchanged | unverified | verified
+    LegacyCopy string // retained | removed | recovery
+    RecoveryFile string // optional adjacent basename
+}
+func (s ManagedStore) Migrate(ctx context.Context, provider string, opts MigrationOptions) (MigrationReport, error)
+func MigrateCatalog(ctx context.Context, configDir string, opts MigrationOptions) (MigrationReport, error)
+```
+
+Only `account_id` and `expires_at` are stored as metadata. `managed_store` records
+`keychain` or permitted `managed_file` resolution in native/company mode. It is
+never persisted or trusted from stored data. Existing raw-token entries remain
+readable. Native missing maps to `ErrNotFound`; locked, denied, unavailable and
+oversize retain typed `securestore.Error` outcomes and the existing canonical
+`keychain_unavailable` external code. No new canonical usage DTO is introduced.
+
+| Pinned scenario | Required result |
+|---|---|
+| `TestCompanyCredentialFallbackHasNoFileSideEffects` | Every native failure, zero managed-file I/O |
+| `TestNativeCredentialMigration` | Verify before transition/removal; report retained/changed source; explicit replacement |
+| `TestNativeMigrationRejectsRedirectedSource` | Reject leaf symlink without changing its target |
+| `TestNativeMetadataSurvivesRestore` | Routing/expiry metadata survives replacement rollback |
+| Native Windows/macOS/Linux store tests | Synthetic save/update/read/delete, missing and native failure evidence |
+| `TestNativeManagedCredentialSource` | Actual keychain/file source, preserved routing metadata, no persisted or forged marker |
+| `TestSignInNativeCodexPersonalFileFallback` | Successful personal fallback sign-in reaches Codex usage without provider files |
+| `TestSignInNativePersonalRollbackRemovesFallback` | Failed personal sign-in leaves no newly created fallback credential |
+| `TestLinuxUpdateAfterDefaultCollectionChanges`, native Linux default-change scenario | Update original item; read and delete still work after default changes |
+| `TestLinuxWriteRequiresExactReadback` | Both creation and update refuse false success on read-back mismatch |
+| `TestLinuxWriteRefusesAmbiguousOrLockedMatches` | Neither locked nor duplicate matches permit a write |

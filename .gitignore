@@ -23,6 +23,7 @@ __pycache__/
 
 # Release artifacts (npm packaging)
 /dist/
+npm/which-model/release-policy.json
 npm/which-model-*/which-model
 
 # Desktop monorepo (S01)
@@ -56,3 +57,7 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
+
+# Build-time assets for the separate offline desktop.
+cmd/which-model-score-only-desktop/frontend/dist/*
+!cmd/which-model-score-only-desktop/frontend/dist/.gitkeep

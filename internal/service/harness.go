@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/WD-Mitchell/which-model/internal/approvedexec"
 	"github.com/WD-Mitchell/which-model/internal/config"
 	"github.com/WD-Mitchell/which-model/internal/routing"
 )
@@ -64,6 +65,10 @@ var harnessTokenRe = regexp.MustCompile(`\{[a-z0-9_]+\}`)
 // provider discovery with explicit provider overrides over B06's universe.
 func (h *HarnessService) List(ctx context.Context) ([]HarnessInfo, error) {
 	_ = ctx
+	policy, err := readCompanyPolicy()
+	if err != nil {
+		return nil, err
+	}
 	if err := h.seedIfEmpty(); err != nil {
 		return nil, err
 	}
@@ -85,18 +90,42 @@ func (h *HarnessService) List(ctx context.Context) ([]HarnessInfo, error) {
 	out := make([]HarnessInfo, 0, len(slugs))
 	for _, slug := range slugs {
 		ht := harnesses[slug]
-		inst := installed(ht.Command)
-		if !inst && h.s.harnessHome == "" {
-			inst = installedInCommonLocations(ht.Command)
+		inst := false
+		if policy.Managed {
+			entry, approved := approvedHarness(policy, slug)
+			if approved && (compiledHarness(slug) || policy.Policy.AllowCustomShell) {
+				info, statErr := os.Lstat(entry.Path)
+				inst = statErr == nil && info.Mode().IsRegular()
+			}
+		} else {
+			inst = installed(ht.Command)
+			if !inst && h.s.harnessHome == "" {
+				inst = installedInCommonLocations(ht.Command)
+			}
 		}
 		en := inst
 		if ht.Enabled != nil {
 			en = *ht.Enabled
 		}
-		out = append(out, HarnessInfo{
+		if policy.Managed && !inst {
+			en = false
+		}
+		command, available := ht.Command, true
+		if policy.Managed {
+			command, available = "", false
+			entry, approved := approvedHarness(policy, slug)
+			if approved {
+				_, err := approvedexec.Build(policy, slug, compiledHarness(slug), map[string]string{"model_id": "model-preview", "reasoning": "default", "provider": "provider-preview", "profile": "profile-preview"})
+				if err == nil {
+					command = displayApprovedCommand(approvedexec.Plan{Path: entry.Path, Args: entry.Args})
+					available = true
+				}
+			}
+		}
+		out = append(out, HarnessInfo{CommandManaged: policy.Managed, CommandAvailable: policy.Managed && available,
 			Slug:      slug,
 			Name:      ht.Name,
-			Command:   ht.Command,
+			Command:   command,
 			Builtin:   ht.Builtin,
 			Installed: inst,
 			Enabled:   en,
@@ -407,6 +436,13 @@ func (h *HarnessService) BuildCommand(slug, modelID, reasoning string) (string, 
 // modes) the pick is recorded via the recordPick seam; a record failure is
 // logged, not returned (SPEC §2.9–2.10).
 func (h *HarnessService) Launch(ctx context.Context, slug, routeKey, profileSlug string) (LaunchResult, error) {
+	policy, err := readCompanyPolicy()
+	if err != nil {
+		return LaunchResult{}, err
+	}
+	if policy.Managed {
+		return h.launchCompany(ctx, policy, slug, routeKey, profileSlug)
+	}
 	provider, modelID, reasoning, err := ParseRouteKey(routeKey)
 	if err != nil {
 		return LaunchResult{}, err
@@ -457,39 +493,54 @@ func (h *HarnessService) Launch(ctx context.Context, slug, routeKey, profileSlug
 	h.s.mu.RUnlock()
 
 	if copyMode {
+		h.recordCompanyLaunch(slug, provider, modelID, profileSlug, "copied")
 		h.recordPick(ctx, profileSlug, routeKey)
 		return LaunchResult{Copied: true, Command: cmd}, nil
 	}
 
-	logFile, err := os.OpenFile(filepath.Join(h.s.paths.StateDir, "launch.log"),
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	logFile, err := h.launchOutput(policy)
 	if err != nil {
 		return LaunchResult{}, err
 	}
 	proc := exec.Command(userShell(), "-lc", cmd)
 	proc.SysProcAttr = launchSysProcAttr()
 	proc.Stdin = nil
-	proc.Stdout = logFile
-	proc.Stderr = logFile
+	if logFile != nil {
+		proc.Stdout = logFile
+		proc.Stderr = logFile
+	}
 	if err := proc.Start(); err != nil {
-		logFile.Close()
+		h.recordCompanyLaunch(slug, provider, modelID, profileSlug, "failed")
+		if logFile != nil {
+			logFile.Close()
+		}
 		return LaunchResult{}, fmt.Errorf("%w: launch %q: %v", errLaunchFailed, slug, err)
 	}
-	logFile.Close()
+	if logFile != nil {
+		logFile.Close()
+	}
 	proc.Process.Release() // never waited on (SPEC §2.9.4)
+	h.recordCompanyLaunch(slug, provider, modelID, profileSlug, "started")
 	h.recordPick(ctx, profileSlug, routeKey)
 	return LaunchResult{Copied: false, Command: cmd}, nil
 }
 
 // recordPick invokes the recordPick seam, logging (never returning) a failure
 // so a running harness launch is not failed by pick bookkeeping.
-func (h *HarnessService) recordPick(ctx context.Context, profileSlug, routeKey string) {
+func (h *HarnessService) recordPick(ctx context.Context, profileSlug, routeKey string) error {
 	if h.s.recordPick == nil {
-		return
+		return nil
 	}
 	if err := h.s.recordPick(ctx, profileSlug, routeKey); err != nil {
+		policy, policyErr := readCompanyPolicy()
+		if policyErr != nil || policy.Managed {
+			log.Print("company pick history write failed; launch outcome is unchanged")
+			return err
+		}
 		log.Printf("harness: record pick for %q: %v", routeKey, err)
+		return err
 	}
+	return nil
 }
 
 // userShell returns the login shell for launching harness commands: $SHELL,
@@ -574,6 +625,29 @@ func withProviderOverride(current map[string]bool, id string, on bool) map[strin
 }
 
 func (h *HarnessService) providerMap(slug string, ht config.HarnessTOML, inst bool, universe map[string]bool) map[string]bool {
+	policy, policyErr := readCompanyPolicy()
+	if policyErr != nil {
+		return map[string]bool{}
+	}
+	if policy.Managed {
+		// Company discovery does not inspect credential-bearing provider files.
+		// User provider switches remain preferences within administrator authority.
+		out := map[string]bool{}
+		if policy.Policy == nil {
+			return out
+		}
+		for _, id := range policy.Policy.AllowedProviders {
+			on := contains(ht.Providers, id)
+			if ht.Providers == nil && compiledHarness(slug) {
+				on = providerAlias(slug) == id
+			}
+			if override, ok := ht.ProviderOverrides[id]; ok {
+				on = override
+			}
+			out[id] = on
+		}
+		return out
+	}
 	known := make(map[string]bool, len(universe))
 	for id := range universe {
 		known[id] = true

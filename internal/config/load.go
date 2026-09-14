@@ -14,6 +14,9 @@ type LoadOptions struct {
 }
 
 func LoadFile(path string) (*Config, error) {
+	if _, err := readCompanyPolicy(); err != nil {
+		return nil, err
+	}
 	cfg := Default()
 	if err := cfg.DecodeFile(path); err != nil {
 		return nil, err
@@ -25,6 +28,9 @@ func LoadFile(path string) (*Config, error) {
 }
 
 func Load(opts LoadOptions) (*Config, error) {
+	if _, err := readCompanyPolicy(); err != nil {
+		return nil, err
+	}
 	getenv := opts.Getenv
 	if getenv == nil {
 		getenv = os.Getenv

@@ -203,3 +203,13 @@ check-gated merging, and assignment of other PRs are unchanged.
 while preserving Task assignment and token separation.
 `TestCreatePRClosesSupersededRefreshes` also covers assigned PRs and failed assignee
 lookups; neither may close earlier refresh PRs.
+
+## Desktop compatibility correction (#347)
+
+Requester decision: add explicit desktop support for the company stack. The [desktop workflow and distribution contract](../../desktop/backend/features/B10-settings/ADMINISTRATION.md) and [desktop user guide](../../../docs/desktop-company-workflows.md) govern the full administration page and separate offline desktop. The offline host is built with `nousage`, reuses pkg/scoreonly, binds only Profiles/Rank/Capabilities, and includes no full-service/provider/credential/execution packages. Native webview/asset transport is explicitly additional to the restricted CLI boundary. The original CLI restrictions are unchanged.
+
+Release workflow builds macOS arm64/x64 full and offline app archives before publication, with version/source identity, per-archive Go inventory, executable hashes, successful vulnerability scans, checksums and source-bound attestation. The combined manifest requires both products on both architectures. Missing/mismatched desktop evidence blocks immutable publication. GitHub prerelease maturity remains unchanged. Release bundles MUST be Developer ID signed, Apple notarized and stapled under the [F30 signing contract](../F30-publishing/CONTRACTS.md#macos-release-signing). Windows/Linux desktop distribution is not claimed. Pinned evidence: offline engine parity and binding/dependency audit, desktop release inventory/tamper tests, macOS packaging and frontend tests.
+
+## macOS release signing correction (2026-09-14)
+
+Requester decision: use the organisation’s Apple Developer ID with the configured `MacOS Publish` environment. This supersedes the earlier ad-hoc-only release scope. Both macOS desktop products on both architectures MUST pass Developer ID signing, secure timestamp and hardened-runtime verification, Apple notarization, stapling and Gatekeeper assessment before archive inventory or publication. See the [signing contract](CONTRACTS.md#macos-release-signing) and [operator guide](../../../docs/releases/macos-signing.md). npm publication continues to use `Publish`; verification-only candidates remain nonpublishing.

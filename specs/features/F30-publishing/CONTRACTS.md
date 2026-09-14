@@ -243,3 +243,42 @@ check-gated merging, and assignment of other PRs are unchanged.
 while preserving Task assignment and token separation.
 `TestCreatePRClosesSupersededRefreshes` also covers assigned PRs and failed assignee
 lookups; neither may close earlier refresh PRs.
+
+## Desktop compatibility correction (#347)
+
+Requester decision: add explicit desktop support for the company stack. The [desktop workflow and distribution contract](../../desktop/backend/features/B10-settings/ADMINISTRATION.md) and [desktop user guide](../../../docs/desktop-company-workflows.md) govern the full administration page and separate offline desktop. The offline host is built with `nousage`, reuses pkg/scoreonly, binds only Profiles/Rank/Capabilities, and includes no full-service/provider/credential/execution packages. Native webview/asset transport is explicitly additional to the restricted CLI boundary. The original CLI restrictions are unchanged.
+
+Release workflow builds macOS arm64/x64 full and offline app archives before publication, with version/source identity, per-archive Go inventory, executable hashes, successful vulnerability scans, checksums and source-bound attestation. The combined manifest requires both products on both architectures. Missing/mismatched desktop evidence blocks immutable publication. GitHub prerelease maturity remains unchanged. Release bundles MUST be Developer ID signed, Apple notarized and stapled under the [F30 signing contract](../F30-publishing/CONTRACTS.md#macos-release-signing). Windows/Linux desktop distribution is not claimed. Pinned evidence: offline engine parity and binding/dependency audit, desktop release inventory/tamper tests, macOS packaging and frontend tests.
+
+## macOS release signing
+
+The 2026-09-14 requester decision supersedes ad-hoc-only release signing. The desktop matrix uses the requester-selected latest available GitHub macOS generation (currently `macos-26` for arm64 and `macos-26-intel` for x64). It uses `MacOS Publish` for `BUILD_CERTIFICATE_BASE64`, `P12_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, and `APPLE_APP_SPECIFIC_PASSWORD`. Missing credentials or a certificate without exactly one Developer ID Application identity matching the team MUST stop signing. CI imports the certificate into a temporary keychain, deletes the temporary P12 after import, and restores the prior search list and deletes the keychain on success or handled failure. Credentials and raw credential-tool diagnostics MUST NOT be printed.
+
+After tests and packaging, each app MUST be signed with hardened runtime and a secure timestamp; its signature and team are verified. Apple must return `Accepted`; the ticket must be stapled and validated, the signature rechecked, and Gatekeeper assessment must succeed. Only then may final ZIPs, SBOMs, hashes, combined manifest and Sigstore attestations be generated. Failed or timed-out submissions MUST stop publication. Apple logs are diagnostic artifacts, not success evidence. No runtime entitlement exceptions are introduced.
+
+Each desktop archive has an attested `<archive>.notarization.json` receipt with these fields:
+
+| Field | Required value |
+| --- | --- |
+| `schema` | `1` |
+| `status` | `Accepted` |
+| `submission_id` | Apple submission UUID |
+| `team_id` | Ten-character Apple team identifier |
+| `authority` | Developer ID Application authority ending in the team identifier |
+| `bundle_id` | Signed app’s CFBundleIdentifier |
+| `executable_sha256` | Lowercase SHA-256 of the final signed executable |
+| `ticket_stapled`, `gatekeeper_accepted` | `true` |
+
+Inventory, manifest assembly and whole-release verification MUST require the receipt and match its executable digest to the SBOM `desktop-executable` component. Whole-release verification additionally verifies its source-bound Sigstore attestation. This is authenticated CI evidence; it does not independently contact Apple. Native macOS verification remains available to recipients. Earlier ad-hoc desktop candidate evidence cannot satisfy this contract.
+
+Pinned verification rows:
+
+| Scenario | Required evidence |
+| --- | --- |
+| Missing credentials, wrong team, failed import or notary credentials | Refusal; temporary keychain/P12 cleanup on handled failures (`test_macos_signing.py`) |
+| Signing, Apple rejection, stapling, ticket validation or Gatekeeper failure | No success receipt; release dependency prevents publication (`test_macos_signing.py`) |
+| Accepted submission | Signature/runtime/timestamp, ticket and Gatekeeper checks precede receipt (`test_macos_signing.py`; real macOS candidate) |
+| Missing, tampered, rejected or executable-mismatched receipt | Publication/whole-release verification refuses it (`test_desktop_release.py`, `verify-release.test.js`) |
+| Successful candidate | Both products on both architectures verified from the exact commit before release; `verify_only` creates no tag, release or npm publication |
+
+npm trusted publishing retains the `Publish` environment for every package, including Darwin packages. Environment deployment restrictions apply to candidates; operators must explicitly permit a candidate branch rather than bypass restrictions with a release-shaped tag.

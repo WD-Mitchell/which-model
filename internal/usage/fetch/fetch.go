@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/WD-Mitchell/which-model/internal/company"
 	"net/http"
 	"sort"
 	"strings"
@@ -45,7 +46,7 @@ const (
 type Options struct {
 	Backend                config.UsageBackend // off, native, or codexbar; empty preserves native
 	Refresh                bool                // skip cache reads; refetch and rewrite (annex-d --refresh-usage)
-	Offline                bool                // read-only: cache only, never credentials/fetch/writes
+	Offline                bool                // cache only; company retention may scrub/delete owned records
 	MaxAge                 time.Duration       // TTL override via cache.EffectiveTTL (annex-d --max-age)
 	ShowIdentity           bool                // false (default): Account/Plan cleared on RETURNED snapshots
 	Enabled                map[string]bool     // L1a gate, default-deny (SPEC D1)
@@ -54,23 +55,56 @@ type Options struct {
 	CacheDir               string              // "" → cache.New() (system dir); test seam (SPEC D11)
 	Source                 usage.Source        // optional forced credential source; empty preserves auto
 	StateDir               string              // "" resolves the platform state directory
-	DisableManagedKeychain bool                // false (default) prefers the OS keychain
+	NativeKeychain         bool
+	DisableManagedKeychain bool // false (default) prefers the OS keychain
 }
 
 var (
+	readCompanyPolicy        = company.Load
 	codexbarFetch            = codexbar.FetchWithSource
 	codexbarFetchEnvironment = codexbar.FetchWithSourceEnvironment
+	codexbarPreflight        = codexbar.Preflight
+	codexbarEnvironment      = codexbarCredentialEnvironment
 )
 
 // FetchAll selects the configured usage backend after applying the common
 // enabled-provider gate. An unset backend retains the native implementation
 // for direct callers; config.Default selects off.
-func FetchAll(ctx context.Context, providers []string, opts Options) ([]usage.Snapshot, []credential.Warning, error) {
+func FetchAll(ctx context.Context, providers []string, opts Options) (snapshots []usage.Snapshot, warnings []credential.Warning, resultErr error) {
+	policy, err := readCompanyPolicy()
+	if err != nil {
+		return nil, nil, err
+	}
+	if policy.Managed {
+		defer func() {
+			minimizeCompanyFailures(snapshots)
+			minimizeCompanyWarnings(warnings)
+		}()
+	}
+	if opts.Backend != config.UsageBackendOff {
+		for _, id := range providers {
+			if opts.Enabled[id] {
+				if err := policy.RequireProvider(id); err != nil {
+					return nil, nil, err
+				}
+			}
+		}
+		if opts.Backend == config.UsageBackendCodexBar {
+			if err := policy.RequireCodexBar(); err != nil {
+				return nil, nil, err
+			}
+		}
+		if opts.DisableManagedKeychain {
+			if err := policy.RequireSource("managed_file"); err != nil {
+				return nil, nil, err
+			}
+		}
+	}
 	switch opts.Backend {
 	case config.UsageBackendOff:
 		return nil, nil, nil
 	case config.UsageBackendCodexBar:
-		return fetchCodexBarAll(ctx, providers, opts)
+		return fetchCodexBarAll(ctx, providers, opts, policy.Managed)
 	case config.UsageBackendNative, "":
 		return fetchNativeAll(ctx, providers, opts)
 	default:
@@ -191,7 +225,7 @@ func fetchNativeAll(ctx context.Context, providers []string, opts Options) ([]us
 	// Identity redaction (SPEC §10, D9): ShowIdentity false (default)
 	// clears Account/Plan on every RETURNED snapshot (live, cached,
 	// offline alike). Cache writes happened before this point, so the
-	// cache files keep full identity for later --show-identity runs.
+	// personal cache files keep identity; company persistence follows protected privacy settings.
 	if !opts.ShowIdentity {
 		for i := range results {
 			results[i].Account = ""
@@ -270,9 +304,10 @@ func runProvider(gctx context.Context, store *cache.Store, client *http.Client, 
 		var rerr error
 		var rwarns []credential.Warning
 		cred, rwarns, rerr = credential.ResolveProvider(pctx, id, filterChainForSource(desc.Auth, opts.Source), client, credential.ManagedStore{
-			StateDir:    opts.StateDir,
-			Keychain:    credential.DefaultKeychain(),
-			UseKeychain: !opts.DisableManagedKeychain,
+			StateDir:       opts.StateDir,
+			Keychain:       credential.KeychainFor(opts.NativeKeychain),
+			NativeKeychain: opts.NativeKeychain,
+			UseKeychain:    !opts.DisableManagedKeychain,
 		})
 		warns = append(warns, rwarns...)
 		if rerr != nil {
@@ -380,7 +415,7 @@ func SourceFor(cred usage.Credential, kind usage.Kind) usage.Source {
 		return usage.SourceAPI
 	}
 }
-func fetchCodexBarAll(ctx context.Context, providers []string, opts Options) ([]usage.Snapshot, []credential.Warning, error) {
+func fetchCodexBarAll(ctx context.Context, providers []string, opts Options, managed bool) ([]usage.Snapshot, []credential.Warning, error) {
 	active := make([]string, 0, len(providers))
 	for _, id := range providers {
 		if opts.Enabled == nil || !opts.Enabled[id] {
@@ -441,7 +476,11 @@ func fetchCodexBarAll(ctx context.Context, providers []string, opts Options) ([]
 			if !opts.Refresh {
 				ttl := cache.EffectiveTTL(defaultCodexBarCacheTTL, opts.MaxAge)
 				snap, stale, err := store.Read(id, ttl)
-				if err == nil && !stale && snap.Failure == nil && matchesRequestedSource(snap.Source, opts.Source) {
+				sourceMatches := matchesRequestedSource(snap.Source, opts.Source)
+				if managed {
+					sourceMatches = codexbar.CompanySourceMatches(id, snap.Source, opts.Source)
+				}
+				if err == nil && !stale && snap.Failure == nil && sourceMatches {
 					snap.Source = usage.SourceCache
 					snap.Confidence = "cached"
 					snap.Stale = false
@@ -459,7 +498,14 @@ func fetchCodexBarAll(ctx context.Context, providers []string, opts Options) ([]
 			}
 			pctx, cancel := context.WithTimeout(gctx, timeout)
 			defer cancel()
-			environment := codexbarCredentialEnvironment(pctx, id, opts)
+			if err := codexbarPreflight(id); err != nil {
+				results[i] = usage.Snapshot{Provider: id, Source: usage.SourceCLI, Failure: &usage.Failure{Code: "provider_status", Message: companyCodexBarApprovalMessage}}
+				return nil
+			}
+			var environment map[string]string
+			if pctx.Err() == nil {
+				environment = codexbarEnvironment(pctx, id, opts)
+			}
 			var snap usage.Snapshot
 			var err error
 			if pctx.Err() != nil {
@@ -528,10 +574,21 @@ func codexbarCredentialEnvironment(ctx context.Context, provider string, opts Op
 	if provider != "antigravity" {
 		return nil
 	}
+	policy, err := readCompanyPolicy()
+	if err != nil || (ctx != nil && ctx.Err() != nil) {
+		return nil
+	}
+	if policy.Managed && opts.Source != "" && opts.Source != usage.SourceOAuth {
+		return nil
+	}
+	if codexbarPreflight(provider) != nil {
+		return nil
+	}
 	store := credential.ManagedStore{
-		StateDir:    opts.StateDir,
-		Keychain:    credential.DefaultKeychain(),
-		UseKeychain: !opts.DisableManagedKeychain,
+		StateDir:       opts.StateDir,
+		Keychain:       credential.KeychainFor(opts.NativeKeychain),
+		NativeKeychain: opts.NativeKeychain,
+		UseKeychain:    !opts.DisableManagedKeychain,
 	}
 	managed, _, err := store.Resolve(ctx, provider)
 	if err != nil {

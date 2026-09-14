@@ -211,3 +211,43 @@ remain valid. Pin `TestAuditRejectsIncompleteEvidence`.
 ## Execution correction — #162
 
 `ExecuteCommand` builds fresh commands and restores the caller's flags and streams. Stdin is empty/whitespace or a JSON object containing host context; it never replaces command output. Only Runner injects output fixtures. Explicit outer global flags are forwarded ahead of passthrough flags; underlying output remains JSON.
+
+
+## Company-policy extension (#282)
+
+CLI and component installation check protected company hook-installation permission before writing settings. Hook Run separately checks hook-use permission before invoking its in-process Runner. A policy refusal is exit-2-class; existing quota/audit evidence handling remains advisory under the user decision for #286. Removal remains available for cleanup.
+
+This intentionally supersedes unrestricted operation for enrolled installations only;
+see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
+`TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
+and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.
+
+
+## Company privacy correction (#284)
+
+Company files are state/audit/evidence.jsonl and mismatches.jsonl. Each record carries ts and privacy_version=1 plus the typed F13 audit whitelist. Successful output identifies managed audit store without an absolute path. Failure output has decision=approve and hookSpecificOutput.audit_recorded=false with a fixed reason. Personal project audit behavior remains unchanged. Pin canary removal, both timestamped stores, legacy deletion and visible non-blocking failure.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.
+
+
+## Approved company execution correction (#285)
+
+No protocol/manifest schema changes. Native CI installs owned hooks alongside foreign settings under allowed policy, disables installation/use, verifies refused actions, then removes only the owned entries. Existing personal ownership tests remain authoritative.
+
+Governing correction: `specs/desktop/backend/features/B07-harnesses/MANAGED-EXECUTION.md`.
+This implements the requester-approved optional managed profile while preserving
+personal defaults; it supersedes unconditional shell/policy-placeholder statements
+for company execution.
+
+Company Claude-hook removal validates manifest version 1 and exact shipped
+ID/event/matcher/command tuples (both shipped variants) before editing settings.
+A manifest claiming a foreign command or an unrecognized historical command is
+refused for manual review. Installation-disabled cleanup remains allowed for
+recognized owned entries. Personal removal behavior is unchanged.
+
+
+## Company advisory evidence correction (#286)
+
+Decision: quota, usage-authentication and audit evidence failures do not need to block launches. The optional managed profile uses advisory reporting; personal defaults remain unchanged. Company dispatch returns an explicit advisory approve envelope on quota/refresh errors, empty/no-pick recommendations and audit failures; personal decisions remain unchanged. Installation/use authorization still precedes the observer. `quota_evidence` maps provider IDs to global §15 reports; a filtered empty quota response is not a full allowance check. `evidence_available` means observations were returned, not that those observations are healthy. Spawn output is a bounded typed subset: candidate_id, route {provider, model_id, reasoning}, model_score, final_score and allowlisted fixed warnings; it cannot echo arbitrary payloads. Audit success carries audit_recorded=true; failure/zero retention carries false (zero also audit_status=disabled). Input/command failures never silently become successful recording. Evidence decoding accepts the optional closed quota_state enum. Tests: company advisory matrix/hooks, audit zero-retention and privacy tests.

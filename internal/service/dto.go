@@ -7,6 +7,7 @@ package service
 
 import (
 	"fmt"
+	"github.com/WD-Mitchell/which-model/internal/advisory"
 	"regexp"
 	"strings"
 )
@@ -58,22 +59,24 @@ type RankRequest struct {
 
 // RankedModel is one ranked candidate.
 type RankedModel struct {
-	Rank         int      `json:"rank"` // 1-based
-	ModelID      string   `json:"model_id"`
-	ModelName    string   `json:"model_name"`
-	Provider     string   `json:"provider"`
-	Reasoning    string   `json:"reasoning"`
-	Score        float64  `json:"score"` // already rounded to 2dp
-	RouteKey     string   `json:"route_key"`
-	Intelligence *float64 `json:"intelligence,omitempty"`
-	Cost         *float64 `json:"cost,omitempty"`
-	Speed        *float64 `json:"speed,omitempty"`
+	QuotaEvidence *advisory.Report `json:"quota_evidence,omitempty"`
+	Rank          int              `json:"rank"` // 1-based
+	ModelID       string           `json:"model_id"`
+	ModelName     string           `json:"model_name"`
+	Provider      string           `json:"provider"`
+	Reasoning     string           `json:"reasoning"`
+	Score         float64          `json:"score"` // already rounded to 2dp
+	RouteKey      string           `json:"route_key"`
+	Intelligence  *float64         `json:"intelligence,omitempty"`
+	Cost          *float64         `json:"cost,omitempty"`
+	Speed         *float64         `json:"speed,omitempty"`
 }
 
 // RankResponse is a ranked result set.
 type RankResponse struct {
-	Candidates []RankedModel `json:"candidates"` // top Holds, rank ascending
-	Total      int           `json:"total"`      // candidates before truncation
+	RecommendationMode string        `json:"recommendation_mode,omitempty"`
+	Candidates         []RankedModel `json:"candidates"` // top Holds, rank ascending
+	Total              int           `json:"total"`      // candidates before truncation
 }
 
 // CatalogSummary counts the live catalog.
@@ -144,19 +147,22 @@ type ProviderDetail struct {
 
 // HarnessInfo is one harness's shape.
 type HarnessInfo struct {
-	Slug      string          `json:"slug"`
-	Name      string          `json:"name"`
-	Command   string          `json:"command"` // template with {model_id}/{reasoning}
-	Builtin   bool            `json:"builtin"`
-	Installed bool            `json:"installed"` // argv[0] found on PATH
-	Enabled   bool            `json:"enabled"`   // active in launcher; defaults to installed
-	Providers map[string]bool `json:"providers"` // per-harness provider allow-map
+	CommandManaged   bool            `json:"command_managed,omitempty"`
+	CommandAvailable bool            `json:"command_available,omitempty"`
+	Slug             string          `json:"slug"`
+	Name             string          `json:"name"`
+	Command          string          `json:"command"` // template with {model_id}/{reasoning}
+	Builtin          bool            `json:"builtin"`
+	Installed        bool            `json:"installed"` // argv[0] found on PATH
+	Enabled          bool            `json:"enabled"`   // active in launcher; defaults to installed
+	Providers        map[string]bool `json:"providers"` // per-harness provider allow-map
 }
 
 // LaunchResult is the harness launch outcome.
 type LaunchResult struct {
-	Copied  bool   `json:"copied"`  // true ⇒ frontend puts Command on the clipboard
-	Command string `json:"command"` // fully substituted
+	Copied     bool     `json:"copied"`  // true ⇒ frontend puts Command on the clipboard
+	Command    string   `json:"command"` // fully substituted
+	Advisories []string `json:"advisories,omitempty"`
 }
 
 // UsageWindow is one usage window (session|weekly|monthly|provider-specific).

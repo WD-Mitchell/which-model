@@ -90,3 +90,10 @@ A successful Save as use case selects the new slug even while the catalogue
 query is refreshing. Absence from the cached list is not evidence of deletion;
 only the selected detail query returning `not_found` triggers the default
 fallback. Switching work profiles still selects that profile's default.
+
+
+## Company advisory evidence correction (#286)
+
+Decision: quota, usage-authentication and audit evidence failures do not need to block launches. The optional managed profile uses advisory reporting; personal defaults remain unchanged. Company ranking displays “Score-only recommendation” with the selected candidate's quota evidence message on either tab. A successful launch with advisories displays “Process started” or “Command prepared for copying” plus persistent notices and a dismiss button. Such notices suppress automatic close-after-launch so users can read them. Clipboard failure remains independently reported. Personal launch toast and automatic-close behavior are unchanged. Tests: popover company-advisory regression and existing personal launch/copy/close tests.
+
+Company rank queries refresh on usage updates and once per minute while visible to age the report; this only re-runs local ranking and does not collect usage. The recommendation and notices share a scrolling content region within the existing host height ceiling; the footer stays visible.

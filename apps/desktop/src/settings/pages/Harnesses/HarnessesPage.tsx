@@ -302,8 +302,8 @@ function HarnessDetailView({
       {/* demo.dc.html 525-531 */}
       <section className={styles.cmdBlock}>
         <div className={styles.blockHead}>
-          <span className={styles.label}>launch command</span>
-          <span className={cx('mono', styles.headNote)}>{TOKEN_NOTE}</span>
+          <span className={styles.label}>{h.command_managed ? "Administrator-controlled command" : "launch command"}</span>
+          <span className={cx('mono', styles.headNote)}>{h.command_managed ? "Protected template; verified again at launch" : TOKEN_NOTE}</span>
           <span className={cx('mono', styles.slugNote)}>
             {h.slug}
             {h.installed ? null : (
@@ -314,8 +314,8 @@ function HarnessDetailView({
           </span>
         </div>
         {/* variant="command" is `class="mono input"` at the mockup's metrics. */}
-        <SnippetPreview text={h.command} variant="command" />
-        {!h.command.includes('{model_id}') ? <p className={styles.note}>This harness selects its model in its own settings.</p> : null}
+        {h.command_managed && !h.command_available ? <p className={styles.note}>No permitted administrator-approved command. Contact your administrator.</p> : <SnippetPreview text={h.command} variant="command" />}
+        {h.command && !h.command.includes('{model_id}') ? <p className={styles.note}>This harness selects its model in its own settings.</p> : null}
       </section>
 
       {/* demo.dc.html 533-571 */}

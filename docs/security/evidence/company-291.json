@@ -1,0 +1,261 @@
+{
+  "schema_version": 1,
+  "assessment_version": 1,
+  "review_date": "2026-09-11",
+  "review_status": "prepared_for_human_review",
+  "company_acceptance": "pending",
+  "source_commit": "b0bc8dacd20d95adc50c141433d1d74888222641",
+  "source_ref": "refs/heads/codex/company-289-release-readiness",
+  "candidate_version": "2.5.6-company291.1",
+  "published": false,
+  "candidate_run": 34544198645,
+  "candidate_url": "https://github.com/WD-Mitchell/which-model/actions/runs/34544198645",
+  "workflow": ".github/workflows/npm-release.yml",
+  "verify_only": true,
+  "release_job": "skipped",
+  "publish_job": "skipped",
+  "artifact_id": 10178489175,
+  "artifact_archive_sha256": "0a3c8c6b443a7db37225f9c64f2bada9173522f2d6921b2c97560adce40af277",
+  "artifact_expires_at": "2026-12-09T23:54:31Z",
+  "toolchain": {
+    "release_go": "go1.26.8",
+    "module_floor": "go1.25.0",
+    "govulncheck": "v1.8.0",
+    "local_verifier_gh": "2.97.0"
+  },
+  "verification": {
+    "artifacts_and_sboms": 10,
+    "signed_scan_reports": 10,
+    "scan_result": "No vulnerabilities found.",
+    "source_substitution_refused": true,
+    "ref_substitution_refused": true,
+    "altered_signed_manifest_refused": true,
+    "offline_trust_root_obtained_before_candidate": true,
+    "independent_rebuild_target": "darwin/arm64 score-only",
+    "independent_rebuild_byte_identical": true,
+    "native_candidate_capabilities_match": true,
+    "native_candidate_ranking_deterministic": true
+  },
+  "capabilities": {
+    "artifact": "which-model-score-only",
+    "catalog": {
+      "sha256": "55f3809d54368a563c6e7bfec1b06485e9614cf5329e2d760662b4991c738959",
+      "source_path": "data/available_model_scores.csv"
+    },
+    "enabled": [
+      "score_ranking",
+      "bundled_catalog",
+      "builtin_profiles"
+    ],
+    "excluded": [
+      "network",
+      "provider_authentication",
+      "provider_usage",
+      "codexbar",
+      "harness_execution",
+      "skill_installation",
+      "hook_installation",
+      "configuration_files",
+      "persistence"
+    ],
+    "profiles": {
+      "sha256": "e7709300375b04ead9dcc726e22ac4ecc277a5b5204f0e2bd1bb82f4ca03bd69",
+      "source_path": "internal/pick/profiles.go"
+    },
+    "schema_version": "2.0",
+    "source_commit": "b0bc8dacd20d95adc50c141433d1d74888222641",
+    "usage_disabled_reason": "compiled_out",
+    "usage_enabled": false,
+    "version": "2.5.6-company291.1"
+  },
+  "artifacts": [
+    {
+      "name": "which-model-darwin-arm64",
+      "sbom": "which-model-darwin-arm64.cdx.json",
+      "sbom_sha256": "a00e8f15528a3a746d020bfe937d7a227defb5089c14a2c222a756fde33009a9",
+      "sha256": "34a781e81318057ab2ba507ec23c2ea5c1a35f55a0614a01dc110e45a237e6b6"
+    },
+    {
+      "name": "which-model-darwin-x64",
+      "sbom": "which-model-darwin-x64.cdx.json",
+      "sbom_sha256": "5a7f5f844b3dbcb6bd609053fe56c83c9d705e4f3fb99504fbe13a5d33446806",
+      "sha256": "968ba6c49397cfe66c587bd1c745b89d366132c8ab9acb653d4b4252b4f947d9"
+    },
+    {
+      "name": "which-model-linux-arm64",
+      "sbom": "which-model-linux-arm64.cdx.json",
+      "sbom_sha256": "b05ee6a73f81dd337dccdcee1e4f6a90fd0717c5aa98329437b7f9eb9755c246",
+      "sha256": "fe038800c6f80dfe173f213d1f6bfccf103ee09d6d6edaeec25ffb704b4c56ba"
+    },
+    {
+      "name": "which-model-linux-x64",
+      "sbom": "which-model-linux-x64.cdx.json",
+      "sbom_sha256": "3fd6aaa5cd17d788ee88c57c19285092b1e91cbb165a73d65ebf78b950ea2774",
+      "sha256": "34a00b54b4cbbba1c5af76380da93d237a16b5224583b1dd23074b26241fae09"
+    },
+    {
+      "name": "which-model-score-only-darwin-arm64",
+      "sbom": "which-model-score-only-darwin-arm64.cdx.json",
+      "sbom_sha256": "6d82f25525d7a494cb51526d6e71df1bdc824cc38a8a72f0db366fe7194ae9e3",
+      "sha256": "b6868e8b036c80432a92aea6d30c05c7b3ee67b26eb1fb8eb020ea049daff374"
+    },
+    {
+      "name": "which-model-score-only-darwin-x64",
+      "sbom": "which-model-score-only-darwin-x64.cdx.json",
+      "sbom_sha256": "aa5cec93f87dbca5aa8c103fbf4ea8f7837e3ba33d375d4064d285c65fe7eefa",
+      "sha256": "d5f88855b4283645691b9b83c2ce2af3c421b7000b4ebd6edd2d8b24c036fec4"
+    },
+    {
+      "name": "which-model-score-only-linux-arm64",
+      "sbom": "which-model-score-only-linux-arm64.cdx.json",
+      "sbom_sha256": "49a25e8ca67bc3b190bcc51bacee5581aeaa87204b4a1c30708e03510d0641c4",
+      "sha256": "e8a37db24f36352ab317753dc9fd446bc5e0c2a94d1887175e6d8e30def0613c"
+    },
+    {
+      "name": "which-model-score-only-linux-x64",
+      "sbom": "which-model-score-only-linux-x64.cdx.json",
+      "sbom_sha256": "b72f5f2ab862b31c77a4a009d42fc066fccc69a23ae03c71d87ce8e6f435168c",
+      "sha256": "77b17f1243c4722903b4b69c2b74c5ad18d959e80fb1e01998be48e7b17c2dbf"
+    },
+    {
+      "name": "which-model-score-only-windows-x64.exe",
+      "sbom": "which-model-score-only-windows-x64.exe.cdx.json",
+      "sbom_sha256": "f307074e6dd491a2a2da24b0d68559ffd70e787f74d4882a06a636fd6e588de7",
+      "sha256": "8ffa86266e21c31b7d4179e0415b3205fa70359182bcc60cc75c24fadee5fc2c"
+    },
+    {
+      "name": "which-model-windows-x64.exe",
+      "sbom": "which-model-windows-x64.exe.cdx.json",
+      "sbom_sha256": "ef71ef29aa763cd80fa756eb8b7be16fb21b7ed7b4cff513edaf4b9a2e656265",
+      "sha256": "ba6f731b94f16bcc138f8229cd3a35533474943bb3dd66874e5fc2bb65d32d3b"
+    }
+  ],
+  "evidence_files": [
+    {
+      "name": "checksums.txt",
+      "sha256": "11039d39f5981d85875373464796b408cad5c367df4dff5f3b96d97d9b2f61ee"
+    },
+    {
+      "name": "provenance.jsonl",
+      "sha256": "a42568804420c1ebcd39ac04111f00a7a951c4e01ea913a096d15fdcfe436a06"
+    },
+    {
+      "name": "release-manifest.json",
+      "sha256": "d954424fbf3f4c8d273f0e536528100304ccea20a96fa75de00753dbc975aa8f"
+    },
+    {
+      "name": "verification.txt",
+      "sha256": "69cb0ff8078cb758cc2cc57522ba7ee5fd8af50f6135df9554ccc1bd463f7b12"
+    },
+    {
+      "name": "which-model-darwin-arm64.cdx.json",
+      "sha256": "a00e8f15528a3a746d020bfe937d7a227defb5089c14a2c222a756fde33009a9"
+    },
+    {
+      "name": "which-model-darwin-arm64.govulncheck.txt",
+      "sha256": "3016e51e4eac0d421674d2128bbbdefb2924b4646e0c14a1ab034977ad73fae5"
+    },
+    {
+      "name": "which-model-darwin-x64.cdx.json",
+      "sha256": "5a7f5f844b3dbcb6bd609053fe56c83c9d705e4f3fb99504fbe13a5d33446806"
+    },
+    {
+      "name": "which-model-darwin-x64.govulncheck.txt",
+      "sha256": "3016e51e4eac0d421674d2128bbbdefb2924b4646e0c14a1ab034977ad73fae5"
+    },
+    {
+      "name": "which-model-linux-arm64.cdx.json",
+      "sha256": "b05ee6a73f81dd337dccdcee1e4f6a90fd0717c5aa98329437b7f9eb9755c246"
+    },
+    {
+      "name": "which-model-linux-arm64.govulncheck.txt",
+      "sha256": "3016e51e4eac0d421674d2128bbbdefb2924b4646e0c14a1ab034977ad73fae5"
+    },
+    {
+      "name": "which-model-linux-x64.cdx.json",
+      "sha256": "3fd6aaa5cd17d788ee88c57c19285092b1e91cbb165a73d65ebf78b950ea2774"
+    },
+    {
+      "name": "which-model-linux-x64.govulncheck.txt",
+      "sha256": "3016e51e4eac0d421674d2128bbbdefb2924b4646e0c14a1ab034977ad73fae5"
+    },
+    {
+      "name": "which-model-score-only-capabilities.json",
+      "sha256": "c3eace72c647fe724e242e7000a59f618d5146896ac97ba93167a966dde81380"
+    },
+    {
+      "name": "which-model-score-only-darwin-arm64.cdx.json",
+      "sha256": "6d82f25525d7a494cb51526d6e71df1bdc824cc38a8a72f0db366fe7194ae9e3"
+    },
+    {
+      "name": "which-model-score-only-darwin-arm64.govulncheck.txt",
+      "sha256": "3016e51e4eac0d421674d2128bbbdefb2924b4646e0c14a1ab034977ad73fae5"
+    },
+    {
+      "name": "which-model-score-only-darwin-x64.cdx.json",
+      "sha256": "aa5cec93f87dbca5aa8c103fbf4ea8f7837e3ba33d375d4064d285c65fe7eefa"
+    },
+    {
+      "name": "which-model-score-only-darwin-x64.govulncheck.txt",
+      "sha256": "3016e51e4eac0d421674d2128bbbdefb2924b4646e0c14a1ab034977ad73fae5"
+    },
+    {
+      "name": "which-model-score-only-linux-arm64.cdx.json",
+      "sha256": "49a25e8ca67bc3b190bcc51bacee5581aeaa87204b4a1c30708e03510d0641c4"
+    },
+    {
+      "name": "which-model-score-only-linux-arm64.govulncheck.txt",
+      "sha256": "3016e51e4eac0d421674d2128bbbdefb2924b4646e0c14a1ab034977ad73fae5"
+    },
+    {
+      "name": "which-model-score-only-linux-x64.cdx.json",
+      "sha256": "b72f5f2ab862b31c77a4a009d42fc066fccc69a23ae03c71d87ce8e6f435168c"
+    },
+    {
+      "name": "which-model-score-only-linux-x64.govulncheck.txt",
+      "sha256": "3016e51e4eac0d421674d2128bbbdefb2924b4646e0c14a1ab034977ad73fae5"
+    },
+    {
+      "name": "which-model-score-only-windows-x64.exe.cdx.json",
+      "sha256": "f307074e6dd491a2a2da24b0d68559ffd70e787f74d4882a06a636fd6e588de7"
+    },
+    {
+      "name": "which-model-score-only-windows-x64.exe.govulncheck.txt",
+      "sha256": "3016e51e4eac0d421674d2128bbbdefb2924b4646e0c14a1ab034977ad73fae5"
+    },
+    {
+      "name": "which-model-windows-x64.exe.cdx.json",
+      "sha256": "ef71ef29aa763cd80fa756eb8b7be16fb21b7ed7b4cff513edaf4b9a2e656265"
+    },
+    {
+      "name": "which-model-windows-x64.exe.govulncheck.txt",
+      "sha256": "3016e51e4eac0d421674d2128bbbdefb2924b4646e0c14a1ab034977ad73fae5"
+    }
+  ],
+  "frameworks": {
+    "csf": "2.0 / CSWP 29 (2024-02-26)",
+    "sp800_53": "Rev. 5 / 5.2.0",
+    "sp800_53_catalog_commit": "78650f02ad9321bb7b817846f8fbd4f2bcd620de",
+    "ai_rmf": "1.0 (2023)",
+    "attack": "Enterprise v19",
+    "atlas": "2026.08 / format 6.0.0",
+    "atlas_data_commit": "41d4f5ca4112f0e492ffaa3ebff07dc80a75afa5"
+  },
+  "limits": [
+    "Candidate only; no tag, GitHub release or npm package published",
+    "Hosted evidence expires; company archive required",
+    "No live customer provider accounts, fleet enrollment or full agent penetration test",
+    "Human maintainer review and company acceptance pending"
+  ],
+  "ci": {
+    "run": 34544150578,
+    "url": "https://github.com/WD-Mitchell/which-model/actions/runs/34544150578",
+    "source_commit": "b0bc8dacd20d95adc50c141433d1d74888222641",
+    "observed_result": "all PR checks passed",
+    "native_os_families": [
+      "macOS",
+      "Windows",
+      "Linux"
+    ]
+  }
+}

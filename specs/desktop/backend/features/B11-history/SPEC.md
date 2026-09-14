@@ -42,3 +42,12 @@ Depends on: nothing in `internal/service` (no `Services` receiver, no lock, no e
 | "Pick" definition | `candidate_id != ""` counts; no-pick runs ignored silently | Mockup "picks" column counts successful picks; a gated/empty run is neither a pick nor corruption |
 | LastUsed value | Original `ts` string of the max-time entry | Avoids re-serialisation drift (offset normalisation); D00 `ProfileStats.LastUsed` is a string |
 | Shape sync | Comment-sync clause naming `pkg/whichmodel/pick.go` | B00 SPEC §2.3: re-declare, never import CLI wrappers |
+
+
+## Company privacy correction (#284)
+
+Managed AppendPick minimizes opaque evidence and stamps application time; AggregatePicks reads only the retained/scrubbed records from the same locked transaction. Legacy account/payload fields are removed without renewing retention; expired records are physically deleted. Personal history behavior remains unchanged.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.

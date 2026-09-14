@@ -162,3 +162,20 @@ project: which-model
 ## Correction — usage request options (#164, 2026-09-04)
 
 The pick usage stage honors the configured backend (`off`, `native`, `codexbar`) and normalized global `--offline`, `--refresh-usage`, `--max-age`, and `--timeout` flags. Per-run input is captured before fetching and forwarded unchanged to F14. Offline remains read-only even with targeted refresh set; `--no-usage` bypasses fetching. This corrects the adapter omission, without changing F14 or the public pick JSON shape.
+
+
+## Company privacy correction (#284)
+
+Company history writes and explain/history reads use the shared privacy controller. Only typed operational selection evidence is retained; raw reasons, account identity and unknown fields are removed. The application stamps new records, preserves old timestamps when scrubbing, and deletes entries at configured expiry. History-write failure remains advisory. Personal JSONL behavior is unchanged.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.
+
+
+## Company advisory evidence correction (#286)
+
+Decision: quota, usage-authentication and audit evidence failures do not need to block launches. The optional managed profile uses advisory reporting; personal defaults remain unchanged. Company candidates append the fixed selected-route report to existing `warnings`; text output prints those messages, omits the ambiguous numeric band summary, and explicitly labels usage-disabled recommendations. Personal output stays unchanged. Company persisted/explained Evidence adds optional `quota_state` using global §15. Partial/unknown/missing/failed evidence omits Band even when stale; stale values may retain a band only when every required route window is computable. Snapshot-level UsageKnown alone is insufficient because it may refer to unrelated provider windows. Cache provenance stays cached even when a fetch adapter supplies a timestamp. Company `last_verified` is emitted only for a current live usage observation and means its collection time, never proof of model acceptance or future allowance. Estimated confidence is omitted from the legacy live/cached Evidence enum. This corrects the historical Annex C §4.3/§5 claim of route acceptance from a usage fetch; the optional closed-enum field and omission rules supersede that historical closed schema for company records. No new fetch/retry/authentication prompt or automatic strategy fallback. Tests: `TestCompanyPickScoreOnlyIsLabelledWithoutChangingRank`, `TestCompanyPickEvidenceDoesNotCallCachedDataLive`, existing personal CLI goldens.
+
+
+Review correction for #313: plain-text `explain` renders `quota at pick: <fixed state message>` before confidence/band fields whenever stored `quota_state` is present. It reports the recorded observation, without fetching or reclassifying history at explain time. Disabled evidence retains the score-only label. Records without `quota_state` preserve the existing personal text exactly. `TestCompanyPickEvidenceCoverageSurvivesStaleness` exercises real band calculation and managed history across fresh/stale, partial, unrelated, synthetic and uncomputable windows, retaining fully known historical bands. `TestCompanyPickEvidenceExplainText` verifies text and JSON through pick/history/explain for stale and score-only picks; existing personal explain goldens remain authoritative.

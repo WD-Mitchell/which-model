@@ -5,6 +5,10 @@
 import * as $models from "./models.js";
 
 /**
+ * @typedef {$models.AdministrationStatus} AdministrationStatus
+ */
+
+/**
  * BenchRow is one tested benchmark row.
  * @typedef {$models.BenchRow} BenchRow
  */
@@ -35,6 +39,10 @@ import * as $models from "./models.js";
 /**
  * CatalogSummary counts the live catalog.
  * @typedef {$models.CatalogSummary} CatalogSummary
+ */
+
+/**
+ * @typedef {$models.DelegationCheck} DelegationCheck
  */
 
 /**
@@ -69,6 +77,15 @@ import * as $models from "./models.js";
 /**
  * LaunchResult is the harness launch outcome.
  * @typedef {$models.LaunchResult} LaunchResult
+ */
+
+/**
+ * MaintenanceResult preserves partial category results even when cleanup fails.
+ * @typedef {$models.MaintenanceResult} MaintenanceResult
+ */
+
+/**
+ * @typedef {$models.MigrationResult} MigrationResult
  */
 
 /**

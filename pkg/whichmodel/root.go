@@ -45,10 +45,17 @@ func NewRootCmd() *cobra.Command {
 		panic(err)
 	}
 	cmd.PersistentPreRunE = func(c *cobra.Command, args []string) error {
+		if _, err := readCompanyPolicy(); err != nil {
+			return err
+		}
 		if err := Global.Normalize(); err != nil {
 			return err
 		}
-		return Global.Validate()
+		if err := Global.Validate(); err != nil {
+			return err
+		}
+		startupPrivacyMaintenance(c)
+		return nil
 	}
 	cmd.AddCommand(registeredCommands()...)
 	return cmd

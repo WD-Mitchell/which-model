@@ -9,11 +9,11 @@ import (
 	"sort"
 	"strings"
 
-	sdecimal "github.com/shopspring/decimal"
 	"github.com/WD-Mitchell/which-model/internal/catalog"
-	"github.com/WD-Mitchell/which-model/internal/catalog/csvstore"
+	"github.com/WD-Mitchell/which-model/internal/catalog/csvschema"
 	"github.com/WD-Mitchell/which-model/internal/catalog/identity"
 	wdecimal "github.com/WD-Mitchell/which-model/internal/decimal"
+	sdecimal "github.com/shopspring/decimal"
 )
 
 // tier1ScoreColumns are the six Tier-1 score column names (the same
@@ -130,8 +130,8 @@ func ParseScoresCSV(data []byte) ([]catalog.ScoreRow, error) {
 				return nil, scoresError("score CSV row %d %s must be between 0 and 100", rowNumber, column)
 			}
 			switch {
-			case strings.HasPrefix(column, csvstore.BenchmarkColumnPrefix):
-				name := strings.TrimSuffix(strings.TrimPrefix(column, csvstore.BenchmarkColumnPrefix), "_score")
+			case strings.HasPrefix(column, csvschema.BenchmarkColumnPrefix):
+				name := strings.TrimSuffix(strings.TrimPrefix(column, csvschema.BenchmarkColumnPrefix), "_score")
 				row.Benchmarks[name] = value
 			case required[column]:
 				row.Tier1[column] = value
@@ -161,11 +161,11 @@ func stripScoresProvenance(data []byte) (string, error) {
 	if idx := bytes.IndexByte(data, '\n'); idx >= 0 {
 		line, rest = string(data[:idx]), string(data[idx+1:])
 	}
-	if !strings.HasPrefix(line, csvstore.ProvenancePrefix) {
+	if !strings.HasPrefix(line, csvschema.ProvenancePrefix) {
 		return "", scoresError("bad provenance line")
 	}
 	var rawSHA256 string
-	for _, token := range strings.Fields(line[len(csvstore.ProvenancePrefix):]) {
+	for _, token := range strings.Fields(line[len(csvschema.ProvenancePrefix):]) {
 		kv := strings.SplitN(token, "=", 2)
 		if len(kv) != 2 || kv[0] == "" || kv[1] == "" {
 			return "", scoresError("bad provenance token %q", token)

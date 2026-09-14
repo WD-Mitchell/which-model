@@ -80,3 +80,28 @@ project: which-model
 - Browser-cookie extraction and browser-handoff login (deferred to M5 by Decision D-4).
 - Credential persistence implementation: F12 owns `ManagedStore`; F25 only orchestrates it.
 - Provider-native credential stores: F25 never reads or writes them.
+
+
+## Device-login policy correction (#305)
+
+The CLI binds the selected provider to the shared device flow. Company policy
+errors from Start, Poll and credential persistence retain exit code 2 and their
+sanitized diagnostic; they are not converted into generic runtime failures.
+`TestAuthLoginPreservesCompanyPolicyErrors` pins all three stages. F12's request
+boundary tests pin revocation between polls.
+
+## Company-policy extension (#282)
+
+Auth login checks company provider authorization before starting a flow. Managed credential persistence rechecks storage permissions before using a keychain or file. Policy errors are configuration-class exit 2 and never echo credential input.
+
+This intentionally supersedes unrestricted operation for enrolled installations only;
+see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
+`TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
+and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.
+
+## Deviations / secure-store correction (#283)
+
+auth migrate <provider> adds explicit --remove-source and --replace. Company migration requires allow_credential_migration. JSON reports secure_store, legacy_copy, optional recovery_file/error; failure has nonzero exit. Company logout removes the owned OS item and reports legacy copies as not_inspected and provider-owned files as unchanged.
+The [secure-store contract](../F12-credentials/SECURE-STORES.md) supersedes earlier company-mode storage
+wording under the approved optional-profile decision. Personal defaults remain
+unchanged. Native tests and migration/fallback canaries are required evidence.

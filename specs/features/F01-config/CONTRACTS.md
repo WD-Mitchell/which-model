@@ -7,6 +7,10 @@ project: which-model
 
 # F01 — config: CONTRACTS
 
+The [managed policy contract](MANAGED-POLICY.md) defines the separate machine
+policy schema, fixed origins, inspection surface and mandatory precedence.
+It is not a new user/project TOML section or environment override namespace.
+
 Package `internal/config` (Layer 0). Imports: Go stdlib, `github.com/BurntSushi/toml`, `github.com/shopspring/decimal`. MUST NOT import anything in `internal/` (`specs/global/CONTRACTS.md` §8). Files: `internal/config/usage.go`, `types.go`, `unmarshal.go`, `load.go`, `env.go`, `paths.go`, `discover.go`, `validate.go`, `marshal.go`. Feature `depends_on: —`, blocks F19, F21, F22, F30 (`specs/DEPENDENCY-GRAPH.md` §2).
 
 ## 1. Exported API
@@ -323,3 +327,34 @@ All catalog consumers, including desktop benchmark-group loading, decode the
 complete shared catalog schema. The legacy `catalog.publish.run_tests` boolean
 remains accepted for config/env compatibility; the option does not change generated workflow behavior. F30 owns the
 verification steps (paired-artifact verification is introduced by #165).
+
+## Deviations / secure-store correction (#283)
+
+AuthConfig adds NativeKeychain (TOML/JSON native_keychain, default false). SetAuth and desktop mutations preserve it. Company native selection is independent. Windows atomic writes sync the staged file then use MoveFileEx replacement/write-through; unsupported parent fsync is omitted.
+The [secure-store contract](../F12-credentials/SECURE-STORES.md) supersedes earlier company-mode storage
+wording under the approved optional-profile decision. Personal defaults remain
+unchanged. Native tests and migration/fallback canaries are required evidence.
+
+
+## Company privacy correction (#284)
+
+No canonical Config/DTO fields are added. The protected schema in MANAGED-POLICY.md owns these values; F13/MANAGED-RETENTION.md owns their consumers.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.
+
+
+## Approved company execution correction (#285)
+
+Protected Executable adds `Inputs []Installation` with JSON tag `inputs,omitempty`; schema version remains 1 because the field is optional. Existing policies without it retain their meaning. Launch argument placeholders must occupy an entire args element; model_id, reasoning, provider and profile are the supported names.
+
+Governing correction: `specs/desktop/backend/features/B07-harnesses/MANAGED-EXECUTION.md`.
+This implements the requester-approved optional managed profile while preserving
+personal defaults; it supersedes unconditional shell/policy-placeholder statements
+for company execution.
+
+
+## Approved CodexBar correction (#287)
+
+The requester requires company CodexBar to remain disabled until an administrator approves a specific installation. Personal behavior stays unchanged. Global §16 defines required image/config identities, a 16-entry limit and empty-list default denial. Ordinary configuration can select the backend only when metadata is present; the verified consumer separately checks protected files before credential resolution/execution. Binary-only reserved metadata is no longer sufficient. Test: TestCompanyCodexBarApprovalRequiresConfigIdentity.

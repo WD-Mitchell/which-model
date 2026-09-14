@@ -80,3 +80,46 @@ F21 implements the usage toggle — the three independent levels at which "usage
 - The six pick strategies — F20 (`internal/pick/strategy`); F21 supplies the degraded candidates and the resolution they consume.
 - Config file parsing and validation — F01 (owns `[usage]`/`[providers.*]` typing; resolution semantics are F21's).
 - `--no-usage` flag definition — F26; F21 owns its semantics (L0).
+
+## 7. Restricted offline distribution (#290)
+
+The separate `which-model-score-only` command is built with `-tags nousage`.
+It embeds the repository's `data/available_model_scores.csv` and uses F10's
+built-in profiles and `pick.Rank` directly. It does not call the full CLI's
+configuration, routing, usage, integration, history or catalog-update entry points.
+The same inputs produce byte-identical JSON. Complete Tier 1 evidence remains
+required; missing optional evidence remains visible in ranking warnings.
+
+Only `pick`, `profiles`, `capabilities`, `version` and help are accepted.
+Unknown commands, extra positional arguments and unsupported flags exit 2
+before doing work. No file, environment or flag can enable excluded capabilities.
+The command does not read configuration or credentials, open network connections,
+start child processes or persist results. The import audit excludes `net`,
+`net/http` and `os/exec`; shared CSV vocabulary lives in a leaf package with no I/O.
+Go runtime OS initialization is outside this application-data boundary.
+
+Every JSON document uses the canonical output envelope with usage disabled for
+`compiled_out`; recommendations explicitly state that provider availability and
+allowances are unverified. The artifact identity is `which-model-score-only`.
+Its capability manifest gives the release version, full source commit, embedded
+catalog SHA-256 and source path, and SHA-256 of the built-in profiles serialized
+with Go's deterministic JSON encoding. It lists enabled and excluded capabilities.
+
+Release builds produce separate binaries on macOS arm64/x64, Linux arm64/x64
+and Windows x64, with the provenance/SBOM verification required by global SPEC
+§12. Catalog updates require a reviewed source change and a new verified artifact;
+there is no runtime replacement/download command. Release owners must settle
+upstream data redistribution rights and company catalog acceptance before distribution.
+Source hashes establish identity, not license permission or model quality.
+
+Correction/extension: the existing `nousage` full CLI retains catalog and
+integration commands. It is not the restricted distribution, and its existing
+behavior and personal-user defaults remain unchanged. The distinct command and
+artifact boundary is the R1 pilot; it does not depend on the R2 managed profile.
+
+
+## Desktop compatibility correction (#347)
+
+Requester decision: add explicit desktop support for the company stack. The [desktop workflow and distribution contract](../../desktop/backend/features/B10-settings/ADMINISTRATION.md) and [desktop user guide](../../../docs/desktop-company-workflows.md) govern the full administration page and separate offline desktop. The offline host is built with `nousage`, reuses pkg/scoreonly, binds only Profiles/Rank/Capabilities, and includes no full-service/provider/credential/execution packages. Native webview/asset transport is explicitly additional to the restricted CLI boundary. The original CLI restrictions are unchanged.
+
+Release workflow builds macOS arm64/x64 full and offline app archives before publication, with version/source identity, per-archive Go inventory, executable hashes, successful vulnerability scans, checksums and source-bound attestation. The combined manifest requires both products on both architectures. Missing/mismatched desktop evidence blocks immutable publication. GitHub prerelease maturity remains unchanged. Release bundles MUST be Developer ID signed, Apple notarized and stapled under the [F30 signing contract](../F30-publishing/CONTRACTS.md#macos-release-signing). Windows/Linux desktop distribution is not claimed. Pinned evidence: offline engine parity and binding/dependency audit, desktop release inventory/tamper tests, macOS packaging and frontend tests.

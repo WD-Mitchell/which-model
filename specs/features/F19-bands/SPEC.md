@@ -69,3 +69,8 @@ Depends on: F01, F11
 - `[bands]` TOML decoding itself — F01's generic `Config.UnmarshalKey`; F19 owns the schema and the semantic validation.
 - The `which-model usage --fail-on-gated` flag (exit 4) — F24, which may reuse `EvaluateBand`/`ReasonCodeBandGated`.
 - Snapshot confidence handling (`--require-live` exclusion of cached/estimated) — F26.
+
+
+## Company advisory evidence correction (#286)
+
+Decision: quota, usage-authentication and audit evidence failures do not need to block launches. The optional managed profile uses advisory reporting; personal defaults remain unchanged. Band weights/gates and partial-window pressure calculations are unchanged. The separate `internal/advisory.Evaluate` report requires a known snapshot, every required route window computable, and a valid current timestamp to report `current`. Missing/partial/stale evidence must not be described as confirmed zero allowance. Tests: `TestCompanyAdvisoryMatrix`, `TestCompanySelectedRouteKeepsIndependentEvidence`.

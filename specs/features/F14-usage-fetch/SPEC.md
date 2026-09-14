@@ -89,3 +89,41 @@ Before reusing an online CodexBar cache entry for an explicitly requested source
 compare its original source with the request. Only then stamp the returned
 snapshot as cached. A mismatching cache entry causes live collection with the
 requested source. Explicit cache-only reads retain their existing policy.
+
+
+## Company-policy extension (#282)
+
+FetchAll checks protected policy before enabled-provider cache, credential or network activity, including direct callers and explicit backend/storage options. Disallowed providers and unapproved CodexBar delegation are refused. Disabled providers remain untouched. The guard is independent of ordinary configuration; per-provider API boundaries also recheck authorization.
+
+This intentionally supersedes unrestricted operation for enrolled installations only;
+see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
+`TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
+and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.
+
+
+## Company privacy correction (#284)
+
+Company cache writes minimize before persistence, including delegated snapshots. Return-time --show-identity remains separate from collection/storage policy. Offline use still performs no credential/provider/network operations, but company retention may rewrite/delete owned local records. FetchAll replaces free-form failure messages with fixed canonical diagnostics for either backend. Unknown failure codes map to provider_status; native OS-store remediation is preserved only when it exactly matches an application-owned string.
+
+Review correction (PR #307): the managed return boundary also filters every
+credential/cache warning. Permission warnings retain fixed remediation without
+the credential path; cache warnings direct the user to privacy cleanup without
+printing provider/error payloads. The exact application-owned keychain fallback
+warning remains useful. Unknown warnings become a fixed status/settings notice.
+Warning count/order and personal diagnostic text remain unchanged.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.
+
+
+## Approved CodexBar correction (#287)
+
+The requester requires company CodexBar to remain disabled until an administrator approves a specific installation. Personal behavior stays unchanged. [APPROVED-CODEXBAR.md](APPROVED-CODEXBAR.md) is normative. Unapproved delegation is refused before cache/credential effects. Approved offline and fresh-cache paths execute nothing; a cache miss preflights the image/config before credential inputs, then the adapter re-verifies before invocation. Per-provider errors stay partial results. Existing cache/source/timeout tests remain binding. New pinned tests: TestCompanyCodexBarPreflightPrecedesCredentialsAndProcess, TestCompanyCodexBarCacheOnlyNeverPreflightsOrDelegates, TestCompanyCodexBarOutputAndTimeoutMatrix, TestNativeCompanyCodexBarApproval.
+
+The requester-approved PR #314 review correction is specified in
+[APPROVED-CODEXBAR.md, Source and cache correction](APPROVED-CODEXBAR.md#source-and-cache-correction-pr-314-review).
+Recognized aliases are provider-specific; Antigravity/Windsurf CLI selection may
+return local evidence without losing its provenance. Producer-stale company cache
+entries trigger online refetch and retain their stale flag offline. The linked
+section pins source compatibility, cache roundtrips, and native child tests.

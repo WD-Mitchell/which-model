@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/WD-Mitchell/which-model/internal/company"
 	"io"
 	"net"
 	"net/http"
@@ -78,6 +79,9 @@ type BrowserLogin struct {
 // starts a loopback callback server before returning the Google authorization
 // URL. The caller is responsible for opening VerificationURL.
 func StartBrowserLogin(ctx context.Context, httpClient *http.Client) (*BrowserLogin, error) {
+	if err := company.Authorize("antigravity", "keychain", ""); err != nil {
+		return nil, err
+	}
 	client, err := discoverOAuthClient()
 	if err != nil {
 		return nil, errors.New("Antigravity OAuth is unavailable; install Antigravity or set its OAuth client environment variables")
@@ -207,6 +211,9 @@ func CredentialsJSON(token string) (string, bool) {
 }
 
 func (l *BrowserLogin) exchange(ctx context.Context, code string) (Credentials, error) {
+	if err := company.Authorize("antigravity", "keychain", ""); err != nil {
+		return Credentials{}, err
+	}
 	exchangeCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	form := url.Values{
@@ -302,8 +309,17 @@ func callbackPage(success bool) string {
 }
 
 func discoverOAuthClient() (oauthClient, error) {
-	if id, secret := strings.TrimSpace(os.Getenv("ANTIGRAVITY_OAUTH_CLIENT_ID")), strings.TrimSpace(os.Getenv("ANTIGRAVITY_OAUTH_CLIENT_SECRET")); id != "" && secret != "" {
-		return oauthClient{ID: id, Secret: secret}, nil
+	policy, err := company.Load()
+	if err != nil {
+		return oauthClient{}, err
+	}
+	if err := policy.RequireSource("environment"); err == nil {
+		if id, secret := strings.TrimSpace(os.Getenv("ANTIGRAVITY_OAUTH_CLIENT_ID")), strings.TrimSpace(os.Getenv("ANTIGRAVITY_OAUTH_CLIENT_SECRET")); id != "" && secret != "" {
+			return oauthClient{ID: id, Secret: secret}, nil
+		}
+	}
+	if err := policy.RequireSource("provider_file"); err != nil {
+		return oauthClient{}, err
 	}
 	for _, path := range oauthArtifactPaths() {
 		ids, secrets := scanOAuthArtifact(path)

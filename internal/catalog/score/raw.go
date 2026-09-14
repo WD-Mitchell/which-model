@@ -7,7 +7,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/WD-Mitchell/which-model/internal/catalog/csvstore"
+	"github.com/WD-Mitchell/which-model/internal/catalog/csvschema"
 	"github.com/WD-Mitchell/which-model/internal/catalog/identity"
 	wdecimal "github.com/WD-Mitchell/which-model/internal/decimal"
 	sdecimal "github.com/shopspring/decimal"
@@ -165,7 +165,7 @@ func stripRawProvenanceLine(data []byte) []byte {
 // checkRawHeader validates the core columns and the dynamic benchmark
 // columns, returning the core column names.
 func checkRawHeader(header []string) ([]string, error) {
-	core := csvstore.RawCoreColumns
+	core := csvschema.RawCoreColumns
 	prefix := header
 	if len(prefix) > len(core) {
 		prefix = prefix[:len(core)]
@@ -183,7 +183,7 @@ func checkRawHeader(header []string) ([]string, error) {
 	dynamic := header[len(core):]
 	seen := make(map[string]bool, len(dynamic))
 	for _, name := range dynamic {
-		if !strings.HasPrefix(name, csvstore.BenchmarkColumnPrefix) || name == csvstore.BenchmarkColumnPrefix {
+		if !strings.HasPrefix(name, csvschema.BenchmarkColumnPrefix) || name == csvschema.BenchmarkColumnPrefix {
 			return nil, rawError("invalid or duplicate dynamic benchmark columns")
 		}
 		if seen[name] {
@@ -213,7 +213,7 @@ func isNonFiniteToken(s string) bool {
 func parseRawNumber(cell, column string, rowNumber int) (*sdecimal.Decimal, error) {
 	stripped := strings.TrimSpace(cell)
 	if stripped == "" {
-		if nullableMetrics[column] || strings.HasPrefix(column, csvstore.BenchmarkColumnPrefix) {
+		if nullableMetrics[column] || strings.HasPrefix(column, csvschema.BenchmarkColumnPrefix) {
 			return nil, nil
 		}
 		return nil, rawError("row %d: %s must not be blank", rowNumber, column)
@@ -225,7 +225,7 @@ func parseRawNumber(cell, column string, rowNumber int) (*sdecimal.Decimal, erro
 	if err != nil {
 		return nil, rawError("row %d: %s must be numeric, got '%s'", rowNumber, column, cell)
 	}
-	if csvstore.NonNegativeRawColumns[column] && value.IsNegative() {
+	if csvschema.NonNegativeRawColumns[column] && value.IsNegative() {
 		return nil, rawError("row %d: %s must not be negative, got '%s'", rowNumber, column, cell)
 	}
 	return &value, nil
