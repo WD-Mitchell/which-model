@@ -112,3 +112,40 @@ test('fallback launch requires a matching verification receipt and unchanged byt
     assert.equal(hasVerifiedFallback(file,'which-model-linux-x64',manifest(),receipt,'1.2.3'),false);
   } finally {fs.rmSync(dir,{recursive:true,force:true});}
 });
+
+test('desktop release requires authenticated accepted notarization bound to its executable', () => {
+  for (const scenario of ['valid', 'missing', 'tampered', 'rejected', 'digest-mismatch']) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'which-model-notary-evidence-'));
+    try {
+      const m = manifest(), a = m.artifacts[0];
+      a.name = 'which-model-desktop-darwin-arm64.zip'; a.sbom = `${a.name}.cdx.json`;
+      const sbom = JSON.stringify({bomFormat:'CycloneDX', specVersion:'1.6', metadata:{component:{
+        name:a.name, version:m.version, hashes:[{alg:'SHA-256', content:sha}]}},
+        components:[{'bom-ref':'desktop-executable', hashes:[{alg:'SHA-256', content:sha}]}]});
+      a.sbom_sha256 = crypto.createHash('sha256').update(sbom).digest('hex');
+      const receipt = `${a.name}.notarization.json`;
+      const evidence = {schema:1, status:scenario==='rejected'?'Invalid':'Accepted', team_id:'WJUCH8XDFT',
+        authority:'Developer ID Application: Example (WJUCH8XDFT)', bundle_id:'com.wdmitchell.which-model',
+        submission_id:'12345678-1234-1234-1234-123456789abc', ticket_stapled:true, gatekeeper_accepted:true,
+        executable_sha256:scenario==='digest-mismatch'?'0'.repeat(64):sha};
+      const files = {'release-manifest.json':JSON.stringify(m), [a.name]:bytes, [a.sbom]:sbom,
+        [`${a.name}.govulncheck.txt`]:'No vulnerabilities found.', 'checksums.txt':'checksums',
+        'provenance.jsonl':'synthetic signed subjects', [receipt]:JSON.stringify(evidence)};
+      for (const [name, value] of Object.entries(files)) fs.writeFileSync(path.join(dir,name), value);
+      const signed = new Map(fs.readdirSync(dir).map(name => [path.join(dir,name),fs.readFileSync(path.join(dir,name))]));
+      if (scenario==='missing') fs.unlinkSync(path.join(dir,receipt));
+      if (scenario==='tampered') fs.writeFileSync(path.join(dir,receipt),'changed');
+      const checked = [];
+      const loaded = {exports:{}};
+      require('node:vm').runInNewContext(fs.readFileSync(path.join(__dirname,'verify-release.js'),'utf8'), {
+        module:loaded, require:name=>name==='node:child_process'?{execFileSync:(_cmd,args)=>{
+          checked.push(args[2]); assert.deepEqual(fs.readFileSync(args[2]),signed.get(args[2]));
+        }}:require(name),
+      });
+      const verify=()=>loaded.exports.verifyRelease(dir,m.version,source,ref);
+      if (scenario==='valid') {
+        verify(); assert.ok(checked.includes(path.join(dir,receipt)), 'receipt must be cryptographically verified');
+      } else assert.throws(verify, undefined, scenario);
+    } finally {fs.rmSync(dir,{recursive:true,force:true});}
+  }
+});

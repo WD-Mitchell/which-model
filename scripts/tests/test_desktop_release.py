@@ -26,9 +26,11 @@ class DesktopReleaseTests(unittest.TestCase):
             for product in ('desktop','offline-desktop'):
                 name=f'which-model-{product}-darwin-{arch}.zip'
                 (directory/name).write_bytes(b'archive')
-                (directory/(name+'.cdx.json')).write_bytes(b'inventory')
+                sbom=json.dumps({'components':[{'bom-ref':'desktop-executable','hashes':[{'alg':'SHA-256','content':digest(b'executable')}]}]}).encode()
+                (directory/(name+'.cdx.json')).write_bytes(sbom)
+                (directory/(name+'.notarization.json')).write_text(json.dumps({'schema':1,'status':'Accepted','team_id':'WJUCH8XDFT','authority':'Developer ID Application: Example (WJUCH8XDFT)','executable_sha256':digest(b'executable'),'ticket_stapled':True,'gatekeeper_accepted':True}))
                 (directory/(name+'.govulncheck.txt')).write_bytes(b'No vulnerabilities found.')
-                rows.append(dict(name=name,sha256=digest(b'archive'),sbom=name+'.cdx.json',sbom_sha256=digest(b'inventory')))
+                rows.append(dict(name=name,sha256=digest(b'archive'),sbom=name+'.cdx.json',sbom_sha256=digest(sbom)))
             (directory/f'desktop-manifest-{arch}.json').write_text(json.dumps(dict(identity,artifacts=rows)))
         return identity
 
@@ -93,3 +95,10 @@ class DesktopReleaseTests(unittest.TestCase):
             self.assertTrue((root/'bin/which-model.app/Contents/MacOS/which-model-desktop').is_file(),result.stderr)
             result=subprocess.run(['/bin/bash',str(script),'--version','2.6.0-beta.1'],env=dict(env,TEST_FAIL_BUILD='1'),capture_output=True,text=True)
             self.assertNotEqual(result.returncode,0,'build failures must fail packaging')
+
+    def test_missing_notarization_evidence_blocks_publication(self):
+        with tempfile.TemporaryDirectory() as td:
+            p=Path(td);i=self.fixture(p)
+            for receipt in p.glob('*.notarization.json'): receipt.unlink()
+            with self.assertRaises((ValueError, FileNotFoundError)):
+                desktop.merge(p,i['version'],i['source_digest'],i['source_ref'])

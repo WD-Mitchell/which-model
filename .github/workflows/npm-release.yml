@@ -61,6 +61,7 @@ jobs:
 
   desktop:
     needs: test
+    environment: MacOS Publish
     strategy:
       fail-fast: false
       matrix:
@@ -70,7 +71,7 @@ jobs:
           - os: macos-15-intel
             arch: x64
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 40
+    timeout-minutes: 70
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -85,11 +86,26 @@ jobs:
       - run: pnpm -r build && pnpm -r test && pnpm run check:host
       - run: go test ./internal/service ./cmd/which-model-desktop
       - run: bash scripts/audit-offline-desktop.sh
-      - run: python3 -m unittest discover -s scripts/tests -p test_desktop_release.py -q
+      - run: python3 -m unittest discover -s scripts/tests -q
       - name: Package both desktop applications without installing them
         run: |
           bash scripts/package-macos.sh --version "${RELEASE_TAG#v}"
           bash scripts/package-macos.sh --version "${RELEASE_TAG#v}" --offline
+      - name: Developer ID sign, notarize and staple both desktop apps
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: python3 scripts/sign-macos.py --ci --arch "${{ matrix.arch }}" --output-dir desktop-dist
+      - name: Preserve notarization rejection diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: failed-macos-notarization-${{ matrix.arch }}
+          path: desktop-dist/*.notarization.log.json
+          if-no-files-found: ignore
       - name: Archive and review desktop binaries
         env:
           DESKTOP_ARCH: ${{ matrix.arch }}
