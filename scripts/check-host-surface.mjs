@@ -22,6 +22,7 @@ const hostSrc = readFileSync(hostPath, 'utf8')
 // + ".js" (issue #33: reading the PascalCase name ENOENTs on
 // case-sensitive filesystems, i.e. Linux CI).
 const GROUP_MODULE = {
+  administration: 'AdministrationAPI',
   profiles: 'ProfilesAPI',
   pick: 'PickAPI',
   catalog: 'CatalogAPI',

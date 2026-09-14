@@ -48,7 +48,7 @@ The design-system stylesheet is vendored at `specs/desktop/mockup/nocturne.css` 
 
 8. **Errors at the boundary.** Every error crossing the service boundary is an `ErrorDTO{code, message}` with `code` from the closed enum (CONTRACTS §4). Messages are human-readable, never contain credentials or absolute home paths beyond the config path the UI legitimately displays.
 
-9. **Platforms.** macOS is the primary target (menu-bar UX, notarization out of scope). Windows and Linux MUST compile and basically run (tray icon, windows open); polish is out of scope. Platform-specific host code lives in `cmd/which-model-desktop/*_{darwin,windows,linux}.go`.
+9. **Platforms.** macOS is the primary target (menu-bar UX; release signing and notarization governed by F30). Windows and Linux MUST compile and basically run (tray icon, windows open); polish is out of scope. Platform-specific host code lives in `cmd/which-model-desktop/*_{darwin,windows,linux}.go`.
 
 10. **Build tags.** The desktop binary always builds WITHOUT `-tags nousage`; usage features are gated at runtime by `[usage]` config via `toggle.ResolveUsageEnabled`, never at compile time. The host blank-imports `internal/usage/provider/{claude,codex,copilot}` to populate the registry.
 
@@ -70,3 +70,12 @@ The design-system stylesheet is vendored at `specs/desktop/mockup/nocturne.css` 
 | Route identity | Single serialized grammar `provider/model_id@reasoning` everywhere | One parser, one formatter; favourites/disables/keys stay interoperable |
 | Score rounding | Backend rounds to 2dp before the boundary | Keeps decimal discipline in Go; UI stays arithmetic-free |
 | Spec governance | Deepest spec wins + mandatory Deviations note | Parallel authors can specialise without silently contradicting parents |
+
+
+## Company desktop compatibility correction (#347)
+
+The requester-approved [administration contract](../backend/features/B10-settings/ADMINISTRATION.md) adds Security & privacy without editable policy authority. The separate offline desktop is a distinct Wails executable with bundled ranking only, not the full service in a runtime mode. [Desktop workflows](../../../docs/desktop-company-workflows.md) state distribution and native-webview boundary limits. macOS release archives now include the full and offline apps on arm64/x64; source-only distribution statements are superseded for those targets.
+
+## Release signing correction (2026-09-14)
+
+The requester approved using the organisation’s Apple Developer ID and configured the `MacOS Publish` environment. This supersedes the original notarization exclusion in §9: full and offline macOS release apps must satisfy the [F30 signing contract](../../features/F30-publishing/CONTRACTS.md#macos-release-signing). Local development packaging may remain ad-hoc signed.

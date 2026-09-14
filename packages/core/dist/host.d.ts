@@ -1,6 +1,13 @@
-import type { BenchmarkDetail, CatalogSummary, Favourite, GroupDetail, GroupSummary, GUISettings, HarnessInfo, LaunchResult, CatalogModel, CatalogModelDetail, ModelScoreDetail, ProfileDetail, ProfileSummary, ProviderAccount, ProviderDetail, ProviderInfo, RankRequest, RankResponse, ShellSnippets, UsageDTO, UserProfile } from './types.js';
+import type { AdministrationStatus, MigrationResult, MaintenanceResult, DelegationCheck, PrivacyCategory, BenchmarkDetail, CatalogSummary, Favourite, GroupDetail, GroupSummary, GUISettings, HarnessInfo, LaunchResult, CatalogModel, CatalogModelDetail, ModelScoreDetail, ProfileDetail, ProfileSummary, ProviderAccount, ProviderDetail, ProviderInfo, RankRequest, RankResponse, ShellSnippets, UsageDTO, UserProfile } from './types.js';
 import type { EngineEvent } from './events.js';
 export interface EngineHost {
+    administration: {
+        status(): Promise<AdministrationStatus>;
+        setNativeStore(enabled: boolean): Promise<void>;
+        migrate(provider: string, removeSource: boolean, replace: boolean): Promise<MigrationResult>;
+        maintain(operation: 'cleanup' | 'purge', categories: PrivacyCategory[], projectRoot: string, confirmed: boolean): Promise<MaintenanceResult>;
+        verifyDelegation(): Promise<DelegationCheck[]>;
+    };
     profiles: {
         userProfiles(): Promise<UserProfile[]>;
         list(): Promise<ProfileSummary[]>;

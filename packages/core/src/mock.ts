@@ -1311,6 +1311,13 @@ export function createMockEngineHost(
       },
     },
 
+    administration: {
+      status: async () => ({policy: {managed: false, required: false}, native_keychain: false, use_keychain: true}),
+      setNativeStore: async () => {},
+      migrate: async (provider) => ({provider, secure_store: 'verified', legacy_copy: 'retained'}),
+      maintain: async (operation) => ({managed: false, operation, completed_at: new Date().toISOString(), categories: {}}),
+      verifyDelegation: async () => [],
+    },
     settings: {
       async get() {
         return clone(data.settings)

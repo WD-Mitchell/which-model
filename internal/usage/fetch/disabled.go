@@ -27,6 +27,7 @@ type Options struct {
 	CacheDir               string
 	Source                 usage.Source
 	StateDir               string
+	NativeKeychain         bool
 	DisableManagedKeychain bool
 }
 

@@ -1,7 +1,7 @@
 # which-model
 
 [![CI](https://github.com/WD-Mitchell/which-model/actions/workflows/ci.yml/badge.svg)](https://github.com/WD-Mitchell/which-model/actions/workflows/ci.yml)
-[![Go 1.25+](https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go)](https://go.dev/)
+[![Go 1.26+](https://img.shields.io/badge/Go-1.26%2B-00ADD8?logo=go)](https://go.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **Choose the right AI model for the task you are doing—not just the model at the top of a benchmark.**
@@ -9,7 +9,7 @@
 `which-model` is a local-first command-line tool that combines model quality, cost, speed, task fit, provider availability, and your remaining usage allowance. It returns a ranked, explainable recommendation with the provider, model ID, and reasoning effort to use.
 
 > [!NOTE]
-> The project is currently pre-release. Commands and configuration may evolve before the first stable release.
+> The project is currently pre-release. Commands and configuration may evolve before the first stable release. Version numbers and package channels do not constitute stable readiness or company approval; see the [release readiness and support matrix](docs/releases/readiness.md).
 
 ## The desktop app
 
@@ -53,7 +53,26 @@ Model choice changes with the job. A fast, inexpensive model may be ideal for a 
 - feed consistent JSON into scripts, agents, and CI workflows;
 - run in score-only mode without reading provider credentials.
 
+For the restricted offline company pilot, use the separately named
+[`which-model-score-only` distribution](docs/security/offline-score-only.md),
+which embeds its catalog and excludes network, authentication and agent execution.
+
+## Company assessment
+
+The [versioned security assessment](docs/security/company-assessment.md) separates
+offline ranking, native usage, approved CodexBar and agent integration. It includes
+trust/data flows, NIST and MITRE mappings, exact candidate/test evidence and the
+remaining maintainer, release and company decisions. These changes are proposed
+in native PR stack #300 and are not yet a published company-approved release.
+
 ## Install
+
+Treat published packages as pre-release. At the 2026-09-11 readiness review, npm
+`latest` is 2.5.5; the company controls and restricted offline package in PR stack
+#300 have not been published in that release. For company deployment, select an
+approved version/revision and verify its artifacts using the
+[release verification guide](docs/security/release-verification.md). Source builds
+are development builds until reviewed; a GitHub Latest flag is not company approval.
 
 ### With npm, pnpm, or bun
 
@@ -71,7 +90,7 @@ binary is downloaded.
 
 ### With Go
 
-Requires Go 1.25 or later:
+Requires Go 1.26 or later:
 
 ```bash
 go install github.com/WD-Mitchell/which-model/cmd/which-model@latest
@@ -226,6 +245,10 @@ which-model hooks install --repo . --target claude
 ```
 
 All primary result commands support machine-readable JSON, and `which-model schema <command>` exposes the corresponding schema.
+
+For company deployment boundaries, provider scope limitations and control owners,
+see the [company identity decision](docs/security/company-identity.md) and the
+[optional administrator-managed profile](docs/security/managed-company-profile.md).
 
 ## Configuration
 

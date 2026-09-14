@@ -309,12 +309,216 @@ These are **compile-time-enforced** import boundaries:
 
 | Package | MAY import | MUST NOT import |
 |---|---|---|
-| `internal/config` | `BurntSushi/toml`, `shopspring/decimal` | anything else in `internal/` |
+| `internal/company` | standard library, platform `x/sys` protection APIs | other `internal/` packages |
+| `internal/securestore` | standard library, pinned native OS-store/D-Bus libraries | all other `internal/` packages |
+| `internal/config` | `BurntSushi/toml`, `shopspring/decimal`, platform `x/sys` file replacement, `internal/company` | other `internal/` packages |
 | `internal/decimal` | `shopspring/decimal` | anything in `internal/` |
 | `internal/security` | `internal/config` | `internal/usage`, `internal/catalog` |
-| `internal/catalog/*` | `internal/config`, `internal/decimal`, `internal/httpkit`, `internal/security` | `internal/usage`, `internal/routing`, `internal/pick` |
-| `internal/usage/*` | `internal/config`, `internal/security`, `internal/httpkit` | `internal/catalog`, `internal/routing`, `internal/pick` |
+| `internal/catalog/*` | `internal/config`, `internal/decimal`, `internal/httpkit`, `internal/security`, `internal/company`, `internal/securestore` | `internal/usage`, `internal/routing`, `internal/pick` |
+| `internal/usage/*` | `internal/config`, `internal/company`, `internal/security`, `internal/httpkit`, `internal/securestore` | `internal/catalog`, `internal/routing`, `internal/pick` |
+| `internal/skills`, `internal/hooks` | standard library, `internal/company` | provider implementations |
 | `internal/routing` | `internal/catalog/identity`, `internal/usage` (types only) | `internal/pick` |
 | `internal/pick` | `internal/catalog`, `internal/routing`, `internal/usage` (types only) | `cmd/` |
 | `pkg/whichmodel` | any `internal/` | — |
 | `cmd/which-model` | `pkg/whichmodel` | direct `internal/` (goes through `pkg/`) |
+| `cmd/which-model-score-only` | `pkg/scoreonly` | full CLI `pkg/whichmodel`, direct `internal/` |
+| `pkg/scoreonly` | embedded `data`, `internal/catalog/score`, `internal/pick`, `internal/output` | configuration loaders, provider adapters, integrations, catalog collectors |
+
+## 9. Tracked-path portability check
+
+`python3 scripts/check_tracked_paths.py` validates paths from the Git index.
+`--stdin` accepts the same NUL-delimited format for historical trees and tests.
+Exit 0 prints `tracked-paths: OK (N files)`; exit 1 prints deterministic, escaped
+path diagnostics to stderr; exit 2 reports failure to obtain the path list.
+The conservative collision key is Unicode case-folding of every path prefix.
+The GitHub Actions check names `tracked-paths` and `windows-cli` are required
+status checks for `main`; their failure blocks PR and stack merges.
+
+| Merge-check state | Outcome |
+|---|---|
+| `test` passes; `tracked-paths` fails | merge blocked |
+| `test` passes; `windows-cli` fails | merge blocked |
+
+Pinned cases:
+
+| Input paths | Outcome |
+|---|---|
+| `.github/ci.yml`, `src/CONSOLE.go` | accepted |
+| `xd:/lsp`, a component containing newline or backslash | rejected |
+| `nul.txt`, `COM1.log`, `LPT²`, `NUL .txt` | rejected |
+| `CONIN$`, `conout$.txt`, `LPT0`, `LPT0 .log` | rejected device names |
+| `src/CONIN$/file.go`, `src/CONOUT$.txt/file.go`, `src/lpt0/file.go` | rejected parent components |
+| `CONIN.txt`, `CONOUT.txt`, `CONIN$extra.txt`, `LPT01.txt`, `LPT10.txt`, `COM0.txt` | accepted lookalikes |
+| NUL-delimited console/LPT0 names on `--stdin` | exit 1, diagnostic on stderr, empty stdout |
+| `a.`, `a /file`, `a//b`, `a/../b` | rejected |
+| `Src/a.go` and `src/b.go` | rejected directory collision |
+| `A` and `a/file` | rejected file/directory collision |
+| `src/a.go` and `src/b.go` | accepted shared directory |
+
+## 10. Release evidence and verification (#288)
+
+`release-manifest.json` schema 1 contains `version`, `source_digest` (40 lowercase
+hex), `source_ref` (`refs/heads/...` or `refs/tags/...`), and `artifacts`. Each
+artifact entry has `name`, `sha256`, `sbom` and `sbom_sha256`; filenames are simple
+basenames with no traversal. The build also emits `<binary>.cdx.json`,
+`checksums.txt` and a Sigstore `provenance.jsonl` bundle.
+
+The npm launcher includes `release-policy.json` containing the same manifest;
+its version must match package.json before a fallback download. The verifier
+pins repository, signer workflow, OIDC issuer, source ref/digest, SLSA v1 predicate
+and hosted runner identity. A checksum match without successful cryptographic
+verification is rejected. Direct verification uses an explicitly supplied version,
+source ref and full source digest; mirror-supplied metadata cannot choose trust.
+
+Whole-release verification additionally requires a signed
+`<binary>.govulncheck.txt` for every manifest artifact, with the same certificate
+identity policy. Exact npm tarballs use SHA-512 subjects; their certificate
+identity must pass independently of their SLSA predicate's claimed identity.
+The npm success report lists `certificate_identities_verified` only after all
+six packages pass. Missing/altered scan reports and matching npm predicates with
+rejected certificate identities are pinned failure cases (review correction #301).
+
+Pinned cases: changed bytes, absent/malformed bundle, incorrect repository,
+workflow, source ref or source digest, mismatched package version, verifier
+absence/timeout/failure and interrupted installation expose no new runnable
+fallback. Optional-package success and download opt-out perform no fallback
+network or verifier calls. A fallback receipt binds version/source/digest and is written only after successful
+verification. The launcher refuses missing/mismatched receipts and changed bytes.
+Existing personal configuration, credential and harness defaults are unchanged.
+
+Restricted releases additionally require `score_only` on schema-1 manifests:
+`{"capabilities":"which-model-score-only-capabilities.json","sha256":"<64 hex>"}`.
+The verifier requires this entry whenever a restricted binary is listed, verifies
+the capability file's signature/digest and source/version, and checks each
+restricted SBOM's `bundled-catalog`/`bundled-profiles` components against its input
+hashes. Historical full-only manifests remain valid. Embedded catalog checkout
+uses LF bytes on every OS; restricted builds use trimpath, no build-date stamp and
+`-buildvcs=false`, with full release commit supplied explicitly to the command.
+
+
+## 11. Protected company policy (#282)
+
+The [F01 policy contract](../features/F01-config/MANAGED-POLICY.md) owns the separate
+administrator schema, fixed platform origins, precedence, protection checks and
+inspection output. It adds no mutable authority to canonical Config or desktop DTOs.
+Policy failures are exit 2; desktop mapping uses existing `validation_failed`.
+Credential/provider/executable checks apply before effects, including direct callers.
+Optional enrollment preserves personal defaults. The restricted score-only artifact
+continues to exclude policy/configuration loading entirely.
+
+## 12. Native secure-store outcomes (#283)
+
+The internal leaf `securestore.Store` exposes Get/Set/Delete with typed missing,
+locked, denied, unavailable and too_large outcomes. Only known messages escape
+native adapters. Credential resolution maps these to the existing canonical
+failure/sentinel contract; usage.Credential and public usage DTOs do not change.
+Native implementations require `!nousage`; the restricted offline command does
+not link the package. See [F12](../features/F12-credentials/SECURE-STORES.md).
+
+
+## 13. Company data minimization and retention (#284)
+
+`internal/privacy` may import company/config, the existing gofrs/flock dependency
+and standard library. It imports no usage adapter, credential, HTTP or execution
+package. Cache, service, hooks and CLI may call it; the restricted standalone
+score-only binary does not link it. Canonical usage/selection/desktop DTOs do not
+change. Internal persisted records carry `privacy_version:1` and the whitelist in
+[F13 managed retention](../features/F13-usage-cache/MANAGED-RETENTION.md).
+
+`privacy.Report` counts retained_records, removed_records, scrubbed_records,
+deleted_files and failed_files. A failed write/delete produces failed_files and
+never reports uncommitted removals as success. `privacy.Summary` is
+`{managed,categories:{<category>:Report}}`; canonical category names are
+usage_snapshots, pick_history, audit_records and launch_logs. Fixed errors expose
+only category/operation, never paths or payloads. Bounded JSONL (64 MiB), record
+(4 MiB), directory inventory (1,024 entries), and lock wait (2 seconds) prevent
+unbounded individual operations; limits produce deletion of oversized owned data
+or explicit incomplete-work errors, as specified in F13.
+
+
+## 14. Approved company invocation (#285)
+
+`internal/approvedexec` imports the company policy leaf, standard library and the
+existing Windows syscall dependency. It prepares a native path/argv plan and an
+OS-derived child environment. It does not import credential/usage providers or
+mutable config. `company.VerifyInstallation` reuses the protected-file OS checks
+and streams at most 1 GiB to verify a native image or explicit input; scripts are
+not launch images. service consumes the plan at its launch boundary. The
+restricted score-only binary remains independent of these packages.
+
+No public harness or canonical usage DTO changes. Protected executable policy
+adds optional `inputs` as described by F01. Full executable, placeholder,
+environment, copy-mode and trust limits are in B07/MANAGED-EXECUTION.md.
+
+## 15. Company advisory evidence (#286)
+
+The shared `internal/advisory.Report` is exactly:
+
+```go
+type Report struct {
+    State string `json:"state"`
+    Message string `json:"message"`
+}
+```
+
+State is one of `current`, `missing`, `unknown`, `partial`, `stale`,
+`authentication_error`, `provider_error`, `disabled`. Message is fixed application
+text derived solely from state, with no identity or provider error payload.
+The pure evaluator receives usage-enabled status, one route's snapshot/window IDs,
+the caller's freshness budget and an explicit clock. It does not fetch, authenticate,
+retry, persist or authorize execution. It may import canonical usage types and
+F19's existing computable-window rule. Private usage observations remain in memory.
+
+`advisory.HasCompleteWindows(snapshot, windowIDs)` exposes the same required-window coverage rule independently of freshness. It returns false for absent/failed/unknown snapshots, an empty required set, or any missing, synthetic or uncomputable required window. Numeric historical band evidence uses it even when the state is stale. It does not change Report or canonical usage types.
+
+Company-only additions to desktop canonical DTOs: RankedModel may carry
+`quota_evidence` (Report); RankResponse may carry `recommendation_mode` with value
+`score_only`; LaunchResult may carry `advisories` (array of fixed strings).
+All are optional/omitted for personal behavior. No success-shaped result is used
+for a native start or approval failure. F26 uses its existing candidate warnings
+for reports; persisted Evidence optionally adds `quota_state` from the same closed
+state list. No numeric ranking, strategy or candidate-exclusion contract changes.
+
+
+## 16. Approved delegated installation (#287)
+
+The company policy replaces the formerly reserved CodexBar `[]Installation` metadata
+with the following canonical type; executable/input `Installation` is unchanged:
+
+```go
+type CodexBarInstallation struct {
+    Path string `json:"path"`
+    SHA256 string `json:"sha256"`
+    Config Installation `json:"config"`
+}
+```
+
+`Policy.CodexBarInstallations` is `[]CodexBarInstallation`, defaults empty and has
+a maximum of 16 entries. Every entry requires valid protected image and config
+identity metadata. `Snapshot.RequireCodexBar` checks that approval metadata exists;
+only the verified consumer can execute. Generic legacy capability guards remain
+closed. F14/APPROVED-CODEXBAR.md governs execution and delegation semantics.
+
+
+## 17. Release maturity metadata (#289)
+
+No runtime DTO changes. Until the stable decision described in global SPEC §14,
+GitHub publication uses `--prerelease --latest=false` for every new tag, including
+plain numeric versions. Package descriptions state pre-release maturity; npm
+distribution-tag selection remains unchanged. Desktop update discovery includes
+published prereleases and compares semantic version precedence, linking only to a
+strictly newer release. Unversioned builds open the release list for manual
+selection. The private shell boundary and pinned cases are governed by
+[S02](../desktop/shell/features/S02-tray-popover/CONTRACTS.md#release-update-correction-289-pr-315).
+Immutable existing releases are
+not edited. Readiness evidence and pending human/company decisions are recorded
+in docs/releases/readiness.md.
+
+## 18. Company evidence record (#291)
+
+No runtime DTO or public API changes. The documentation-owned
+`docs/security/evidence/company-291.json` records assessment version, exact
+source/ref, candidate identity, binary/SBOM/evidence hashes, observed verification
+and explicit review limits. It is an inventory, not a signed attestation or
+company approval. Subsequent assessments version the record and preserve the
+source/artifact identity to which each result applies.

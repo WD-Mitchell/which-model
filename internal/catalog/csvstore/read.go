@@ -9,53 +9,22 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/WD-Mitchell/which-model/internal/catalog/csvschema"
 	"github.com/WD-Mitchell/which-model/internal/security"
 )
 
 const (
-	BenchmarkColumnPrefix = "benchmark:"                    // pipeline spec §3.1; Python BENCHMARK_COLUMN_PREFIX
-	ProvenancePrefix      = "# which-model-scores-provenance" // annex-b §6.2a comment-line keyword
+	BenchmarkColumnPrefix = csvschema.BenchmarkColumnPrefix // pipeline spec §3.1; Python BENCHMARK_COLUMN_PREFIX
+	ProvenancePrefix      = csvschema.ProvenancePrefix      // annex-b §6.2a comment-line keyword
 	MaxCsvBytes           = 16 << 20                        // 16 MiB; csvstore's own read bound (SPEC §4)
 	DefaultBackupKeep     = 5                               // SPEC §4 backup rotation default
 )
 
-// RawCoreColumns is the fixed core-column order of available_model_raw_values.csv
-// (pipeline spec §3.1, model_types.py:10-19). First 8 columns of every raw CSV.
-var RawCoreColumns = []string{
-	"model",
-	"reasoning",
-	"intelligence_index",
-	"time_per_intelligence_index_task_seconds",
-	"cost_per_intelligence_index_task_usd",
-	"median_end_to_end_response_time_seconds",
-	"artificial_analysis_coding_index",
-	"artificial_analysis_agentic_index",
-}
-
-// CategoryScoreColumns is the fixed 12-category order of the scores CSV
-// (annex-b §4.8; pipeline spec §3.2, generate_scores.py:67-80).
-var CategoryScoreColumns = []string{
-	"reasoning_score",
-	"knowledge_score",
-	"research_score",
-	"planning_capability_score",
-	"instruction_following_score",
-	"software_engineering_score",
-	"ui_visual_score",
-	"agentic_tools_score",
-	"finance_score",
-	"evidence_capture_score",
-	"security_score",
-	"data_ml_score",
-}
-
-// NonNegativeRawColumns names the raw-CSV metric columns whose cells must be
-// >= 0 (csv_store.py:34-38 NONNEGATIVE_RAW_COLUMNS).
-var NonNegativeRawColumns = map[string]bool{
-	"time_per_intelligence_index_task_seconds": true,
-	"cost_per_intelligence_index_task_usd":     true,
-	"median_end_to_end_response_time_seconds":  true,
-}
+// Compatibility exports retain the existing csvstore vocabulary. The shared
+// definitions live in a leaf package so in-memory scoring does not import I/O.
+var RawCoreColumns = csvschema.RawCoreColumns
+var CategoryScoreColumns = csvschema.CategoryScoreColumns
+var NonNegativeRawColumns = csvschema.NonNegativeRawColumns
 
 // Row is one CSV data row. Header and Values are positionally aligned:
 // Values[i] is the cell for column Header[i]. A blank cell is "".

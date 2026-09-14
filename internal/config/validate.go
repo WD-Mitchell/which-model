@@ -39,5 +39,5 @@ func (c *Config) Validate() error {
 			return &ConfigError{Kind: KindInvalidValue, Key: "providers." + id + ".cache_ttl"}
 		}
 	}
-	return nil
+	return c.ValidateManaged()
 }

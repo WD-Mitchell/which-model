@@ -54,6 +54,10 @@ func (c *Config) DecodeFile(path string) error {
 		return &ConfigError{Kind: KindUnreadable, Path: path, Err: err}
 	}
 
+	return c.decode(data, path)
+}
+
+func (c *Config) decode(data []byte, path string) error {
 	var layer map[string]any
 	if _, err := toml.Decode(string(data), &layer); err != nil {
 		return &ConfigError{Kind: KindInvalidTOML, Path: path, Err: err}

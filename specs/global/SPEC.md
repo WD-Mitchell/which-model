@@ -5,7 +5,7 @@ project: which-model
 module: github.com/WD-Mitchell/which-model
 binary: which-model
 aliases: [wm, wmodel, whichm]
-go_version: "1.23"
+go_version: "1.25"
 ---
 
 # which-model — Global Specification
@@ -39,6 +39,7 @@ Layer 5: Integration   — agent skills, hooks, publishing
 
 | Package | Layer | Purpose |
 |---|---|---|
+| `internal/company` | 0 | Protected machine enrollment and independent policy authority |
 | `internal/config` | 0 | TOML config, env, flag resolution |
 | `internal/decimal` | 0 | `shopspring/decimal` wrappers, `ROUND_HALF_UP` |
 | `internal/output` | 0 | JSON/text/schema renderers |
@@ -116,3 +117,171 @@ Inherited from `docs/plan/research/usage-allowance-checks-spec.md` §9. Non-nego
 ## 9. npm fallback distribution (#161)
 
 When the platform optional package is unavailable, postinstall may fetch the version-matched release binary. Decode only `checksums.txt` as UTF-8 and parse sha256sum LF/CRLF records (including the binary marker). Hash and write the binary as unchanged bytes, with executable mode on Unix. Missing, malformed or mismatched checksums and download failures must leave no installed fallback and warn without failing npm installation. Existing optional binaries and `WHICH_MODEL_SKIP_DOWNLOAD=1` perform no fallback requests. Validate with `node --test npm/which-model/install.test.js` and the existing npm smoke test.
+
+## 10. Source checkout portability (#280)
+
+Every tracked path must be portable to a normal Windows checkout. The CI path
+check rejects reserved characters/control bytes, invalid Unicode, empty or
+relative components, trailing periods/spaces, reserved Windows device names
+(including `CONIN$`, `CONOUT$`, `LPT0`, extensions and numbered COM/LPT names), and case-insensitive
+file/directory collisions at every path component. The check examines Git's
+index with NUL-delimited filenames; it does not inspect untracked local files.
+
+CI must perform an actual Windows source checkout, build the default and
+`nousage` CLI variants there, and run each variant's version/help commands.
+Linux cross-compilation remains part of release packaging but does not replace
+this native checkout/build gate. This requirement concerns the CLI; it does not
+expand desktop Windows feature support.
+
+The `tracked-paths` and `windows-cli` GitHub Actions checks must be required by
+the active `main` rules alongside the existing `test` check. A failure of either
+portability check must prevent merging a PR or stack into `main`.
+
+Review correction (#298): include the remaining Git for Windows reserved device
+names and enforce both portability jobs as required merge checks.
+
+Correction: #280 removes the accidentally tracked `xd:/lsp` editor diagnostic
+artifact and adds the missing portability gate. It changes no CLI runtime
+behaviour or provider credential policy.
+
+## 11. Company identity boundary (#281)
+
+Company deployments retain the local OS user and provider account identity. No
+separate which-model login, credential broker or product RBAC is introduced. The
+[company identity decision](../../docs/security/company-identity.md) records the
+actors, observed provider grants, same-user bypass limits and required external
+controls. Provider identity validation is not company membership validation, and
+reading allowance data does not reduce the credential's effective privileges.
+
+The optional administrator profile is follow-on work (#282); it preserves
+personal-user defaults and governs operations inside an approved installation.
+Endpoint and provider controls remain responsible for enforcement outside that
+process. Quota/authentication evidence and audit-write failures are advisory and
+do not themselves block otherwise authorised launches (decision for #286). This
+decision does not remove native permissions or approved-executable requirements.
+
+Clarification: this section defines the deployment trust boundary; it changes no
+credential resolution, runtime quota handling or canonical API contract in #281.
+Provider permission and company acceptance are separate evidence requirements.
+
+## 12. Verified CLI release distribution (#288)
+
+Correction to §9: fallback installation additionally requires signed GitHub/Sigstore
+SLSA v1 provenance. Checksums alone no longer authorise installation. The trusted
+repository is `WD-Mitchell/which-model`, the signer is its
+`.github/workflows/npm-release.yml`, and the source ref and full commit must match
+the release policy stamped into the npm launcher. GitHub-hosted runners and the
+GitHub Actions OIDC issuer are required. GitHub CLI 2.97.0 or later supplies the
+cryptographic verifier; an absent/failing verifier leaves no runnable fallback.
+The optional npm platform package remains verified through npm registry integrity
+and provenance. No company signing service is added.
+
+The build emits a CycloneDX 1.6 SBOM for each CLI binary from its embedded Go
+build information, with the artifact digest, linked modules and Go runtime. The
+repository-owned generator is versioned with the source; no guessed licences or
+transitive dependency graph are emitted. Release provenance covers binaries,
+SBOMs, per-binary vulnerability reports, checksum list and release manifest.
+A signed manifest binds the version, full source revision/ref and artifact/SBOM
+digests. Release jobs independently
+verify the downloaded artifacts before publishing or packaging.
+
+Review correction (#301): whole-release verification requires each binary's
+signed `govulncheck` report and rejects missing or altered reports before
+publication. Exact-version npm verification also checks the original tarball's
+SHA-512 subject and OIDC-derived certificate identity using GitHub CLI. Repository,
+workflow, tag, source commit, issuer and hosted runner policy are enforced on the
+certificate; matching workflow-controlled predicate claims alone cannot pass.
+
+Release tests/builds use pinned Go 1.26.8 (the scanner requires Go 1.26+).
+Release evidence records `govulncheck` v1.8.0 binary scans and exact npm package
+provenance assessment. Scanner errors/findings stop release publication; this is
+a release-integrity gate, not a runtime quota or audit launch gate. Manual
+verification-only runs may produce signed candidate artifacts and evidence but
+never create tags, publish GitHub releases or publish npm packages.
+
+Installers stage candidate bytes outside the launcher path (0600 on POSIX;
+Windows uses the package directory ACL), never execute the candidate, verify
+checksum, source identity and signature, then atomically expose the executable. A matching verification receipt and
+current digest are required when the npm launcher uses a local fallback; stale
+or unverified leftovers are refused.
+Failures clean staging and preserve the existing best-effort npm-install exit
+behaviour with an actionable warning. Offline verification requires an approved
+source revision/ref, the bundle and independently obtained Sigstore trust roots;
+unavailable evidence is not a reason to skip verification.
+
+## 13. Restricted offline assets (#290)
+
+In addition to the five full CLI artifacts, the same verified release emits five
+`which-model-score-only-<os>-<arch>[.exe]` artifacts. F21 SPEC §7 governs their
+restricted command boundary. They embed the reviewed repository catalog and
+built-in ranking profiles and carry no runtime catalog-update mechanism.
+The full npm packages remain the full product; this pilot adds separate GitHub
+release assets, not a change to npm's default executable.
+
+The signed `which-model-score-only-capabilities.json` is digest-pinned in the
+release manifest. Each restricted SBOM also identifies the embedded catalog and
+profiles by SHA-256. Verification checks these bindings before installation.
+Catalog source/licensing approval and company acceptance are release-owner
+decisions distinct from artifact integrity. The build pipeline is capable of
+producing candidates; a passing candidate is not permission to distribute them.
+
+
+## 14. Optional administrator-managed policy (#282)
+
+Enrolled installations use the [F01 managed-policy contract](../features/F01-config/MANAGED-POLICY.md).
+Machine policy is independent of user/project/environment/flag configuration and is
+reloaded at sensitive operation boundaries. Required enrollment with missing or
+untrusted policy refuses restricted operations. Personal installations retain their
+existing behavior; the separate offline artifact still has no policy/config I/O.
+This foundation records retention and executable approvals; #283–#285 and #287
+complete secure-store, persistence and verified-execution consumers. Quota/audit
+failures remain advisory under the user decision for #286.
+
+
+## 14. Product maturity and release classification (#289)
+
+The product remains pre-release until a maintainer explicitly approves stable
+promotion against [the readiness record](../../docs/releases/readiness.md). A
+numeric tag alone does not change maturity. All newly published GitHub releases
+are marked pre-release and are not promoted to GitHub Latest. npm retains its
+existing latest/numeric and beta/suffixed distribution channels; package
+descriptions and installation guidance identify pre-release product maturity.
+The desktop update action follows the published release list, including
+prereleases, and offers only a strictly greater semantic version with a link to
+that release. It cannot advertise an older historical Latest release as an update.
+Unversioned builds receive manual-selection guidance; S02's release update
+correction governs the lookup, limits, notices and regression cases.
+Historical releases/dist-tags are not rewritten by this change. Stable promotion
+requires a reviewed spec, documentation and metadata change together.
+
+The existing security-fix focus is main and the newest published release, with
+older users potentially required to upgrade. No new SLA/support contract or
+response/remediation deadline is introduced. The readiness checklist requires
+exact-revision/artifact evidence and records unresolved release decisions; company
+acceptance and human maintainer sign-off remain separate. CI or PR creation is
+not that sign-off. The module floor follows go.mod; release tooling remains as
+pinned in §12.
+
+### Deviations and corrections
+
+#289 supersedes the release workflow's former assumption that every plain numeric
+tag denotes stable maturity. The existing README pre-release statement remains
+authoritative until explicit maintainer promotion. The `go_version` frontmatter
+is corrected from the stale 1.23 value to the existing go.mod floor, 1.25; this
+does not raise the module requirement.
+
+## 15. Company assurance evidence (#291)
+
+The [versioned company assessment](../../docs/security/company-assessment.md)
+covers the restricted executable, managed native usage, approved CodexBar and
+agent integration separately. Evidence must identify its exact source, artifact
+and observed verification; planned work and successful signatures are not proof
+of security effectiveness or company acceptance. Human maintainer review and
+organisation decisions are recorded separately. Changes to trust boundaries,
+credential/data handling, execution or release trust update the assessment and
+relevant feature contracts in the changing PR.
+
+This is an assurance documentation contract, with no new runtime behavior. It
+retains optional managed policy, personal defaults, local OS/provider identity and
+advisory quota/audit semantics. Framework labels do not turn advisory reporting
+into a security-enforcement control.

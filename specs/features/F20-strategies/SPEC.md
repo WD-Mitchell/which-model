@@ -79,3 +79,8 @@ slice-index panics and overflow. Other valid scopes are preserved. Dry runs use
 the recovered cursor without persisting corrections; real runs rotate normally
 under the existing exclusive lock and permissions. This makes the existing
 corruption-recovery promise apply to semantic corruption as well as syntax errors.
+
+
+## Company advisory evidence correction (#286)
+
+Decision: quota, usage-authentication and audit evidence failures do not need to block launches. The optional managed profile uses advisory reporting; personal defaults remain unchanged. Strategy ordering, exclusions, no-pick exit classes and usage-required strategy refusals are unchanged. Evidence state never grants launch permission or creates a new launch gate. A CLI no-candidate result is still a valid recommendation failure; the company spawn hook reports it as unavailable recommendation evidence and permits dispatch. Tests: existing strategy goldens and `TestCompanyPickScoreOnlyIsLabelledWithoutChangingRank`.

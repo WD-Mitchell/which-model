@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/WD-Mitchell/which-model/internal/catalog"
-	"github.com/WD-Mitchell/which-model/internal/catalog/csvstore"
+	"github.com/WD-Mitchell/which-model/internal/catalog/csvschema"
 	sdecimal "github.com/shopspring/decimal"
 )
 
@@ -73,7 +73,7 @@ func Derive(rawCSV []byte, benchmarksTOML []byte, normalizer Normalizer, aggrega
 		cfg:        cfg,
 		aggregator: aggregator,
 	}
-	coreColumns := csvstore.RawCoreColumns[2:]
+	coreColumns := csvschema.RawCoreColumns[2:]
 
 	var out bytes.Buffer
 	writer := csv.NewWriter(&out)
@@ -90,7 +90,7 @@ func Derive(rawCSV []byte, benchmarksTOML []byte, normalizer Normalizer, aggrega
 	}
 
 	provenance := fmt.Sprintf("%s raw_sha256=%s normalizer=%s aggregator=%s",
-		csvstore.ProvenancePrefix, rawHash, normalizerName(normalizer), aggregatorName(aggregator))
+		csvschema.ProvenancePrefix, rawHash, normalizerName(normalizer), aggregatorName(aggregator))
 	return append([]byte(provenance+"\n"), out.Bytes()...), nil
 }
 
@@ -150,7 +150,7 @@ func columnRanges(rows []rawRow, dynamic []string) map[string]*[2]sdecimal.Decim
 	for i, name := range dynamic {
 		benchIndex[name] = i
 	}
-	columns := append(append([]string{}, csvstore.RawCoreColumns[2:]...), dynamic...)
+	columns := append(append([]string{}, csvschema.RawCoreColumns[2:]...), dynamic...)
 	result := make(map[string]*[2]sdecimal.Decimal, len(columns))
 	for _, column := range columns {
 		cells := metricCells(rows, column, benchIndex)
@@ -198,12 +198,12 @@ func metricCells(eligible []rawRow, column string, benchIndex map[string]int) []
 // pairs (<metric>, <metric>_score), then the 12 category _score columns,
 // then benchmark pairs in raw dynamic order.
 func deriveHeader(coreColumns, dynamic []string) []string {
-	header := make([]string, 0, 2+2*len(coreColumns)+len(csvstore.CategoryScoreColumns)+2*len(dynamic))
+	header := make([]string, 0, 2+2*len(coreColumns)+len(csvschema.CategoryScoreColumns)+2*len(dynamic))
 	header = append(header, "model", "reasoning")
 	for _, name := range coreColumns {
 		header = append(header, name, name+"_score")
 	}
-	header = append(header, csvstore.CategoryScoreColumns...)
+	header = append(header, csvschema.CategoryScoreColumns...)
 	for _, name := range dynamic {
 		header = append(header, name, name+"_score")
 	}
@@ -228,7 +228,7 @@ func (s *deriveState) scoreRow(row *rawRow, coreColumns []string, normalizer Nor
 	}
 	for i, name := range s.dynamic {
 		if value := s.scoreValue(&row.bench[i], s.ranges[name], true, normalizer); value != nil {
-			scoreRow.Benchmarks[strings.TrimPrefix(name, csvstore.BenchmarkColumnPrefix)] = *value
+			scoreRow.Benchmarks[strings.TrimPrefix(name, csvschema.BenchmarkColumnPrefix)] = *value
 		}
 	}
 	return scoreRow
@@ -247,7 +247,7 @@ func (s *deriveState) record(row *rawRow, coreColumns []string, normalizer Norma
 	for i, name := range coreColumns {
 		record = append(record, rawText(&row.core[i]), s.scoreText(&row.core[i], s.ranges[name], s.flags[name], normalizer))
 	}
-	for _, column := range csvstore.CategoryScoreColumns {
+	for _, column := range csvschema.CategoryScoreColumns {
 		if column == "planning_capability_score" {
 			if planningComplete(categories) {
 				record = append(record, planning.String())

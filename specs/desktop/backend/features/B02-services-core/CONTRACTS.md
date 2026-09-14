@@ -197,3 +197,29 @@ func (r *emitRecorder) Events() []recordedEvent // copy, mutex-guarded
 ## Review correction — #32: host error normalization
 
 `ToErrorDTO(err error) ErrorDTO` exports the existing canonical mapper for the native adapter. Nil maps to an empty DTO, existing value/pointer DTOs pass through, wrapped sentinels retain their stable codes, and unknown errors retain existing sanitization. Binding wrappers must keep successful nil errors nil instead of returning the empty DTO as an error. No new error codes or message parsing are introduced.
+
+
+## Company-policy extension (#282)
+
+Desktop operation boundaries reload administrator policy. Company policy errors map to the existing validation_failed ErrorDTO with known diagnostic text and the protected origin; credential input is never echoed. A mutable Services configuration cannot authorize forbidden operations.
+
+This intentionally supersedes unrestricted operation for enrolled installations only;
+see the [F01 managed-policy contract](../../../../features/F01-config/MANAGED-POLICY.md). Pinned evidence:
+`TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
+and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.
+
+## Deviations / secure-store correction (#283)
+
+Usage passes native-store preference through fetch options. Company sign-in and rollback preserve required metadata in secure storage without provider-file writes or broad legacy deletion.
+The [secure-store contract](../../../../features/F12-credentials/SECURE-STORES.md) supersedes earlier company-mode storage
+wording under the approved optional-profile decision. Personal defaults remain
+unchanged. Native tests and migration/fallback canaries are required evidence.
+
+
+## Company privacy correction (#284)
+
+No public Services DTO changes. Private privacyOnce controls the worker. The nousage build uses an inert implementation. State/cache paths come from the existing service paths and usage cache resolution; no credential or repository inventory is created.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.

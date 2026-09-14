@@ -10,30 +10,15 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os/exec"
 	"runtime"
-	"strings"
 	"sync"
-	"time"
 
 	"github.com/WD-Mitchell/which-model/pkg/whichmodel"
 )
-
-// latestReleaseURL is GitHub's API for the newest published release of this
-// repository (the module path's own origin).
-const latestReleaseURL = "https://api.github.com/repos/WD-Mitchell/which-model/releases/latest"
-
-// releasesPageURL is opened when an update is available; the app has no
-// self-updater, so the download is the user's own deliberate step.
-const releasesPageURL = "https://github.com/WD-Mitchell/which-model/releases/latest"
-
-// updateCheckTimeout bounds the release lookup. A menu action that hangs on a
-// dead network is worse than one that reports "could not check".
-const updateCheckTimeout = 10 * time.Second
 
 var (
 	// refreshRunning guards the catalogue rebuild; catalogMu additionally
@@ -91,9 +76,8 @@ func refreshCatalogCLI() error {
 	return nil
 }
 
-// checkForUpdates compares the running build against the newest GitHub
-// release. There is no self-updater: a newer version opens the releases page,
-// which is the honest outcome for an unsigned, hand-packaged .app.
+// checkForUpdates compares the running build against published GitHub versions,
+// including prereleases. Only a newer version opens its specific release page.
 func (m *trayMenu) checkForUpdates() {
 	updateRunning.Lock()
 	if updateBusy {
@@ -110,60 +94,19 @@ func (m *trayMenu) checkForUpdates() {
 			updateRunning.Unlock()
 		}()
 
-		latest, err := latestReleaseTag()
+		ctx, cancel := context.WithTimeout(context.Background(), updateCheckTimeout)
+		defer cancel()
+		message, link, err := checkReleaseUpdate(ctx, &http.Client{}, whichmodel.Version)
 		if err != nil {
 			log.Printf("tray: update check failed: %v", err)
 			notice(m.app, "could not check for updates")
 			return
 		}
-		current := whichmodel.Version
-		switch {
-		case current == "" || current == "dev":
-			// A local build carries no release identity, so "up to date" would
-			// be a guess. Report what is out there and let the user judge.
-			notice(m.app, fmt.Sprintf("development build; latest release is %s", latest))
-			openURL(releasesPageURL)
-		case sameVersion(current, latest):
-			notice(m.app, fmt.Sprintf("up to date (%s)", current))
-		default:
-			notice(m.app, fmt.Sprintf("update available: %s (you have %s)", latest, current))
-			openURL(releasesPageURL)
+		notice(m.app, message)
+		if link != "" {
+			openURL(link)
 		}
 	}()
-}
-
-// latestReleaseTag returns the newest release's tag name.
-func latestReleaseTag() (string, error) {
-	client := &http.Client{Timeout: updateCheckTimeout}
-	req, err := http.NewRequest(http.MethodGet, latestReleaseURL, nil)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Accept", "application/vnd.github+json")
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("github returned %s", resp.Status)
-	}
-	var payload struct {
-		TagName string `json:"tag_name"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		return "", err
-	}
-	if payload.TagName == "" {
-		return "", fmt.Errorf("release has no tag_name")
-	}
-	return payload.TagName, nil
-}
-
-// sameVersion compares a build version against a release tag, tolerating the
-// "v" prefix tags carry and builds do not.
-func sameVersion(current, tag string) bool {
-	return strings.TrimPrefix(current, "v") == strings.TrimPrefix(tag, "v")
 }
 
 // openURL opens a link in the user's browser. Failure is logged, never fatal.

@@ -41,8 +41,15 @@ type Resolver interface {
 // ErrNotFound (F14 maps it to login_required). Kinds without an F12
 // resolver (RPC/refresh/sigv4/volcengine/grpc-web) → ErrNotFound.
 func ResolveChain(ctx context.Context, sources []usage.AuthSource, client *http.Client) (usage.Credential, []Warning, error) {
+	policy, err := readCompanyPolicy()
+	if err != nil {
+		return Credential{}, nil, err
+	}
 	var warnings []Warning
 	for _, source := range sources {
+		if policy.Managed && (sourceCategory(source.Kind) == "cli" || policy.RequireSource(sourceCategory(source.Kind)) != nil) {
+			continue
+		}
 		resolver, ok := resolverFor(source)
 		if !ok {
 			continue // kind without an F12 resolver → candidate unavailable
@@ -94,7 +101,7 @@ func resolverFor(s usage.AuthSource) (Resolver, bool) {
 		if s.Keychain == nil {
 			return nil, false
 		}
-		return &KeychainResolver{Store: DefaultKeychain(), Service: s.Keychain.Service, Account: s.Keychain.Account}, true
+		return &KeychainResolver{Store: KeychainFor(false), Service: s.Keychain.Service, Account: s.Keychain.Account}, true
 	case usage.AuthOAuthDeviceFlow:
 		return deviceFlowResolver{}, true
 	default:

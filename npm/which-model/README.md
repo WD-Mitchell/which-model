@@ -1,5 +1,10 @@
 # @wdm-uk/which-model
 
+This product is **pre-release**. A numeric version or npm distribution tag selects
+an artifact; it does not establish stable readiness or company approval. Review
+the [release readiness record](https://github.com/WD-Mitchell/which-model/blob/main/docs/releases/readiness.md)
+and pin the version approved for your deployment.
+
 Install the [which-model](https://github.com/WD-Mitchell/which-model) CLI:
 
 ```bash
@@ -34,3 +39,11 @@ npm uninstall -g @wdm-uk/which-model
 ## License
 
 MIT — see the [repository](https://github.com/WD-Mitchell/which-model).
+
+### Verified fallback downloads
+
+If the optional platform package is unavailable, fallback installation requires
+a trusted GitHub CLI 2.97.0+ and signed release evidence. Verification failures
+leave no new executable; install the matching platform package or correct the
+verifier/evidence issue. See the [release verification guide](https://github.com/WD-Mitchell/which-model/blob/main/docs/security/release-verification.md)
+for source-identity checks and offline/mirror handling.

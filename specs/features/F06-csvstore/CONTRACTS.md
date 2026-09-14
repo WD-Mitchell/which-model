@@ -288,3 +288,13 @@ func StaleWarning(scoresPath, rawPath string) string
 - `Failure.Code` values added: none.
 - JSON shapes emitted: none (csvstore writes CSV text only).
 - Build variants: package MUST compile and pass tests under `go build -tags nousage` (annex-b §0).
+
+## Shared vocabulary for the restricted ranker (#290)
+
+The column lists, non-negative raw metric set, benchmark prefix and provenance
+prefix are defined once in `internal/catalog/csvschema/schema.go`, a leaf package
+with no I/O dependencies. Existing `csvstore` exports retain those same values
+through compatibility references; public shapes and validation behavior do not
+change. The score package consumes the leaf vocabulary directly so offline
+ranking does not bring file-store or HTTP imports into the restricted binary.
+This corrects package coupling, not the catalog format or ranking rules.
