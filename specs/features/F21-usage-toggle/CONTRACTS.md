@@ -206,3 +206,34 @@ None — F01 owns the `[usage]`/`[providers.*]` schema (F21 only reads it), F26 
 - F24 (usage) / F25 (auth): exit 2 with `usage_disabled` naming the disabling key under L0/L1; not registered under L2.
 - F11/F12/F13/F14: R1/R2 (`!nousage` tags) — the stub files above only compile correctly if the real files do not leak symbols into the nousage build.
 - `internal/catalog/**`: must not import `internal/usage/**` (SPEC §2.3); catalog tests run under both builds.
+
+## 12. Restricted command contract (#290)
+
+`cmd/which-model-score-only` calls only `pkg/scoreonly.Run(args, stdout, stderr)`.
+Both use the `nousage` build tag. `data/embedded.go` embeds the tracked scores CSV.
+`pkg/scoreonly` consumes canonical `catalog.Profile`, `pick.Result` and
+`output.OutputEnvelope` unchanged; it does not import `pkg/whichmodel`.
+
+| Invocation | Result |
+|---|---|
+| `pick [--profile balanced_implementation] [--top 3] [--json]` | Built-in profile ranking; top is total displayed recommendation + alternatives, positive integer; full candidate count retained |
+| `profiles [--json]` | Sorted built-in profile names |
+| `capabilities [--json]` | Capability manifest (JSON even without `--json`) |
+| `version [--json]` | Distinct artifact name, version and full source commit |
+| no arguments, `help`, `--help`, `-h` | Usage, exit 0 |
+| unsupported command/flag, invalid profile/top, extra positionals | Diagnostic, exit 2, no ranking or side effects |
+| invalid bundled data / no eligible models / output write failure | Diagnostic, exit 1 |
+
+The pick JSON payload contains `artifact`, `catalog_sha256`, `profiles_sha256`,
+`notice` and `ranking` (the canonical `pick.Result`), plus the global envelope.
+The capability payload contains `artifact`, `version`, `source_commit`, `enabled`,
+`excluded`, `catalog` (`source_path`, `sha256`) and `profiles` (`source_path`,
+`sha256`), plus the global envelope. Version/commit are build-time values, never
+read from environment variables at runtime. Development builds report `dev`/`unknown`.
+
+Pinned acceptance: every built-in profile matches `pick.Rank` on the bundled
+CSV; repeated outputs match; `--top 1` keeps candidate count and clears alternatives;
+every excluded command/override is refused; malformed local config, credential
+canaries, launch-template env values and PATH helpers cannot change output;
+Linux network namespace + syscall trace shows no network/credential/child-process
+access; native macOS/Windows/Linux smoke and release provenance verification pass.

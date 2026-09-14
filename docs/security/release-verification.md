@@ -156,3 +156,8 @@ Primary references: [GitHub artifact attestations](https://docs.github.com/en/ac
 [CycloneDX 1.6 schema](https://github.com/CycloneDX/specification/blob/1.6/schema/bom-1.6.schema.json),
 [Go build metadata](https://pkg.go.dev/debug/buildinfo), and
 [npm signature auditing](https://docs.npmjs.com/cli/v11/commands/npm-audit/).
+
+The [restricted offline distribution](offline-score-only.md) adds five distinctly
+named score-only binaries and a signed capability manifest. The same verifier
+checks its pinned capability digest, source identity and bundled-input SBOM hashes.
+The standard npm packages retain the full CLI.

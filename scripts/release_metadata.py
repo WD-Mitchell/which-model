@@ -58,20 +58,43 @@ def main():
         parser.error('source branch or tag ref required')
     # Only binary basenames match; existing metadata cannot accidentally become a subject binary.
     binaries = sorted(p for p in args.directory.iterdir()
-                      if re.fullmatch(r'which-model-(?:darwin|linux|windows)-(?:arm64|x64)(?:\.exe)?', p.name))
+                      if re.fullmatch(r'which-model-(?:score-only-)?(?:darwin|linux|windows)-(?:arm64|x64)(?:\.exe)?', p.name))
     if not binaries:
         parser.error('no release binaries found')
     artifacts = []
+    restricted = any(p.name.startswith('which-model-score-only-') for p in binaries)
+    capabilities_path = args.directory / 'which-model-score-only-capabilities.json'
+    capabilities = None
+    if restricted:
+        capabilities = json.loads(capabilities_path.read_text(encoding='utf-8'))
+        if (capabilities.get('artifact') != 'which-model-score-only'
+                or capabilities.get('version') != args.version
+                or capabilities.get('source_commit') != args.source_digest):
+            parser.error('restricted capabilities do not describe the release source')
     for binary in binaries:
         info = json.loads(subprocess.check_output(['go', 'version', '-m', '-json', str(binary)], text=True))
         data = binary.read_bytes()
         sbom = binary.with_name(binary.name + '.cdx.json')
-        write_json(sbom, make_sbom(binary.name, data, info, args.version, args.source_digest))
+        inventory = make_sbom(binary.name, data, info, args.version, args.source_digest)
+        if binary.name.startswith('which-model-score-only-'):
+            for key in ('catalog', 'profiles'):
+                entry = capabilities[key]
+                if not re.fullmatch(r'[0-9a-f]{64}', entry['sha256']):
+                    parser.error('invalid bundled input digest')
+                inventory['components'].append({
+                    'type': 'data', 'name': entry['source_path'], 'bom-ref': 'bundled-' + key,
+                    'hashes': [{'alg': 'SHA-256', 'content': entry['sha256']}],
+                    'properties': [{'name': 'which-model:source-commit', 'value': args.source_digest}]})
+        write_json(sbom, inventory)
         artifacts.append({'name': binary.name, 'sha256': digest(data), 'sbom': sbom.name,
                           'sbom_sha256': digest(sbom.read_bytes())})
-    write_json(args.directory / 'release-manifest.json', {
+    manifest = {
         'schema': 1, 'version': args.version, 'source_digest': args.source_digest,
-        'source_ref': args.source_ref, 'artifacts': artifacts})
+        'source_ref': args.source_ref, 'artifacts': artifacts}
+    if restricted:
+        manifest['score_only'] = {'capabilities': capabilities_path.name,
+                                  'sha256': digest(capabilities_path.read_bytes())}
+    write_json(args.directory / 'release-manifest.json', manifest)
     print(f'Inventoried {len(artifacts)} release binaries with CycloneDX 1.6 SBOMs.')
 
 

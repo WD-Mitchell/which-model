@@ -28,6 +28,11 @@ function validateManifest(m, version, sourceDigest, sourceRef) {
     }
     names.add(a.name); names.add(a.sbom);
   }
+  if (m.artifacts.some(a => a.name.startsWith('which-model-score-only-')) || m.score_only !== undefined) {
+    if (m.score_only?.capabilities !== 'which-model-score-only-capabilities.json' || !DIGEST.test(m.score_only.sha256)) {
+      throw new Error('restricted release requires a pinned capability manifest');
+    }
+  }
   return m;
 }
 
@@ -72,6 +77,18 @@ function verifyRelease(dir, version, sourceDigest, sourceRef, trustedRoot) {
   verifyArtifact({ artifact: manifestPath, ...identity });
   verifyArtifact({ artifact: path.join(dir, 'checksums.txt'), ...identity });
   const manifest = validateManifest(JSON.parse(fs.readFileSync(manifestPath, 'utf8')), version, sourceDigest, sourceRef);
+  let capabilities;
+  if (manifest.score_only) {
+    const file = path.join(dir, manifest.score_only.capabilities);
+    verifyArtifact({ artifact: file, sha256: manifest.score_only.sha256, ...identity });
+    capabilities = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (capabilities.artifact !== 'which-model-score-only' || capabilities.version !== version ||
+        capabilities.source_commit !== sourceDigest || capabilities.usage_enabled !== false ||
+        capabilities.usage_disabled_reason !== 'compiled_out' || !DIGEST.test(capabilities.catalog?.sha256) ||
+        !DIGEST.test(capabilities.profiles?.sha256)) {
+      throw new Error('restricted capabilities do not describe the release artifact');
+    }
+  }
   for (const a of manifest.artifacts) {
     verifyArtifact({ artifact: path.join(dir, a.name), sha256: a.sha256, ...identity });
     verifyArtifact({ artifact: path.join(dir, a.sbom), sha256: a.sbom_sha256, ...identity });
@@ -81,6 +98,15 @@ function verifyRelease(dir, version, sourceDigest, sourceRef, trustedRoot) {
         sbom.metadata?.component?.name !== a.name || sbom.metadata?.component?.version !== version ||
         !sbom.metadata?.component?.hashes?.some(h => h.alg === 'SHA-256' && h.content === a.sha256)) {
       throw new Error('SBOM does not describe its release artifact');
+    }
+    if (a.name.startsWith('which-model-score-only-')) {
+      for (const key of ['catalog', 'profiles']) {
+        if (!sbom.components?.some(c => c['bom-ref'] === `bundled-${key}` &&
+            c.name === capabilities[key].source_path &&
+            c.hashes?.some(h => h.alg === 'SHA-256' && h.content === capabilities[key].sha256))) {
+          throw new Error('restricted SBOM does not describe its bundled inputs');
+        }
+      }
     }
   }
   return manifest;

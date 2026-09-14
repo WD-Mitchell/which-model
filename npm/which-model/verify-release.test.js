@@ -20,6 +20,17 @@ test('manifest binds version, source, unique safe artifact names and SBOMs', () 
     const m=manifest();mutate(m);assert.throws(()=>validateManifest(m,'1.2.3',source,ref));
   }
 });
+test('restricted artifacts require a safe, digest-pinned capability manifest', () => {
+  const m=manifest();
+  m.artifacts[0].name='which-model-score-only-linux-x64';
+  m.artifacts[0].sbom=m.artifacts[0].name+'.cdx.json';
+  assert.throws(()=>validateManifest(m,'1.2.3',source,ref),/capability manifest/);
+  m.score_only={capabilities:'which-model-score-only-capabilities.json',sha256:sha};
+  assert.doesNotThrow(()=>validateManifest(m,'1.2.3',source,ref));
+  for (const invalid of [{capabilities:'../manifest.json',sha256:sha},{capabilities:m.score_only.capabilities,sha256:'wrong'},null]) {
+    assert.throws(()=>validateManifest({...m,score_only:invalid},'1.2.3',source,ref),/capability manifest/);
+  }
+});
 test('verifier pins cryptographic identity and checks bytes before calling gh', () => {
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'which-model-verifier-'));
   try {
