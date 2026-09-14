@@ -57,6 +57,14 @@ For the restricted offline company pilot, use the separately named
 [`which-model-score-only` distribution](docs/security/offline-score-only.md),
 which embeds its catalog and excludes network, authentication and agent execution.
 
+## Company assessment
+
+The [versioned security assessment](docs/security/company-assessment.md) separates
+offline ranking, native usage, approved CodexBar and agent integration. It includes
+trust/data flows, NIST and MITRE mappings, exact candidate/test evidence and the
+remaining maintainer, release and company decisions. These changes are proposed
+in native PR stack #300 and are not yet a published company-approved release.
+
 ## Install
 
 Treat published packages as pre-release. At the 2026-09-11 readiness review, npm

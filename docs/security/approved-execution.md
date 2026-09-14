@@ -119,10 +119,12 @@ Personal force behavior is unchanged.
 Company launches discard captured child stdout/stderr and use the typed launch
 records described in [privacy and retention](privacy-and-retention.md). Recording
 failure is visible and advisory. Missing quota/authentication evidence or failed
-audit persistence does not gain launch-blocking authority; #286 completes the
-consistent evidence reporting. Legacy credential commands and external login/model
-helper commands remain denied until they have their own verified consumers. A
-harness approval does not approve CodexBar; #287 owns that separate boundary.
+audit persistence does not gain launch-blocking authority;
+[advisory evidence](advisory-evidence.md) defines the consistent reporting
+implemented in #286. Legacy credential commands and external login/model helper
+commands remain denied until they have their own verified consumers. A harness
+approval does not approve CodexBar; [approved delegation](approved-codexbar.md)
+defines the separate #287 boundary.
 
 The governing spec is [managed execution](../../specs/desktop/backend/features/B07-harnesses/MANAGED-EXECUTION.md).
 Native CI verifies protected images, exact arguments/environment, altered or
