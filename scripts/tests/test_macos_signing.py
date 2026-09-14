@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 import subprocess
 import tempfile
 import unittest
@@ -40,7 +41,8 @@ class MacOSSigningTests(unittest.TestCase):
                     calls.append(args)
                     if phase == 'Import signing certificate':
                         paths.append(Path(args[2]))
-                        self.assertEqual(paths[-1].stat().st_mode & 0o777, 0o600)
+                        if os.name == 'posix':
+                            self.assertEqual(paths[-1].stat().st_mode & 0o777, 0o600)
                     if phase == failure:
                         raise RuntimeError('expected failure')
                     stdout = ''
