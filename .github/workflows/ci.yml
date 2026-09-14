@@ -326,6 +326,7 @@ jobs:
       - run: go build ./cmd/which-model-desktop
       - run: go test ./internal/service ./cmd/which-model-desktop
       - run: bash scripts/audit-offline-desktop.sh
+      - run: python3 -m unittest discover -s scripts/tests -p test_desktop_release.py -q
       - run: go build -tags nousage ./cmd/which-model-score-only-desktop
       - name: Verify desktop release discovery and version ordering
         run: go test ./cmd/which-model-desktop -run TestReleaseUpdate -v -count=1

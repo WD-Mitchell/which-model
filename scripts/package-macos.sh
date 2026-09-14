@@ -24,8 +24,8 @@ BUILDDATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 APPNAME=which-model
 BINARY=which-model-desktop
 BUNDLE_ID=com.wdmitchell.which-model
-TAGS=()
-if [ "$PRODUCT" = offline ]; then APPNAME=which-model-offline; BINARY=which-model-score-only-desktop; BUNDLE_ID=com.wdmitchell.which-model.offline; TAGS=(-tags nousage); fi
+TAGS=""
+if [ "$PRODUCT" = offline ]; then APPNAME=which-model-offline; BINARY=which-model-score-only-desktop; BUNDLE_ID=com.wdmitchell.which-model.offline; TAGS=nousage; fi
 APP="$ROOT/bin/$APPNAME.app"
 EMBED="$ROOT/cmd/$BINARY/frontend"
 BACKUP="$(mktemp -d)"
@@ -45,7 +45,7 @@ fi
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 LDFLAGS="-X ${MODULE}/pkg/whichmodel.Version=${VERSION} -X ${MODULE}/pkg/whichmodel.Commit=${COMMIT} -X ${MODULE}/pkg/whichmodel.BuildDate=${BUILDDATE} -X ${MODULE}/pkg/scoreonly.Version=${VERSION} -X ${MODULE}/pkg/scoreonly.Commit=${COMMIT}"
-go build -trimpath "${TAGS[@]}" -ldflags "$LDFLAGS" -o "$APP/Contents/MacOS/$BINARY" "./cmd/$BINARY"
+go build -trimpath -tags "$TAGS" -ldflags "$LDFLAGS" -o "$APP/Contents/MacOS/$BINARY" "./cmd/$BINARY"
 python3 - "$APP" "$APPNAME" "$BINARY" "$BUNDLE_ID" "$VERSION" "$COMMIT" "$PRODUCT" <<'PY'
 import json,plistlib,sys
 from pathlib import Path

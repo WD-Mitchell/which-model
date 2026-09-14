@@ -1,5 +1,8 @@
 import importlib.util
 import json
+import os
+import shutil
+import subprocess
 from pathlib import Path
 import sys
 import tempfile
@@ -65,3 +68,28 @@ class DesktopReleaseTests(unittest.TestCase):
             p=Path(td);(p/'.vite').mkdir();(p/'.vite/manifest.json').write_text(json.dumps({'offline.html':{'file':'../outside'}}))
             with self.assertRaisesRegex(ValueError,'unsafe'):
                 assets.copy_assets(p,p/'dest')
+
+    @unittest.skipUnless(Path('/bin/bash').exists(), 'packager requires bash')
+    def test_full_packager_works_with_system_bash_and_preserves_build_failure(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            for directory in ('scripts','tools','icons','apps/desktop/dist'):
+                (root/directory).mkdir(parents=True)
+            script=root/'scripts/package-macos.sh'
+            shutil.copyfile(Path(__file__).resolve().parents[1]/'package-macos.sh',script)
+            (root/'icons/which-model.icns').write_bytes(b'icon')
+            (root/'apps/desktop/dist/index.html').write_text('frontend')
+            commands={
+                'git': '#!/bin/bash\nprintf "%040d\\n" 1\n',
+                'codesign': '#!/bin/bash\nexit 0\n',
+                'plutil': '#!/bin/bash\nexit 0\n',
+                'go': '#!/bin/bash\nif [ "$1" = env ]; then echo darwin; exit 0; fi\nif [ "${TEST_FAIL_BUILD:-0}" = 1 ]; then exit 29; fi\nwhile [ "$#" -gt 0 ]; do if [ "$1" = -o ]; then shift; target="$1"; fi; shift; done\nprintf executable > "$target"\n',
+            }
+            for name,body in commands.items():
+                tool=root/'tools'/name;tool.write_text(body);tool.chmod(0o755)
+            env=dict(os.environ,PATH=str(root/'tools')+os.pathsep+os.environ['PATH'])
+            result=subprocess.run(['/bin/bash',str(script),'--version','2.6.0-beta.1'],env=env,capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertTrue((root/'bin/which-model.app/Contents/MacOS/which-model-desktop').is_file(),result.stderr)
+            result=subprocess.run(['/bin/bash',str(script),'--version','2.6.0-beta.1'],env=dict(env,TEST_FAIL_BUILD='1'),capture_output=True,text=True)
+            self.assertNotEqual(result.returncode,0,'build failures must fail packaging')
