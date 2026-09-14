@@ -155,6 +155,40 @@ The tray action is named `Refresh data`. It invokes B06's full refresh of the co
 The Profiles / Use Cases correction in `specs/desktop/backend/features/B03-profiles/SPEC.md` governs the new persisted profile selection and desktop terminology. The DTO extension is canonical in `specs/desktop/global/CONTRACTS.md`. Settings navigation now has both Profiles (curated defaults) and Use Cases (ranking presets).
 
 
+## Release update correction (#289, PR #315)
+
+The shell owns `cmd/which-model-desktop/{trayactions,updates,updates_test}.go`.
+No public service, event, or DTO changes. The shell-private result boundary is:
+
+```go
+func checkReleaseUpdate(ctx context.Context, client *http.Client, current string) (message, link string, err error)
+```
+
+`link` is empty unless a strictly newer release was found or manual selection is
+needed for an unversioned/unrecognized build. Lookup uses
+`https://api.github.com/repos/WD-Mitchell/which-model/releases?per_page=100&page=N`
+with sequential pages starting at 1; the complete lookup shares a 10-second
+deadline, 10-page ceiling and 4 MiB response limit per page. `tag_name` and `draft`
+are the consumed response fields; `prerelease` does not exclude a release.
+Only full semantic versions qualify. `golang.org/x/mod/semver` owns ordering.
+
+| Scenario | Notice / link |
+|---|---|
+| Running `2.5.5`, published `v2.5.6` with `prerelease:true` | `update available: v2.5.6 (you have 2.5.5)`; repository `/releases/tag/v2.5.6` |
+| Running `2.5.6`, only historical `v2.5.5` published | `no newer release available (you have 2.5.6)`; no browser |
+| Running `2.5.6+local`, published `v2.5.6` | `up to date (2.5.6+local)`; no browser |
+| `2.9.0` vs `2.10.0`; `2.6.0-rc.2` vs `2.6.0-rc.10`; `2.6.0-rc.10` vs `2.6.0` | Later semantic version wins, independent of list order |
+| Draft, `nightly`, `v8`, `v7.1` | Ignored during selection |
+| Empty or `dev` current build | `development build; browse releases to check for updates`; repository `/releases`, no API request |
+| Unrecognized or incomplete current version | `unrecognized build version; browse releases to check for updates`; repository `/releases`, no API request |
+| Greater eligible version on page 2 | Selected after completing pagination |
+| HTTP/JSON/network failure, cancellation, null/empty list, no eligible version, oversized body or pagination ceiling | Error with empty result/link; tray emits `could not check for updates` |
+
+`TestReleaseUpdate`, `TestReleaseUpdatePagination`, `TestReleaseUpdateFailures`
+and `TestReleaseUpdateIncompletePagination` exercise the real lookup/decision
+boundary with a fixture transport. The macOS desktop CI job runs
+`go test ./cmd/which-model-desktop -run TestReleaseUpdate -v -count=1`.
+
 ## Company-policy extension (#282)
 
 Desktop startup reads machine enrollment before creating default configuration or starting services. Missing, invalid or unprotected required policy uses the existing fatal-startup diagnostic. The origin cannot be changed through desktop path settings or environment variables.

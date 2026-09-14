@@ -5,7 +5,7 @@ project: which-model
 module: github.com/WD-Mitchell/which-model
 binary: which-model
 aliases: [wm, wmodel, whichm]
-go_version: "1.23"
+go_version: "1.25"
 ---
 
 # which-model — Global Specification
@@ -236,3 +236,36 @@ existing behavior; the separate offline artifact still has no policy/config I/O.
 This foundation records retention and executable approvals; #283–#285 and #287
 complete secure-store, persistence and verified-execution consumers. Quota/audit
 failures remain advisory under the user decision for #286.
+
+
+## 14. Product maturity and release classification (#289)
+
+The product remains pre-release until a maintainer explicitly approves stable
+promotion against [the readiness record](../../docs/releases/readiness.md). A
+numeric tag alone does not change maturity. All newly published GitHub releases
+are marked pre-release and are not promoted to GitHub Latest. npm retains its
+existing latest/numeric and beta/suffixed distribution channels; package
+descriptions and installation guidance identify pre-release product maturity.
+The desktop update action follows the published release list, including
+prereleases, and offers only a strictly greater semantic version with a link to
+that release. It cannot advertise an older historical Latest release as an update.
+Unversioned builds receive manual-selection guidance; S02's release update
+correction governs the lookup, limits, notices and regression cases.
+Historical releases/dist-tags are not rewritten by this change. Stable promotion
+requires a reviewed spec, documentation and metadata change together.
+
+The existing security-fix focus is main and the newest published release, with
+older users potentially required to upgrade. No new SLA/support contract or
+response/remediation deadline is introduced. The readiness checklist requires
+exact-revision/artifact evidence and records unresolved release decisions; company
+acceptance and human maintainer sign-off remain separate. CI or PR creation is
+not that sign-off. The module floor follows go.mod; release tooling remains as
+pinned in §12.
+
+### Deviations and corrections
+
+#289 supersedes the release workflow's former assumption that every plain numeric
+tag denotes stable maturity. The existing README pre-release statement remains
+authoritative until explicit maintainer promotion. The `go_version` frontmatter
+is corrected from the stale 1.23 value to the existing go.mod floor, 1.25; this
+does not raise the module requirement.

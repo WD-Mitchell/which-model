@@ -9,7 +9,7 @@
 `which-model` is a local-first command-line tool that combines model quality, cost, speed, task fit, provider availability, and your remaining usage allowance. It returns a ranked, explainable recommendation with the provider, model ID, and reasoning effort to use.
 
 > [!NOTE]
-> The project is currently pre-release. Commands and configuration may evolve before the first stable release.
+> The project is currently pre-release. Commands and configuration may evolve before the first stable release. Version numbers and package channels do not constitute stable readiness or company approval; see the [release readiness and support matrix](docs/releases/readiness.md).
 
 ## The desktop app
 
@@ -58,6 +58,13 @@ For the restricted offline company pilot, use the separately named
 which embeds its catalog and excludes network, authentication and agent execution.
 
 ## Install
+
+Treat published packages as pre-release. At the 2026-09-11 readiness review, npm
+`latest` is 2.5.5; the company controls and restricted offline package in PR stack
+#300 have not been published in that release. For company deployment, select an
+approved version/revision and verify its artifacts using the
+[release verification guide](docs/security/release-verification.md). Source builds
+are development builds until reviewed; a GitHub Latest flag is not company approval.
 
 ### With npm, pnpm, or bun
 
