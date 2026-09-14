@@ -108,6 +108,20 @@ function verifyRelease(dir, version, sourceDigest, sourceRef, trustedRoot) {
         }
       }
     }
+    if (/^which-model-(?:offline-)?desktop-darwin-(?:arm64|x64)\.zip$/.test(a.name)) {
+      const file = path.join(dir, `${a.name}.notarization.json`);
+      verifyArtifact({ artifact: file, ...identity });
+      const evidence = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (evidence.schema !== 1 || evidence.status !== 'Accepted' ||
+          evidence.ticket_stapled !== true || evidence.gatekeeper_accepted !== true ||
+          !/^[A-Z0-9]{10}$/.test(evidence.team_id || '') || !DIGEST.test(evidence.executable_sha256 || '') ||
+          typeof evidence.authority !== 'string' || !evidence.authority.startsWith('Developer ID Application: ') ||
+          !evidence.authority.endsWith(`(${evidence.team_id})`) ||
+          !sbom.components?.some(c => c['bom-ref'] === 'desktop-executable' &&
+            c.hashes?.some(h => h.alg === 'SHA-256' && h.content === evidence.executable_sha256))) {
+        throw new Error('desktop notarization evidence does not describe its release executable');
+      }
+    }
   }
   return manifest;
 }

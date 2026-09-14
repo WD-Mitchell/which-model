@@ -8,6 +8,23 @@ from pathlib import Path
 from release_metadata import digest, make_sbom, write_json
 
 
+def notarization(report, sbom):
+    evidence = json.loads(report.read_text())
+    team = evidence.get('team_id', '')
+    executable_hash = evidence.get('executable_sha256', '')
+    if (evidence.get('schema') != 1 or evidence.get('status') != 'Accepted'
+            or evidence.get('ticket_stapled') is not True or evidence.get('gatekeeper_accepted') is not True
+            or not re.fullmatch(r'[A-Z0-9]{10}', team)
+            or not re.fullmatch(r'[a-f0-9]{64}', executable_hash)
+            or not evidence.get('authority', '').startswith('Developer ID Application: ')
+            or not evidence['authority'].endswith(f'({team})')
+            or not any(c.get('bom-ref') == 'desktop-executable' and
+                       {'alg': 'SHA-256', 'content': executable_hash} in c.get('hashes', [])
+                       for c in sbom.get('components', []))):
+        raise ValueError('desktop notarization evidence mismatch')
+    return evidence
+
+
 def inventory(archive, app, version, commit):
     identity = json.loads((app / 'Contents/Resources/build-identity.json').read_text())
     if identity['version'] != version or identity['source_commit'] != commit:
@@ -20,7 +37,11 @@ def inventory(archive, app, version, commit):
     sbom = make_sbom(archive.name, archive.read_bytes(), info, version, commit)
     sbom['components'].append({'type': 'application', 'name': executable.name, 'version': version,
                                'bom-ref': 'desktop-executable', 'hashes': [{'alg': 'SHA-256', 'content': digest(executable.read_bytes())}]})
-    sbom['metadata']['properties'].append({'name': 'which-model:desktop-signing', 'value': 'ad-hoc; not Apple-notarized'})
+    evidence = notarization(archive.with_name(archive.name + '.notarization.json'), sbom)
+    sbom['metadata']['properties'].extend([
+        {'name': 'which-model:desktop-signing', 'value': 'Developer ID Application; Apple notarized'},
+        {'name': 'which-model:apple-team-id', 'value': evidence['team_id']},
+    ])
     sbom_path = archive.with_name(archive.name + '.cdx.json')
     write_json(sbom_path, sbom)
     return {'name': archive.name, 'sha256': digest(archive.read_bytes()), 'sbom': sbom_path.name,
@@ -48,6 +69,8 @@ def merge(directory, version, commit, ref):
                     raise ValueError('desktop artifact checksum mismatch')
             if not (directory / (name + '.govulncheck.txt')).is_file():
                 raise ValueError('desktop dependency review evidence missing')
+            notarization(directory / (name + '.notarization.json'),
+                         json.loads((directory / artifact['sbom']).read_text()))
         manifest['artifacts'].extend(part['artifacts'])
     names = [a['name'] for a in manifest['artifacts']]
     if len(set(names)) != len(names):

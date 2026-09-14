@@ -161,3 +161,5 @@ The [restricted offline distribution](offline-score-only.md) adds five distinctl
 named score-only binaries and a signed capability manifest. The same verifier
 checks its pinned capability digest, source identity and bundled-input SBOM hashes.
 The standard npm packages retain the full CLI.
+
+For macOS desktop releases, the verifier also authenticates each `.notarization.json` receipt and matches the signed executable hash to its SBOM. These receipts record CI’s successful Apple notarization, stapling and Gatekeeper checks; Sigstore itself does not perform those checks. See [macOS release signing](../releases/macos-signing.md) for native verification. Earlier ad-hoc desktop candidates are not sufficient evidence for the current signing requirement.

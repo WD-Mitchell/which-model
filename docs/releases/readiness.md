@@ -51,9 +51,9 @@ contract or funded support investigation is introduced.
 | Restricted offline score-only CLI | Same five release targets, separate binary | Embedded catalog/profiles, import/symbol/endpoint audits, native OS checks and Linux-isolated syscall evidence. It is separate from the full npm executable. |
 | Managed policy, owned credential storage and approved execution | macOS, Windows, Linux | Native protected-file/ACL, OS-store and execution fixtures on all three OS families. Live customer provider accounts and company endpoint settings remain deployment validation. |
 | Approved CodexBar delegation | which-model approval boundary on all three OS families | Native synthetic image/config invocation on all three. Reviewed upstream CLI distributions are macOS/Linux; a compatible Windows CodexBar binary is not established. |
-| Desktop UI | Full and separate offline macOS apps, arm64/x64 archives | #347 adds native macOS packaging and signed GitHub release evidence. Apps are ad-hoc signed, not Apple notarized; Windows/Linux desktop distribution is not established. See [desktop workflows](../desktop-company-workflows.md). |
+| Desktop UI | Full and separate offline macOS apps, arm64/x64 archives | #347 adds native macOS packaging and signed GitHub release evidence. Release apps must pass [Developer ID signing and notarization](macos-signing.md); a candidate from the signing implementation commit is required before release; Windows/Linux desktop distribution is not established. See [desktop workflows](../desktop-company-workflows.md). |
 
-`go.mod` declares Go 1.25.0 as the module floor; verified release builds use pinned
+`go.mod` declares Go 1.26.0 as the module floor; verified release builds use pinned
 Go 1.26.8 and govulncheck 1.8.0. The npm wrapper declares Node >=18 compatibility;
 release publication uses Node 24. These build facts do not claim every permitted
 runtime is covered by CI or promise security maintenance for external runtimes.
