@@ -9,7 +9,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/WD-Mitchell/which-model/internal/advisory"
 	"github.com/WD-Mitchell/which-model/internal/config"
+	"github.com/WD-Mitchell/which-model/internal/privacy"
 )
 
 // RunExplain emits ExplainResult (annex-c §4.3) for the selected history
@@ -68,7 +70,16 @@ func RunExplain(args ExplainArgs, stdout, stderr io.Writer) error {
 // readHistory parses every JSONL line of the history file. A missing file
 // is an empty history, not an error (first run).
 func readHistory(path string) ([]HistoryEntry, error) {
-	data, err := os.ReadFile(path)
+	policy, err := readCompanyPolicy()
+	if err != nil {
+		return nil, err
+	}
+	var data []byte
+	if policy.Managed {
+		data, err = (privacy.Controller{Policy: policy}).Read(path, privacy.History)
+	} else {
+		data, err = os.ReadFile(path)
+	}
 	if os.IsNotExist(err) {
 		return nil, nil
 	}
@@ -100,6 +111,9 @@ func FormatExplainText(entry HistoryEntry) string {
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "explain %s (%s): picked %s (score %s)\n", ev.Profile, entry.ULID, candidate, formatPickNumber(entry.FinalScore))
+	if ev.QuotaState != "" {
+		fmt.Fprintf(&b, "  quota at pick: %s\n", advisory.ForState(ev.QuotaState).Message)
+	}
 	if ev.Confidence != "" {
 		fmt.Fprintf(&b, "  confidence: %s\n", ev.Confidence)
 	}

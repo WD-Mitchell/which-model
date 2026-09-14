@@ -57,3 +57,29 @@ Milestone M1. `depends_on`: — (none, Wave W1, `specs/DEPENDENCY-GRAPH.md` §2�
 - Credential JSON parsing (`readCredentialJson`) → F12-credentials.
 - The permission-warning TEXT and its stderr emission → F12 (via `output.WriteWarning`); F05 only detects.
 - The `--trust-configured-origin` flag and Codex fallback orchestration → F16-provider-codex.
+
+## Deviations / secure-store correction (#283)
+
+Secure-store errors contain known messages only. Secret values never enter helper argv, logs or error causes. Native adapters are excluded from nousage; permission checks precede catalog and provider credential access.
+The [secure-store contract](../F12-credentials/SECURE-STORES.md) supersedes earlier company-mode storage
+wording under the approved optional-profile decision. Personal defaults remain
+unchanged. Native tests and migration/fallback canaries are required evidence.
+
+
+## Company privacy correction (#284)
+
+Company persistence excludes free-form provider/harness payloads and account identity by default. The privacy controller operates on explicitly named product stores, refuses redirected entries, and reports incomplete deletion without exposing content or local paths. This is data minimization, not a sandbox against another process with the same OS authority.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.
+
+
+## Approved company execution correction (#285)
+
+Approved company launch images and explicitly declared inputs must be administrator-protected, nonredirected files whose SHA-256 matches. Parent credential/runtime/proxy/Git injection variables are not inherited. The launched application, OS loader/dependencies and selected project remain governed by endpoint/native harness controls; this is not a process sandbox.
+
+Governing correction: `specs/desktop/backend/features/B07-harnesses/MANAGED-EXECUTION.md`.
+This implements the requester-approved optional managed profile while preserving
+personal defaults; it supersedes unconditional shell/policy-placeholder statements
+for company execution.

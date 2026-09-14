@@ -88,8 +88,8 @@ func newFlowTestTargets(t *testing.T, deviceBody string, tokenBodies chan string
 		token.Close()
 	})
 	repointTestFlowSpec(device.URL, token.URL)
-	newDeviceFlow = func(spec usage.OAuthSpec) *credential.DeviceFlow {
-		flow := credential.NewDeviceFlow(spec)
+	newDeviceFlow = func(provider string, spec usage.OAuthSpec) *credential.DeviceFlow {
+		flow := credential.NewProviderDeviceFlow(provider, spec)
 		flow.ValidateURL = func(string) error { return nil }
 		return flow
 	}

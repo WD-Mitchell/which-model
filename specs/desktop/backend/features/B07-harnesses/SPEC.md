@@ -105,3 +105,44 @@ This supersedes the initial four-entry spec and seven-entry implementation, firs
 Discovered gateways absent from the global catalog (for example Cline's gateway) remain in the harness provider map and numeric count. Detail shows a switch and `Configured in this harness`. This metadata does not add/enable a global provider or trigger usage reads. Explicit switches and bulk changes include these ids.
 
 Launch uses the current native effort controls: non-default Claude effort uses `--effort` (minimal is omitted because Claude does not accept it); Codex uses `-c model_reasoning_effort=…`. A default reasoning pick adds no effort override. Cline retains its configured OAuth adapter id when it differs from the canonical provider alias.
+
+
+## Company-policy extension (#282)
+
+Managed policy is checked before legacy shell launch, copy-mode history/log effects or provider-model discovery subprocesses. Those legacy executable paths remain unavailable in managed mode until #285 implements approved executable/argv handling; policy metadata alone cannot grant execution. Personal launch and discovery behavior remains unchanged. This permission boundary does not introduce a quota/auth-evidence/audit-write launch gate.
+
+This intentionally supersedes unrestricted operation for enrolled installations only;
+see the [F01 managed-policy contract](../../../../features/F01-config/MANAGED-POLICY.md). Pinned evidence:
+`TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
+and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.
+
+
+## Company privacy correction (#284)
+
+Authorized company launches discard captured child stdout/stderr and append only a timestamp, operational harness/provider/model/profile IDs and a fixed started/copied/failed outcome to state/launch.jsonl. Legacy state/launch.log is removed by maintenance. Record-write failures do not block an otherwise authorized launch. The #282 temporary execution denial remains until #285 supplies approved execution. Personal appendable launch.log behavior remains unchanged.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.
+
+
+## Approved company execution correction (#285)
+
+Company Launch uses the compiled built-in registry plus a protected executable approval, validates route/provider/profile values, verifies the native image and optional input digests/OS protection, and calls os/exec with separate approved arguments and a fresh OS-derived environment. Saved command/builtin fields cannot choose execution. Custom slugs require separate allow_custom_shell. Personal shell launch behavior is unchanged. Full rules are in MANAGED-EXECUTION.md.
+
+Company launches require an OS account record. Pure-Go Linux reads the bounded local passwd database directly and refuses absent/NSS-only identities; native-lookup builds retain OS directory-service support. Inherited HOME/USER never supply missing account data. Windows copied commands preserve the approved native argument array, including empty and quoted literal values, in Windows PowerShell 5.1 and PowerShell 7; they retain the terminal filesystem location, standard output and native exit status.
+
+Governing correction: `specs/desktop/backend/features/B07-harnesses/MANAGED-EXECUTION.md`.
+This implements the requester-approved optional managed profile while preserving
+personal defaults; it supersedes unconditional shell/policy-placeholder statements
+for company execution.
+
+
+## Company advisory evidence correction (#286)
+
+Decision: quota, usage-authentication and audit evidence failures do not need to block launches. The optional managed profile uses advisory reporting; personal defaults remain unchanged. The normative [advisory action matrix](ADVISORY-EVIDENCE.md) applies after approved execution verification. Each attempt gets an operational launch ID, best-effort pre-start intent and independent started/failed outcome records. Copy mode records preparation only. Quota/auth/audit/history/log failures permit an otherwise authorized launch. Actual verification/start errors remain errors. Successful starts return LaunchResult plus fixed optional advisories; provider payloads, process stderr and OS paths never become notices. Tests: `TestCompanyLaunchEvidenceAndAuditFailuresRemainAdvisory`, `TestCompanyLaunchAuditCorrelatesActualPhases`, existing approved-execution refusal and native process tests.
+
+
+## Desktop administration correction (#347)
+
+The requester-approved [administration contract](../B10-settings/ADMINISTRATION.md) governs read-only company inspection, explicit maintenance/migration, and effective managed command previews.

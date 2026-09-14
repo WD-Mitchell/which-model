@@ -75,6 +75,13 @@ func fetchWithSourceEnvironment(
 	source usage.Source,
 	environment map[string]string,
 ) (usage.Snapshot, error) {
+	policy, policyErr := readCompanyPolicy()
+	if policyErr != nil {
+		return usage.Snapshot{}, policyErr
+	}
+	if policy.Managed {
+		return fetchApproved(ctx, policy, providerID, source, environment)
+	}
 	binary, err := findBinary()
 	if err != nil {
 		return usage.Snapshot{}, err
@@ -154,6 +161,14 @@ func environmentWithOverrides(base []string, overrides map[string]string) []stri
 }
 
 func findBinary() (string, error) {
+	policy, policyErr := readCompanyPolicy()
+	if policyErr != nil {
+		return "", policyErr
+	}
+	if policy.Managed {
+		entry, err := approvedInstallation(policy)
+		return entry.Path, err
+	}
 	if configured := strings.TrimSpace(os.Getenv("CODEXBAR_BIN")); configured != "" && isExecutable(configured) {
 		return configured, nil
 	}
@@ -176,6 +191,13 @@ func isExecutable(path string) bool {
 // SupportedProviders returns CodexBar's provider enum, falling back to the
 // providers the desktop app must expose even before CodexBar is installed.
 func SupportedProviders() []string {
+	policy, err := readCompanyPolicy()
+	if err != nil {
+		return nil
+	}
+	if policy.Managed {
+		return companyProviderIDs(policy)
+	}
 	supportedProvidersOnce.Do(func() {
 		supportedProviders = discoverSupportedProviders()
 	})
@@ -183,6 +205,13 @@ func SupportedProviders() []string {
 }
 
 func discoverSupportedProviders() []string {
+	policy, err := readCompanyPolicy()
+	if err != nil {
+		return nil
+	}
+	if policy.Managed {
+		return companyProviderIDs(policy)
+	}
 	binary, err := findBinary()
 	if err != nil {
 		return fallbackProviders()

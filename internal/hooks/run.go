@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/WD-Mitchell/which-model/internal/company"
 	"io"
 	"os"
 	"path/filepath"
@@ -33,10 +34,11 @@ type Runner func(args []string, stdout, stderr io.Writer) int
 
 // Options carries the test seams (SPEC behaviour 4).
 type Options struct {
-	Runner   Runner
-	Stdin    []byte
-	Env      map[string]string
-	RepoRoot string
+	companyStateDir string // private fixture seam; production uses the OS state directory
+	Runner          Runner
+	Stdin           []byte
+	Env             map[string]string
+	RepoRoot        string
 }
 
 var (
@@ -48,6 +50,9 @@ var (
 // silence) or an error for exit-2-class conditions. Never errors for
 // underlying command failures (fail-open).
 func Run(name string, passthrough []string, opts Options) ([]byte, error) {
+	if err := company.Authorize("", "", "hook_use"); err != nil {
+		return nil, err
+	}
 	h, ok := Get(name)
 	if !ok {
 		return nil, errUnknownHook
@@ -69,6 +74,16 @@ func Run(name string, passthrough []string, opts Options) ([]byte, error) {
 
 // dispatch interprets the underlying run per hook (SPEC behaviours 5–8).
 func dispatch(h Hook, code int, out []byte, opts Options) ([]byte, error) {
+	policy, err := readPrivacyPolicy()
+	if err != nil {
+		if h.ID == "model-audit" {
+			return companyAuditFailure(), nil
+		}
+		return MarshalEnvelope(Envelope{Decision: "approve", Reason: "Company evidence is unavailable; dispatch remains advisory.", HookSpecificOutput: map[string]any{"evidence_available": false}}), nil
+	}
+	if policy.Managed {
+		return companyDispatch(policy, h, code, out, opts)
+	}
 	switch h.ID {
 	case "usage-refresh":
 		if code != 0 {
@@ -183,6 +198,13 @@ func dispatch(h Hook, code int, out []byte, opts Options) ([]byte, error) {
 		}
 		if expected := envOr(opts.Env, "WHICH_MODEL_CANDIDATE_ID", ""); expected != "" && expected != doc.Candidate {
 			return approveFailOpen("model-audit", 0), nil
+		}
+		policy, err := readPrivacyPolicy()
+		if err != nil {
+			return companyAuditFailure(), nil
+		}
+		if policy.Managed {
+			return companyAudit(policy, doc, opts)
 		}
 		// Decode only documented fields, then emit one compact JSONL record.
 		// Unrelated host/provider fields must never enter dispatch evidence.

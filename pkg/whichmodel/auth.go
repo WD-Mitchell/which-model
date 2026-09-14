@@ -21,7 +21,9 @@ import (
 
 	"golang.org/x/term"
 
+	"github.com/WD-Mitchell/which-model/internal/company"
 	"github.com/WD-Mitchell/which-model/internal/config"
+	"github.com/WD-Mitchell/which-model/internal/output"
 	"github.com/WD-Mitchell/which-model/internal/security"
 	"github.com/WD-Mitchell/which-model/internal/usage"
 	"github.com/WD-Mitchell/which-model/internal/usage/credential"
@@ -57,9 +59,10 @@ func managedCredentialStore() (credential.ManagedStore, error) {
 	}
 	paths := config.ResolvePaths(runtime.GOOS, home, os.Getenv)
 	return credential.ManagedStore{
-		StateDir:    paths.StateDir,
-		Keychain:    credential.DefaultKeychain(),
-		UseKeychain: auth.UseKeychain,
+		StateDir:       paths.StateDir,
+		Keychain:       credential.KeychainFor(auth.NativeKeychain),
+		UseKeychain:    auth.UseKeychain,
+		NativeKeychain: auth.NativeKeychain,
 	}, nil
 }
 
@@ -319,7 +322,7 @@ func startDeviceFlow(provider string) (DeviceFlow, error) {
 		if spec.VerificationURI == "" && provider == "copilot" {
 			spec.VerificationURI = "https://github.com/login/device"
 		}
-		flow := credential.NewDeviceFlow(spec)
+		flow := credential.NewProviderDeviceFlow(provider, spec)
 		code, err := flow.Start(context.Background())
 		if err != nil {
 			return DeviceFlow{}, err
@@ -346,6 +349,9 @@ func saveCredential(provider, token string) error {
 }
 
 func RunAuthLogin(provider string, stdout, stderr io.Writer, stdin io.Reader) error {
+	if err := requireCompanyProvider(provider); err != nil {
+		return err
+	}
 	if err := authUsageDisabled(Global.NoUsage, Global.ConfigPath); err != nil {
 		return err
 	}
@@ -358,8 +364,12 @@ func RunAuthLogin(provider string, stdout, stderr io.Writer, stdin io.Reader) er
 	if provider != "copilot" {
 		return &CodedError{Code: "unsupported", Message: fmt.Sprintf("login for %s is not supported until M5; sign in with the provider's own client, then run which-model auth status %s", provider, provider)}
 	}
+	var denied *company.Error
 	flow, err := startDeviceFlowFunc(provider)
 	if err != nil {
+		if errors.As(err, &denied) {
+			return err
+		}
 		message := redactAuthMessage(err.Error(), "")
 		if stderr != nil {
 			_, _ = fmt.Fprintf(stderr, "[runtime] %s\n", message)
@@ -377,6 +387,9 @@ func RunAuthLogin(provider string, stdout, stderr io.Writer, stdin io.Reader) er
 	}
 	token, err := flow.Poll()
 	if err != nil {
+		if errors.As(err, &denied) {
+			return err
+		}
 		message := redactAuthMessage(err.Error(), "")
 		if stderr != nil {
 			_, _ = fmt.Fprintf(stderr, "[runtime] %s\n", message)
@@ -384,6 +397,9 @@ func RunAuthLogin(provider string, stdout, stderr io.Writer, stdin io.Reader) er
 		return &CodedError{Code: "runtime", Message: message}
 	}
 	if err := saveCredentialFunc(provider, token); err != nil {
+		if errors.As(err, &denied) {
+			return err
+		}
 		message := redactAuthMessage(err.Error(), token)
 		if stderr != nil {
 			_, _ = fmt.Fprintf(stderr, "[runtime] %s\n", message)
@@ -449,6 +465,33 @@ func RunAuthLogout(provider string, yes bool, stdout, stderr io.Writer, stdin io
 			}
 			return nil
 		}
+	}
+	policy, err := readCompanyPolicy()
+	if err != nil {
+		return err
+	}
+	if policy.Managed {
+		store, err := managedCredentialStore()
+		if err != nil {
+			return err
+		}
+		removed := true
+		err = store.RemoveSecure(provider)
+		if errors.Is(err, credential.ErrNotFound) {
+			removed = false
+			err = nil
+		}
+		if err != nil {
+			return err
+		}
+		if stdout == nil {
+			stdout = io.Discard
+		}
+		if Global.JSON {
+			return output.RenderJSON(stdout, output.OutputEnvelope{}, map[string]any{"provider": provider, "secure_removed": removed, "legacy_copy": "not_inspected", "provider_owned_files": "unchanged"})
+		}
+		_, err = fmt.Fprintf(stdout, "which-model OS credential removed: %t; legacy copies were not inspected or removed; provider-owned credentials are unchanged\n", removed)
+		return err
 	}
 	path, mode, infoErr := managedCredentialFileInfoFunc(provider)
 	if infoErr == nil && path != "" && hasBroadPermsFunc(mode) {

@@ -3,6 +3,7 @@ package hooks
 import (
 	"bytes"
 	"fmt"
+	"github.com/WD-Mitchell/which-model/internal/company"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -43,6 +44,28 @@ const (
 	markerEnd   = "# === end which-model managed hooks ===\n"
 )
 
+var readRemovalPolicy = company.Load
+
+func knownOwnedManifest(m *Manifest) bool {
+	if m.Version != 1 {
+		return false
+	}
+	known := append(Installed(VariantUsage), Installed(VariantNoUsage)...)
+	for _, entry := range m.Hooks {
+		found := false
+		for _, candidate := range known {
+			if entry.ID == candidate.ID && entry.Event == candidate.Event && entry.Matcher == candidate.Matcher && entry.Command == candidate.Command {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}
+
 // genericEvent maps a claude event name to the generic hooks.toml event
 // (SPEC behaviour 10).
 func genericEvent(event string) string {
@@ -72,6 +95,9 @@ func genericInjectAs(id string) string {
 // behaviour 10). target "claude" | "generic". Returns a human summary line
 // per hook.
 func Install(target string, entries []Entry, repoRoot string) ([]string, error) {
+	if err := company.Authorize("", "", "hook_installation"); err != nil {
+		return nil, err
+	}
 	switch target {
 	case "claude":
 		return installClaude(entries, repoRoot)
@@ -193,6 +219,10 @@ func Remove(target string, repoRoot string) ([]string, error) {
 		}
 		if m == nil {
 			return []string{"no which-model hooks installed (nothing to remove)"}, nil
+		}
+		policy, policyErr := readRemovalPolicy()
+		if (policyErr != nil || policy.Managed) && !knownOwnedManifest(m) {
+			return nil, &company.Error{Reason: "unrecognized hook ownership manifest requires manual review"}
 		}
 		settingsPath := filepath.Join(repoRoot, ".claude", "settings.json")
 		s, err := loadClaudeSettings(settingsPath)

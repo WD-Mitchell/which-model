@@ -80,3 +80,25 @@ Successful fetches set the existing `Snapshot.UsageKnown` field to whether any n
 | Mixed real and synthetic windows, when supported | `true` |
 | Synthetic-only windows, when supported | `false` |
 | Provider failure | `false` |
+
+
+## Company-policy extension (#282)
+
+Managed policy is checked before authoritative native auth/config-file reads and provider requests. Legacy device login checks provider-file persistence permission before starting, polling/exchanging and saving tokens; secure-store-only policy refuses that legacy persistence path until #283 supplies native secure persistence.
+
+This intentionally supersedes unrestricted operation for enrolled installations only;
+see the [F01 managed-policy contract](../F01-config/MANAGED-POLICY.md). Pinned evidence:
+`TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
+and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.
+
+## Deviations / secure-store correction (#283)
+
+PR #306 review correction: explicit personal native mode can resolve an allowed
+managed-file fallback. Fetch consumes its token/account/expiry metadata directly,
+checks that actual source against current company authority, and does not reopen
+provider auth/config files. The default personal provider-file path is unchanged.
+
+Company login persists access-token/account/expiry metadata in the native OS store. Secure resolution bypasses auth.json/config.toml and calls only the fixed official usage endpoint; its account metadata is routing data, not independently verified identity. Personal native-file behavior remains unchanged.
+The [secure-store contract](../F12-credentials/SECURE-STORES.md) supersedes earlier company-mode storage
+wording under the approved optional-profile decision. Personal defaults remain
+unchanged. Native tests and migration/fallback canaries are required evidence.

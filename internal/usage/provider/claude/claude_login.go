@@ -10,6 +10,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/WD-Mitchell/which-model/internal/company"
+	"github.com/WD-Mitchell/which-model/internal/usage/credential"
 	"net/http"
 	"net/url"
 	"os"
@@ -89,6 +91,9 @@ func s256Challenge(verifier string) string {
 
 // StartBrowserLogin creates a PKCE session and the URL to open. No network.
 func StartBrowserLogin() (*BrowserLogin, error) {
+	if err := company.AuthorizeProviderLogin("claude"); err != nil {
+		return nil, err
+	}
 	verifier, err := randomURLToken()
 	if err != nil {
 		return nil, usage.NewFailureError("network", "Claude sign-in could not start.")
@@ -121,6 +126,9 @@ func StartBrowserLogin() (*BrowserLogin, error) {
 
 // Exchange swaps the pasted authentication code for tokens.
 func (b *BrowserLogin) Exchange(ctx context.Context, pasted string) (Tokens, error) {
+	if err := company.AuthorizeProviderLogin("claude"); err != nil {
+		return Tokens{}, err
+	}
 	if b == nil {
 		return Tokens{}, usage.NewFailureError("validation_failed", "Claude sign-in is not in progress.")
 	}
@@ -212,6 +220,28 @@ func parsePastedCode(pasted, expectedState string) (code, state string, err erro
 // PersistLogin writes ~/.claude/.credentials.json in the shape Claude Code
 // and usage.AuthFile expect.
 func PersistLogin(tok Tokens) error {
+	policy, err := company.Load()
+	if err != nil {
+		return err
+	}
+	if err := policy.RequireProvider("claude"); err != nil {
+		return err
+	}
+	if policy.Managed {
+		if err := policy.RequireSource("keychain"); err != nil {
+			return err
+		}
+		cred, err := tok.ManagedCredential()
+		if err != nil {
+			return err
+		}
+		store := credential.ManagedStore{UseKeychain: true, NativeKeychain: true}
+		return store.SaveCredential("claude", cred)
+	}
+
+	if err := company.AuthorizeProviderLogin("claude"); err != nil {
+		return err
+	}
 	if security.ValidateOpaqueToken(tok.AccessToken) != nil {
 		return usage.NewFailureError("unsafe_credential", "The Claude access token is missing or unsafe.")
 	}

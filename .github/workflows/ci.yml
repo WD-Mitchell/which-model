@@ -6,6 +6,37 @@ on:
 permissions:
   contents: read
 jobs:
+  tracked-paths:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: python3 -m unittest discover -s scripts/tests -v
+      - run: python3 scripts/check_tracked_paths.py
+
+  windows-cli:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      # A real checkout catches path failures that Linux cross-compilation cannot.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: python -m unittest discover -s scripts/tests -v
+      - run: python scripts/check_tracked_paths.py
+      - run: go build -o which-model.exe ./cmd/which-model
+      - run: go build -tags nousage -o which-model-nousage.exe ./cmd/which-model
+      - name: Smoke-test both CLI variants
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./which-model.exe version --json
+          ./which-model.exe --help
+          ./which-model-nousage.exe version --json
+          ./which-model-nousage.exe --help
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -46,9 +77,239 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
-      - run: node --test npm/which-model/install.test.js
+      - run: node --test npm/which-model/*.test.js npm/scripts/verify-provenance.test.js
       - name: Smoke-test npm packaging
         run: bash scripts/smoke-npm.sh npm
+
+  release-verifier:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - run: node --test npm/which-model/install.test.js npm/which-model/verify-release.test.js npm/scripts/verify-provenance.test.js
+
+  score-only:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Audit restricted command and linked capabilities
+        shell: bash
+        run: bash scripts/audit-score-only.sh
+      - name: Trace ranking with network denied
+        if: runner.os == 'Linux'
+        run: |
+          CGO_ENABLED=0 go build -tags nousage -o /tmp/which-model-score-only ./cmd/which-model-score-only
+          sudo apt-get update -qq
+          sudo apt-get install -y strace
+          sudo unshare --net -- python3 scripts/score_only_smoke.py --trace /tmp/which-model-score-only
+
+  secure-credentials:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      CGO_ENABLED: '0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install native Linux fixture services
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y dbus gnome-keyring
+      - run: go test ./internal/securestore -v -count=1
+        env:
+          WHICH_MODEL_NATIVE_STORE_TEST: '1'
+      - run: go test ./internal/usage/credential -run 'TestNative|TestCompanyCredentialFallbackHasNoFileSideEffects' -v
+      - run: go test ./internal/service -run TestSignInNative -v
+      - run: go test ./internal/usage/provider/codex -run TestManagedCodexFetchDoesNotReopenProviderFiles -v
+      - run: go test ./internal/config -run TestNativeWindows -v
+
+  company-privacy:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go test ./internal/privacy -v -count=1
+      - run: go test ./internal/usage/cache ./internal/usage/fetch ./internal/hooks ./internal/service -run 'TestCompany.*(Privacy|Retention|History|Audit|Launch|Diagnostics|Cache)|TestCompanyOffline|TestCompanyWrite' -v -count=1
+      - run: go test ./pkg/whichmodel -run TestPrivacy -v -count=1
+
+  company-codexbar:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      CGO_ENABLED: '0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go test ./internal/usage/provider/codexbar ./internal/usage/fetch -run TestCompanyCodexBar -v -count=1
+      - run: go test -c -o company-codexbar-fixture.exe ./internal/usage/provider/codexbar
+      - name: Protect delegated image and configuration
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            python scripts/company_codexbar_fixture.py prepare --binary company-codexbar-fixture.exe --github-env "$GITHUB_ENV"
+          else
+            sudo env GITHUB_ACTIONS=true python3 scripts/company_codexbar_fixture.py prepare --binary company-codexbar-fixture.exe --github-env "$GITHUB_ENV"
+          fi
+      - run: go test ./internal/usage/provider/codexbar -run TestNativeCompanyCodexBarApproval -v -count=1
+      - name: Remove owned delegated fixture
+        if: always()
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            python scripts/company_codexbar_fixture.py cleanup
+          else
+            sudo env GITHUB_ACTIONS=true python3 scripts/company_codexbar_fixture.py cleanup
+          fi
+
+  company-execution:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      CGO_ENABLED: '0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go test ./internal/approvedexec ./internal/company -run TestApproved -v
+      - run: go test ./internal/advisory ./internal/hooks ./internal/service ./pkg/whichmodel -run 'TestCompany.*(Advisory|Evidence|Audit|RankLabels|PickScoreOnly|PickEvidence)' -v -count=1
+      - run: go test ./internal/service ./internal/skills -run 'TestCompanyApprovedLaunch|TestCompanyCustomShell|TestCompanyRemoval' -v
+      - run: go test -c -o company-execution-fixture.exe ./internal/service
+      - name: Protect native image and enroll execution fixture
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            python scripts/company_execution_fixture.py prepare --binary company-execution-fixture.exe --github-env "$GITHUB_ENV"
+          else
+            sudo env GITHUB_ACTIONS=true python3 scripts/company_execution_fixture.py prepare --binary company-execution-fixture.exe --github-env "$GITHUB_ENV"
+          fi
+      - run: go test ./internal/service -run 'TestNativeCompanyExecution|TestNativeCompanyIntegrationInstall' -v -count=1
+      - name: Refuse inherited identity without an OS account
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          account_fixture=$(mktemp -d)
+          trap 'sudo rm -f "$account_fixture/environment.test"; rmdir "$account_fixture"' EXIT
+          go test -c -o "$account_fixture/environment.test" ./internal/approvedexec
+          sudo env HOME=/ENV_HOME_CANARY USER=ENV_USER_CANARY chroot "$account_fixture" /environment.test -test.run '^TestApprovedEnvironmentMissingAccount$' -test.v
+      - name: Preserve copied arguments in Windows PowerShell and PowerShell 7
+        if: runner.os == 'Windows'
+        run: go test ./internal/service -run '^TestCompanyApprovedCopyPowerShellArguments$' -v -count=1
+      - name: Disable installation while retaining cleanup
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            python scripts/company_execution_fixture.py disable-integrations
+          else
+            sudo env GITHUB_ACTIONS=true python3 scripts/company_execution_fixture.py disable-integrations
+          fi
+      - run: go test ./internal/service -run TestNativeCompanyIntegrationRemoval -v -count=1
+      - name: Remove only owned CI enrollment fixtures
+        if: always()
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            python scripts/company_execution_fixture.py cleanup
+          else
+            sudo env GITHUB_ACTIONS=true python3 scripts/company_execution_fixture.py cleanup
+          fi
+
+  company-policy:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go test ./internal/company
+      # Existing general config/credential suites contain POSIX-only permission
+      # and path assertions. Run the complete new policy matrix natively here;
+      # the test job still runs the full suites on Linux.
+      - run: go test ./internal/config -run 'TestManagedConfigurationPrecedence|TestManagedStorageAndDesktopMutation|TestRequiredPolicyPrecedesOrdinaryConfigReads|TestManagedRankingPreferencesRemainAvailable'
+      - run: go test ./internal/usage/credential -run 'TestCompanyCredentialFallbackHasNoFileSideEffects|TestDeviceFlowCompany'
+      - run: go build -o company-policy-cli.exe ./cmd/which-model
+      - name: Provision native ownership and ACL fixtures
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            python scripts/company_policy_fixture.py prepare --github-env "$GITHUB_ENV"
+          else
+            sudo env GITHUB_ACTIONS=true python3 scripts/company_policy_fixture.py prepare --github-env "$GITHUB_ENV"
+          fi
+      - name: Inspect native fixture ACLs
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          'C:\', 'C:\ProgramData', 'C:\ProgramData\which-model-company-ci', 'C:\ProgramData\which-model-company-ci\valid', 'C:\ProgramData\which-model-company-ci\valid\required.json' | ForEach-Object {
+            $policyAcl = Get-Acl -LiteralPath $_
+            Write-Output "$_ $($policyAcl.Sddl)"
+          }
+      - name: Exercise actual protected enrollment and operation boundaries
+        run: go test ./internal/company -run TestNative -v
+      - name: Verify CLI authority and required-policy behavior
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            python scripts/company_policy_fixture.py probe --binary company-policy-cli.exe
+          else
+            sudo env GITHUB_ACTIONS=true python3 scripts/company_policy_fixture.py probe --binary company-policy-cli.exe
+          fi
+      - name: Remove only owned CI enrollment fixtures
+        if: always()
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            python scripts/company_policy_fixture.py cleanup
+          else
+            sudo env GITHUB_ACTIONS=true python3 scripts/company_policy_fixture.py cleanup
+          fi
 
   desktop-backend:
     # The Wails desktop backend needs CGO + the GTK/webkitgtk toolchain on
@@ -63,6 +324,12 @@ jobs:
           go-version-file: go.mod
           cache: true
       - run: go build ./cmd/which-model-desktop
+      - run: go test ./internal/service ./cmd/which-model-desktop
+      - run: bash scripts/audit-offline-desktop.sh
+      - run: python3 -m unittest discover -s scripts/tests -p test_desktop_release.py -q
+      - run: go build -tags nousage ./cmd/which-model-score-only-desktop
+      - name: Verify desktop release discovery and version ordering
+        run: go test ./cmd/which-model-desktop -run TestReleaseUpdate -v -count=1
 
   desktop-frontend:
     # The web frontends (packages/*, apps/desktop) had zero CI: vitest and
@@ -82,3 +349,4 @@ jobs:
       - run: pnpm --filter @which-model/ui build
       - run: pnpm -r typecheck
       - run: pnpm -r test
+      - run: pnpm -r build && pnpm run check:host

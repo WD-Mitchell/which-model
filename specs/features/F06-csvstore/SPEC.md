@@ -163,3 +163,13 @@ This package defines no exit codes: it returns errors; the CLI layer maps them (
 - Scores CSV generation, category composites, `_merge_input_rows` max-merge — F09.
 - Backup invocation policy (when to call `Backup` before `WriteAtomic`) — F08/F23 orchestration.
 - Staleness *policy* (warnings in `pick`/`routes`) — F10/F18/F23 consumers of `StaleCheck`.
+
+## Shared vocabulary for the restricted ranker (#290)
+
+The column lists, non-negative raw metric set, benchmark prefix and provenance
+prefix are defined once in `internal/catalog/csvschema/schema.go`, a leaf package
+with no I/O dependencies. Existing `csvstore` exports retain those same values
+through compatibility references; public shapes and validation behavior do not
+change. The score package consumes the leaf vocabulary directly so offline
+ranking does not bring file-store or HTTP imports into the restricted binary.
+This corrects package coupling, not the catalog format or ranking rules.

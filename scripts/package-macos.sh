@@ -1,127 +1,68 @@
 #!/usr/bin/env bash
-# Build and package the which-model desktop app as a macOS .app bundle.
-#
-# Usage: scripts/package-macos.sh
-#
-# Produces bin/which-model.app/ — drag to /Applications to install.
+# Build a version-stamped bundle. Installation is opt-in, never a CI side effect.
 set -euo pipefail
-
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-APP="$ROOT/bin/which-model.app"
-CONTENTS="$APP/Contents"
-MACOS="$CONTENTS/MacOS"
-RESOURCES="$CONTENTS/Resources"
-
-echo "==> Resolving build identity…"
-# Stamp the bare release tag (vX.Y.Z or the tag's numeric X.Y.Z): the version
-# string feeds both "Check for updates" (which compares against a tag) and the
-# Settings sidebar. Commit/built metadata stays in `which-model version`.
-# Queried BEFORE the rm -rf below, which deletes a tracked placeholder file
-# and would otherwise brand every build "-dirty".
-MODULE="github.com/WD-Mitchell/which-model"
-VERSION="$(git -C "$ROOT" describe --tags --abbrev=0 2>/dev/null || echo dev)"
-COMMIT="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+cd "$ROOT"
+VERSION=""
+PRODUCT=full
+INSTALL=false
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --version) VERSION="${2:?version required}"; shift 2 ;;
+    --offline) PRODUCT=offline; shift ;;
+    --install) INSTALL=true; shift ;;
+    *) echo "Usage: package-macos.sh [--version X.Y.Z] [--offline] [--install]" >&2; exit 2 ;;
+  esac
+done
+if [ "$(go env GOOS)" != darwin ]; then echo 'macOS packaging requires a macOS toolchain' >&2; exit 1; fi
+if [ -z "$VERSION" ]; then VERSION="$(git describe --tags --exact-match 2>/dev/null || echo 0.0.0-dev)"; fi
+VERSION="${VERSION#v}"
+if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then echo 'Invalid desktop version' >&2; exit 2; fi
+MODULE=github.com/WD-Mitchell/which-model
+COMMIT="$(git rev-parse HEAD)"
 BUILDDATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-
-echo "==> Copying frontend dist for embedding…"
-rm -rf "$ROOT/cmd/which-model-desktop/frontend"
-mkdir -p "$ROOT/cmd/which-model-desktop/frontend"
-cp -r "$ROOT/apps/desktop/dist" "$ROOT/cmd/which-model-desktop/frontend/dist"
-
-echo "==> Creating .app bundle structure…"
+APPNAME=which-model
+BINARY=which-model-desktop
+BUNDLE_ID=com.wdmitchell.which-model
+TAGS=""
+if [ "$PRODUCT" = offline ]; then APPNAME=which-model-offline; BINARY=which-model-score-only-desktop; BUNDLE_ID=com.wdmitchell.which-model.offline; TAGS=nousage; fi
+APP="$ROOT/bin/$APPNAME.app"
+EMBED="$ROOT/cmd/$BINARY/frontend"
+BACKUP="$(mktemp -d)"
+if [ -d "$EMBED" ]; then cp -R "$EMBED" "$BACKUP/frontend"; fi
+cleanup() {
+  rm -rf "$EMBED"
+  if [ -d "$BACKUP/frontend" ]; then cp -R "$BACKUP/frontend" "$EMBED"; fi
+  rm -rf "$BACKUP"
+}
+trap cleanup EXIT
+mkdir -p "$EMBED/dist"
+if [ "$PRODUCT" = offline ]; then
+  python3 scripts/copy-offline-assets.py apps/desktop/dist "$EMBED/dist"
+else
+  cp -R apps/desktop/dist/. "$EMBED/dist/"
+fi
 rm -rf "$APP"
-mkdir -p "$MACOS" "$RESOURCES"
-
-echo "==> Building desktop binary…"
-LDFLAGS="-X ${MODULE}/pkg/whichmodel.Version=${VERSION} -X ${MODULE}/pkg/whichmodel.Commit=${COMMIT} -X ${MODULE}/pkg/whichmodel.BuildDate=${BUILDDATE}"
-go build -trimpath -ldflags "$LDFLAGS" -o "$MACOS/which-model-desktop" ./cmd/which-model-desktop
-
-# Derive the bundle version from the same source as the binary's ldflags.
-# CFBundleShortVersionString must be a numeric X.Y.Z marketing version and
-# CFBundleVersion a numeric build number — raw `git describe` output
-# (v2.0.0-beta.1-11-ge9d5773, dev, ...-dirty) is NOT valid for either, so
-# extract the release tag's X.Y.Z and fail packaging when none exists
-# (issue #43 review: never copy describe output into the plist).
-MARKETING_VERSION="$(printf '%s' "$VERSION" | sed -nE 's/^v?([0-9]+\.[0-9]+\.[0-9]+).*$/\1/p')"
-if [ -z "$MARKETING_VERSION" ]; then
-  echo "error: no numeric X.Y.Z release version derivable from '$VERSION'." >&2
-  echo "       tag the commit (e.g. v1.2.3) before packaging." >&2
-  exit 1
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+LDFLAGS="-X ${MODULE}/pkg/whichmodel.Version=${VERSION} -X ${MODULE}/pkg/whichmodel.Commit=${COMMIT} -X ${MODULE}/pkg/whichmodel.BuildDate=${BUILDDATE} -X ${MODULE}/pkg/scoreonly.Version=${VERSION} -X ${MODULE}/pkg/scoreonly.Commit=${COMMIT}"
+go build -trimpath -tags "$TAGS" -ldflags "$LDFLAGS" -o "$APP/Contents/MacOS/$BINARY" "./cmd/$BINARY"
+python3 - "$APP" "$APPNAME" "$BINARY" "$BUNDLE_ID" "$VERSION" "$COMMIT" "$PRODUCT" <<'PY'
+import json,plistlib,sys
+from pathlib import Path
+app,name,binary,identifier,version,commit,product=sys.argv[1:]
+p=Path(app)/'Contents'
+info={'CFBundleExecutable':binary,'CFBundleIdentifier':identifier,'CFBundleName':name,'CFBundleDisplayName':name,'CFBundleIconFile':'which-model.icns','CFBundlePackageType':'APPL','CFBundleVersion':version.split('-')[0],'CFBundleShortVersionString':version.split('-')[0],'LSMinimumSystemVersion':'13.0','LSUIElement':product=='full','NSHighResolutionCapable':True,'NSSupportsAutomaticGraphicsSwitching':True}
+(p/'Info.plist').write_bytes(plistlib.dumps(info))
+(p/'Resources'/'build-identity.json').write_text(json.dumps({'version':version,'source_commit':commit,'product':product},sort_keys=True)+'\n')
+PY
+cp icons/which-model.icns "$APP/Contents/Resources/which-model.icns"
+# Ad-hoc integrity signing is not Developer ID signing or Apple notarization.
+codesign --force --deep --sign - "$APP"
+codesign --verify --deep --strict "$APP"
+plutil -lint "$APP/Contents/Info.plist"
+echo "Packaged $APP ($VERSION, $COMMIT)"
+if [ "$INSTALL" = true ]; then
+  mkdir -p "$HOME/Applications"
+  ditto "$APP" "$HOME/Applications/$APPNAME.app"
+  mdimport "$HOME/Applications/$APPNAME.app" || true
 fi
-BUILD_NUMBER="$(git -C "$ROOT" rev-list --count "$(git -C "$ROOT" describe --tags --abbrev=0 2>/dev/null)..HEAD" 2>/dev/null || echo 1)"
-case "$BUILD_NUMBER" in
-  ''|*[!0-9]*) BUILD_NUMBER=1 ;;
-esac
-echo "==> Bundle version: $MARKETING_VERSION (build $BUILD_NUMBER)"
-
-# Info.plist — LSUIElement=true keeps the app out of the Dock (menu-bar only).
-# CFBundleShortVersionString carries the marketing version, CFBundleVersion
-# the numeric build counter; both derive from the same tag source as the
-# binary's ldflags (issue #43), never a hardcoded literal.
-cat > "$CONTENTS/Info.plist" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleExecutable</key>
-    <string>which-model-desktop</string>
-    <key>CFBundleIdentifier</key>
-    <string>com.wdmitchell.which-model</string>
-    <key>CFBundleName</key>
-    <string>which-model</string>
-    <key>CFBundleDisplayName</key>
-    <string>which-model</string>
-    <key>CFBundleIconFile</key>
-    <string>which-model.icns</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleVersion</key>
-    <string>${BUILD_NUMBER}</string>
-    <key>CFBundleShortVersionString</key>
-    <string>${MARKETING_VERSION}</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>13.0</string>
-    <key>LSUIElement</key>
-    <true/>
-    <key>NSHighResolutionCapable</key>
-    <true/>
-    <key>NSSupportsAutomaticGraphicsSwitching</key>
-    <true/>
-</dict>
-</plist>
-PLIST
-
-# Copy the application icon supplied for native bundles. The tray icon remains
-# a separate monochrome template resource and is not used by the Dock.
-cp "$ROOT/icons/which-model.icns" "$RESOURCES/which-model.icns"
-if [ -f "$ROOT/cmd/which-model-desktop/assets/tray-icon.svg" ]; then
-  cp "$ROOT/cmd/which-model-desktop/assets/tray-icon.svg" "$RESOURCES/"
-fi
-
-# Clean up the embedded frontend copy from the source tree.
-rm -rf "$ROOT/cmd/which-model-desktop/frontend"
-
-# Packaging contract: a regular activation-policy transition only gains the
-# intended Dock icon when the bundle declares and ships its .icns resource.
-if [ ! -s "$RESOURCES/which-model.icns" ]; then
-  echo "error: packaged app is missing Contents/Resources/which-model.icns" >&2
-  exit 1
-fi
-BUNDLE_ICON="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$CONTENTS/Info.plist" 2>/dev/null || true)"
-if [ "$BUNDLE_ICON" != "which-model.icns" ]; then
-  echo "error: CFBundleIconFile is '$BUNDLE_ICON', want 'which-model.icns'" >&2
-  exit 1
-fi
-
-echo "==> Packaged: $APP"
-
-# Auto-install to ~/Applications so the app appears in Spotlight and Launchpad.
-INSTALL_DIR="$HOME/Applications"
-mkdir -p "$INSTALL_DIR"
-rm -rf "$INSTALL_DIR/which-model.app"
-cp -R "$APP" "$INSTALL_DIR/which-model.app"
-# Trigger Spotlight re-index for the new .app.
-mdimport "$INSTALL_DIR/which-model.app" 2>/dev/null || true
-
-echo "==> Installed: $INSTALL_DIR/which-model.app"
-echo "    Search 'which-model' in Spotlight or open from ~/Applications."

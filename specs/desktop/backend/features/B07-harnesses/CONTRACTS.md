@@ -169,3 +169,44 @@ Pinned regressions: `TestDiscoverHarnessProviders` covers documented formats and
 Discovered gateways absent from the global catalog (for example Cline's gateway) remain in the harness provider map and numeric count. Detail shows a switch and `Configured in this harness`. This metadata does not add/enable a global provider or trigger usage reads. Explicit switches and bulk changes include these ids.
 
 Launch uses the current native effort controls: non-default Claude effort uses `--effort` (minimal is omitted because Claude does not accept it); Codex uses `-c model_reasoning_effort=…`. A default reasoning pick adds no effort override. Cline retains its configured OAuth adapter id when it differs from the canonical provider alias.
+
+
+## Company-policy extension (#282)
+
+Managed policy is checked before legacy shell launch, copy-mode history/log effects or provider-model discovery subprocesses. Those legacy executable paths remain unavailable in managed mode until #285 implements approved executable/argv handling; policy metadata alone cannot grant execution. Personal launch and discovery behavior remains unchanged. This permission boundary does not introduce a quota/auth-evidence/audit-write launch gate.
+
+This intentionally supersedes unrestricted operation for enrolled installations only;
+see the [F01 managed-policy contract](../../../../features/F01-config/MANAGED-POLICY.md). Pinned evidence:
+`TestManagedConfigurationPrecedence`, `TestCompanyCredentialFallbackHasNoFileSideEffects`,
+and native `TestNativeManagedOperationBoundaries` on macOS, Windows and Linux.
+
+
+## Company privacy correction (#284)
+
+Public launch API is unchanged. No prompt, workspace path, argv, environment or child output is included in the company launch record. Pin structured outcome and absent raw log, plus personal output compatibility. Future approved-execution consumers must use the same company record/output boundary.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.
+
+
+## Approved company execution correction (#285)
+
+Public HarnessInfo/LaunchResult and route-key grammar remain unchanged. In company mode Installed means an approved path currently exists as a regular file; full digest/protection proof occurs at launch. An uninstalled/unapproved entry cannot be enabled by a saved enabled=true preference. Provider switches stay within allowed_providers; native credential-bearing files are not scanned for company discovery. Matching native provider is the default; explicit provider preferences may select other allowed providers. Cline configuration mapping additionally requires provider_file permission and OS-derived home. Copy mode returns quoted POSIX shell syntax, or PowerShell syntax on Windows, after approval verification; manual execution uses the terminal environment, not the app-created child environment.
+
+Pinned review regressions: `TestApprovedEnvironmentMissingAccount` primes the pure-Go user cache with absolute HOME/USER canaries and requires refusal without an account record; native Linux CI runs it in an empty chroot without modifying host accounts. `TestApprovedEnvironmentPasswdData` pins local-record selection and missing/malformed/bounded-input refusal. `TestCompanyApprovedCopyPowerShellArguments` round-trips empty strings, JSON/embedded quotes, backslashes, whitespace, Unicode and shell metacharacters through an actual native child in Windows PowerShell 5.1 and PowerShell 7 Legacy/Standard modes, preserving argv, filesystem working directory, output and exit status.
+
+Governing correction: `specs/desktop/backend/features/B07-harnesses/MANAGED-EXECUTION.md`.
+This implements the requester-approved optional managed profile while preserving
+personal defaults; it supersedes unconditional shell/policy-placeholder statements
+for company execution.
+
+
+## Company advisory evidence correction (#286)
+
+Decision: quota, usage-authentication and audit evidence failures do not need to block launches. The optional managed profile uses advisory reporting; personal defaults remain unchanged. The normative [advisory action matrix](ADVISORY-EVIDENCE.md) applies after approved execution verification. Each attempt gets an operational launch ID, best-effort pre-start intent and independent started/failed outcome records. Copy mode records preparation only. Quota/auth/audit/history/log failures permit an otherwise authorized launch. Actual verification/start errors remain errors. Successful starts return LaunchResult plus fixed optional advisories; provider payloads, process stderr and OS paths never become notices. Tests: `TestCompanyLaunchEvidenceAndAuditFailuresRemainAdvisory`, `TestCompanyLaunchAuditCorrelatesActualPhases`, existing approved-execution refusal and native process tests.
+
+
+## Desktop administration correction (#347)
+
+The requester-approved [administration contract](../B10-settings/ADMINISTRATION.md) governs read-only company inspection, explicit maintenance/migration, and effective managed command previews.

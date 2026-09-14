@@ -279,6 +279,27 @@ describe('popover landing', () => {
     expect(hide).not.toHaveBeenCalled()
   })
 
+  it('keeps company launch advisories visible even when close-after-launch is enabled', async () => {
+    const host = getHost() as MockEngineHost
+    host.data.settings.close_popover_after_launch = true
+    const hide = vi.spyOn(host.window, 'hidePopover').mockResolvedValue(undefined)
+    vi.spyOn(host.harnesses, 'launch').mockResolvedValue({ copied: false, command: 'approved model', advisories: ['Quota evidence is missing; allowance is unconfirmed.', 'Launch outcome audit was not recorded.'] })
+    const rank = host.pick.rank.bind(host.pick)
+    vi.spyOn(host.pick, 'rank').mockImplementation(async (req) => {
+      const result = await rank(req)
+      return { ...result, recommendation_mode: 'score_only', candidates: result.candidates.map(candidate => ({...candidate, quota_evidence: {state: 'missing', message: 'Quota evidence is missing; allowance is unconfirmed.'}})) }
+    })
+    renderApp()
+    await settle()
+    await screen.findByText('Score-only recommendation')
+    fireEvent.click(screen.getByText('Launch in Claude Code'))
+    expect(await screen.findByText('Process started')).toBeTruthy()
+    expect(screen.getByText('Launch outcome audit was not recorded.')).toBeTruthy()
+    expect(hide).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByText('Dismiss launch notice'))
+    expect(screen.queryByText('Process started')).toBeNull()
+  })
+
   it('harness selection lives in memory only and updates the label', async () => {
     const host = getHost() as MockEngineHost
     const setSpy = vi.spyOn(host.settings, 'set')

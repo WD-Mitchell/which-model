@@ -49,6 +49,7 @@ type RankRequest struct {
 }
 
 type RankedModel struct {
+    QuotaEvidence *advisory.Report `json:"quota_evidence,omitempty"` // company only; global §15
     Rank      int     `json:"rank"`       // 1-based
     ModelID   string  `json:"model_id"`
     ModelName string  `json:"model_name"`
@@ -59,6 +60,7 @@ type RankedModel struct {
 }
 
 type RankResponse struct {
+    RecommendationMode string `json:"recommendation_mode,omitempty"` // company: score_only
     Candidates []RankedModel `json:"candidates"` // top Holds, rank ascending
     Total      int           `json:"total"`      // candidates before truncation
 }
@@ -120,6 +122,7 @@ type HarnessInfo struct {
 }
 
 type LaunchResult struct {
+    Advisories []string `json:"advisories,omitempty"` // fixed company evidence/recording notices
     Copied  bool   `json:"copied"`  // true ⇒ frontend puts Command on the clipboard
     Command string `json:"command"` // fully substituted
 }
@@ -444,3 +447,10 @@ Allowed values: `software_engineering`, `marketing`, `general`.
 `EngineHost.profiles.userProfiles(): Promise<UserProfile[]>` maps to
 `ProfilesAPI.UserProfiles() ([]service.UserProfile, error)`. No mutation API is
 needed for curated built-ins; selection uses the existing atomic Settings.Set.
+
+
+## Desktop administration extension (#347)
+
+EngineHost gains administration.status(), setNativeStore(enabled), migrate(provider, removeSource, replace), maintain(operation, categories, projectRoot, confirmed), and verifyDelegation(). Wails exposes the same methods as AdministrationAPI. Company policy uses company.Snapshot verbatim, migration uses credential.MigrationReport verbatim, maintenance preserves privacy.Summary JSON fields and uses privacy.Report verbatim, with canonical category strings as transport map keys (the pinned Wails generator cannot express enum map keys in JS type annotations). Wrappers add error (optional), completed_at (maintenance) and operation (maintenance); status adds policy, native_keychain, use_keychain and optional last_maintenance. Delegation checks contain path, config_path, verified and optional error. No secret-bearing credential type is exposed.
+
+HarnessInfo adds optional command_managed and command_available booleans. Managed command is the protected template or empty when unavailable. Personal fields are omitted for compatibility.

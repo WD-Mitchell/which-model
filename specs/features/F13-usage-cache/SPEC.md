@@ -49,3 +49,29 @@ F13 gives the usage subsystem a per-provider on-disk cache: one JSON file per pr
 - Provider default TTLs and rate-limit backoff caching — F15–F17.
 - `nousage` stub file for this package — F21.
 - Cache cleanup/pruning (single-file-per-provider; no retention policy needed).
+
+
+## Company producer-staleness correction (PR #314)
+
+The requester approved preserving the stale evidence emitted by approved CodexBar.
+For company entries, Read's stale result is producer `Snapshot.Stale` OR expired
+recording-time TTL. Online consumers refetch such entries; OfflineRead preserves
+staleness without a child process. TTL overrides cannot clear producer staleness.
+Retention timestamps and personal behavior remain unchanged. This corrects the
+company application of the earlier TTL-only rule. Pinned tests:
+`TestCompanyCacheProducerStaleness` and `TestNativeCompanyCodexBarApprovalCache`;
+see F14/APPROVED-CODEXBAR.md for the full fetch/cache regression matrix.
+
+## Company privacy correction (#284)
+
+The rules below supersede the identity-preserving, no-deletion and strictly read-only-offline statements above only for company profiles. Managed reads, including offline reads and disabled TTL, scrub legacy fields and physically delete expired/invalid records before returning a snapshot. Freshness TTL remains independent of the original application recording time. A failed scrub/read is unavailable data, never an unsanitized fallback. See MANAGED-RETENTION.md for the complete storage contract.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.
+
+Review correction (PR #307): abandoned atomic-write files belong to the same
+retention category as their final store. Maintenance, reads and writes discard
+known uncommitted temporary files under that store's lock, including when the
+final file is absent. Cleanup and purge report their deletion and any refusal.
+The shared contract specifies reserved names, inventory bounds and rollout limits.

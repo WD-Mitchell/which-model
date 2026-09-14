@@ -204,3 +204,8 @@ Environment overrides (F01 §3 closed env-key vocabulary; annex-d §4.4): `WHICH
 - F24's `which-model usage --fail-on-gated` may reuse `EvaluateBand`/`DefaultConfig` (annex-d §2.4).
 - F21 owns degraded assembly (band empty, `BandWeight = 1.0`, `[bands]` inert) in `internal/pick/degraded.go`; F19 stays out of it.
 - F19 compiles under `-tags nousage` unchanged (SPEC §5).
+
+
+## Company advisory evidence correction (#286)
+
+Decision: quota, usage-authentication and audit evidence failures do not need to block launches. The optional managed profile uses advisory reporting; personal defaults remain unchanged. Band weights/gates and partial-window pressure calculations are unchanged. The separate `internal/advisory.Evaluate` report requires a known snapshot, every required route window computable, and a valid current timestamp to report `current`. Missing/partial/stale evidence must not be described as confirmed zero allowance. Tests: `TestCompanyAdvisoryMatrix`, `TestCompanySelectedRouteKeepsIndependentEvidence`.

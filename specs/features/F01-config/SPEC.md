@@ -7,6 +7,12 @@ project: which-model
 
 # F01 — config: SPEC
 
+The [administrator-managed policy extension](MANAGED-POLICY.md) adds a protected,
+optional machine layer above ordinary configuration. It supersedes the prior
+claim that explicit config/environment is the highest authority in managed mode;
+personal precedence is unchanged. `internal/company` is a new leaf dependency
+for this policy boundary, with no imports of other internal packages.
+
 ## Purpose
 
 `internal/config` owns the configuration surface of the `which-model` binary: the TOML config files, their discovery and precedence order, the `WHICH_MODEL_` environment overrides, the `[usage] enabled` three-state and the `[providers.<id>]` tables, data-directory resolution, and validation. It is deliberately **generic**: F01 types only `[usage]` and `[providers.<id>]` (which M1/M2 core features need at load time); every other section (`[bands]`, `[strategy]`, `[scoring]`, `[catalog]`, `[catalog.publish]`, `[output]`) is decoded on demand by the feature that owns its semantics through the single accessor `UnmarshalKey`. F01 is Layer 0: it imports no `internal/` package (dependency rule, `specs/global/CONTRACTS.md` §8; F01 has `depends_on: —` in `specs/DEPENDENCY-GRAPH.md` §2 and blocks F19, F21, F22, F30).
@@ -123,3 +129,34 @@ All catalog consumers, including desktop benchmark-group loading, decode the
 complete shared catalog schema. The legacy `catalog.publish.run_tests` boolean
 remains accepted for config/env compatibility; the option does not change generated workflow behavior. F30 owns the
 verification steps (paired-artifact verification is introduced by #165).
+
+## Deviations / secure-store correction (#283)
+
+AuthConfig adds NativeKeychain (TOML/JSON native_keychain, default false). SetAuth and desktop mutations preserve it. Company native selection is independent. Windows atomic writes sync the staged file then use MoveFileEx replacement/write-through; unsupported parent fsync is omitted.
+The [secure-store contract](../F12-credentials/SECURE-STORES.md) supersedes earlier company-mode storage
+wording under the approved optional-profile decision. Personal defaults remain
+unchanged. Native tests and migration/fallback canaries are required evidence.
+
+
+## Company privacy correction (#284)
+
+Protected retention settings now govern actual company storage. `identity_free=true` and finite retention defaults (usage 24 hours, launch 7 days, history/audit 30 days) apply through the independently loaded company snapshot; mutable TOML/environment values cannot override them. Personal automatic storage behavior remains unchanged.
+
+Governing shared contract: `specs/features/F13-usage-cache/MANAGED-RETENTION.md`.
+Decision: requester-approved optional company defaults and advisory audit handling;
+this supersedes conflicting personal-only persistence statements for company mode.
+
+
+## Approved company execution correction (#285)
+
+Company executable approvals now have a verified execution consumer. Optional `executables[].inputs` is an array of at most 16 unique canonical absolute path/SHA-256 pairs for script/assets passed to an approved native runtime. All inputs receive administrator ownership/ACL and digest checks. No mutable configuration field gains authority.
+
+Governing correction: `specs/desktop/backend/features/B07-harnesses/MANAGED-EXECUTION.md`.
+This implements the requester-approved optional managed profile while preserving
+personal defaults; it supersedes unconditional shell/policy-placeholder statements
+for company execution.
+
+
+## Approved CodexBar correction (#287)
+
+The requester requires company CodexBar to remain disabled until an administrator approves a specific installation. Personal behavior stays unchanged. Global §16 defines required image/config identities, a 16-entry limit and empty-list default denial. Ordinary configuration can select the backend only when metadata is present; the verified consumer separately checks protected files before credential resolution/execution. Binary-only reserved metadata is no longer sufficient. Test: TestCompanyCodexBarApprovalRequiresConfigIdentity.
