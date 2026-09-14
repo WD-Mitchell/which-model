@@ -57,7 +57,7 @@ The deterministic generator `which-model catalog workflow --write|--check` rende
    - Steps in order: pinned `actions/checkout`, using optional `CSV_UPDATE_TOKEN` with `github.token` fallback; `python3 .daily-update/refresh-model-data.py --output <quoted raw>` with `env: ARTIFICIAL_ANALYSIS_API: ${{ secrets.ARTIFICIAL_ANALYSIS_API }}`; Python score generation with the configured raw/scores paths followed by the Python test suite; the `changes` step (`id: changes`, `git add -- <quoted raw> <quoted scores>` + the unchanged diff check); commit, publish, and outcome steps. The workflow contains no Go setup, build, test, `which-model` invocation, provider config, or benchmark config; score generation and Python tests precede staging both CSVs.
 
 5. **Publish modes** (annex-b §8.4; `mode` selects per invocation, not per branch):
-   - `pull-request`: require `CSV_UPDATE_TOKEN` for publication, create a unique head branch, and create a Task issue and PR assigned to the authenticated human uploader. The PR follows the repository template including Mermaid, verification and a closing issue reference; read back both assignments and the Development link. When `auto_merge` is true, wait up to ten minutes for CI's `test` and the repository's `CodeQL` checks to register, watch all PR checks, require every resulting bucket to pass, recheck the PR head, then merge using `CSV_UPDATE_TOKEN` with `--match-head-commit` and the configured method. Missing, failed, cancelled, skipped or unavailable checks, a changed head, an uncompleted merge, or normal merge-control rejection fail closed. No bot approval or `--admin` bypass is requested.
+   - `pull-request`: require `CSV_UPDATE_TOKEN` for publication, create a unique head branch, and create a Task issue assigned to the authenticated human uploader and an unassigned automated data-update PR. The PR follows the repository template including Mermaid, verification and a closing issue reference; read back the Task assignment, verify that the PR has zero assignees, and verify the Development link. An assigned PR or failed assignee lookup fails publication before superseded-PR cleanup or merging. When `auto_merge` is true, wait up to ten minutes for CI's `test` and the repository's `CodeQL` checks to register, watch all PR checks, require every resulting bucket to pass, recheck the PR head, then merge using `CSV_UPDATE_TOKEN` with `--match-head-commit` and the configured method. Missing, failed, cancelled, skipped or unavailable checks, a changed head, an uncompleted merge, or normal merge-control rejection fail closed. No bot approval or `--admin` bypass is requested.
    - `direct-push`: `git push origin HEAD:${{ matrix.branch }}` as step `id: publish` (no PR or auto-merge steps).
    - Every publish step is gated on `if: steps.changes.outputs.changed == 'true'` (commit-only-if-changed, annex-b §8 "Staged-commit-only-if-changed" row).
    - Per-branch isolation (annex-b §8.3): `fail-fast: false`; a failure on one branch never aborts the others. The final `if: always()` report emits `skipped-no-changes`; `merged` only after the PR is confirmed merged; `pr-created` when auto-merge is disabled and creation succeeded; `published` only when the direct-push step succeeded; otherwise `failed`.
@@ -169,15 +169,15 @@ The owner requested this repository refresh every 30 minutes and merge automatic
 
 ### Publishing metadata token correction
 
-A live refresh showed the existing fine-grained CSV_UPDATE_TOKEN can publish branches/PRs but cannot assign issues (`replaceActorsForAssignable`). Keep that token for branch/PR creation and merging; use the workflow's `github.token` for Task creation and explicit human assignment of the issue and PR. PR mode therefore grants `issues: write` alongside existing contents and pull-request permissions. No long-lived token scope change is required. Assignment targets the publishing token's human login, never the workflow bot.
+A live refresh showed the existing fine-grained CSV_UPDATE_TOKEN can publish branches/PRs but cannot assign issues (`replaceActorsForAssignable`). Keep that token for branch/PR creation and merging; use the workflow's `github.token` for Task creation and explicit human assignment of the issue. Automated data-update PRs remain unassigned under the later owner decision below. PR mode therefore grants `issues: write` alongside existing contents and pull-request permissions. No long-lived token scope change is required. Assignment targets the publishing token's human login, never the workflow bot.
 
 
 ### Superseded refresh PR cleanup (September 2026)
 
 Owner decision following PR #279: when a new refresh PR is created, close older
 refresh PRs that remain unmerged. This supersedes retaining an open PR from every
-failed refresh run. After creating and verifying the replacement PR's assignment
-and Development link, enumerate all pages of open PRs for the configured base.
+failed refresh run. After creating the replacement PR and verifying it has zero
+assignees and a Development link, enumerate all pages of open PRs for the configured base.
 Close only lower-numbered PRs from the same repository and base whose head matches
 `^refresh-model-data-[0-9]+-[0-9]+$`, and verify each is closed. The workflow's
 serialized runs mean these are previous unfinished refreshes. This applies in
@@ -190,6 +190,19 @@ and protections are unchanged.
 forks, other bases, unrelated branches, current/newer PRs, and failure before
 creation, during verification, listing, or closure.
 
+### Automated data-update PR assignment deviation (September 2026)
+
+The owner requested in #351 that automated data-update PRs no longer be assigned
+to their account. This supersedes the earlier publishing-human PR assignment requirement:
+create these PRs without an assignee and verify zero assignees before cleanup or
+merging. An assigned PR or failed assignee lookup fails publication. The linked
+Task remains assigned to the publishing human. Token selection, issue linkage,
+check-gated merging, and assignment of other PRs are unchanged.
+
+`TestCreatePRSeparatesPublishingAndMetadataTokens` rejects PR assignment commands
+while preserving Task assignment and token separation.
+`TestCreatePRClosesSupersededRefreshes` also covers assigned PRs and failed assignee
+lookups; neither may close earlier refresh PRs.
 
 ## Desktop compatibility correction (#347)
 
