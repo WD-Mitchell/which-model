@@ -288,6 +288,8 @@ func (g *SignInService) Confirm(ctx context.Context, provider, flowID, accountNa
 		return toErrorDTO(flowErr(err))
 	}
 
+	g.s.credentialMu.Lock()
+	defer g.s.credentialMu.Unlock()
 	accountRef := managedOAuthRef
 	if active.kind == signInCursor {
 		// Cursor Agent owns and persists its session. Recording a sentinel in
@@ -438,6 +440,8 @@ func (g *SignInService) recordOAuthAccount(provider, accountName, accountRef str
 // SaveAPIKey stores an API key in which-model's managed credential store and
 // writes only its non-secret account reference to config.toml.
 func (g *SignInService) SaveAPIKey(ctx context.Context, provider, accountName, apiKey string) error {
+	g.s.credentialMu.Lock()
+	defer g.s.credentialMu.Unlock()
 	if err := ctx.Err(); err != nil {
 		return toErrorDTO(err)
 	}

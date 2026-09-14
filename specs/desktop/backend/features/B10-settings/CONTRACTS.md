@@ -111,3 +111,8 @@ Company catalog key operations use a dedicated OS entry and apply provider/sourc
 The [secure-store contract](../../../../features/F12-credentials/SECURE-STORES.md) supersedes earlier company-mode storage
 wording under the approved optional-profile decision. Personal defaults remain
 unchanged. Native tests and migration/fallback canaries are required evidence.
+
+
+## Desktop administration correction (#347)
+
+The requester-approved [administration contract](../B10-settings/ADMINISTRATION.md) governs read-only company inspection, explicit maintenance/migration, and effective managed command previews.

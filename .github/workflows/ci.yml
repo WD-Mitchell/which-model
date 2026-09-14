@@ -324,6 +324,9 @@ jobs:
           go-version-file: go.mod
           cache: true
       - run: go build ./cmd/which-model-desktop
+      - run: go test ./internal/service ./cmd/which-model-desktop
+      - run: bash scripts/audit-offline-desktop.sh
+      - run: go build -tags nousage ./cmd/which-model-score-only-desktop
       - name: Verify desktop release discovery and version ordering
         run: go test ./cmd/which-model-desktop -run TestReleaseUpdate -v -count=1
 
@@ -345,3 +348,4 @@ jobs:
       - run: pnpm --filter @which-model/ui build
       - run: pnpm -r typecheck
       - run: pnpm -r test
+      - run: pnpm -r build && pnpm run check:host

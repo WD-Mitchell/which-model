@@ -39,6 +39,8 @@ func (g *SettingsService) Get(ctx context.Context) (GUISettings, error) {
 
 // Set validates and atomically replaces the complete GUI section.
 func (g *SettingsService) Set(ctx context.Context, in GUISettings) error {
+	g.s.credentialMu.Lock()
+	defer g.s.credentialMu.Unlock()
 	if err := ctx.Err(); err != nil {
 		return toErrorDTO(err)
 	}

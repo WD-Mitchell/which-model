@@ -6,6 +6,7 @@
 // stop short of the content edge and there is no hover tint (the mockup rows
 // carry no class="row"). <main> supplies no padding of its own (U07 contract),
 // and the config-path footer now lives in the sidebar, not on this page.
+import { useQuery } from '@tanstack/react-query'
 import { useCallback, useRef, useState } from 'react'
 import { Input, SegmentedControl, Toggle, useToast } from '@which-model/ui'
 import type { GUISettings } from '@which-model/core'
@@ -105,6 +106,7 @@ const TOGGLES: ReadonlyArray<{
 
 export function GeneralPage(_props: PageComponentProps) {
   const toast = useToast()
+  const administration = useQuery({queryKey: ['administration'], queryFn: () => getHost().administration.status()})
   const { data: settings } = useSettings()
   const [repoDraft, setRepoDraft] = useState<string | null>(null)
   const [aaKeyDraft, setAaKeyDraft] = useState('')
@@ -167,13 +169,14 @@ export function GeneralPage(_props: PageComponentProps) {
             update-frequency select. */}
         <div className={styles.grid}>
           {TOGGLES.map((t) => {
-            const on = t.read(current)
+            const locked = t.name === 'Store sign-ins in system keychain' && administration.data?.policy.managed
+            const on = locked ? true : t.read(current)
             return (
               <div className={styles.row} key={t.name}>
                 <span className={styles.toggleLabel} data-on={on}>
                   {t.name}
                 </span>
-                <Toggle on={on} onToggle={() => persist((saved) => t.patch(!t.read(saved)))} aria-label={t.name} />
+                <Toggle on={on} disabled={Boolean(locked)} onToggle={() => persist((saved) => t.patch(!t.read(saved)))} aria-label={locked ? `${t.name} (administrator-controlled)` : t.name} />
               </div>
             )
           })}

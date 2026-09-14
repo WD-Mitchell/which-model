@@ -24,7 +24,7 @@ A client following only GitHub Latest may continue seeing the historical release
 preview adopters and company administrators must select the intended version
 explicitly from the release list and verify its evidence.
 
-The source-built desktop's `Check for updates…` action includes published
+The desktop's `Check for updates…` action includes published
 prereleases and compares semantic versions. It offers only a newer version and
 opens that version's release page; an older historical Latest release is never
 offered as an update. Development and unrecognized builds open the release list
@@ -51,7 +51,7 @@ contract or funded support investigation is introduced.
 | Restricted offline score-only CLI | Same five release targets, separate binary | Embedded catalog/profiles, import/symbol/endpoint audits, native OS checks and Linux-isolated syscall evidence. It is separate from the full npm executable. |
 | Managed policy, owned credential storage and approved execution | macOS, Windows, Linux | Native protected-file/ACL, OS-store and execution fixtures on all three OS families. Live customer provider accounts and company endpoint settings remain deployment validation. |
 | Approved CodexBar delegation | which-model approval boundary on all three OS families | Native synthetic image/config invocation on all three. Reviewed upstream CLI distributions are macOS/Linux; a compatible Windows CodexBar binary is not established. |
-| Desktop UI | Source-built Wails app; macOS backend build | Browser fixture/component evidence and macOS build are available. This CLI release workflow does not publish desktop application bundles or establish complete Windows/Linux desktop distribution support. |
+| Desktop UI | Full and separate offline macOS apps, arm64/x64 archives | #347 adds native macOS packaging and signed GitHub release evidence. Apps are ad-hoc signed, not Apple notarized; Windows/Linux desktop distribution is not established. See [desktop workflows](../desktop-company-workflows.md). |
 
 `go.mod` declares Go 1.25.0 as the module floor; verified release builds use pinned
 Go 1.26.8 and govulncheck 1.8.0. The npm wrapper declares Node >=18 compatibility;

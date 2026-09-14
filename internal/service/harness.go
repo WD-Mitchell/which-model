@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/WD-Mitchell/which-model/internal/approvedexec"
 	"github.com/WD-Mitchell/which-model/internal/config"
 	"github.com/WD-Mitchell/which-model/internal/routing"
 )
@@ -109,10 +110,22 @@ func (h *HarnessService) List(ctx context.Context) ([]HarnessInfo, error) {
 		if policy.Managed && !inst {
 			en = false
 		}
-		out = append(out, HarnessInfo{
+		command, available := ht.Command, true
+		if policy.Managed {
+			command, available = "", false
+			entry, approved := approvedHarness(policy, slug)
+			if approved {
+				_, err := approvedexec.Build(policy, slug, compiledHarness(slug), map[string]string{"model_id": "model-preview", "reasoning": "default", "provider": "provider-preview", "profile": "profile-preview"})
+				if err == nil {
+					command = displayApprovedCommand(approvedexec.Plan{Path: entry.Path, Args: entry.Args})
+					available = true
+				}
+			}
+		}
+		out = append(out, HarnessInfo{CommandManaged: policy.Managed, CommandAvailable: policy.Managed && available,
 			Slug:      slug,
 			Name:      ht.Name,
-			Command:   ht.Command,
+			Command:   command,
 			Builtin:   ht.Builtin,
 			Installed: inst,
 			Enabled:   en,

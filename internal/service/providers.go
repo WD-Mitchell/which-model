@@ -750,6 +750,8 @@ func providerBuiltin(id string) bool {
 // unioned from the route table), so the row would reappear and the delete would
 // look broken.
 func (p *ProviderService) Delete(ctx context.Context, id string) error {
+	p.s.credentialMu.Lock()
+	defer p.s.credentialMu.Unlock()
 	_ = ctx
 	p.s.mu.Lock()
 	if p.providerBuiltinLocked(id) {
@@ -846,6 +848,8 @@ func (p *ProviderService) Duplicate(ctx context.Context, id string) (string, err
 // covers add, rename, re-kind and remove, so the UI never has to sequence
 // several calls and half-apply on failure.
 func (p *ProviderService) SetAccounts(ctx context.Context, id string, accounts []ProviderAccountDTO) error {
+	p.s.credentialMu.Lock()
+	defer p.s.credentialMu.Unlock()
 	if err := ctx.Err(); err != nil {
 		return err
 	}

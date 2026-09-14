@@ -57,3 +57,7 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
+
+# Build-time assets for the separate offline desktop.
+cmd/which-model-score-only-desktop/frontend/dist/*
+!cmd/which-model-score-only-desktop/frontend/dist/.gitkeep

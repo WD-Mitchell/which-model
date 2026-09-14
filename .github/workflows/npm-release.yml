@@ -46,7 +46,7 @@ jobs:
       # The release ships the CLI (cmd/which-model + its libraries). The Wails
       # desktop app (cmd/which-model-desktop) is macOS-primary and needs the
       # full GTK/webkitgtk Linux toolchain to compile, so it is intentionally
-      # out of this CLI-release gate; its Linux build is verified separately.
+      # out of this Linux gate; the desktop matrix below validates macOS bundles.
       - run: go build ./cmd/which-model ./internal/... ./pkg/...
       - run: go vet ./cmd/which-model ./internal/... ./pkg/...
       - run: go test ./cmd/which-model ./internal/... ./pkg/...
@@ -59,8 +59,57 @@ jobs:
       - name: Restricted score-only audit
         run: bash scripts/audit-score-only.sh
 
-  build:
+  desktop:
     needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            arch: arm64
+          - os: macos-15-intel
+            arch: x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.26.8'
+          cache: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - run: corepack enable && corepack prepare pnpm@11.5.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r build && pnpm -r test && pnpm run check:host
+      - run: go test ./internal/service ./cmd/which-model-desktop
+      - run: bash scripts/audit-offline-desktop.sh
+      - name: Package both desktop applications without installing them
+        run: |
+          bash scripts/package-macos.sh --version "${RELEASE_TAG#v}"
+          bash scripts/package-macos.sh --version "${RELEASE_TAG#v}" --offline
+      - name: Archive and review desktop binaries
+        env:
+          DESKTOP_ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          mkdir -p desktop-dist
+          ditto -c -k --keepParent bin/which-model.app "desktop-dist/which-model-desktop-darwin-${DESKTOP_ARCH}.zip"
+          ditto -c -k --keepParent bin/which-model-offline.app "desktop-dist/which-model-offline-desktop-darwin-${DESKTOP_ARCH}.zip"
+          go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
+          "$(go env GOPATH)/bin/govulncheck" -mode=binary bin/which-model.app/Contents/MacOS/which-model-desktop > "desktop-dist/which-model-desktop-darwin-${DESKTOP_ARCH}.zip.govulncheck.txt" 2>&1
+          "$(go env GOPATH)/bin/govulncheck" -mode=binary bin/which-model-offline.app/Contents/MacOS/which-model-score-only-desktop > "desktop-dist/which-model-offline-desktop-darwin-${DESKTOP_ARCH}.zip.govulncheck.txt" 2>&1
+          python3 scripts/desktop-release-metadata.py inventory desktop-dist "${RELEASE_TAG#v}" "$GITHUB_SHA" "$GITHUB_REF" --arch "$DESKTOP_ARCH"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: desktop-assets-${{ matrix.arch }}
+          path: desktop-dist/*
+          if-no-files-found: error
+
+  build:
+    needs: [test, desktop]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -98,6 +147,13 @@ jobs:
             dist/*.govulncheck.txt
             dist/*.cdx.json
             dist/release-manifest.json
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: desktop-assets-*
+          merge-multiple: true
+          path: dist
+      - name: Verify desktop identities and combine release inventories
+        run: python3 scripts/desktop-release-metadata.py merge dist "${RELEASE_TAG#v}" "$GITHUB_SHA" "$GITHUB_REF"
       - name: Attest binaries, SBOMs and release evidence
         id: provenance
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2

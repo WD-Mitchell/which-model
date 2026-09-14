@@ -1,0 +1,7 @@
+# Desktop company workflow evidence
+
+Captured 2026-09-14 using the actual Settings components in Vite browser mode, synthetic company policy, and fixed partial-operation results. `fixture.js` installs the non-secret policy/migration/maintenance fixtures through the existing mock host. Screenshots cover the policy view, retained migration evidence, selected-category purge failure, a 650px window and light-system-preference compatibility. The app retains its established dark theme.
+
+The offline screenshots render the actual offline page/renderer/styles with JSON produced by `which-model-score-only pick --profile balanced_implementation --top 3 --json` on the same source tree. `offline-fixture.js` records the fixture. The harness removes the CSP meta only in its intercepted development HTML so Vite can inject development styles; production assets retain the restrictive policy. These screenshots test rendering, not native IPC or the production CSP. The native offline app was separately built and started successfully; this machine denied accessibility automation, so native window interactions were not claimed.
+
+Both macOS apps were packaged with Go 1.26.8, verified with codesign/plutil, and scanned with govulncheck 1.8.0. Those local builds used an explicit candidate version and the uncommitted review tree; they are not published source-bound release evidence. The release workflow must rebuild and attest the final committed revision.

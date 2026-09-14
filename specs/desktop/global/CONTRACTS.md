@@ -447,3 +447,10 @@ Allowed values: `software_engineering`, `marketing`, `general`.
 `EngineHost.profiles.userProfiles(): Promise<UserProfile[]>` maps to
 `ProfilesAPI.UserProfiles() ([]service.UserProfile, error)`. No mutation API is
 needed for curated built-ins; selection uses the existing atomic Settings.Set.
+
+
+## Desktop administration extension (#347)
+
+EngineHost gains administration.status(), setNativeStore(enabled), migrate(provider, removeSource, replace), maintain(operation, categories, projectRoot, confirmed), and verifyDelegation(). Wails exposes the same methods as AdministrationAPI. Company policy uses company.Snapshot verbatim, migration uses credential.MigrationReport verbatim, maintenance preserves privacy.Summary JSON fields and uses privacy.Report verbatim, with canonical category strings as transport map keys (the pinned Wails generator cannot express enum map keys in JS type annotations). Wrappers add error (optional), completed_at (maintenance) and operation (maintenance); status adds policy, native_keychain, use_keychain and optional last_maintenance. Delegation checks contain path, config_path, verified and optional error. No secret-bearing credential type is exposed.
+
+HarnessInfo adds optional command_managed and command_available booleans. Managed command is the protected template or empty when unavailable. Personal fields are omitted for compatibility.
