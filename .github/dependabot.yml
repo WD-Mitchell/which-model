@@ -1,6 +1,10 @@
 # Dependabot version updates. The scaffold placeholder
 # (`package-ecosystem: ""`) was invalid and disabled updates entirely
 # (issue #44); declare each ecosystem the repo actually carries.
+#
+# Groups: a dependency joins the first group whose patterns match it, so the
+# lock-step families are listed before the catch-all minor/patch groups.
+# Major updates outside a named family stay as individual PRs.
 version: 2
 updates:
   # Go module (CLI + libraries + desktop backend).
@@ -8,16 +12,35 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      go-minor-patch:
+        update-types: ["minor", "patch"]
   # pnpm workspace (packages/*, apps/desktop, npm/* platform packages).
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      # react and react-dom must be the exact same version; the type packages
+      # follow them. Split bumps cannot pass desktop-frontend (PRs #344/#345).
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+      vitest:
+        patterns: ["vitest", "@vitest/*"]
+      testing-library:
+        patterns: ["@testing-library/*"]
+      dnd-kit:
+        patterns: ["@dnd-kit/*"]
+      npm-minor-patch:
+        update-types: ["minor", "patch"]
   # GitHub Actions workflows.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      actions-minor-patch:
+        update-types: ["minor", "patch"]
   # Daily-update pipeline scripts (.daily-update/, Python stdlib only —
   # no requirements.txt exists, so this entry is intentionally omitted
   # until a manifest lands; see the issue discussion).

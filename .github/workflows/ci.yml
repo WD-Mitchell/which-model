@@ -347,6 +347,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @which-model/core build
       - run: pnpm --filter @which-model/ui build
+      # packages/*/dist is tracked and consumed via each package's `exports`;
+      # a source change built with the current TypeScript must ship its
+      # rebuilt output, otherwise the committed copy silently drifts.
+      - name: Tracked dist output is current
+        run: git diff --exit-code -- packages/core/dist packages/ui/dist
       - run: pnpm -r typecheck
       - run: pnpm -r test
       - run: pnpm -r build && pnpm run check:host
