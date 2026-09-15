@@ -1,4 +1,4 @@
-import { jsxs as _jsxs, jsx as _jsx } from "react/jsx-runtime";
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { cx } from '../utils/cx';
 import styles from './Table.module.css';
 export function Table({ columns, sort, onSort, rows, className }) {
