@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 /** The settings pages exposed by the desktop settings window. */
-export declare const SETTINGS_NAV_ITEMS: readonly ["Profiles", "Groups & benchmarks", "Providers", "Harnesses", "General", "Usage", "Favourites", "Agent hooks"];
+export declare const SETTINGS_NAV_ITEMS: readonly ['Profiles', 'Groups & benchmarks', 'Providers', 'Harnesses', 'General', 'Usage', 'Favourites', 'Agent hooks'];
 export type SettingsNavItemName = (typeof SETTINGS_NAV_ITEMS)[number];
 export interface SettingsNavItem {
     /** Stable value passed to the selection callback. */

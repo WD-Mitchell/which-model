@@ -1,4 +1,4 @@
-import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
+import { Fragment as _Fragment, jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { WeightRow } from './WeightRow';
 const HEADER_COLOR = 'color-mix(in srgb,var(--color-text) 42%,transparent)';
 const PCT_COLOR = 'color-mix(in srgb,var(--color-text) 62%,transparent)';
