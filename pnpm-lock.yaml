@@ -20,8 +20,8 @@ importers:
         specifier: ^5.102.8
         version: 5.102.8(react@19.3.0)
       '@wailsio/runtime':
-        specifier: 3.0.0-beta.20
-        version: 3.0.0-beta.20
+        specifier: 3.0.0-beta.23
+        version: 3.0.0-beta.23
       '@which-model/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -545,8 +545,8 @@ packages:
   '@vitest/spy@5.0.0':
     resolution: {integrity: sha512-uy+luWBAPw9XfthoHi5AkfHUnuPYEESjl0p/r+meoBnU8bxg5GDQ3Ey8MjcJ6sqahkL4PFyrvfMJJBw7LbU06g==}
 
-  '@wailsio/runtime@3.0.0-beta.20':
-    resolution: {integrity: sha512-oPpWBgNK4QISP9/AweVnRIBg6hlEP7HVi0i4gVl0+6JEsQ6vDDTJXmbyy/j6AITPHWq7cWOYl2Ey5uucl1u3hw==}
+  '@wailsio/runtime@3.0.0-beta.23':
+    resolution: {integrity: sha512-Am9N7nvA9WBpVzOkrJ0PzTg/cgEFL72I97ksOfOuryLP4VOdnl7viP59+6Nx5zMoHJo207k85WINJaWfCY1CQQ==}
 
   ansi-regex@5.0.1:
     resolution: {integrity: sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ==}
@@ -1285,7 +1285,7 @@ snapshots:
 
   '@vitest/spy@5.0.0': {}
 
-  '@wailsio/runtime@3.0.0-beta.20': {}
+  '@wailsio/runtime@3.0.0-beta.23': {}
 
   ansi-regex@5.0.1: {}
 
