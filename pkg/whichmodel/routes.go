@@ -283,10 +283,7 @@ func produceRoutes(cfg *config.Config) ([]routing.Route, error) {
 	}
 
 	result, err := routing.ProduceRoutes(input)
-	if err != nil {
-		return nil, err
-	}
-	return result.Routes, nil
+	return result.Routes, err
 }
 
 // RunRouteAdd implements `routes add` (F27 SPEC §2.2): validate, load, reject
@@ -432,10 +429,7 @@ func RunRouteRefresh(args RouteRefreshArgs, stdout, stderr io.Writer) error {
 	if !enabled {
 		_ = output.WriteWarning(stderr, "usage is disabled; refresh uses static sources only")
 	}
-	routes, err := produceRoutesFunc(cfg)
-	if err != nil {
-		return &CodedError{Code: "runtime", Message: err.Error()}
-	}
+	routes, routeErr := produceRoutesFunc(cfg)
 	path, err := routesPathFunc(cfg)
 	if err != nil {
 		return &CodedError{Code: "runtime", Message: err.Error()}
@@ -495,10 +489,16 @@ func RunRouteRefresh(args RouteRefreshArgs, stdout, stderr io.Writer) error {
 		return &CodedError{Code: "runtime", Message: err.Error()}
 	}
 	if bytes.Equal(produced, existing) {
+		if routeErr != nil {
+			return &CodedError{Code: "runtime", Message: routeErr.Error()}
+		}
 		return nil
 	}
 	if err := saveRoutesFunc(path, table); err != nil {
 		return &CodedError{Code: "runtime", Message: err.Error()}
+	}
+	if routeErr != nil {
+		return &CodedError{Code: "runtime", Message: routeErr.Error()}
 	}
 	return nil
 }
@@ -529,17 +529,25 @@ func RunRouteVerify(args RouteVerifyArgs, stdout, stderr io.Writer) error {
 	}
 
 	scoreSet := make(map[identity.Identity]bool, len(rows))
-	for _, row := range rows {
+	scoreNames := make([]string, len(rows))
+	for i, row := range rows {
+		scoreNames[i] = row.Model
 		scoreSet[identity.IdentityKey(row.Model, row.Reasoning)] = true
+	}
+	canonicalRouteName := func(model string) string {
+		if canonical, matched, ambiguous := identity.ResolveModelName(model, scoreNames); matched && !ambiguous {
+			return canonical
+		}
+		return identity.CleanModelName(model)
 	}
 	routeSet := make(map[identity.Identity]bool, len(table.Routes))
 	for _, r := range table.Routes {
-		routeSet[identity.IdentityKey(r.Model, r.Reasoning)] = true
+		routeSet[identity.IdentityKey(canonicalRouteName(r.Model), r.Reasoning)] = true
 	}
 
 	var stale []routing.Route
 	for _, r := range table.Routes {
-		if !scoreSet[identity.IdentityKey(r.Model, r.Reasoning)] {
+		if !scoreSet[identity.IdentityKey(canonicalRouteName(r.Model), r.Reasoning)] {
 			stale = append(stale, r)
 		}
 	}

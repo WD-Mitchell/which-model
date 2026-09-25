@@ -164,12 +164,17 @@ type Route struct {
 
 func LoadRoutes(path string) ([]Route, error)   // missing file → empty list, nil error
 func SaveRoutes(path string, routes []Route) error
-func ProduceRoutes(cfg *config.Config) ([]Route, error) // includes merge: user_declared wins
+func ProduceRoutes(in Input) (BuildResult, error) // routing.Input; includes merge: user_declared wins
 func RoutesPath(cfg *config.Config) (string, error)
 func ScoresSHA256(cfg *config.Config) (string, error) // hash of current scores CSV
 ```
 
-F27's seams: `loadRoutesFunc`, `saveRoutesFunc`, `produceRoutesFunc`, `routesPathFunc` (defaults = the F18 funcs; injectable in tests). F27 persists exactly what ProduceRoutes returns and never re-implements merge.
+The `pkg/whichmodel` adapter `produceRoutes(cfg)` returns `BuildResult.Routes`
+together with the F18 error. F27's seams: `loadRoutesFunc`,
+`saveRoutesFunc`, `produceRoutesFunc`, `routesPathFunc` (defaults = the F18
+funcs; injectable in tests). F27 persists exactly the successful routes
+returned by ProduceRoutes, even when the call also returns an F18 ambiguity
+error, then surfaces that error. F27 never re-implements merge.
 
 ### 7.2 F06 `internal/catalog/csvstore` (canonical owner: F06 CONTRACTS)
 

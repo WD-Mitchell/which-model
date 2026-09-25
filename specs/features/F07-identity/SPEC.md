@@ -84,9 +84,15 @@ Only `gdpvalaa → gdpval` is an effective collapse; the remaining entries are i
 
 The package imports stdlib only (`strings`, `regexp`, `unicode`) and MUST NOT import `internal/catalog/csvstore`, `internal/usage`, `internal/routing`, `internal/pick`, or any other internal package (global CONTRACTS §8 — it is a leaf). It compiles and passes tests under `go build -tags nousage` (annex-b §0). Every exported function is total; there are no sentinel errors, no exit codes, no `Failure.Code` values, and no JSON output.
 
+### 2.8 Model-name matching key (`ModelNameKey`)
+
+`ModelNameKey(model string) string` provides a comparison key for model names whose providers vary whitespace, punctuation, or case. It first applies `CleanModelName`, then keeps Unicode letters and digits only and lowercases each retained rune. For example, `"GPT-6 Astra"`, `"gpt 6 astra"`, and `"GPT_6.Astra"` share the key `"gpt6astra"`.
+
+`ResolveModelName(model, candidateNames)` applies the shared matching policy: exact cleaned name first; otherwise a unique `ModelNameKey` match. It returns `(canonical, matched, ambiguous)` so callers can distinguish absence from collisions. The key and resolver are for lookup only: they do not replace `CleanModelName`, rewrite display names, or define catalog identity. A normalized fallback collision is surfaced as ambiguity rather than selecting a candidate by row order or score.
+
 ## 3. Error behaviour
 
-None: the package returns no errors. The only "not found" signal is `ParseEffort`'s `ok == false` for "no effort annotation". `CleanModelName` and `BenchmarkKey` are best-effort normalizers that always return a (possibly empty) string. This mirrors the Python: `clean_model_name` and `_benchmark_key` never raise; `_effort` returns `None` for non-matching variants.
+None: the package returns no errors. The only "not found" signal is `ParseEffort`'s `ok == false` for "no effort annotation". `CleanModelName` and `ModelNameKey` are best-effort normalizers that always return a (possibly empty) string; `ResolveModelName` uses booleans to represent absent and ambiguous matches. This mirrors the Python: `clean_model_name` and `_benchmark_key` never raise; `_effort` returns `None` for non-matching variants.
 
 ## 4. Decisions
 

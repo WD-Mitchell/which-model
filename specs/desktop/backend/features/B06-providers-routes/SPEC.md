@@ -43,7 +43,7 @@ Depends on: B02. Inherits: D00, B00 (order/enabled/availability invariants §6.1
 - Reorder validation follows the fixed order in CONTRACTS §6 so messages are golden-testable.
 - `List`/`Detail` never fail because usage is off or the cache is empty — usage fields degrade per §2.3/§2.4 (B00 §2.7).
 - Cache-file corruption is invisible: `OfflineRead` never errors; the fallback snapshot's `Failure` triggers the "no usable snapshot" path.
-- `RefreshRoutes` treats failed provider CLI discovery as that provider's unavailable live source; it continues with models.dev and every other provider. Routing ambiguity retains F18's provider-local hard-error semantics.
+- `RefreshRoutes` treats failed provider CLI discovery as that provider's unavailable live source; it continues with models.dev and every other provider. When F18 reports an ambiguous model, refresh persists successful routes from all unambiguous models (including siblings under the same provider), emits the normal data-change events, then returns the hard ambiguity error. Only the ambiguous model is omitted.
 
 ## 4. Decisions
 

@@ -1,5 +1,10 @@
 package identity
 
+import (
+	"strings"
+	"unicode"
+)
+
 // EffortOrder ranks the reasoning-effort ladder (SPEC §2.6); derived from the
 // ParseEffort regexes' ladder (get_benchmarks.py:42-59).
 var EffortOrder = map[string]int{
@@ -45,4 +50,49 @@ func CollapseReasoning(level string) string {
 // cleaned name plus collapsed level (SPEC.md §2.3).
 func IdentityKey(model, reasoning string) Identity {
 	return Identity{Model: CleanModelName(model), Reasoning: CollapseReasoning(reasoning)}
+}
+
+// ModelNameKey returns a punctuation- and whitespace-insensitive matching key
+// for a model display name. It keeps Unicode letters and digits, lowercased,
+// after removing display annotations. The key is for matching only; callers
+// retain the cleaned display name and must handle collisions explicitly.
+func ModelNameKey(model string) string {
+	clean := CleanModelName(model)
+	var key strings.Builder
+	for _, r := range clean {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			key.WriteRune(unicode.ToLower(r))
+		}
+	}
+	return key.String()
+}
+
+// ResolveModelName finds a canonical cleaned model name in candidateNames.
+// Exact cleaned names take precedence over ModelNameKey fallback. The fallback
+// succeeds only when all matching candidates have one distinct cleaned name;
+// ambiguous and absent matches are both reported without choosing a row.
+func ResolveModelName(model string, candidateNames []string) (canonical string, matched bool, ambiguous bool) {
+	clean := CleanModelName(model)
+	for _, candidate := range candidateNames {
+		candidateClean := CleanModelName(candidate)
+		if candidateClean == clean {
+			return candidateClean, true, false
+		}
+	}
+	key := ModelNameKey(clean)
+	if key == "" {
+		return "", false, false
+	}
+	for _, candidate := range candidateNames {
+		candidateClean := CleanModelName(candidate)
+		if ModelNameKey(candidateClean) != key {
+			continue
+		}
+		if matched && canonical != candidateClean {
+			return "", false, true
+		}
+		canonical = candidateClean
+		matched = true
+	}
+	return canonical, matched, false
 }

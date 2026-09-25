@@ -194,9 +194,9 @@ graph TD
 8. Test 7 (produce error): fake produce returns error → `*CodedError{Code: "runtime"}`, exit 1.
 9. Implement `RunRouteRefresh` in `routes.go`:
    - `enabled, _ := toggleResolveFunc(Global.NoUsage, cfg)`; `!enabled` → `output.WriteWarning(stderr, "usage is disabled; refresh uses static sources only")` (exactly once).
-   - `routes, err := produceRoutesFunc(cfg)` → error → `runtime` CodedError.
+   - `routes, routeErr := produceRoutesFunc(cfg)`; keep any routes returned alongside an F18 ambiguity and continue to persistence.
    - `--auto`: `rows, err := readScoresFunc(csvPath)`; candidate = rows whose `Model` contains `args.Auto` (substring, case-insensitive); zero → `*UsageError{no score row matching "x"}`; >1 → `*UsageError{no score row matching "x" (ambiguous: <models joined by ", ">)}`; exactly 1 → append `routing.Route{Model: row.Model, ModelID: row.Model, Reasoning: "default", Provider: row.Provider, Provenance: "user_declared"}` (per F06 CONTRACTS `ScoreRow.Provider` field when pinned; fallback: provider = the catalog provider owning the row — resolve via `usage.All()` matching the row's provider field; the test's fake rows carry `Provider`).
-   - Compare-and-skip: read the current file via `loadRoutesFunc(path)`; if bytes-equal (marshal both with `json.Marshal` + `bytes.Equal`), skip save; else `saveRoutesFunc(path, routes)`.
+   - Compare-and-skip: read the current file via `loadRoutesFunc(path)`; if bytes-equal (marshal both with `json.Marshal` + `bytes.Equal`), skip save; else `saveRoutesFunc(path, routes)`. After persistence or compare-and-skip, return a `runtime` `CodedError` when `routeErr != nil`.
 10. Run `go test ./pkg/whichmodel/...`; then `go build ./pkg/whichmodel/...`.
 
 **Test cases (write these first):**
@@ -237,8 +237,9 @@ graph TD
 7. Test 6 (IO error): `readScoresFunc` error → `*CodedError{Code: "runtime"}`, exit 1.
 8. Implement `RunRouteVerify` in `routes.go`:
    - `routes, err := loadRoutesFunc(path)`; scores rows via `readScoresFunc(csvPath)`.
-   - Stale = route whose `(Model, Reasoning)` pair has no score row → collect `"<provider>:<model-id>"`; print each as `stale route <provider>:<model-id> (<model>/<reasoning>)` on stdout.
-   - Unrouted = score rows with no route covering `(Model, Reasoning)` → `output.WriteWarning(stderr, "score row <model>/<reasoning> has no route; it cannot be picked")` per row.
+   - Resolve route names against score model names using `identity.ResolveModelName` (exact cleaned name first, then one unique normalized key); collapse reasoning with `identity.IdentityKey`. A normalized collision is unresolved.
+   - Stale = route whose resolved `(Model, Reasoning)` pair has no score row → collect `"<provider>:<model-id>"`; print each as `stale route <provider>:<model-id> (<model>/<reasoning>)` on stdout.
+   - Unrouted = score rows with no route covering the canonical `(Model, Reasoning)` → `output.WriteWarning(stderr, "score row <model>/<reasoning> has no route; it cannot be picked")` per row.
    - Provenance counts over routes → summary line `routes: <n> total (<x> user_declared, <y> provider_live, <z> models_dev)` on stderr.
    - Hash: `scoresSHA256Func(cfg)` vs the stored value (F18's file metadata — the seam returns both; see F18 CONTRACTS; when the stored hash is absent, treat as matching=false + warning? NO — absent hash (file written pre-hash) → warning only if `scoresSHA256Func` returns a non-empty live hash AND stored is empty AND routes exist: emit the changed warning; simplest pin: mismatch iff live hash non-empty and stored non-empty and unequal; otherwise no warning).
    - Exit: stale present → `&CodedError{Code: "stale_routes", Message: fmt.Sprintf("%d stale route(s); run which-model routes refresh", n)}` — stdout keeps the stale lines (T7 wraps in `ReportedError`); IO → `runtime`; else nil.

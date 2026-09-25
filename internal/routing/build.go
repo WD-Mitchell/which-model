@@ -66,22 +66,30 @@ type AmbiguityError struct {
 	ModelID    string
 	Name       string // cleaned catalog name that matched
 	Candidates []identity.Identity
+	Reason     string // optional specific cause; empty means effort ambiguity
 }
+
+const (
+	ambiguityEffortReason = "declared effort levels cannot disambiguate"
+	ambiguityNameReason   = "normalized name matches multiple catalog model names"
+)
 
 type joinedLevel struct {
 	level string
 	row   identity.Identity
 }
 
-// joinModel classifies one provider-native model against the catalog.
+// joinModel classifies one provider-native model against the supplied exact or
+// normalized-name bucket. The caller is responsible for exact-name precedence
+// and rejecting collisions between distinct names in a normalized bucket.
 func joinModel(entry ModelEntry, rows []identity.Identity) (levels []joinedLevel, candidates []identity.Identity, unmatched []string) {
 	declared := entry.Reasoning
 	if len(declared) == 0 {
 		declared = []string{"default"}
 	}
-	clean := identity.CleanModelName(entry.Name)
+	nameKey := identity.ModelNameKey(entry.Name)
 	for _, row := range rows {
-		if identity.CleanModelName(row.Model) == clean {
+		if identity.ModelNameKey(row.Model) == nameKey {
 			candidates = append(candidates, row)
 		}
 	}
@@ -122,23 +130,37 @@ func (e *AmbiguityError) Error() string {
 	for i, candidate := range e.Candidates {
 		candidates[i] = fmt.Sprintf("(%s, %s)", candidate.Model, candidate.Reasoning)
 	}
+	if e.Reason == "" {
+		return fmt.Sprintf(
+			"ambiguous route for %s/%s: %s matches catalog identities [%s] that %s; add a manual override in routes.toml",
+			e.Provider,
+			e.ModelID,
+			e.Name,
+			strings.Join(candidates, ", "),
+			ambiguityEffortReason,
+		)
+	}
 	return fmt.Sprintf(
-		"ambiguous route for %s/%s: %s matches catalog identities [%s] that declared effort levels cannot disambiguate; add a manual override in routes.toml",
+		"ambiguous route for %s/%s: %s matches catalog identities [%s] but %s; add a manual override in routes.toml",
 		e.Provider,
 		e.ModelID,
 		e.Name,
 		strings.Join(candidates, ", "),
+		e.Reason,
 	)
 }
 
 // ProduceRoutes derives the route table for every configured provider.
 func ProduceRoutes(in Input) (BuildResult, error) {
 	result := BuildResult{}
-	// One invocation-local name index preserves catalog order within each bucket.
+	// Invocation-local indexes preserve catalog order within exact and normalized
+	// name buckets. Exact cleaned names take precedence over normalized aliases.
 	catalogByName := make(map[string][]identity.Identity, len(in.CatalogRows))
+	catalogByNameKey := make(map[string][]identity.Identity, len(in.CatalogRows))
 	for _, row := range in.CatalogRows {
 		clean := identity.CleanModelName(row.Model)
 		catalogByName[clean] = append(catalogByName[clean], row)
+		catalogByNameKey[identity.ModelNameKey(clean)] = append(catalogByNameKey[identity.ModelNameKey(clean)], row)
 	}
 	if in.Degraded && len(in.Providers) > 0 {
 		result.Warnings = append(result.Warnings, "live provider model lists unavailable; routes built from models-dev and user-declared sources only")
@@ -236,7 +258,11 @@ func ProduceRoutes(in Input) (BuildResult, error) {
 		for _, modelID := range order {
 			source := seen[modelID]
 			clean := identity.CleanModelName(source.entry.Name)
-			levels, candidates, unmatched := joinModel(source.entry, catalogByName[clean])
+			candidateRows := catalogByName[clean]
+			if len(candidateRows) == 0 {
+				candidateRows = catalogByNameKey[identity.ModelNameKey(clean)]
+			}
+			levels, candidates, unmatched := joinModel(source.entry, candidateRows)
 			if len(candidates) == 0 {
 				providerUnrouted = append(providerUnrouted, UnroutedModel{
 					Provider: provider.Provider,
@@ -250,24 +276,39 @@ func ProduceRoutes(in Input) (BuildResult, error) {
 				))
 				continue
 			}
+			candidateNames := make([]string, len(candidates))
+			for i, candidate := range candidates {
+				candidateNames[i] = candidate.Model
+			}
+			_, _, ambiguousName := identity.ResolveModelName(clean, candidateNames)
+			if ambiguousName {
+				providerErr = firstAmbiguity(providerErr, &AmbiguityError{
+					Provider:   provider.Provider,
+					ModelID:    modelID,
+					Name:       clean,
+					Candidates: candidates,
+					Reason:     ambiguityNameReason,
+				})
+				continue
+			}
 			// Explicit effort levels disambiguate the identities the provider
 			// actually serves; score rows for other efforts are not candidates
 			// for that provider-native model. Effort-less entries retain the
 			// fail-loud all-candidates rule because the source cannot choose.
 			if len(source.entry.Reasoning) == 0 && !coversAllCandidates(levels, candidates) {
-				providerErr = &AmbiguityError{
+				providerErr = firstAmbiguity(providerErr, &AmbiguityError{
 					Provider:   provider.Provider,
 					ModelID:    modelID,
 					Name:       clean,
 					Candidates: candidates,
-				}
-				break
+				})
+				continue
 			}
 			for _, level := range levels {
 				autoRoutes = append(autoRoutes, Route{
 					Provider:   provider.Provider,
 					ModelID:    modelID,
-					Model:      clean,
+					Model:      level.row.Model,
 					Reasoning:  level.level,
 					WindowIDs:  BindWindowIDs(provider.Windows, modelID, clean),
 					Provenance: source.src,
@@ -319,13 +360,19 @@ func ProduceRoutes(in Input) (BuildResult, error) {
 			if firstErr == nil {
 				firstErr = providerErr
 			}
-		} else {
-			result.Routes = append(result.Routes, autoRoutes...)
 		}
+		result.Routes = append(result.Routes, autoRoutes...)
 		result.Routes = append(result.Routes, declaredRoutes...)
 		result.Unrouted = append(result.Unrouted, providerUnrouted...)
 	}
 	return result, firstErr
+}
+
+func firstAmbiguity(current error, next *AmbiguityError) error {
+	if current != nil {
+		return current
+	}
+	return next
 }
 
 func coversAllCandidates(levels []joinedLevel, candidates []identity.Identity) bool {
