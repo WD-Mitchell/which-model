@@ -137,6 +137,26 @@ File: `internal/catalog/identity/benchmark.go`.
 func BenchmarkKey(name string) string
 ```
 
+### 3.5 ModelNameKey
+
+File: `internal/catalog/identity/identity.go`.
+
+```go
+// ModelNameKey returns a lookup-only key by applying CleanModelName, retaining
+// Unicode letters/digits and lowercasing them. It does not alter display names
+// or define catalog identity (SPEC §2.8). Callers must prefer exact cleaned
+// names and reject normalized-name collisions.
+func ModelNameKey(model string) string
+```
+
+```go
+// ResolveModelName applies exact-cleaned-name precedence, then a unique
+// ModelNameKey fallback. It reports a missing match as matched=false and a
+// fallback collision as ambiguous=true; it never selects among colliding
+// names (SPEC §2.8).
+func ResolveModelName(model string, candidateNames []string) (canonical string, matched bool, ambiguous bool)
+```
+
 ## 4. Config keys, flags, exit codes, JSON
 
 - Config keys owned: none.

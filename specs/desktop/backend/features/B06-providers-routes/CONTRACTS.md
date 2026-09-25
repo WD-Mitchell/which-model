@@ -54,7 +54,9 @@ func (s *Services) ProviderSetRouteEnabled(ctx context.Context, id, modelID, rea
 func (s *Services) ProviderSetAllRoutes(ctx context.Context, id string, on bool) error
 
 // RefreshRoutes rebuilds routes from models.dev plus bounded provider-native
-// discovery for enabled Cursor/Antigravity providers (SPEC §2.11).
+// discovery for enabled Cursor/Antigravity providers (SPEC §2.11). On routing
+// ambiguity, it publishes successful unambiguous model routes and then returns
+// the hard error; only the ambiguous model is omitted.
 func (p *ProviderService) RefreshRoutes(ctx context.Context) error
 ```
 

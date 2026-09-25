@@ -48,7 +48,7 @@ type Route struct {
 // (F08) or a live provider enumeration.
 type ModelEntry struct {
     ModelID   string   // provider-native id, e.g. "claude-opus-4-5-20251101"
-    Name      string   // display name BEFORE cleaning (F07 CleanModelName applied by routing)
+    Name      string   // display name BEFORE cleaning (F07 CleanModelName applied before matching)
     Reasoning []string // declared effort levels (models.dev reasoning_options[].values); empty = non-reasoning model
 }
 
@@ -57,7 +57,7 @@ type ModelEntry struct {
 type UserDeclaredRoute struct {
     Provider  string
     ModelID   string
-    Model     string   // catalog display name, already cleaned
+    Model     string   // catalog display name; automatic routes use the canonical score name
     Reasoning string   // may be "default"
     WindowIDs []string // explicit gating windows; empty = derive via BindWindowIDs
 }
@@ -102,19 +102,21 @@ type BuildResult struct {
 // When in.Degraded is true, LiveModels are ignored for every provider and
 // exactly one degraded-source warning is emitted (SPEC §2.13).
 // The returned error is non-nil iff len(Errors) > 0 and is the first
-// *AmbiguityError in provider input order, then models.dev record order.
-// On ambiguity for a provider, its auto-derived routes are absent from
-// Routes; user-declared routes for the provider are kept (SPEC §2.8).
+// *AmbiguityError in provider input order, then model source order. An
+// ambiguous model contributes no auto route; successful sibling models from
+// the same provider and all user-declared routes remain in Routes (SPEC §2.8).
 func ProduceRoutes(in Input) (BuildResult, error)
 
-// AmbiguityError is the fail-loud result when an effort-less provider model
-// matches multiple catalog identities (SPEC §2.8). Candidates lists EVERY
-// matched catalog identity, in catalog order.
+// AmbiguityError is the fail-loud result for unresolved reasoning efforts or
+// normalized-name collisions (SPEC §2.8). Candidates lists EVERY matched
+// catalog identity, in catalog order. Reason is empty for the legacy effort
+// ambiguity message and set for a normalized-name collision.
 type AmbiguityError struct {
     Provider   string
     ModelID    string
     Name       string               // cleaned catalog name that matched
     Candidates []identity.Identity
+    Reason     string               // optional specific cause
 }
 
 func (e *AmbiguityError) Error() string
@@ -128,9 +130,10 @@ func (e *AmbiguityError) Error() string
 | unrouted whole model | `unrouted provider model <provider>/<modelID> (<name>): no catalog row matches` |
 | unrouted single level | `unrouted provider model <provider>/<modelID> (<name>, <level>): no catalog row matches` |
 | duplicate user-declared entry (first wins) | `duplicate user-declared route for <provider>/<modelID>; keeping first` |
-| `AmbiguityError.Error()` | `ambiguous route for <provider>/<modelID>: <name> matches catalog identities [(<model>, <reasoning>), (<model>, <reasoning>)] that declared effort levels cannot disambiguate; add a manual override in routes.toml` |
+| `AmbiguityError.Error()` for effort ambiguity | `ambiguous route for <provider>/<modelID>: <name> matches catalog identities [(<model>, <reasoning>), (<model>, <reasoning>)] that declared effort levels cannot disambiguate; add a manual override in routes.toml` |
+| `AmbiguityError.Error()` for a name-key collision | `ambiguous route for <provider>/<modelID>: <name> matches catalog identities [(<model>, <reasoning>), (<model>, <reasoning>)] but normalized name matches multiple catalog model names; add a manual override in routes.toml` |
 
-`AmbiguityError.Error()` formatting rule: `ambiguous route for %s/%s: %s matches catalog identities [%s] that declared effort levels cannot disambiguate; add a manual override in routes.toml`, where the identity list is each candidate rendered as `(<Model>, <Reasoning>)` joined by `", "`.
+Candidate identity lists render each candidate as `(<Model>, <Reasoning>)` joined by `", "`. The effort ambiguity string preserves its existing golden format; the name-key collision uses the separate text shown above.
 
 ## 4. Exported API — `internal/routing/windows.go`
 
@@ -230,10 +233,12 @@ The JSON array-of-objects form of the same identity syntax (`{"model","reasoning
 
 | Symbol | Source | Used by |
 |---|---|---|
-| `identity.CleanModelName(value string) string` | `specs/features/F07-identity/CONTRACTS.md §2`, package `internal/catalog/identity` | SPEC §2.6 name cleaning |
-| `identity.Identity{Model, Reasoning string}` | same | `CatalogRows`, `AmbiguityError.Candidates` |
-| `identity.IdentityKey(model, reasoning string) Identity` | same | SPEC §2.6 join equality |
-| `identity.CollapseReasoning(level string) string` | same | SPEC §2.6 level collapse ("default"→"high") |
+| `identity.CleanModelName(value string) string` | `specs/features/F07-identity/CONTRACTS.md §3.1`, package `internal/catalog/identity` | SPEC §2.6 name cleaning |
+| `identity.ModelNameKey(model string) string` | `specs/features/F07-identity/CONTRACTS.md §3.5` | SPEC §2.6 normalized-name fallback index |
+| `identity.ResolveModelName(model string, candidateNames []string)` | `specs/features/F07-identity/CONTRACTS.md §3.5` | exact-first and collision-safe model-name matching |
+| `identity.Identity{Model, Reasoning string}` | `specs/global/CONTRACTS.md §2.1` | `CatalogRows`, `AmbiguityError.Candidates` |
+| `identity.IdentityKey(model, reasoning string) Identity` | `specs/features/F07-identity/CONTRACTS.md §3.2` | SPEC §2.6 join equality |
+| `identity.CollapseReasoning(level string) string` | `specs/features/F07-identity/CONTRACTS.md §3.2` | SPEC §2.6 level collapse ("default"→"high") |
 | `usage.Kind`, `KindSubscription`, `KindAPIKeyBilling`, `KindGateway`, `KindLocalTool` | `specs/global/CONTRACTS.md §1.3`, `specs/features/F11-usage-types/CONTRACTS.md`, file `internal/usage/types.go` | SPEC §2.4 eligibility |
 | `usage.WindowSpec{ID, Label, Unit, Optional, ModelScope []string}` | `specs/features/F11-usage-types/CONTRACTS.md` (task F11-T3), file `internal/usage/descriptor.go` | `BindWindowIDs` |
 

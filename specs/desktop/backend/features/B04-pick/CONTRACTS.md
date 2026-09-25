@@ -44,12 +44,15 @@ DTOs (`RankRequest`, `RankedModel`, `RankResponse`, `CatalogSummary`) are D00 CO
 ## 3. Internal helpers (shape pinned for the B06/B09 cross-tests)
 
 ```go
-// availableIdentities: routes table ∩ enabled providers − [routes.disabled]
-// (B00 CONTRACTS §6.3), deduplicated, order-independent (set semantics).
+// availableIdentities: routes table ∩ enabled providers − [routes.disabled],
+// resolved to canonical score names and reasoning identities; exact cleaned
+// names win, ModelNameKey fallback requires one distinct score name, and
+// "default" collapses to "high" (SPEC §2.4). Deduplicated, set semantics.
 func (s *Services) availableIdentities() []pick.Identity
 
 // resolveRoute picks the highest-priority enabled, non-disabled route for
-// one catalog (model, reasoning); ok == false never occurs for a candidate
+// one canonical catalog identity, using exact name then unique ModelNameKey
+// fallback and collapsed reasoning; ok == false never occurs for a candidate
 // that passed availability (SPEC §2.7).
 func (s *Services) resolveRoute(model, reasoning string) (r routing.Route, ok bool)
 ```

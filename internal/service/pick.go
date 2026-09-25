@@ -20,6 +20,7 @@ import (
 	"github.com/oklog/ulid/v2"
 
 	"github.com/WD-Mitchell/which-model/internal/catalog"
+	"github.com/WD-Mitchell/which-model/internal/catalog/identity"
 	"github.com/WD-Mitchell/which-model/internal/pick"
 	"github.com/WD-Mitchell/which-model/internal/routing"
 )
@@ -258,11 +259,13 @@ func (s *Services) effectiveHolds(reqHolds int) (int, error) {
 func (s *Services) availableIdentities() []pick.Identity {
 	seen := make(map[pick.Identity]bool)
 	var out []pick.Identity
+	scoreNames := s.scoreModelNames()
 	for _, route := range s.routes.Routes {
 		if !s.routeEnabled(route) {
 			continue
 		}
-		id := pick.Identity{Model: route.Model, Reasoning: route.Reasoning}
+		canonical := identity.IdentityKey(canonicalScoreModelName(route.Model, scoreNames), route.Reasoning)
+		id := pick.Identity{Model: canonical.Model, Reasoning: canonical.Reasoning}
 		if !seen[id] {
 			seen[id] = true
 			out = append(out, id)
@@ -276,13 +279,16 @@ func (s *Services) availableIdentities() []pick.Identity {
 // reasoning). ok == false never occurs for a candidate that passed
 // availability (SPEC §2.7).
 func (s *Services) resolveRoute(model, reasoning string) (routing.Route, bool) {
+	scoreNames := s.scoreModelNames()
+	want := identity.IdentityKey(canonicalScoreModelName(model, scoreNames), reasoning)
 	type candidate struct {
 		route routing.Route
 		prio  int
 	}
 	var matches []candidate
 	for _, route := range s.routes.Routes {
-		if route.Model != model || route.Reasoning != reasoning {
+		got := identity.IdentityKey(canonicalScoreModelName(route.Model, scoreNames), route.Reasoning)
+		if got != want {
 			continue
 		}
 		if !s.routeEnabled(route) {
@@ -301,6 +307,26 @@ func (s *Services) resolveRoute(model, reasoning string) (routing.Route, bool) {
 		return matches[i].route.Provider < matches[j].route.Provider
 	})
 	return matches[0].route, true
+}
+
+// scoreModelNames returns the model names used to resolve cached routes.
+func (s *Services) scoreModelNames() []string {
+	names := make([]string, 0, len(s.scores))
+	for _, row := range s.scores {
+		names = append(names, row.Model)
+	}
+	return names
+}
+
+// canonicalScoreModelName maps a route/display spelling onto the score
+// catalogue's canonical model name. Exact cleaned names win; normalized
+// fallback succeeds only for one distinct catalog name, keeping old route
+// caches usable without conflating similarly named scored models.
+func canonicalScoreModelName(model string, scoreNames []string) string {
+	if canonical, matched, ambiguous := identity.ResolveModelName(model, scoreNames); matched && !ambiguous {
+		return canonical
+	}
+	return identity.CleanModelName(model)
 }
 
 func (s *Services) scoreRow(model, reasoning string) (catalog.ScoreRow, bool) {

@@ -84,10 +84,7 @@ func (p *ProviderService) RefreshRoutes(ctx context.Context) error {
 	input := p.routeProductionInputLocked(catalogue, liveModels)
 	p.s.mu.RUnlock()
 
-	result, err := routing.ProduceRoutes(input)
-	if err != nil {
-		return toErrorDTO(err)
-	}
+	result, routeErr := routing.ProduceRoutes(input)
 	routes := result.Routes
 	if routes == nil {
 		routes = []routing.Route{}
@@ -120,6 +117,9 @@ func (p *ProviderService) RefreshRoutes(ctx context.Context) error {
 	p.s.mu.Unlock()
 	p.s.emit(EventCatalogChanged, map[string]any{})
 	p.s.emit(EventConfigChanged, map[string]string{"section": "routes"})
+	if routeErr != nil {
+		return toErrorDTO(routeErr)
+	}
 	return nil
 }
 
